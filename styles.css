@@ -1,0 +1,25 @@
+
+
+.dvutil {
+    padding-left: 1rem;
+    margin-left: 1rem;
+    font-size: 11px!important;
+    border-left: 1px solid #aaa;
+    background-color: #fafafa;
+    margin-bottom: 2rem;
+    line-height: 13px!important;
+}
+
+
+.markdown-source-view .dvutil * {
+    margin-block-end: -13px!important;
+
+}
+
+.markdown-source-view .dvutil li:nth-child(1) {
+    margin-block-start: -13px!important;
+}
+
+.block-language-crossmark {
+    color: 'red'
+}
