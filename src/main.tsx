@@ -1,27 +1,27 @@
-import { Plugin, Vault, Workspace, MarkdownView, MarkdownRenderer } from 'obsidian';
+import { Plugin, Vault, Workspace, MarkdownView, MarkdownRenderer, MarkdownPostProcessorContext } from 'obsidian';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { getInlinkedPages, makeSubtrees } from './utils';
 
 const ReactApp = (props: any) => {
 
-	const { data, view } = props
+	const { data } = props
 
-	const [components, setComponent] = React.useState(null)
+	const [components, setComponents] = React.useState(null)
 
-	const getMd = async (_reparse: string) => {
+	const renderMarkdownBlock = async (_reparse: string) => {
 		const mdDiv = document.createElement('div');
 		mdDiv.style.display = 'hidden';
 		document.body.appendChild(mdDiv);
-		await MarkdownRenderer.renderMarkdown(_reparse, mdDiv, '/', view)
+		await MarkdownRenderer.renderMarkdown(_reparse, mdDiv, '/', null)
 		return mdDiv
 	}
 
-	const rebaked = async () => {
+	const renderAllMarkdownBlocks = async () => {
 		return await Promise.all(data.map(async (p: any) => {
 			return {
 				...p,
-				inner: await getMd(p.reparse)
+				inner: await renderMarkdownBlock(p.reparse)
 			}
 		}))
 	}
@@ -29,23 +29,23 @@ const ReactApp = (props: any) => {
 	React.useEffect(() => {
 		(async () => {
 			if (!components) {
-				const x = await rebaked()
-				setComponent(x)
+				const dataWithInnerHtml = await renderAllMarkdownBlocks()
+				setComponents(dataWithInnerHtml)
 			}
 		})();
 	}, [components])
 
 
 	if (components) {
-		return <div 
+		return <div
 
 		>
 			{components.map((p: any) => {
 
 				return <div key={p.fileName}>
 					<h2>{p.fileName}</h2>
-					<div dangerouslySetInnerHTML={{__html: p.inner.innerHTML}} 
-					className={"dvutil"} />
+					<div dangerouslySetInnerHTML={{ __html: p.inner.innerHTML }}
+						className={"dvutil"} />
 				</div>
 			})}
 		</div>
@@ -58,7 +58,7 @@ const ReactApp = (props: any) => {
 }
 
 
-export default class DiagramsNet extends Plugin {
+export default class ObsidianInflux extends Plugin {
 
 
 	vault: Vault;
@@ -86,7 +86,13 @@ export default class DiagramsNet extends Plugin {
 		})
 
 
-		this.registerMarkdownCodeBlockProcessor('crossmark', async (source, el) => {
+		this.registerMarkdownCodeBlockProcessor('influx', async (source, el, ctx) => {
+			this.awaitDataviewPluginInitialized(
+				() => this.processInfluxCodeblock(source, el, ctx)
+			)
+		})
+
+		this.registerMarkdownCodeBlockProcessor('influx__DEPR1', async (source, el, ctx) => {
 
 			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (activeView && activeView.editor && this.dv) {
@@ -106,6 +112,36 @@ export default class DiagramsNet extends Plugin {
 
 	}
 
+
+	async processInfluxCodeblock(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+
+		if (el && ctx.sourcePath && this.dv) {
+
+			const page = await this.dv.page(ctx.sourcePath)
+			const inlinkedPages = getInlinkedPages(this.dv, page)
+			const data = await makeSubtrees(this.dv, page, inlinkedPages)
+
+			const div = el.createEl("div");
+			this.anchor = createRoot(div)
+			this.anchor.render(<ReactApp data={data} />);
+
+		}
+	}
+
+
+	/** Help wait until dataview is done indexing before rendering 
+	 * code blocks that depend on dataview.
+	 */
+	async awaitDataviewPluginInitialized(delayedFunction: () => void) {
+		if (!this.dv) {
+			return false
+		}
+		else if (this.dv?.index?.initialized !== true) {
+			window.setTimeout(() => this.awaitDataviewPluginInitialized(delayedFunction), 100);
+		} else {
+			await delayedFunction()
+		}
+	}
 
 
 	getDataviewPluginIfEnabled() {
