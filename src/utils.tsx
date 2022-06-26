@@ -19,10 +19,24 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
     const file = await dv.app.vault.getAbstractFileByPath(p.file.path)
     const content = await dv.app.vault.read(file)
 
-    const searchString = `[[${currentPage.file.name}]]`
+    console.log('curr', currentPage)
+
+    const searchStrings = [asLink(currentPage.file.name)]
     const tree = doTree(content)
 
-    findSubtree(tree, searchString, saveSubtree)
+    // Add any aliases to the array of ids to search for
+    if (currentPage.alias) {
+      if (typeof currentPage.alias === 'string') {
+        searchStrings.push(asLink(`${currentPage.file.name}|${currentPage.alias}`))
+      }
+      else {
+        currentPage.alias.forEach((str: string) => searchStrings.push(asLink(`${currentPage.file.name}|${str}`)))
+      }
+    }
+
+    console.log('searchstrings', searchStrings)
+
+    findSubtree(tree, searchStrings, saveSubtree)
 
     if (subtree) {
       doReparse(subtree, 1, saveReparse)
@@ -40,16 +54,16 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
 
 
 
-const findSubtree = (nodes: any, searchString: string, saveSubtree: (tree: any) => void) => {
+const findSubtree = (nodes: any, searchStrings: string[], saveSubtree: (tree: any) => void) => {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
-    if (node.root.includes(searchString)) {
+    if (searchStrings.some(str => node.root.includes(str))) {
       // subtree = node
       saveSubtree(node)
       break;
     }
     else if (node.content?.length > 0) {
-      findSubtree(node.content, searchString, saveSubtree)
+      findSubtree(node.content, searchStrings, saveSubtree)
     }
   }
 }
@@ -106,3 +120,5 @@ const doTree = (data: any) => {
   }
   return res
 }
+
+const asLink = (str: string) => `[[${str}]]`
