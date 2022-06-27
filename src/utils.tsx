@@ -1,4 +1,6 @@
 
+const SHOW_ANCESTORS = true
+
 export const getInlinkedPages = (dv: any, currentPage: any) => {
   return currentPage.file.inlinks
     .map((link: any) => dv.page(link.path))
@@ -15,7 +17,7 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
     const reparse: string[] = []
     //let reparse = ''
 
-    const saveSubtree = (tree: any) => { subtrees.push(tree) }
+    const saveSubtree = (tree: any, ancestors: any[]) => { subtrees.push([tree, ancestors]) }
     const saveReparse = (text: string, index: number) => { reparse[index] = (reparse[index] || '') + text }
 
     const file = await dv.app.vault.getAbstractFileByPath(p.file.path)
@@ -40,11 +42,17 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
 
     console.log('searchstrings', searchStrings)
 
-    findSubtree(tree, searchStrings, saveSubtree)
+    findSubtree(tree, searchStrings, saveSubtree, [])
 
     if (subtrees) {
-      subtrees.forEach((subtree, i) => {
-        doReparse(subtree, 1, saveReparse, i)
+      subtrees.forEach(([subtree, ancestors], i) => {
+        if (SHOW_ANCESTORS) {
+          doReparseAncestors(ancestors, 0, saveReparse, i)
+          doReparse(subtree, ancestors.length, saveReparse, i)
+        }
+        else {
+          doReparse(subtree, 0, saveReparse, i)
+        }
       })
     }
 
@@ -60,19 +68,31 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
 
 
 
-const findSubtree = (nodes: any, searchStrings: string[], saveSubtree: (tree: any) => void) => {
+const findSubtree = (nodes: any, searchStrings: string[], saveSubtree: (tree: any, ancestors: any[]) => void, ancestors: any[]) => {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     if (searchStrings.some(str => node.root.includes(str))) {
       // subtree = node
-      saveSubtree(node)
+      saveSubtree(node, ancestors)
     }
     else if (node.content?.length > 0) {
-      findSubtree(node.content, searchStrings, saveSubtree)
+      findSubtree(node.content, searchStrings, saveSubtree, [...ancestors, node])
     }
   }
 }
 
+
+const doReparseAncestors = (ancestors: any[], level: number, saveReparse: (text: string, index: number) => void, index: number) => {
+  ancestors.forEach((node: any, j: number) => {
+    const _level = level + j
+    // console.log('n', node.root.substring(0, 2))
+    const expectedBullet = node.root.substring(0, 2)
+    const nodeString = expectedBullet === '* '
+      ? `* <span class="ancestor">${node.root.slice(2)}</span>`
+      : node.root
+    saveReparse(`${' '.repeat(2 * _level)}${nodeString}\n`, index)
+  })
+}
 
 const doReparse = (node: any, level: number, saveReparse: (text: string, index: number) => void, index: number) => {
   saveReparse(`${' '.repeat(2 * level)}${node.root}\n`, index)
