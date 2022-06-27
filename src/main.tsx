@@ -21,7 +21,9 @@ const ReactApp = (props: any) => {
 		return await Promise.all(data.map(async (p: any) => {
 			return {
 				...p,
-				inner: await renderMarkdownBlock(p.reparse)
+				inner: await Promise.all(p.reparse.map(async (reparse: string) => await renderMarkdownBlock(reparse)
+				))
+
 			}
 		}))
 	}
@@ -35,6 +37,7 @@ const ReactApp = (props: any) => {
 		})();
 	}, [components])
 
+	console.log('comp', components)
 
 	if (components) {
 		return <div
@@ -44,8 +47,14 @@ const ReactApp = (props: any) => {
 
 				return <div key={p.fileName}>
 					<h2>{p.fileName}</h2>
-					<div dangerouslySetInnerHTML={{ __html: p.inner.innerHTML }}
-						className={"dvutil"} />
+					{p.inner.map((div: any, i: number) => (
+						<div
+							key={i}
+							dangerouslySetInnerHTML={{ __html: div.innerHTML }}
+							className={"dvutil"}
+						/>
+					))}
+
 				</div>
 			})}
 		</div>

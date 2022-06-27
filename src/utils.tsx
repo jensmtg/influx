@@ -6,15 +6,17 @@ export const getInlinkedPages = (dv: any, currentPage: any) => {
 }
 
 export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any) => {
+
   const ret: any = []
 
   await Promise.all(inlinkedPages.map(async (p: any, i: number) => {
 
-    let subtree
-    let reparse = ''
+    const subtrees: any[] = []
+    const reparse: string[] = []
+    //let reparse = ''
 
-    const saveSubtree = (tree: any) => { subtree = tree }
-    const saveReparse = (text: string) => { reparse = reparse + text }
+    const saveSubtree = (tree: any) => { subtrees.push(tree) }
+    const saveReparse = (text: string, index: number) => { reparse[index] = (reparse[index] || '') + text }
 
     const file = await dv.app.vault.getAbstractFileByPath(p.file.path)
     const content = await dv.app.vault.read(file)
@@ -23,6 +25,7 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
 
     const searchStrings = [asLink(currentPage.file.name)]
     const tree = doTree(content)
+
 
     // Add any aliases to the array of ids to search for
     if (currentPage.alias) {
@@ -34,12 +37,15 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
       }
     }
 
+
     console.log('searchstrings', searchStrings)
 
     findSubtree(tree, searchStrings, saveSubtree)
 
-    if (subtree) {
-      doReparse(subtree, 1, saveReparse)
+    if (subtrees) {
+      subtrees.forEach((subtree, i) => {
+        doReparse(subtree, 1, saveReparse, i)
+      })
     }
 
     ret[i] = {
@@ -60,7 +66,6 @@ const findSubtree = (nodes: any, searchStrings: string[], saveSubtree: (tree: an
     if (searchStrings.some(str => node.root.includes(str))) {
       // subtree = node
       saveSubtree(node)
-      break;
     }
     else if (node.content?.length > 0) {
       findSubtree(node.content, searchStrings, saveSubtree)
@@ -69,9 +74,9 @@ const findSubtree = (nodes: any, searchStrings: string[], saveSubtree: (tree: an
 }
 
 
-const doReparse = (node: any, level: number, saveReparse: (text?: string) => void) => {
-  saveReparse(`${' '.repeat(2 * level)}${node.root}\n`)
-  node.content.forEach((child: any) => doReparse(child, level + 1, saveReparse))
+const doReparse = (node: any, level: number, saveReparse: (text: string, index: number) => void, index: number) => {
+  saveReparse(`${' '.repeat(2 * level)}${node.root}\n`, index)
+  node.content.forEach((child: any) => doReparse(child, level + 1, saveReparse, index))
 }
 
 // https://stackoverflow.com/a/70338823
