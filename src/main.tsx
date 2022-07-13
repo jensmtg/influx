@@ -1,4 +1,4 @@
-import { Plugin, Vault, Workspace, MarkdownView, MarkdownRenderer, MarkdownPostProcessorContext } from 'obsidian';
+import { Plugin, Vault, Workspace, MarkdownView, MarkdownRenderer, MarkdownPostProcessorContext, PluginSettingTab, Setting } from 'obsidian';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { getInlinkedPages, makeSubtrees } from './utils';
@@ -19,11 +19,16 @@ const ReactApp = (props: any) => {
 
 	const renderAllMarkdownBlocks = async () => {
 		return await Promise.all(data.map(async (p: any) => {
+
+			// Parse title, and strip innerHTML of enclosing <p>:
+			const titleAsMd = await renderMarkdownBlock(p.title)
+			const titleInnerHTML = titleAsMd.innerHTML.slice(3, -4)
+
 			return {
 				...p,
+				titleInnerHTML: titleInnerHTML,
 				inner: await Promise.all(p.reparse.map(async (reparse: string) => await renderMarkdownBlock(reparse)
 				))
-
 			}
 		}))
 	}
@@ -46,7 +51,12 @@ const ReactApp = (props: any) => {
 			{components.map((p: any) => {
 
 				return <div key={p.fileName}>
-					<h2>{p.fileName}</h2>
+					<h2>{p.fileName} &nbsp; 
+					<span
+					style={{opacity: 0.5}}
+					dangerouslySetInnerHTML={{ __html: p.titleInnerHTML }}
+					/>
+					</h2>
 					{p.inner.map((div: any, i: number) => (
 						<div
 							key={i}
@@ -67,9 +77,17 @@ const ReactApp = (props: any) => {
 }
 
 
+interface MyPluginSettings {
+	mySetting: string;
+}
+
+// const DEFAULT_SETTINGS: MyPluginSettings = {
+// 	mySetting: 'default'
+// }
+
 export default class ObsidianInflux extends Plugin {
 
-
+	settings: MyPluginSettings;
 	vault: Vault;
 	workspace: Workspace;
 	data: any;
@@ -111,6 +129,8 @@ export default class ObsidianInflux extends Plugin {
 				const inlinkedPages = getInlinkedPages(this.dv, page)
 				const data = await makeSubtrees(this.dv, page, inlinkedPages)
 
+				
+
 				const div = el.createEl("div");
 				this.anchor = createRoot(div)
 				this.anchor.render(<ReactApp data={data} view={activeView} />);
@@ -127,6 +147,7 @@ export default class ObsidianInflux extends Plugin {
 		if (el && ctx.sourcePath && this.dv) {
 
 			const page = await this.dv.page(ctx.sourcePath)
+			
 			const inlinkedPages = getInlinkedPages(this.dv, page)
 			const data = await makeSubtrees(this.dv, page, inlinkedPages)
 

@@ -1,5 +1,7 @@
 
 const SHOW_ANCESTORS = true
+const FRONTMATTER_KEY = 'tittel'
+
 
 export const getInlinkedPages = (dv: any, currentPage: any) => {
   return currentPage.file.inlinks
@@ -9,7 +11,7 @@ export const getInlinkedPages = (dv: any, currentPage: any) => {
 
 export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any) => {
 
-  const ret: any = []
+ const ret: any = []
 
   await Promise.all(inlinkedPages.map(async (p: any, i: number) => {
 
@@ -23,10 +25,15 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
     const file = await dv.app.vault.getAbstractFileByPath(p.file.path)
     const content = await dv.app.vault.read(file)
 
-    console.log('curr', currentPage)
+    const metadata = dv.app.metadataCache.getFileCache(file);
+    const titleByFrontmatterAttribute = metadata?.frontmatter?.[FRONTMATTER_KEY]
+    const titleByFirstHeader = metadata?.headings?.[0]?.heading
+    const title = titleByFrontmatterAttribute || titleByFirstHeader || ''
 
     const searchStrings = [asLink(currentPage.file.name)]
     const tree = doTree(content)
+
+    console.log('tree', tree)
 
 
     // Add any aliases to the array of ids to search for
@@ -42,23 +49,41 @@ export const makeSubtrees = async (dv: any, currentPage: any, inlinkedPages: any
 
     console.log('searchstrings', searchStrings)
 
-    findSubtree(tree, searchStrings, saveSubtree, [])
-
-    if (subtrees) {
-      subtrees.forEach(([subtree, ancestors], i) => {
-        if (SHOW_ANCESTORS) {
-          doReparseAncestors(ancestors, 0, saveReparse, i)
-          doReparse(subtree, ancestors.length, saveReparse, i)
-        }
-        else {
-          doReparse(subtree, 0, saveReparse, i)
-        }
-      })
-    }
-
     ret[i] = {
       fileName: p.file.name,
-      reparse: reparse
+      title: title,
+    }
+
+
+    if (searchStrings.some(str => title.includes(str))) {
+
+      let fullReparse = ''
+      for (let i = 0; i < tree.length; i++) {
+        doReparseFullNote(tree[i], 0, (text: string) => {
+          fullReparse = fullReparse + text
+        })
+      }
+      ret[i].reparse = [fullReparse]
+
+    }
+    else {
+
+      findSubtree(tree, searchStrings, saveSubtree, [])
+
+      if (subtrees) {
+        subtrees.forEach(([subtree, ancestors], i) => {
+          if (SHOW_ANCESTORS) {
+            doReparseAncestors(ancestors, 0, saveReparse, i)
+            doReparse(subtree, ancestors.length, saveReparse, i)
+          }
+          else {
+            doReparse(subtree, 0, saveReparse, i)
+          }
+        })
+      }
+  
+      ret[i].reparse = reparse
+      
     }
 
   }));
@@ -98,6 +123,13 @@ const doReparse = (node: any, level: number, saveReparse: (text: string, index: 
   saveReparse(`${' '.repeat(2 * level)}${node.root}\n`, index)
   node.content.forEach((child: any) => doReparse(child, level + 1, saveReparse, index))
 }
+
+const doReparseFullNote = (node: any, level: number, saveReparse: (text: string) => void) => {
+  saveReparse(`${' '.repeat(2 * level)}${node.root}\n`)
+  node.content.forEach((child: any) => doReparseFullNote(child, level + 1, saveReparse))
+}
+
+
 
 // https://stackoverflow.com/a/70338823
 const indentation = (() => {
