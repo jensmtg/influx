@@ -57,7 +57,7 @@ export default class ObsidianInflux extends Plugin {
 
 			const div = el.createEl("div");
 			this.anchor = createRoot(div)
-			this.anchor.render(<InfluxReactComponent influxFile={influxFile} />);
+			this.anchor.render(<InfluxReactComponent influxFile={influxFile} api={this.apiAdapter}/>);
 
 		}
 	}

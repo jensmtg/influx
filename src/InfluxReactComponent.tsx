@@ -1,8 +1,8 @@
 import * as React from "react";
-import { MarkdownRenderer } from 'obsidian';
 import InfluxFile, { InlinkingFile } from './InfluxFile';
+import { ApiAdapter } from "./apiAdapter";
 
-interface InfluxReactComponentProps { influxFile: InfluxFile }
+interface InfluxReactComponentProps { influxFile: InfluxFile, api: ApiAdapter }
 type ExtendedInlinkingFile = {
 	inlinkingFile: InlinkingFile;
 	titleInnerHTML: string;
@@ -11,29 +11,21 @@ type ExtendedInlinkingFile = {
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps) {
 
-	const { influxFile } = props
+	const { influxFile, api } = props
 
 	const [components, setComponents] = React.useState(null)
-
-	const renderMarkdownBlock = async (md: string) => {
-		const mdDiv = document.createElement('div');
-		mdDiv.style.display = 'hidden';
-		document.body.appendChild(mdDiv);
-		await MarkdownRenderer.renderMarkdown(md, mdDiv, '/', null)
-		return mdDiv
-	}
 
 	const renderAllMarkdownBlocks = async () => {
 		return await Promise.all(influxFile.inlinkingFiles.map(async (inlinkingFile) => {
 
 			// Parse title, and strip innerHTML of enclosing <p>:
-			const titleAsMd = await renderMarkdownBlock(inlinkingFile.title)
+			const titleAsMd = await api.renderMarkdown(inlinkingFile.title)
 			const titleInnerHTML = titleAsMd.innerHTML.slice(3, -4)
 
 			const extended: ExtendedInlinkingFile = {
 				inlinkingFile: inlinkingFile,
 				titleInnerHTML: titleInnerHTML,
-				inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await renderMarkdownBlock(summary))),
+				inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await api.renderMarkdown(summary))),
 			}
 
 			return extended
@@ -49,12 +41,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps) {
 		})();
 	}, [components])
 
-	// console.log('comp', components)
 
 	if (components) {
-		return <div
-
-		>
+		return <div>
 			{components.map((extended: ExtendedInlinkingFile) => {
 
 				return <div key={extended.inlinkingFile.file.basename}>
