@@ -1,4 +1,4 @@
-import { Plugin, Vault, Workspace, App, MarkdownPostProcessorContext, PluginSettingTab, Setting } from 'obsidian';
+import { Plugin, Vault, Workspace, MarkdownPostProcessorContext } from 'obsidian';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import InfluxReactComponent from './InfluxReactComponent';

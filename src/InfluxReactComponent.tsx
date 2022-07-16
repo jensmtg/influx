@@ -3,17 +3,15 @@ import { MarkdownRenderer } from 'obsidian';
 import InfluxFile, { InlinkingFile } from './InfluxFile';
 
 interface InfluxReactComponentProps { influxFile: InfluxFile }
-type ExtendedInlinkingFile = { 
+type ExtendedInlinkingFile = {
 	inlinkingFile: InlinkingFile;
 	titleInnerHTML: string;
 	inner: HTMLDivElement[];
 }
 
-export default function InfluxReactComponent (props: InfluxReactComponentProps) {
+export default function InfluxReactComponent(props: InfluxReactComponentProps) {
 
 	const { influxFile } = props
-
-	console.log('inf', influxFile)
 
 	const [components, setComponents] = React.useState(null)
 
@@ -32,7 +30,7 @@ export default function InfluxReactComponent (props: InfluxReactComponentProps) 
 			const titleAsMd = await renderMarkdownBlock(inlinkingFile.title)
 			const titleInnerHTML = titleAsMd.innerHTML.slice(3, -4)
 
-			const extended : ExtendedInlinkingFile = {
+			const extended: ExtendedInlinkingFile = {
 				inlinkingFile: inlinkingFile,
 				titleInnerHTML: titleInnerHTML,
 				inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await renderMarkdownBlock(summary))),
@@ -60,11 +58,11 @@ export default function InfluxReactComponent (props: InfluxReactComponentProps) 
 			{components.map((extended: ExtendedInlinkingFile) => {
 
 				return <div key={extended.inlinkingFile.file.basename}>
-					<h2>{extended.inlinkingFile.file.basename} &nbsp; 
-					<span
-					style={{opacity: 0.5}}
-					dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}
-					/>
+					<h2>{extended.inlinkingFile.file.basename} &nbsp;
+						<span
+							style={{ opacity: 0.5 }}
+							dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}
+						/>
 					</h2>
 					{extended.inner.map((div: HTMLDivElement, i: number) => (
 						<div
