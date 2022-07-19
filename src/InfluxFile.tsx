@@ -12,12 +12,19 @@ type TreeNode = {
     lineNum?: number;
 }
 
+export type ExtendedInlinkingFile = {
+	inlinkingFile: InlinkingFile;
+	titleInnerHTML: string;
+	inner: HTMLDivElement[];
+}
+
 export default class InfluxFile {
     api: ApiAdapter;
     file: TFile;
     meta: CachedMetadata;
     backlinks: BacklinksObject;
     inlinkingFiles: InlinkingFile[];
+    components: ExtendedInlinkingFile[];
 
 
     constructor(path: string, apiAdapter: ApiAdapter) {
@@ -27,6 +34,7 @@ export default class InfluxFile {
         this.meta = this.api.getMetadata(this.file)
         this.backlinks = this.api.getBacklinks(this.file)
         this.inlinkingFiles = []
+        this.components = []
 
     }
 
@@ -38,6 +46,23 @@ export default class InfluxFile {
             this.inlinkingFiles.push(inlinkingFile)
         }))
     }
+
+    async renderAllMarkdownBlocks() {
+		this.components = await Promise.all(this.inlinkingFiles.map(async (inlinkingFile) => {
+
+			// Parse title, and strip innerHTML of enclosing <p>:
+			const titleAsMd = await this.api.renderMarkdown(inlinkingFile.title)
+			const titleInnerHTML = titleAsMd.innerHTML.slice(3, -4)
+
+			const extended: ExtendedInlinkingFile = {
+				inlinkingFile: inlinkingFile,
+				titleInnerHTML: titleInnerHTML,
+				inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.api.renderMarkdown(summary))),
+			}
+
+			return extended
+		}))
+	}
 
 }
 
@@ -81,7 +106,7 @@ export class InlinkingFile {
     setTitle() {
         const titleByFrontmatterAttribute = this.meta.frontmatter?.[FRONTMATTER_KEY]
         const titleByFirstHeader = this.meta.headings?.[0]
-        this.title = titleByFrontmatterAttribute || titleByFirstHeader.heading || ''
+        this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
         if (titleByFirstHeader) {
             this.titleLineNum = titleByFirstHeader.position.start.line
         }
