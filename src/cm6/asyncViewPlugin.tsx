@@ -5,10 +5,10 @@ import { statefulDecorations } from "./helpers";
 
 const asyncViewPlugin = ViewPlugin.fromClass(
     class {
-        decoManager: StatefulDecorationSet;
+        statefulDecorationsSet: StatefulDecorationSet;
 
         constructor(view: EditorView) {
-            this.decoManager = new StatefulDecorationSet(view);
+            this.statefulDecorationsSet = new StatefulDecorationSet(view);
             this.buildAsyncDecorations(view);
         }
 
@@ -21,7 +21,7 @@ const asyncViewPlugin = ViewPlugin.fromClass(
         destroy() { }
 
         buildAsyncDecorations(view: EditorView) {
-            this.decoManager.debouncedUpdate(view.state);
+            this.statefulDecorationsSet.debouncedUpdate(view.state);
         }
     }
 );
