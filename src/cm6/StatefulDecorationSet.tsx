@@ -1,7 +1,6 @@
 import { debounce, editorViewField } from "obsidian";
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import { Range } from "@codemirror/rangeset";
+import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
 import { ApiAdapter } from '../apiAdapter';
 import { influxDecoration } from "./InfluxWidget";
