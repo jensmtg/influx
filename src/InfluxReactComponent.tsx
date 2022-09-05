@@ -9,25 +9,33 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const { influxFile } = props
 
+	const length = influxFile?.components.length || 0
 
 	return <div className="influx">
+
+		<h3>Influx ({length})</h3>
+
 		{influxFile?.components.map((extended: ExtendedInlinkingFile) => {
 
 			return (
-				<div key={extended.inlinkingFile.file.basename}>
-					<h2>{extended.inlinkingFile.file.basename} &nbsp;
-						<span
-							style={{ opacity: 0.5 }}
+				<div
+					key={extended.inlinkingFile.file.basename}
+					className="influx-inlinked">
+					<div className="influx-inlinked-metacol">
+						<h2>{extended.inlinkingFile.file.basename}</h2>
+					</div>
+					<div className="influx-inlinked-entries">
+						<h2><span
 							dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}
-						/>
-					</h2>
-					{extended.inner.map((div: HTMLDivElement, i: number) => (
-						<div
-							key={i}
-							dangerouslySetInnerHTML={{ __html: div.innerHTML }}
-							className={"dvutil"}
-						/>
-					))}
+						/></h2>
+						{extended.inner.map((div: HTMLDivElement, i: number) => (
+							<div
+								key={i}
+								dangerouslySetInnerHTML={{ __html: div.innerHTML }}
+								className={"influx-inlinked-entry"}
+							/>
+						))}
+					</div>
 
 				</div>
 			)

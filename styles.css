@@ -1,33 +1,78 @@
 
 
 .influx {
-    border: 1px solid khaki;
+    /* border: 1px dotted lightsteelblue; */
+    border-radius: 10px;
+    box-shadow: #aaa;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
 }
 
-.dvutil {
-    padding-left: 1rem;
-    margin-left: 1rem;
+
+
+.influx h3 {
+    font-size: 10px!important;
+    line-height: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 0;
+    color: lightsteelblue;
+    margin-bottom: 10px;
+}
+
+.influx-inlinked {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: row;
+}
+
+.influx-inlinked-metacol {
+    width: 160px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px dotted lightblue;
+    padding-right: 1rem;
+
+}
+
+.influx-inlinked h2 {
     font-size: 11px!important;
-    border-left: 1px solid #aaa;
-    background-color: #fafafa;
-    margin-bottom: 2rem;
+    line-height: 11px;
+    margin: 0;
+    padding: 0;
+}
+
+.influx-inlinked-entries {
+    width: 100%;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding-left: 1rem;
+
+}
+
+.influx-inlinked-entry {
+    padding-left: 8px;
+    margin-left: 8px;
+    font-size: 11px!important;
+    /* background-color: #f9f9f9; */
+    /* margin-bottom: 2rem; */
     line-height: 13px!important;
 }
 
 
-.markdown-source-view .dvutil * {
+.markdown-source-view .influx-inlinked-entry * {
     margin-block-end: -13px!important;
 
 }
 
-.markdown-source-view .dvutil li:nth-child(1) {
+.markdown-source-view .influx-inlinked-entry li:nth-child(1) {
     margin-block-start: -13px!important;
 }
 
-.block-language-influx {
-    color: 'red'
-}
 
 .ancestor {
-    color: #bbb;
+    color: #666;
 }
