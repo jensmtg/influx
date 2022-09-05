@@ -5,10 +5,15 @@ import { asyncDecoBuilderExt  } from './cm6/asyncViewPlugin';
 
 interface ObsidianInfluxSettings {
 	dateFormat: string;
+	newestFirst: boolean;
+	sortByCreated: boolean;
+
 }
 
 const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	dateFormat: "YYYY-MM-DD",
+	newestFirst: true,
+	sortByCreated: true,
 };
 
 

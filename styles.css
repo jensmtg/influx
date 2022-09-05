@@ -1,5 +1,9 @@
 
 
+.influx {
+    border: 1px solid khaki;
+}
+
 .dvutil {
     padding-left: 1rem;
     margin-left: 1rem;

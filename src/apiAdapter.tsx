@@ -35,4 +35,10 @@ export class ApiAdapter {
 		await MarkdownRenderer.renderMarkdown(markdown, div, '/', null)
 		return div
     }
+
+    getSettings () {
+        // @ts-ignore
+        const settings = this.app.plugins?.plugins?.influx?.settings || {}
+        return settings
+    }
 }

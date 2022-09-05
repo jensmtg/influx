@@ -15,17 +15,31 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
         containerEl.empty();
 
+
         new Setting(containerEl)
-            .setName("Date format")
-            .setDesc("Default date format")
-            .addText((text) =>
-                text
-                    .setPlaceholder("MMMM dd, yyyy")
-                    .setValue(this.plugin.settings.dateFormat)
+            .setName("Newest first")
+            .setDesc("Order notes so that the newest are shown at the top.")
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.newestFirst)
                     .onChange(async (value) => {
-                        this.plugin.settings.dateFormat = value;
+                        this.plugin.settings.newestFirst = value;
                         await this.plugin.saveSettings();
                     })
-            );
+            })
+
+
+        new Setting(containerEl)
+            .setName("Sort by time created")
+            .setDesc("Order notes according to time created (Disable to sort according to time modified).")
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.settings.byTimeCreated)
+                    .onChange(async (value) => {
+                        this.plugin.settings.byTimeCreated = value;
+                        await this.plugin.saveSettings();
+                    })
+            })
+
     }
 }

@@ -13,9 +13,9 @@ type TreeNode = {
 }
 
 export type ExtendedInlinkingFile = {
-	inlinkingFile: InlinkingFile;
-	titleInnerHTML: string;
-	inner: HTMLDivElement[];
+    inlinkingFile: InlinkingFile;
+    titleInnerHTML: string;
+    inner: HTMLDivElement[];
 }
 
 export default class InfluxFile {
@@ -48,21 +48,37 @@ export default class InfluxFile {
     }
 
     async renderAllMarkdownBlocks() {
-		this.components = await Promise.all(this.inlinkingFiles.map(async (inlinkingFile) => {
+        const comparator = this.makeComparisonFn(this.api.getSettings())
+        this.components = await Promise.all(this.inlinkingFiles
+            .sort(comparator)
+            .map(async (inlinkingFile) => {
 
-			// Parse title, and strip innerHTML of enclosing <p>:
-			const titleAsMd = await this.api.renderMarkdown(inlinkingFile.title)
-			const titleInnerHTML = titleAsMd.innerHTML.slice(3, -4)
+                // Parse title, and strip innerHTML of enclosing <p>:
+                const titleAsMd = await this.api.renderMarkdown(inlinkingFile.title)
+                const titleInnerHTML = titleAsMd.innerHTML.slice(3, -4)
 
-			const extended: ExtendedInlinkingFile = {
-				inlinkingFile: inlinkingFile,
-				titleInnerHTML: titleInnerHTML,
-				inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.api.renderMarkdown(summary))),
-			}
+                const extended: ExtendedInlinkingFile = {
+                    inlinkingFile: inlinkingFile,
+                    titleInnerHTML: titleInnerHTML,
+                    inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.api.renderMarkdown(summary))),
+                }
 
-			return extended
-		}))
-	}
+                return extended
+            }))
+    }
+
+    /** A sort function to order notes correctly, based on settings. */
+    makeComparisonFn(settings: { [key: string]: boolean }) {
+
+        const timeVariant = settings.byTimeCreated ? 'ctime' : 'mtime'
+        const flip = !settings.newestFirst
+
+        return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
+            if (a.file.stat[timeVariant] < b.file.stat[timeVariant]) return flip ? -1 : 1
+            else if (a.file.stat[timeVariant] > b.file.stat[timeVariant]) return flip ? 1 : -1
+            else return 0
+        }
+    }
 
 }
 
@@ -149,8 +165,8 @@ export class InlinkingFile {
         let output = ''
 
         const traverse = (node: TreeNode, level: number) => {
-                output = output + `${' '.repeat(2 * level)}${node.plain}\n`
-                node.children.forEach(node => { traverse(node, level + 1) })
+            output = output + `${' '.repeat(2 * level)}${node.plain}\n`
+            node.children.forEach(node => { traverse(node, level + 1) })
         }
 
         this.nodeTree.forEach((node: TreeNode) => {
