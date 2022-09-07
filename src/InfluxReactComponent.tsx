@@ -22,7 +22,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					key={extended.inlinkingFile.file.basename}
 					className="influx-inlinked">
 					<div className="influx-inlinked-metacol">
-						<h2>{extended.inlinkingFile.file.basename}</h2>
+
+						<a
+							data-href={extended.inlinkingFile.file.basename}
+							href={extended.inlinkingFile.file.basename}
+							className="internal-link"
+							target="_blank"
+							rel="noopener"
+						>
+							<h2>
+								{extended.inlinkingFile.file.basename}
+							</h2>
+						</a>
+
 					</div>
 					<div className="influx-inlinked-entries">
 						<h2><span
