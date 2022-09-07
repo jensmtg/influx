@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-influx",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"description": ".",
 	"main": "main.js",
 	"scripts": {
