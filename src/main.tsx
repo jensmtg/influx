@@ -4,16 +4,14 @@ import { asyncDecoBuilderExt  } from './cm6/asyncViewPlugin';
 
 
 interface ObsidianInfluxSettings {
-	dateFormat: string;
 	newestFirst: boolean;
-	sortByCreated: boolean;
+	byTimeCreated: boolean;
 
 }
 
 const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
-	dateFormat: "YYYY-MM-DD",
 	newestFirst: true,
-	sortByCreated: true,
+	byTimeCreated: true,
 };
 
 
@@ -27,6 +25,7 @@ export default class ObsidianInflux extends Plugin {
 		this.registerEditorExtension(asyncDecoBuilderExt)
 
 		await this.loadSettings();
+
 		this.addSettingTab(new ObsidianInfluxSettingsTab(this.app, this));
 
 		// this.addRibbonIcon("diagram", "Devrun", () => this.prepareData());
