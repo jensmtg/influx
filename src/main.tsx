@@ -28,16 +28,6 @@ export default class ObsidianInflux extends Plugin {
 
 		this.addSettingTab(new ObsidianInfluxSettingsTab(this.app, this));
 
-		// this.addRibbonIcon("diagram", "Devrun", () => this.prepareData());
-		this.addCommand({
-			id: 'devrun',
-			name: 'devrun',
-			callback: () => {
-				// this.prepareData()
-				// this.addButtonInEdit(app)
-			}
-		})
-
 	}
 
 
