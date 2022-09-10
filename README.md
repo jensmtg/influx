@@ -11,4 +11,4 @@ A plugin for [Obsidian](https://obsidian.md/) that aggregates a terse stream of 
 * Notes should be taken hierarchically, in the form of bullet lists/*bullet journaling*. This helps keep clippings terse and relevant.
 * Links should be used as the only organizing principle in the vault - forgo use of tags and files/folders. This helps with completeness; the plugin only considers links when aggregating.
 
-![Screenshot 2022-09-10 at 09 22 29](https://user-images.githubusercontent.com/6455628/189473676-44b886c1-c4ea-4d26-8284-f0be46aaaeef.png)
+![arrows](https://user-images.githubusercontent.com/6455628/189475242-aa9522ea-3b6e-42ad-845c-efd71bd099b2.png)
