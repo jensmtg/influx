@@ -146,11 +146,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .addTextArea((textArea) => {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
-                    .setPlaceholder('^templates/\n*Menu')
+                    .setPlaceholder('^templates/\nmenu')
                     .setValue(this.plugin.settings.exclusionPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
+                textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.settings.exclusionPattern = patterns.split('\n');
+                    await this.plugin.saveSettings();
                 };
             });
 
@@ -171,11 +172,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .addTextArea((textArea) => {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
-                    .setPlaceholder('^templates/\n*Menu')
+                    .setPlaceholder('^templates/\nmenu')
                     .setValue(this.plugin.settings.inclusionPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
+                textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.settings.inclusionPattern = patterns.split('\n');
+                    await this.plugin.saveSettings();
                 };
             });
 
@@ -198,11 +200,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .addTextArea((textArea) => {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
-                    .setPlaceholder('^templates/\n*Menu')
+                    .setPlaceholder('^templates/\nmenu')
                     .setValue(this.plugin.settings.collapsedPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
+                textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.settings.collapsedPattern = patterns.split('\n');
+                    await this.plugin.saveSettings();
                 };
             });
 

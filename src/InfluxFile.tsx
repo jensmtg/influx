@@ -26,6 +26,8 @@ export default class InfluxFile {
     backlinks: BacklinksObject;
     inlinkingFiles: InlinkingFile[];
     components: ExtendedInlinkingFile[];
+    show: boolean;
+    collapsed: boolean;
 
 
     constructor(path: string, apiAdapter: ApiAdapter) {
@@ -36,6 +38,8 @@ export default class InfluxFile {
         this.backlinks = this.api.getBacklinks(this.file)
         this.inlinkingFiles = []
         this.components = []
+        this.show = this.getShowStatus()
+        this.collapsed = this.getCollapsedStatus()
 
     }
 
@@ -49,6 +53,11 @@ export default class InfluxFile {
     }
 
     async renderAllMarkdownBlocks() {
+
+        // Avoid rendering if no-show
+        if (!this.show) {
+            return
+        }
 
         const settings: Partial<ObsidianInfluxSettings> = this.api.getSettings()
 
@@ -72,8 +81,27 @@ export default class InfluxFile {
             }))
     }
 
+
+    getShowStatus() {
+        const settings: Partial<ObsidianInfluxSettings> = this.api.getSettings()
+        const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern
+        const matched = this.patternMatchingFn(this.file.path, patterns)
+        const show = settings.showBehaviour === 'OPT_IN' && matched ? true
+            : settings.showBehaviour === 'OPT_OUT' && !matched ? true
+                : false
+        return show
+    }
+
+
+    getCollapsedStatus() {
+        const settings: Partial<ObsidianInfluxSettings> = this.api.getSettings()
+        const matched = this.patternMatchingFn(this.file.path, settings.collapsedPattern)
+        return matched
+    }
+
+
     /** A sort function to order notes correctly, based on settings. */
-    makeComparisonFn(settings: Partial<ObsidianInfluxSettings> ) {
+    makeComparisonFn(settings: Partial<ObsidianInfluxSettings>) {
 
         const sortingAttr = settings.sortingAttribute === 'ctime' || settings.sortingAttribute === 'mtime' ? settings.sortingAttribute : 'ctime'
         const flip = settings.sortingPrinciple === 'OLDEST_FIRST'
@@ -84,6 +112,23 @@ export default class InfluxFile {
             else return 0
         }
     }
+
+    patternMatchingFn = (path: string, _patterns: string[]): boolean => {
+        const patterns = _patterns.filter((_path: string) => _path.length > 0)
+
+        const pathMatchesRegex = (pattern: string): boolean => {
+            try {
+                return new RegExp(pattern).test(path);
+            } catch (err) {
+                console.error('Recent Files: Invalid regex pattern: ' + pattern);
+                return false;
+            }
+        };
+
+        const matched = patterns.some(pathMatchesRegex);
+
+        return matched
+    };
 
 }
 

@@ -52,10 +52,10 @@ const useStyles = createUseStyles({
 		width: '160px',
 		display: 'flex',
 		flexDirection: 'column',
-		borderRight: '1px dotted #ccc',
+		borderRight: '1px dashed lightsteelblue',
 		paddingRight: '1rem',
 	} : {
-		borderTop: '1px dashed #ccc',
+		borderTop: '1px dashed lightsteelblue',
 		display: 'flex',
 		flexDirection: 'row',
 		justifyContent: 'space-between',
@@ -117,12 +117,17 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	}
 
-	const [isOpen, setIsOpen] = React.useState(true)
+	const [isOpen, setIsOpen] = React.useState(!influxFile.collapsed)
 
 	const classes = useStyles(styleProps)
 
 	const hiddenLength = isOpen ? length - shownLength : length
 
+	// console.log('show', influxFile.show)
+
+	if (!influxFile.show) {
+		return null
+	}
 
 	return <div className={classes.root}>
 
