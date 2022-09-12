@@ -27,6 +27,7 @@ export class InfluxWidget extends WidgetType {
         // console.log('toDom app and file', this.app, this.file)
 
         const container = document.createElement('div')
+        container.id = 'delimiting container'
         container.style.maxWidth = `calc(var(--line-width-adaptive) - var(--folding-offset))`
         container.style.maxWidth = `calc(var(--line-width-adaptive) - var(--folding-offset))`
         container.style.width = `calc(var(--line-width-adaptive) - var(--folding-offset))`

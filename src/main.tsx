@@ -3,15 +3,29 @@ import { ObsidianInfluxSettingsTab } from './settings';
 import { asyncDecoBuilderExt  } from './cm6/asyncViewPlugin';
 
 
-interface ObsidianInfluxSettings {
-	newestFirst: boolean;
-	byTimeCreated: boolean;
+export interface ObsidianInfluxSettings {
+	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
+	sortingAttribute: 'ctime' | 'mtime'; // created or modified.
+	showBehaviour: 'OPT_OUT' | 'OPT_IN';
+	exclusionPattern: string[];
+	inclusionPattern: string[];
+	collapsedPattern: string[];
+	listLimit: number;
+	variant: 'CENTER_ALIGNED' | 'ROWS';
+	fontSize: number;
 
 }
 
 const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
-	newestFirst: true,
-	byTimeCreated: true,
+	sortingPrinciple: 'NEWEST_FIRST',
+	sortingAttribute: 'ctime',
+	showBehaviour: 'OPT_OUT',
+	exclusionPattern:[],
+	inclusionPattern:[],
+	collapsedPattern:[],
+	listLimit: 0,
+	variant: 'CENTER_ALIGNED',
+	fontSize: 13,
 };
 
 

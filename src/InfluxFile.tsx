@@ -1,8 +1,9 @@
 import { TFile, CachedMetadata } from 'obsidian';
 import { ApiAdapter, BacklinksObject } from './apiAdapter';
+import { ObsidianInfluxSettings } from './main';
 
 const SHOW_ANCESTORS = true
-const FRONTMATTER_KEY = 'tittel'
+const FRONTMATTER_KEY = 'influx-title' // Unexposed feature to show frontmatter value as title for clipping.
 
 type TreeNode = {
     text: string;
@@ -48,9 +49,13 @@ export default class InfluxFile {
     }
 
     async renderAllMarkdownBlocks() {
-        const comparator = this.makeComparisonFn(this.api.getSettings())
+
+        const settings: Partial<ObsidianInfluxSettings> = this.api.getSettings()
+
+        const comparator = this.makeComparisonFn(settings)
         this.components = await Promise.all(this.inlinkingFiles
             .sort(comparator)
+            .slice(0, settings.listLimit || this.inlinkingFiles.length)
             .map(async (inlinkingFile) => {
 
                 // Parse title, and strip innerHTML of enclosing <p>:
@@ -68,14 +73,14 @@ export default class InfluxFile {
     }
 
     /** A sort function to order notes correctly, based on settings. */
-    makeComparisonFn(settings: { [key: string]: boolean }) {
+    makeComparisonFn(settings: Partial<ObsidianInfluxSettings> ) {
 
-        const timeVariant = settings.byTimeCreated ? 'ctime' : 'mtime'
-        const flip = !settings.newestFirst
+        const sortingAttr = settings.sortingAttribute === 'ctime' || settings.sortingAttribute === 'mtime' ? settings.sortingAttribute : 'ctime'
+        const flip = settings.sortingPrinciple === 'OLDEST_FIRST'
 
         return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
-            if (a.file.stat[timeVariant] < b.file.stat[timeVariant]) return flip ? -1 : 1
-            else if (a.file.stat[timeVariant] > b.file.stat[timeVariant]) return flip ? 1 : -1
+            if (a.file.stat[sortingAttr] < b.file.stat[sortingAttr]) return flip ? -1 : 1
+            else if (a.file.stat[sortingAttr] > b.file.stat[sortingAttr]) return flip ? 1 : -1
             else return 0
         }
     }
