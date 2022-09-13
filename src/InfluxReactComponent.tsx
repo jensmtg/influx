@@ -17,9 +17,13 @@ interface StyleProps {
 const useStyles = createUseStyles({
 
 	root: {
+		// border: '1px solid pink',
 		fontSize: (props: StyleProps) => `${props.fontSize}px`,
 		lineHeight: props => `${props.lineHeight}px`,
 		padding: '8px',
+		paddingRight: '0',
+		maxWidth: `calc(var(--line-width-adaptive) - var(--folding-offset))`,
+		marginLeft: `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2)) !important`,
 		display: 'flex',
 		flexDirection: 'column',
 		'& h2': {

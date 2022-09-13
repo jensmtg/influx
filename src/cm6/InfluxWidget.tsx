@@ -27,12 +27,7 @@ export class InfluxWidget extends WidgetType {
         // console.log('toDom app and file', this.app, this.file)
 
         const container = document.createElement('div')
-        container.id = 'delimiting container'
-        container.style.maxWidth = `calc(var(--line-width-adaptive) - var(--folding-offset))`
-        container.style.maxWidth = `calc(var(--line-width-adaptive) - var(--folding-offset))`
-        container.style.width = `calc(var(--line-width-adaptive) - var(--folding-offset))`
-        container.style.setProperty("margin-left", `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2))`, "important")
-
+        container.id = 'influx-react-anchor-div'
         const reactAnchor = container.appendChild(document.createElement('div'))
 
         const anchor = createRoot(reactAnchor)

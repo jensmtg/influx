@@ -146,7 +146,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .addTextArea((textArea) => {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
-                    .setPlaceholder('^templates/\nmenu')
+                    .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.settings.exclusionPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
@@ -172,7 +172,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .addTextArea((textArea) => {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
-                    .setPlaceholder('^templates/\nmenu')
+                    .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.settings.inclusionPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
@@ -200,7 +200,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .addTextArea((textArea) => {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
-                    .setPlaceholder('^templates/\nmenu')
+                    .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.settings.collapsedPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
