@@ -54,6 +54,7 @@ const useStyles = createUseStyles({
 
 	inlinkedMetaDiv: props => props.centered ? {
 		width: '160px',
+		minWidth: '160px',
 		display: 'flex',
 		flexDirection: 'column',
 		borderRight: '1px dashed lightsteelblue',
