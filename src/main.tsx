@@ -1,6 +1,11 @@
-import { Plugin, TAbstractFile, TFile } from 'obsidian';
+import { Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from './settings';
 import { asyncDecoBuilderExt } from './cm6/asyncViewPlugin';
+import InfluxFile from './InfluxFile';
+import InfluxReactComponent from './InfluxReactComponent';
+import * as React from "react";
+import { createRoot } from "react-dom/client";
+import { ApiAdapter } from './apiAdapter';
 
 export interface ObsidianInfluxSettings {
 	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
@@ -77,6 +82,7 @@ export default class ObsidianInflux extends Plugin {
 		}
 	}
 
+
 	triggerUpdates(op: string, file?: TAbstractFile) {
 
 		console.log('-->', op)
@@ -92,46 +98,44 @@ export default class ObsidianInflux extends Plugin {
 
 			if (leafType === 'preview') {
 
-				// console.log('leaf2', leaf.view?.file)
-				// console.log('leaf3', leaf)
-
-				const div = document.createElement("div")
-				const textnode = document.createTextNode("Influx goes here!");
-				div.setAttr("id", "influx-component")
-				div.appendChild(textnode)
-
-				// @ts-ignore
-				const container: HTMLDivElement = leaf.containerEl
-				const sel = container.querySelector(".markdown-preview-section");
-				const host = sel.childNodes[sel.childNodes.length - 1]
-
-				if (host) {
-					host.appendChild(div)
-				}
+				this.updatePreview(leaf)
+				// TODO: Modifiy InfluxReactComponent so it can handle both preview and source.
 
 			}
 
-
-			/** 
-			 * TODO.
-			 * This spike implementation proves the possibility of access to update
-			 * preview leaves upon relevant triggers (opening, editing).
-			 * Next steps:
-			 * - Access to refresh editor leaves in the same vein as well.
-			 * - More complete logic:
-			 *   - considerRerenders triggered by different signals (editing, rename)
-			 *   - evaulate each root leaf
-			 *   - if preview:
-			 *     - if force rerender (settings changes)
-			 *     - if file is, or has backlink to, signal origin
-			 *     - produce and render a influx component and place it instead or anew.
-			 *   - if source:
-			 *     - if force rerender (settings changes)
-			 *     - if has backlink to signal origin
-			 *     - force refresh of leaf (or influx component only?)
-			 */
-
 		})
+	}
+
+	async updatePreview(leaf: WorkspaceLeaf) {
+		// console.log('leaf2', leaf.view?.file)
+		// console.log('leaf3', leaf)
+
+		const div = document.createElement("div")
+		const textnode = document.createTextNode("Influx goes here?");
+		div.setAttr("id", "influx-component")
+		div.appendChild(textnode)
+
+		// @ts-ignore
+		const container: HTMLDivElement = leaf.containerEl
+		const sel = container.querySelector(".markdown-preview-section");
+		const host = sel.childNodes[sel.childNodes.length - 1]
+
+
+		// host.appendChild(div)
+		if (host) {
+			const apiAdapter = new ApiAdapter(app)
+			const influxFile = new InfluxFile(leaf.view?.file.path, apiAdapter, this)
+			await influxFile.makeInfluxList()
+			await influxFile.renderAllMarkdownBlocks()
+			const reactAnchor = host.appendChild(document.createElement('div'))
+			const anchor = createRoot(reactAnchor)
+			const rand = Math.random()
+			anchor.render(<InfluxReactComponent key={rand} rand={rand} influxFile={influxFile} />);
+
+		}
+
+
+
 	}
 
 }
