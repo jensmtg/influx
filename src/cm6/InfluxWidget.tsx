@@ -5,6 +5,19 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 
 
+try {
+    customElements.define("influx-element", class extends HTMLElement {
+        disconnectedCallback() {
+            this.dispatchEvent(new CustomEvent("disconnected"))
+        }
+    })
+}
+catch (e) {
+    console.warn('disconnect-element allready defined?')
+}
+
+
+
 interface InfluxWidgetSpec {
     influxFile: InfluxFile;
 }
@@ -19,24 +32,30 @@ export class InfluxWidget extends WidgetType {
     }
 
     eq(influxWidget: InfluxWidget) {
-        return influxWidget.influxFile?.file?.path === this.influxFile?.file?.path
+        /** Only changes within the same host document flow to this diffing point.
+         * Changes to title of document is not caught.
+         * Changes to other documents that are referenced in the influx of host file are not caught.
+         * Therefore: Bypass this eq-check.
+        */
+       return true
+        // return influxWidget.influxFile?.file?.path === this.influxFile?.file?.path
     }
 
     toDOM() {
 
-        // console.log('toDom app and file', this.app, this.file)
-
-        const container = document.createElement('div')
+        const container = document.createElement("influx-element")
+        container.addEventListener("disconnected", () => this.unmount(this.influxFile))
         container.id = 'influx-react-anchor-div'
         const reactAnchor = container.appendChild(document.createElement('div'))
-
         const anchor = createRoot(reactAnchor)
-        // anchor.render(<ReactComp />);
-        anchor.render(<InfluxReactComponent key={this.influxFile.file.path} influxFile={this.influxFile} />);
-
-
-
+        const rand = Math.random()
+        anchor.render(<InfluxReactComponent key={rand} rand={rand} influxFile={this.influxFile} />);
         return container
+    }
+
+
+    unmount(influxFile: InfluxFile) {
+        this.influxFile.influx.deregisterInfluxComponent(influxFile.id)
     }
 }
 

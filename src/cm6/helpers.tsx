@@ -15,7 +15,9 @@ function defineStatefulDecoration(): {
             return Decoration.none;
         },
         update(deco, tr): DecorationSet {
-            return tr.effects.reduce((deco, effect) => (effect.is(update) ? effect.value : deco), deco.map(tr.changes));
+            return tr.effects.reduce((deco, effect) => {
+                return effect.is(update) ? effect.value : deco
+            }, deco.map(tr.changes));
         },
         provide: field => EditorView.decorations.from(field),
     });

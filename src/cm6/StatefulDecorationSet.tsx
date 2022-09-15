@@ -16,10 +16,10 @@ export class StatefulDecorationSet {
     }
 
     async computeAsyncDecorations(state: EditorState): Promise<DecorationSet | null> {
-
         const { app, file } = state.field(editorViewField);
         const apiAdapter = new ApiAdapter(app)
-        const influxFile = new InfluxFile(file.path, apiAdapter)
+        // @ts-ignore
+        const influxFile = new InfluxFile(file.path, apiAdapter, app.plugins.plugins.influx)
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 

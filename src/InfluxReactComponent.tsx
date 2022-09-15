@@ -1,7 +1,9 @@
 import * as React from "react";
-import InfluxFile, { ExtendedInlinkingFile } from './InfluxFile';
+import InfluxFile from './InfluxFile';
+import { ExtendedInlinkingFile } from './apiAdapter';
 import { ObsidianInfluxSettings } from "./main";
 import { createUseStyles } from 'react-jss'
+import { TFile } from "obsidian";
 
 
 interface StyleProps {
@@ -41,7 +43,7 @@ const useStyles = createUseStyles({
 	},
 
 	openerButton: {
-		marginRight:  props => `${props.fontSize}px`,
+		marginRight: props => `${props.fontSize}px`,
 		cursor: 'pointer',
 	},
 
@@ -96,12 +98,33 @@ const useStyles = createUseStyles({
 	}
 })
 
-interface InfluxReactComponentProps { influxFile: InfluxFile }
+interface InfluxReactComponentProps { influxFile: InfluxFile, rand: number }
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): JSX.Element {
 
+	const { influxFile, rand } = props
 
-	const { influxFile } = props
+	const [ident, setIdent] = React.useState(rand)
+	const [components, setComponents] = React.useState(influxFile.components)
+
+	const callback: (op: string, file: TFile) => void = async (op, file) => {
+		// TODO: Add change diff for file vs this file. (Is file part of inlinked? Or referenced in inlinked?)
+		setIdent(Math.random())
+		await influxFile.makeInfluxList()
+		setComponents(await influxFile.renderAllMarkdownBlocks())
+	}
+
+
+
+	React.useEffect(() => {
+		console.log('MOUNT!')
+		influxFile.influx.registerInfluxComponent(influxFile.id, callback)
+
+		return () => {
+			console.log('UNMOOUNT!')
+		}
+	}, [])
+
 
 	const length = influxFile?.inlinkingFiles.length || 0
 	const shownLength = influxFile?.components.length || 0
@@ -116,9 +139,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		centered: centered,
 		margin: sizing,
 		fontSize: sizing,
-		lineHeight: sizing + sizing/2,
+		lineHeight: sizing + sizing / 2,
 		largeFontSize: sizing, // sizing + 2,
-		largeLineHeight: sizing + sizing/2, // sizing + 4,
+		largeLineHeight: sizing + sizing / 2, // sizing + 4,
 
 	}
 
@@ -136,14 +159,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	return <div className={classes.root}>
 
+		<p>{ident.toString()}</p>
 		<h3>
-			<span 
-			className={classes.openerButton}
-			onClick={() => setIsOpen(!isOpen)}
-			>{isOpen ? '➖' : '➕' }</span>
+			<span
+				className={classes.openerButton}
+				onClick={() => setIsOpen(!isOpen)}
+			>{isOpen ? '➖' : '➕'}</span>
 			{`Influx (${length}${hiddenLength > 0 ? ', ' + hiddenLength.toString() + ' hidden' : ''})`}</h3>
 
-		{!isOpen ? null : influxFile?.components.map((extended: ExtendedInlinkingFile) => {
+		{!isOpen ? null : components.map((extended: ExtendedInlinkingFile) => {
 
 			const entryHeader = extended.titleInnerHTML ? (
 				<h2>
@@ -151,7 +175,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}
 					/>
 				</h2>
-				): null
+			) : null
 
 			return (
 				<div

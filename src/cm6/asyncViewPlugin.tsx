@@ -13,6 +13,10 @@ const asyncViewPlugin = ViewPlugin.fromClass(
         }
 
         update(update: ViewUpdate) {
+            /** Only changes within the same host document flow to this diffing point.
+             * Changes to title of document is not caught.
+             * Changes to other documents that are referenced in the influx of host file are not caught.
+            */
             if (update.docChanged || update.viewportChanged) {
                 this.buildAsyncDecorations(update.view);
             }
