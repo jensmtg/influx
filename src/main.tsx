@@ -35,6 +35,7 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 export type ComponentCallback = (op: string, file?: TFile) => void
 
 
+
 export default class ObsidianInflux extends Plugin {
 
 	settings: ObsidianInfluxSettings;
@@ -51,7 +52,7 @@ export default class ObsidianInflux extends Plugin {
 		this.addSettingTab(new ObsidianInfluxSettingsTab(this.app, this));
 
 		this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => { this.triggerUpdates('modify', file) }));
-		this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile) => { this.triggerUpdates('rename', file) }));
+		// this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile) => { this.triggerUpdates('rename', file) }));
 		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => { this.triggerUpdates('delete', file) }));
 		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
 		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
@@ -97,46 +98,64 @@ export default class ObsidianInflux extends Plugin {
 			const leafType: string = leaf.view?.currentMode?.type
 
 			if (leafType === 'preview') {
-
-				this.updatePreview(leaf)
-				// TODO: Modifiy InfluxReactComponent so it can handle both preview and source.
-
+				// TODO: Avoid concurrency, and multiple calls to updatePreviewInflux simultaneously.
+				this.updatePreviewInflux(leaf)
 			}
 
 		})
 	}
 
-	async updatePreview(leaf: WorkspaceLeaf) {
-		// console.log('leaf2', leaf.view?.file)
-		// console.log('leaf3', leaf)
-
-		const div = document.createElement("div")
-		const textnode = document.createTextNode("Influx goes here?");
-		div.setAttr("id", "influx-component")
-		div.appendChild(textnode)
+	async updatePreviewInflux(leaf: WorkspaceLeaf) {
 
 		// @ts-ignore
 		const container: HTMLDivElement = leaf.containerEl
-		const sel = container.querySelector(".markdown-preview-section");
-		const host = sel.childNodes[sel.childNodes.length - 1]
 
+		const influxContainers = container.getElementsByTagName("influx-preview-container")
 
-		// host.appendChild(div)
-		if (host) {
-			const apiAdapter = new ApiAdapter(app)
-			const influxFile = new InfluxFile(leaf.view?.file.path, apiAdapter, this)
-			await influxFile.makeInfluxList()
-			await influxFile.renderAllMarkdownBlocks()
-			const reactAnchor = host.appendChild(document.createElement('div'))
-			const anchor = createRoot(reactAnchor)
-			const rand = Math.random()
-			anchor.render(<InfluxReactComponent key={rand} rand={rand} influxFile={influxFile} />);
+		if (influxContainers.length) {
+			const previewDiv = influxContainers[0].parentElement
+
+			for (let i = 0; i < influxContainers.length; i++) {
+				influxContainers[i].remove()
+			}
+			this.drawInfluxInPreview(leaf, previewDiv)
 
 		}
 
+		else {
+			const previewDiv = container.querySelector(".markdown-preview-section");
+			if (previewDiv) {
+				this.drawInfluxInPreview(leaf, previewDiv)
+			}
 
+
+
+		}
 
 	}
 
+	async drawInfluxInPreview(leaf: WorkspaceLeaf, container: Node) {
+		const apiAdapter = new ApiAdapter(app)
+		// @ts-ignore
+		const influxFile = new InfluxFile(leaf.view?.file.path, apiAdapter, this)
+		await influxFile.makeInfluxList()
+		await influxFile.renderAllMarkdownBlocks()
+		const influxContainer = document.createElement("influx-preview-container")
+		influxContainer.id = influxFile.id
+		container.appendChild(influxContainer)
+
+		const anchor = createRoot(influxContainer)
+		const rand = Math.random()
+
+		anchor.render(<InfluxReactComponent
+			key={rand}
+			rand={rand}
+			influxFile={influxFile}
+			preview={true}
+		/>);
+
+	}
 }
+
+
 

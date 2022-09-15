@@ -49,7 +49,12 @@ export class InfluxWidget extends WidgetType {
         const reactAnchor = container.appendChild(document.createElement('div'))
         const anchor = createRoot(reactAnchor)
         const rand = Math.random()
-        anchor.render(<InfluxReactComponent key={rand} rand={rand} influxFile={this.influxFile} />);
+        anchor.render(<InfluxReactComponent 
+            key={rand} 
+            rand={rand} 
+            influxFile={this.influxFile}
+            preview={false}
+            />);
         return container
     }
 

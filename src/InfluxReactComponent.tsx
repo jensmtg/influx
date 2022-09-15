@@ -98,11 +98,11 @@ const useStyles = createUseStyles({
 	}
 })
 
-interface InfluxReactComponentProps { influxFile: InfluxFile, rand: number }
+interface InfluxReactComponentProps { influxFile: InfluxFile, rand: number, preview: boolean }
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): JSX.Element {
 
-	const { influxFile, rand } = props
+	const { influxFile, rand, preview } = props
 
 	const [ident, setIdent] = React.useState(rand)
 	const [components, setComponents] = React.useState(influxFile.components)
@@ -115,11 +115,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}
 
 
-
 	React.useEffect(() => {
 		console.log('MOUNT!')
-		influxFile.influx.registerInfluxComponent(influxFile.id, callback)
+		if (preview === false) {
+			influxFile.influx.registerInfluxComponent(influxFile.id, callback)
 
+		}
 		return () => {
 			console.log('UNMOOUNT!')
 		}
