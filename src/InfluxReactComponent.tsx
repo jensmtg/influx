@@ -14,6 +14,7 @@ interface StyleProps {
 	lineHeight: number;
 	largeFontSize: number;
 	largeLineHeight: number;
+	preview: boolean;
 }
 
 const useStyles = createUseStyles({
@@ -24,8 +25,8 @@ const useStyles = createUseStyles({
 		lineHeight: props => `${props.lineHeight}px`,
 		padding: '8px',
 		paddingRight: '0',
-		maxWidth: `calc(var(--line-width-adaptive) - var(--folding-offset))`,
-		marginLeft: `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2)) !important`,
+		maxWidth: props => !props.preview ? `calc(var(--line-width-adaptive) - var(--folding-offset))` : '',
+		marginLeft: props => !props.preview ? `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2)) !important` : '',
 		display: 'flex',
 		flexDirection: 'column',
 		'& h2': {
@@ -74,7 +75,12 @@ const useStyles = createUseStyles({
 		flexGrow: 1,
 		display: 'flex',
 		flexDirection: 'column',
-		paddingLeft: '1rem'
+		paddingLeft: '1rem',
+		'& h2': {
+			marginTop: '9px',
+			marginBottom: '9px',
+
+		}
 	},
 
 	inlinkedEntry: {
@@ -87,10 +93,10 @@ const useStyles = createUseStyles({
 			marginTop: props => `-${props.margin + 2}px`,
 		},
 		'& *': {
-			marginBlockEnd: props => `-${props.lineHeight}px !important`,
+			marginBlockEnd: props => !props.preview ? `-${props.lineHeight}px !important` : '',
 		},
 		'& li:nth-child(1)': {
-			marginBlockStart: props => `-${props.lineHeight}px !important`,
+			marginBlockStart: props => !props.preview ? `-${props.lineHeight}px !important` : '',
 		},
 		'&> ul': {
 			marginTop: props => `${0}px`,
@@ -143,6 +149,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		lineHeight: sizing + sizing / 2,
 		largeFontSize: sizing, // sizing + 2,
 		largeLineHeight: sizing + sizing / 2, // sizing + 4,
+		preview: props.preview,
 
 	}
 

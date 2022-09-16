@@ -10,6 +10,11 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
+    async saveSettings () {
+        await this.plugin.saveSettings();
+        this.plugin.triggerUpdates('save-settings')
+    }
+
     display(): void {
         const { containerEl } = this;
 
@@ -30,7 +35,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         if (value === 'NEWEST_FIRST' || value === 'OLDEST_FIRST') {
                             this.plugin.settings.sortingPrinciple = value;
-                            await this.plugin.saveSettings();
+                            await this.saveSettings()
                         }
                     });
             })
@@ -46,7 +51,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         if (value === 'ctime' || value === 'mtime') {
                             this.plugin.settings.sortingAttribute = value;
-                            await this.plugin.saveSettings();
+                            await this.saveSettings()
                         }
                     });
 
@@ -67,7 +72,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.listLimit.toString())
                     .onChange(async (value) => {
                         this.plugin.settings.listLimit = Number(value);
-                        await this.plugin.saveSettings();
+                        await this.saveSettings()
 
                     });
 
@@ -86,7 +91,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.fontSize.toString())
                     .onChange(async (value) => {
                         this.plugin.settings.fontSize = Number(value);
-                        await this.plugin.saveSettings();
+                        await this.saveSettings()
 
                     });
 
@@ -102,7 +107,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         if (value === 'CENTER_ALIGNED' || value === 'ROWS') {
                             this.plugin.settings.variant = value;
-                            await this.plugin.saveSettings();
+                            await this.saveSettings()
                         }
                     });
 
@@ -123,7 +128,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         if (value === 'OPT_OUT' || value === 'OPT_IN') {
                             this.plugin.settings.showBehaviour = value;
-                            await this.plugin.saveSettings();
+                            await this.saveSettings()
                         }
                     });
 
@@ -151,7 +156,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.settings.exclusionPattern = patterns.split('\n');
-                    await this.plugin.saveSettings();
+                    await this.saveSettings()
                 };
             });
 
@@ -177,7 +182,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.settings.inclusionPattern = patterns.split('\n');
-                    await this.plugin.saveSettings();
+                    await this.saveSettings()
                 };
             });
 
@@ -205,7 +210,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.settings.collapsedPattern = patterns.split('\n');
-                    await this.plugin.saveSettings();
+                    await this.saveSettings()
                 };
             });
 
