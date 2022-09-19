@@ -61,6 +61,7 @@ export default class ObsidianInflux extends Plugin {
 		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
 		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
 
+
 	}
 
 
