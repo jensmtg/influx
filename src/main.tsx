@@ -17,6 +17,7 @@ export interface ObsidianInfluxSettings {
 	listLimit: number;
 	variant: 'CENTER_ALIGNED' | 'ROWS';
 	fontSize: number;
+	entryHeaderVisible: boolean;
 
 }
 
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	listLimit: 0,
 	variant: 'CENTER_ALIGNED',
 	fontSize: 13,
+	entryHeaderVisible: true,
 };
 
 export type ComponentCallback = (op: string, file?: TFile) => void

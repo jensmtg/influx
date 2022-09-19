@@ -179,7 +179,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 		{!isOpen ? null : components.map((extended: ExtendedInlinkingFile) => {
 
-			const entryHeader = extended.titleInnerHTML ? (
+			const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 				<h2>
 					<span
 						dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}

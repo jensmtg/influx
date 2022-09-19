@@ -17,6 +17,7 @@ export class InlinkingFile {
     nodeLookup: { [key: string]: number[] }; // find node by lineNum
     contextFile: InfluxFile;
     contextSummaries: string[]
+    isLinkInTitle: boolean;
 
     constructor(file: TFile, apiAdapter: ApiAdapter) {
         this.api = apiAdapter
@@ -33,7 +34,9 @@ export class InlinkingFile {
         const links = this.meta.links.filter(link => link.link === contextFile.file.basename)
         const linksAtLineNums = links.map(link => link.position.start.line)
 
-        if (this.titleLineNum !== undefined && linksAtLineNums.includes(this.titleLineNum)) {
+        this.isLinkInTitle = this.titleLineNum !== undefined && linksAtLineNums.includes(this.titleLineNum)
+
+        if (this.isLinkInTitle) {
             this.contextSummaries = [treeToMarkdownSummary(this.nodeTree)]
         }
         else {

@@ -113,6 +113,19 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
             })
 
+            
+        new Setting(containerEl)
+        .setName("Display headers")
+        .setDesc("Influx will use the topmost header it can find in a page.")
+        .addToggle(toggle => {
+            toggle
+            .setValue(this.plugin.settings.entryHeaderVisible)
+            .onChange(async (value) => {
+                    this.plugin.settings.entryHeaderVisible = value;
+                    await this.saveSettings()
+            });
+        })
+
 
         containerEl.createEl('h2', { text: 'Show or hide Influx component' });
 
