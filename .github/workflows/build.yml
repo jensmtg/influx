@@ -1,0 +1,31 @@
+name: Build obsidian plugin
+
+on:
+  push:
+    paths:
+    - 'src/**'
+
+env:
+  PLUGIN_NAME: influx # Change this to the name of your plugin-id folder
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: "16.x" # You might need to adjust this value to your own version
+      - name: Build
+        id: build
+        run: |
+          yarn
+          yarn run build --if-present
+          mkdir ${{ env.PLUGIN_NAME }}
+          cp main.js manifest.json ${{ env.PLUGIN_NAME }}
+          zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
+          ls
+          echo "::set-output name=tag_name::$(git tag --sort version:refname | tail -n 1)"
+
