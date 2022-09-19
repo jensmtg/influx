@@ -43,7 +43,7 @@ export class InlinkingFile {
     }
 
     setTitle() {
-        const titleByFrontmatterAttribute = this.meta.frontmatter?.[FRONTMATTER_KEY]
+        const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[FRONTMATTER_KEY] : null
         const titleByFirstHeader = this.meta.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
         if (titleByFirstHeader) {

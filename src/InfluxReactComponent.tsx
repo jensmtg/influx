@@ -122,13 +122,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 
 	React.useEffect(() => {
-		console.log('MOUNT!')
 		if (preview === false) {
 			influxFile.influx.registerInfluxComponent(influxFile.id, callback)
 
 		}
 		return () => {
-			console.log('UNMOOUNT!')
 		}
 	}, [])
 
@@ -167,7 +165,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	return <div className={classes.root}>
 
-		<p>{ident.toString()}</p>
+		{/* <p>{ident.toString()}</p> */}
 		<h3>
 			<span
 				className={classes.openerButton}

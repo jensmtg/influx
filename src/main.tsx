@@ -40,10 +40,12 @@ export default class ObsidianInflux extends Plugin {
 
 	settings: ObsidianInfluxSettings;
 	componentCallbacks: { [key: string]: ComponentCallback };
+	updating: boolean;
 
 	async onload(): Promise<void> {
 
 		this.componentCallbacks = {}
+		this.updating = false
 
 		await this.loadSettings();
 
@@ -86,26 +88,80 @@ export default class ObsidianInflux extends Plugin {
 
 	triggerUpdates(op: string, file?: TAbstractFile) {
 
-		console.log('-->', op)
-
 		const _file = file instanceof TFile ? file : null
 
 		Object.values(this.componentCallbacks).forEach(callback => callback(op, _file))
 
-		this.app.workspace.iterateRootLeaves(leaf => {
+		this.updateInfluxInAllPreviews()
 
-			// @ts-ignore
-			const leafType: string = leaf.view?.currentMode?.type
-
-			if (leafType === 'preview') {
-				// TODO: Avoid concurrency, and multiple calls to updatePreviewInflux simultaneously.
-				this.updatePreviewInflux(leaf)
-			}
-
-		})
 	}
 
-	async updatePreviewInflux(leaf: WorkspaceLeaf) {
+	async updateInfluxInAllPreviews() {
+		const previewLeaves: WorkspaceLeaf[] = []
+
+		this.app.workspace.iterateRootLeaves(leaf => {
+			// @ts-ignore
+			const leafType: string = leaf.view?.currentMode?.type
+			if (leafType === 'preview') {
+				previewLeaves.push(leaf)
+			}
+		})
+
+		if (this.updating) {
+			return
+		}
+
+		else {
+			this.updating = true
+			await Promise.all(previewLeaves.map(leaf => this.updateInfluxInPreview(leaf)))
+			this.updating = false
+		}
+	}
+
+	async updateInfluxInPreview(leaf: WorkspaceLeaf) {
+		// eslint-disable-next-line no-async-promise-executor
+		return new Promise(async (resolve, reject) => {
+
+			// @ts-ignore
+			const container: HTMLDivElement = leaf.containerEl
+
+			const previewDiv = container.querySelector(".markdown-preview-section");
+
+			if (!previewDiv) {
+				reject('No preview found')
+			}
+
+			const apiAdapter = new ApiAdapter(app)
+			// @ts-ignore
+			const influxFile = new InfluxFile(leaf.view?.file.path, apiAdapter, this)
+			await influxFile.makeInfluxList()
+			await influxFile.renderAllMarkdownBlocks()
+
+			// Remove any existing influx blocks after async flows
+			this.removeInfluxFromPreview(leaf)
+
+			const influxContainer = document.createElement("influx-preview-container")
+			influxContainer.id = influxFile.id
+			previewDiv.lastChild.appendChild(influxContainer)
+
+			const anchor = createRoot(influxContainer)
+			const rand = Math.random()
+
+			anchor.render(<InfluxReactComponent
+				key={rand}
+				rand={rand}
+				influxFile={influxFile}
+				preview={true}
+			/>);
+			resolve('Ok')
+		})
+
+
+
+
+	}
+
+	removeInfluxFromPreview(leaf: WorkspaceLeaf) {
 
 		// @ts-ignore
 		const container: HTMLDivElement = leaf.containerEl
@@ -113,49 +169,14 @@ export default class ObsidianInflux extends Plugin {
 		const influxContainers = container.getElementsByTagName("influx-preview-container")
 
 		if (influxContainers.length) {
-			const previewDiv = influxContainers[0].parentElement
 
 			for (let i = 0; i < influxContainers.length; i++) {
 				influxContainers[i].remove()
 			}
-			this.drawInfluxInPreview(leaf, previewDiv)
 
 		}
 
-		else {
-			const previewDiv = container.querySelector(".markdown-preview-section");
-			if (previewDiv) {
-				this.drawInfluxInPreview(leaf, previewDiv)
-			}
-
-
-
-		}
 
 	}
 
-	async drawInfluxInPreview(leaf: WorkspaceLeaf, container: Node) {
-		const apiAdapter = new ApiAdapter(app)
-		// @ts-ignore
-		const influxFile = new InfluxFile(leaf.view?.file.path, apiAdapter, this)
-		await influxFile.makeInfluxList()
-		await influxFile.renderAllMarkdownBlocks()
-		const influxContainer = document.createElement("influx-preview-container")
-		influxContainer.id = influxFile.id
-		container.appendChild(influxContainer)
-
-		const anchor = createRoot(influxContainer)
-		const rand = Math.random()
-
-		anchor.render(<InfluxReactComponent
-			key={rand}
-			rand={rand}
-			influxFile={influxFile}
-			preview={true}
-		/>);
-
-	}
 }
-
-
-
