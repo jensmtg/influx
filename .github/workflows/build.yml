@@ -1,9 +1,6 @@
 name: Build obsidian plugin
 
-on:
-  push:
-    paths:
-    - './**'
+on: push
 
 env:
   PLUGIN_NAME: influx # Change this to the name of your plugin-id folder
