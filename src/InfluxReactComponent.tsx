@@ -114,12 +114,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		// rand,
 	} = props
 
-	// const [ident, setIdent] = React.useState(rand)
 	const [components, setComponents] = React.useState(influxFile.components)
 
 	const callback: (op: string, file: TFile) => void = async (op, file) => {
 		// TODO: Add change diff for file vs this file. (Is file part of inlinked? Or referenced in inlinked?)
-		// setIdent(Math.random())
 		await influxFile.makeInfluxList()
 		setComponents(await influxFile.renderAllMarkdownBlocks())
 	}
@@ -161,7 +159,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const hiddenLength = isOpen ? length - shownLength : length
 
-	// console.log('show', influxFile.show)
 
 	if (!influxFile.show) {
 		return null
@@ -169,7 +166,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	return <div className={classes.root}>
 
-		{/* <p>{ident.toString()}</p> */}
 		<h3>
 			<span
 				className={classes.openerButton}
