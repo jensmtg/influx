@@ -92,11 +92,15 @@ export default class ObsidianInflux extends Plugin {
 
 		Object.values(this.componentCallbacks).forEach(callback => callback(op, _file))
 
-		this.updateInfluxInAllPreviews()
+		// this.updateInfluxInAllPreviews()
 
 	}
 
 	async updateInfluxInAllPreviews() {
+		/**
+		 * ! This is a best-effort feature to maintain a live-updated
+		 * ! influx footer in preview mode pages. It's buggy.
+		 */
 		const previewLeaves: WorkspaceLeaf[] = []
 
 		this.app.workspace.iterateRootLeaves(leaf => {
@@ -113,8 +117,15 @@ export default class ObsidianInflux extends Plugin {
 
 		else {
 			this.updating = true
-			await Promise.all(previewLeaves.map(leaf => this.updateInfluxInPreview(leaf)))
-			this.updating = false
+			try {
+				await Promise.all(previewLeaves.map(leaf => this.updateInfluxInPreview(leaf)))
+			}
+			catch (e) {
+				// console.warn(e)
+			}
+			finally {
+				this.updating = false
+			}
 		}
 	}
 
