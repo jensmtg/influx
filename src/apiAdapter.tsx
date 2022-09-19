@@ -1,5 +1,5 @@
 import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer } from 'obsidian';
-import { InlinkingFile } from './InfluxFile';
+import { InlinkingFile } from './InlinkingFile';
 import { ObsidianInfluxSettings } from './main';
 
 export type BacklinksObject = { data: { [key: string]: LinkCache[] } }
