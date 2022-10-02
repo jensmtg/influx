@@ -139,6 +139,20 @@ export class ApiAdapter {
         return components
     }
 
+
+    /** comparison fn for filter in function to make contextual summaries,
+     * to find relevant links.
+     */
+    compareLinkName(link: LinkCache, basename: string) {
+        // format link name to be comparable with base names:
+        // strip any block references from the end
+        const linkname = link.link.split("#^")[0]
+        if (linkname.toLowerCase() === basename.toLowerCase()) {
+            return true
+        }
+        return false
+    }
+
     
 
 }

@@ -31,7 +31,7 @@ export class InlinkingFile {
         this.nodeTree = makeNodeTreefromLineItems(makeLineItemsFromIndentedText(this.content))
         this.nodeLookup = recursivelyBuildLookup(this.nodeTree)
         this.contextFile = contextFile
-        const links = this.meta.links.filter(link => link.link.split("#^")[0] === contextFile.file.basename)
+        const links = this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
         const linksAtLineNums = links.map(link => link.position.start.line)
 
         this.isLinkInTitle = this.titleLineNum !== undefined && linksAtLineNums.includes(this.titleLineNum)
