@@ -100,7 +100,11 @@ const useStyles = createUseStyles({
 		},
 		'&> ul': {
 			marginTop: props => `${0}px`,
-		}
+		},
+		// Fix for list callouts bug; https://github.com/jensmtg/influx/issues/20
+		'& span[class=lc-li-wrapper]': {
+			marginBlockEnd: `${0}px !important`,
+		},
 	}
 })
 
