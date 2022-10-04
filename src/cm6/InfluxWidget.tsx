@@ -3,7 +3,7 @@ import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-
+import { createStyleSheet } from "src/createStyleSheet";
 
 try {
     customElements.define("influx-element", class extends HTMLElement {
@@ -37,11 +37,14 @@ export class InfluxWidget extends WidgetType {
          * Changes to other documents that are referenced in the influx of host file are not caught.
          * Therefore: Bypass this eq-check.
         */
-       return true
+        return true
         // return influxWidget.influxFile?.file?.path === this.influxFile?.file?.path
     }
 
     toDOM() {
+
+
+        const sheet = createStyleSheet(this.influxFile)
 
         const container = document.createElement("influx-element")
         container.addEventListener("disconnected", () => this.unmount(this.influxFile))
@@ -49,12 +52,18 @@ export class InfluxWidget extends WidgetType {
         const reactAnchor = container.appendChild(document.createElement('div'))
         const anchor = createRoot(reactAnchor)
         const rand = Math.random()
-        anchor.render(<InfluxReactComponent 
-            key={rand} 
-            rand={rand} 
+        anchor.render(<InfluxReactComponent
+            key={rand}
+            rand={rand}
             influxFile={this.influxFile}
             preview={false}
-            />);
+            classes={sheet.classes}
+        />);
+
+        const styleAnchor = container.appendChild(document.createElement('style'))
+        const sheetText = document.createTextNode(sheet.toString());
+        styleAnchor.appendChild(sheetText);
+
         return container
     }
 
