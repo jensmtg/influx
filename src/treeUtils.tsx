@@ -62,6 +62,21 @@ export const makeLineItemsFromIndentedText = (text: string): TreeNode[] => {
     })
 
 
+    // Prune frontmatter if present
+    if (lines[0].text === '---') {
+        const prunedLines: TreeNode[] = []
+        let passedFrontmatter = false
+        for (let i = 1; i < lines.length; i++) {
+            if (passedFrontmatter) {
+                prunedLines.push(lines[i])
+            }
+            else if (lines[i].text === '---') {
+                passedFrontmatter = true
+            }
+        }
+        return prunedLines
+    }
+
     return lines
 
 }
@@ -163,6 +178,7 @@ export const nodeToMarkdownSummary = (lineNum: number, nodeLookup: NodeLookup, n
 
     traverse(nodeTree[lookup[0]], 0, lookup)
 
+    console.log('ou', output)
 
     return output
 
@@ -181,6 +197,7 @@ export const treeToMarkdownSummary = (nodeTree: TreeNode[]): string => {
         traverse(node, 0)
     })
 
+    console.log('out', output)
 
     return output
 }
