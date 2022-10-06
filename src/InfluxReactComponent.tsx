@@ -3,24 +3,27 @@ import InfluxFile from './InfluxFile';
 import { ExtendedInlinkingFile } from './apiAdapter';
 import { ObsidianInfluxSettings } from "./main";
 import { TFile } from "obsidian";
+import { StyleSheetType } from "./createStyleSheet";
 // import { ChakraProvider, Box, Text } from '@chakra-ui/react'
 
 
-interface InfluxReactComponentProps { influxFile: InfluxFile, rand: number, preview: boolean, classes: any }
+interface InfluxReactComponentProps { influxFile: InfluxFile, rand: number, preview: boolean, sheet: StyleSheetType }
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): JSX.Element {
 
 	const {
 		influxFile,
 		preview,
-		classes,
+		sheet,
 		// rand,
 	} = props
 
 	const [components, setComponents] = React.useState(influxFile.components)
+	const [stylesheet, setStyleSheet] = React.useState(sheet)
 
-	const callback: (op: string, file: TFile) => void = async (op, file) => {
+	const callback: (op: string, file: TFile, stylesheet: StyleSheetType) => void = async (op, file, stylesheet) => {
 		// TODO: Add change diff for file vs this file. (Is file part of inlinked? Or referenced in inlinked?)
+		setStyleSheet(stylesheet)
 		await influxFile.makeInfluxList()
 		setComponents(await influxFile.renderAllMarkdownBlocks())
 	}
@@ -35,6 +38,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		}
 	}, [])
 
+	const classes = stylesheet.classes
 
 	const length = influxFile?.inlinkingFiles.length || 0
 	const shownLength = influxFile?.components.length || 0
@@ -115,5 +119,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 				</div>
 			)
 		})}
+
+		<style
+			dangerouslySetInnerHTML={{ __html: stylesheet.toString() }}
+		/>
+
 	</div>
 }

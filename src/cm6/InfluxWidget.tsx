@@ -3,7 +3,6 @@ import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { createStyleSheet } from "src/createStyleSheet";
 
 try {
     customElements.define("influx-element", class extends HTMLElement {
@@ -43,9 +42,6 @@ export class InfluxWidget extends WidgetType {
 
     toDOM() {
 
-
-        const sheet = createStyleSheet(this.influxFile)
-
         const container = document.createElement("influx-element")
         container.addEventListener("disconnected", () => this.unmount(this.influxFile))
         container.id = 'influx-react-anchor-div'
@@ -57,12 +53,8 @@ export class InfluxWidget extends WidgetType {
             rand={rand}
             influxFile={this.influxFile}
             preview={false}
-            classes={sheet.classes}
+            sheet={this.influxFile.influx.stylesheet}
         />);
-
-        const styleAnchor = container.appendChild(document.createElement('style'))
-        const sheetText = document.createTextNode(sheet.toString());
-        styleAnchor.appendChild(sheetText);
 
         return container
     }

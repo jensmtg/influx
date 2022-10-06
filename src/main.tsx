@@ -6,6 +6,8 @@ import InfluxReactComponent from './InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
+import { createStyleSheet, StyleSheetType } from './createStyleSheet';
+
 
 export interface ObsidianInfluxSettings {
 	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
@@ -34,7 +36,7 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	entryHeaderVisible: true,
 };
 
-export type ComponentCallback = (op: string, file?: TFile) => void
+export type ComponentCallback = (op: string, file: TFile, stylesheet: StyleSheetType) => void
 
 
 
@@ -43,11 +45,15 @@ export default class ObsidianInflux extends Plugin {
 	settings: ObsidianInfluxSettings;
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: boolean;
+	stylesheet: StyleSheetType;
+	api: ApiAdapter;
 
 	async onload(): Promise<void> {
 
 		this.componentCallbacks = {}
 		this.updating = false
+		this.api = new ApiAdapter(this.app)
+		this.stylesheet = createStyleSheet(this.api)
 
 		await this.loadSettings();
 
@@ -93,7 +99,9 @@ export default class ObsidianInflux extends Plugin {
 
 		const _file = file instanceof TFile ? file : null
 
-		Object.values(this.componentCallbacks).forEach(callback => callback(op, _file))
+		this.stylesheet = createStyleSheet(this.api)
+
+		Object.values(this.componentCallbacks).forEach(callback => callback(op, _file, this.stylesheet))
 
 		// this.updateInfluxInAllPreviews()
 
@@ -166,6 +174,7 @@ export default class ObsidianInflux extends Plugin {
 				rand={rand}
 				influxFile={influxFile}
 				preview={true}
+				sheet={this.stylesheet}
 			/>);
 			resolve('Ok')
 		})

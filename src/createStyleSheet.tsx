@@ -1,7 +1,7 @@
-import jss from 'jss'
+import jss, { StyleSheet } from 'jss'
 import preset from 'jss-preset-default'
 import { ObsidianInfluxSettings } from "./main";
-import InfluxFile from './InfluxFile';
+import { ApiAdapter } from './apiAdapter';
 
 interface StyleProps {
     theme: string;
@@ -14,9 +14,18 @@ interface StyleProps {
     preview: boolean;
 }
 
-export function createStyleSheet(influxFile: InfluxFile) {
+export type StyleSheetType = StyleSheet<
+    "root"
+    | "openerButton"
+    | "inlinked"
+    | "inlinkedMetaDiv"
+    | "inlinkedEntries"
+    | "inlinkedEntry"
+>
 
-    const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
+export function createStyleSheet(api: ApiAdapter) {
+
+    const settings: Partial<ObsidianInfluxSettings> = api.getSettings()
 
     const sizing = settings.fontSize || 13
     const centered = settings.variant !== 'ROWS'
@@ -39,22 +48,22 @@ export function createStyleSheet(influxFile: InfluxFile) {
         .createStyleSheet(
             {
                 root: {
-                    // border: '1px solid pink',
+                    //border: '1px solid pink',
                     fontSize: `${props.fontSize}px`,
-                    lineHeight:`${props.lineHeight}px`,
+                    lineHeight: `${props.lineHeight}px`,
                     padding: '8px',
                     paddingRight: '0',
-                    maxWidth:!props.preview ? `calc(var(--line-width-adaptive) - var(--folding-offset))` : '',
-                    marginLeft:!props.preview ? `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2)) !important` : '',
+                    maxWidth: !props.preview ? `calc(var(--line-width-adaptive) - var(--folding-offset))` : '',
+                    marginLeft: !props.preview ? `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2)) !important` : '',
                     display: 'flex',
                     flexDirection: 'column',
                     '& h2': {
-                        fontSize:`${props.largeFontSize}px`,
-                        lineHeight:`${props.largeLineHeight}px`,
+                        fontSize: `${props.largeFontSize}px`,
+                        lineHeight: `${props.largeLineHeight}px`,
                     },
                     '& h3': {
-                        fontSize:`${props.fontSize}px`,
-                        lineHeight:`${props.lineHeight}px`,
+                        fontSize: `${props.fontSize}px`,
+                        lineHeight: `${props.lineHeight}px`,
                         textTransform: 'uppercase',
                         letterSpacing: '2px',
                         margin: 0,
@@ -63,18 +72,18 @@ export function createStyleSheet(influxFile: InfluxFile) {
                 },
 
                 openerButton: {
-                    marginRight:`${props.fontSize}px`,
+                    marginRight: `${props.fontSize}px`,
                     cursor: 'pointer',
                 },
 
                 inlinked: {
                     display: 'flex',
-                    marginTop:`${props.margin}px`,
-                    marginBottom:props.centered ? `${props.margin}px` : '',
-                    flexDirection:props.centered ? 'row' : 'column',
+                    marginTop: `${props.margin}px`,
+                    marginBottom: props.centered ? `${props.margin}px` : '',
+                    flexDirection: props.centered ? 'row' : 'column',
                 },
 
-                inlinkedMetaDiv:props.centered ? {
+                inlinkedMetaDiv: props.centered ? {
                     width: '160px',
                     minWidth: '160px',
                     display: 'flex',
@@ -105,20 +114,20 @@ export function createStyleSheet(influxFile: InfluxFile) {
                 inlinkedEntry: {
                     paddingLeft: '8px',
                     marginLeft: '8px',
-                    paddingBottom:`${props.lineHeight}px !important`,
+                    paddingBottom: `${props.lineHeight}px !important`,
                     '& input[type=checkbox]': {
-                        width:`${props.fontSize}px`,
-                        height:`${props.fontSize}px`,
-                        marginTop:`-${props.margin + 2}px`,
+                        width: `${props.fontSize}px`,
+                        height: `${props.fontSize}px`,
+                        marginTop: `-${props.margin + 2}px`,
                     },
                     '& *': {
-                        marginBlockEnd:!props.preview ? `-${props.lineHeight}px !important` : '',
+                        marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
                     '& li:nth-child(1)': {
-                        marginBlockStart:!props.preview ? `-${props.lineHeight}px !important` : '',
+                        marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
                     '&> ul': {
-                        marginTop:`${0}px`,
+                        marginTop: `${0}px`,
                     },
                     // Fix for list callouts bug; https://github.com/jensmtg/influx/issues/20
                     '& span[class=lc-li-wrapper]': {
