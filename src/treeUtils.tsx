@@ -1,5 +1,7 @@
 const SHOW_ANCESTORS = true
-
+const CALLOUT_SIGN = '> '
+const CALLOUT_HEADER_SIGN = '[!'
+const BULLET_SIGN = '* '
 
 export type TreeNode = {
     text: string;
@@ -7,6 +9,8 @@ export type TreeNode = {
     plain: string;
     children?: TreeNode[];
     lineNum?: number;
+    calloutLevel: number;
+    calloutTitle: string;
 }
 
 export type NodeLookup = {
@@ -16,12 +20,44 @@ export type NodeLookup = {
 
 export const makeLineItemsFromIndentedText = (text: string): TreeNode[] => {
 
-
     const lines: TreeNode[] = text.split('\n').map((line, i) => {
+
+        let calloutLevel = 0
+
+        for (let i = 0; i < line.length; i++) {
+            const subStart = i * CALLOUT_SIGN.length
+            const subEnd = subStart + CALLOUT_SIGN.length
+            const sub = line.substring(subStart, subEnd)
+            if (sub !== CALLOUT_SIGN) {
+                break;
+            }
+            else {
+                calloutLevel += 1
+            }
+        }
+
+        const lineWithoutCallouts: string = line.substring(calloutLevel * CALLOUT_SIGN.length)
+        const lineTrimmed = lineWithoutCallouts.trim()
+        const indent = lineWithoutCallouts.search(/\S/) // String search (returns index of first match) for first any non-whitespace character in the line
+        const lineIsCalloutHeader = lineTrimmed.substring(0, 2) === CALLOUT_HEADER_SIGN
+
+        let calloutTitle = ''
+        let calloutPlain = ''
+        if (lineIsCalloutHeader) {
+            const index = lineTrimmed.indexOf(']')
+            calloutTitle = lineTrimmed.slice(2, index) || 'Note'
+            calloutPlain = lineTrimmed.slice(index + 1)
+        }
+
+        // const calloutTitle = lineIsCalloutHeader ? lineTrimmed.trim().split(']')[0].substring(2) || 'Note' : ''
+        const calloutIndents = calloutLevel > 0 ? lineIsCalloutHeader ? calloutLevel - 1 : calloutLevel: 0
+
         return {
-            text: line,
-            indent: line.search(/\S/),  // String search (returns index of first match) for first any non-whitespace character in the line
-            plain: line.trim(),
+            text: lineTrimmed,
+            indent: indent + calloutIndents,
+            plain: lineIsCalloutHeader ? calloutPlain : lineTrimmed.trim(),
+            calloutLevel: calloutLevel,
+            calloutTitle: calloutTitle,
         }
     })
 
@@ -111,24 +147,48 @@ export const nodeToMarkdownSummary = (lineNum: number, nodeLookup: NodeLookup, n
 
         const lookup = _lookup.slice(1)
 
+        const hasLeadingBullet = node.plain.substring(0, 2) === BULLET_SIGN
+        const stringWithoutBullet = hasLeadingBullet ? node.plain.slice(2) : node.plain.trim()
+        const isCallout = node.calloutLevel > 0
+        const bulletForCallouts = isCallout && !hasLeadingBullet ? BULLET_SIGN : ''
+
+        const spanWrap = (str: string) => {
+
+            const spanProps = []
+            const innerString = str || node.calloutTitle || '' // node.calloutTitle ? `<span data-callout-title-text="">${node.calloutTitle}</span> ${str}` : str
+
+            if (isCallout) {
+                if (node.calloutTitle) {
+                    spanProps.push(`data-callout-title="${node.calloutTitle.toLowerCase()}" class="callout" data-callout="${node.calloutTitle.toLowerCase()}"`)
+                }
+            }
+            if (lookup.length && SHOW_ANCESTORS) {
+               spanProps.push(`class="ancestor"`)
+            }
+
+            const spanWrapped = spanProps.length ? `<span ${spanProps.join(" ")}>${innerString}</span>` : innerString
+
+            return hasLeadingBullet || bulletForCallouts ? `* ${spanWrapped}` : spanWrapped
+        }
+
+        const line = spanWrap(stringWithoutBullet)
+        const lineOutput = `${' '.repeat(2 * level)}${line}\n`
+
         if (lookup.length) {
             if (SHOW_ANCESTORS) {
-                const expectedBullet = node.plain.substring(0, 2)
-                const nodeString = expectedBullet === '* '
-                    ? `* <span class="ancestor">${node.plain.slice(2)}</span>`
-                    : node.plain
-                output = output + `${' '.repeat(2 * level)}${nodeString}\n`
+                output = output + lineOutput
             }
             traverse(node.children[lookup[0]], level + 1, lookup)
         }
         else {
-            output = output + `${' '.repeat(2 * level)}${node.plain}\n`
+            output = output + lineOutput
             node.children.forEach(node => { traverse(node, level + 1, lookup) })
         }
 
     }
 
     traverse(nodeTree[lookup[0]], 0, lookup)
+
 
     return output
 

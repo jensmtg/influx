@@ -133,6 +133,20 @@ export function createStyleSheet(api: ApiAdapter) {
                     '& span[class=lc-li-wrapper]': {
                         marginBlockEnd: `${0}px !important`,
                     },
+
+                    '& span[data-callout-title]': {
+                        backgroundColor: 'rgba(var(--callout-color), 0.1)',
+                        borderRadius: '4px',
+                        paddingLeft: '3px',
+                        paddingRight: '3px',
+                        borderLeftWidth: '3px',
+                        borderTopLeftRadius: '2px',
+                        borderBottomLeftRadius: '2px',
+                        '& span[data-callout-title-text]': {
+                            color: 'rgba(var(--callout-color), 0.9)',
+                            
+                        },
+                    },
                 }
             }
         )
