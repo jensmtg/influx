@@ -61,6 +61,7 @@ export const makeLineItemsFromIndentedText = (text: string): TreeNode[] => {
         }
     })
 
+
     return lines
 
 }
@@ -147,41 +148,14 @@ export const nodeToMarkdownSummary = (lineNum: number, nodeLookup: NodeLookup, n
 
         const lookup = _lookup.slice(1)
 
-        const hasLeadingBullet = node.plain.substring(0, 2) === BULLET_SIGN
-        const stringWithoutBullet = hasLeadingBullet ? node.plain.slice(2) : node.plain.trim()
-        const isCallout = node.calloutLevel > 0
-        const bulletForCallouts = isCallout && !hasLeadingBullet ? BULLET_SIGN : ''
-
-        const spanWrap = (str: string) => {
-
-            const spanProps = []
-            const innerString = str || node.calloutTitle || '' // node.calloutTitle ? `<span data-callout-title-text="">${node.calloutTitle}</span> ${str}` : str
-
-            if (isCallout) {
-                if (node.calloutTitle) {
-                    spanProps.push(`data-callout-title="${node.calloutTitle.toLowerCase()}" class="callout" data-callout="${node.calloutTitle.toLowerCase()}"`)
-                }
-            }
-            if (lookup.length && SHOW_ANCESTORS) {
-               spanProps.push(`class="ancestor"`)
-            }
-
-            const spanWrapped = spanProps.length ? `<span ${spanProps.join(" ")}>${innerString}</span>` : innerString
-
-            return hasLeadingBullet || bulletForCallouts ? `* ${spanWrapped}` : spanWrapped
-        }
-
-        const line = spanWrap(stringWithoutBullet)
-        const lineOutput = `${' '.repeat(2 * level)}${line}\n`
-
         if (lookup.length) {
             if (SHOW_ANCESTORS) {
-                output = output + lineOutput
+                output = output + parseNodeToMd(node, level, true)
             }
             traverse(node.children[lookup[0]], level + 1, lookup)
         }
         else {
-            output = output + lineOutput
+            output = output + parseNodeToMd(node, level, false)
             node.children.forEach(node => { traverse(node, level + 1, lookup) })
         }
 
@@ -199,7 +173,7 @@ export const treeToMarkdownSummary = (nodeTree: TreeNode[]): string => {
     let output = ''
 
     const traverse = (node: TreeNode, level: number) => {
-        output = output + `${' '.repeat(2 * level)}${node.plain}\n`
+        output = output + parseNodeToMd(node, level, false)
         node.children.forEach(node => { traverse(node, level + 1) })
     }
 
@@ -207,5 +181,36 @@ export const treeToMarkdownSummary = (nodeTree: TreeNode[]): string => {
         traverse(node, 0)
     })
 
+
     return output
+}
+
+
+export const parseNodeToMd = (node: TreeNode, level: number, isAncestor: boolean): string => {
+
+    const hasLeadingBullet = node.plain.substring(0, 2) === BULLET_SIGN
+    const stringWithoutBullet = hasLeadingBullet ? node.plain.slice(2) : node.plain.trim()
+    const isCallout = node.calloutLevel > 0
+    const bulletForCallouts = isCallout && !hasLeadingBullet ? BULLET_SIGN : ''
+
+    const spanProps = []
+    const innerString = stringWithoutBullet || node.calloutTitle || '' // node.calloutTitle ? `<span data-callout-title-text="">${node.calloutTitle}</span> ${str}` : str
+
+    if (isCallout) {
+        if (node.calloutTitle) {
+            spanProps.push(`data-callout-title="${node.calloutTitle.toLowerCase()}" class="callout" data-callout="${node.calloutTitle.toLowerCase()}"`)
+        }
+    }
+    if (isAncestor) {
+       spanProps.push(`class="ancestor"`)
+    }
+
+    const spanWrapped = spanProps.length ? `<span ${spanProps.join(" ")}>${innerString}</span>` : innerString
+
+    const line = hasLeadingBullet || bulletForCallouts ? `* ${spanWrapped}` : spanWrapped
+
+    const lineOutput = `${' '.repeat(2 * level)}${line}\n`
+
+    return lineOutput
+
 }
