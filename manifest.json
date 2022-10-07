@@ -6,5 +6,5 @@
 	"description": "A bullet journaling plugin that aggregates a terse stream of backlinked clippings in the footer of notes.",
 	"author": "Jens M Gleditsch",
 	"authorUrl": "https://github.com/jensmtg",
-	"isDesktopOnly": true
+	"isDesktopOnly": false
 }
