@@ -10,10 +10,11 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    async saveSettings () {
+    async saveSettings() {
         await this.plugin.saveSettings();
         this.plugin.triggerUpdates('save-settings')
     }
+
 
     display(): void {
         const { containerEl } = this;
@@ -78,7 +79,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
             })
 
-        containerEl.createEl('h2', { text: 'Styling' });
+        containerEl.createEl('h2', { text: 'Styling and layout' });
 
         new Setting(containerEl)
             .setName("Font size")
@@ -101,8 +102,8 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .setName("Layout variant")
             .addDropdown(dropdown => {
                 dropdown
-                    .addOption('CENTER_ALIGNED', 'Center aligned')
-                    .addOption('ROWS', 'Plain rows')
+                    .addOption('CENTER_ALIGNED', 'Continous stream')
+                    .addOption('ROWS', 'Note by note')
                     .setValue(this.plugin.settings.variant)
                     .onChange(async (value) => {
                         if (value === 'CENTER_ALIGNED' || value === 'ROWS') {
@@ -113,21 +114,21 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
             })
 
-            
+
         new Setting(containerEl)
-        .setName("Display headers")
-        .setDesc("Influx will use the topmost header it can find in a page.")
-        .addToggle(toggle => {
-            toggle
-            .setValue(this.plugin.settings.entryHeaderVisible)
-            .onChange(async (value) => {
-                    this.plugin.settings.entryHeaderVisible = value;
-                    await this.saveSettings()
-            });
-        })
+            .setName("Show headers")
+            .setDesc("Influx will use the topmost markdown-formatted header it can find in a page.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.settings.entryHeaderVisible)
+                    .onChange(async (value) => {
+                        this.plugin.settings.entryHeaderVisible = value;
+                        await this.saveSettings()
+                    });
+            })
 
 
-        containerEl.createEl('h2', { text: 'Show or hide Influx component' });
+        containerEl.createEl('h2', { text: 'Target notes – in which pages should Influx be visible?' });
 
 
         new Setting(containerEl)
@@ -200,7 +201,81 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             });
 
 
-        containerEl.createEl('h2', { text: 'Collapse Influx component' });
+
+        containerEl.createEl('h2', { text: 'Source notes – from which notes should Influx gather mentions?' });
+
+
+        new Setting(containerEl)
+            .setName("Default behaviour")
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('OPT_OUT', 'Include all notes')
+                    .addOption('OPT_IN', 'Exclude all notes')
+                    .setValue(this.plugin.settings.sourceBehaviour)
+                    .onChange(async (value) => {
+                        if (value === 'OPT_OUT' || value === 'OPT_IN') {
+                            this.plugin.settings.sourceBehaviour = value;
+                            await this.saveSettings()
+                        }
+                    });
+
+            })
+
+
+        const sourceExclusionFragment = document.createDocumentFragment();
+        sourceExclusionFragment.append('RegExp patterns for pathnames of notes that should not be shown in any Influx. ')
+        sourceExclusionFragment.append('One pattern per line. See ');
+        const sourceExclusionLink = document.createElement('a');
+        sourceExclusionLink.href =
+            'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#writing_a_regular_expression_pattern';
+        sourceExclusionLink.text = 'MDN - Regular expressions';
+        sourceExclusionFragment.append(sourceExclusionLink);
+        sourceExclusionFragment.append(' for help.');
+
+        new Setting(containerEl)
+            .setName('Exclude notes')
+            .setDesc(sourceExclusionFragment)
+            .addTextArea((textArea) => {
+                textArea.inputEl.setAttr('rows', 6);
+                textArea
+                    .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
+                    .setValue(this.plugin.settings.sourceExclusionPattern.join('\n'));
+                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                    const patterns = (e.target as HTMLInputElement).value;
+                    this.plugin.settings.sourceExclusionPattern = patterns.split('\n');
+                    await this.saveSettings()
+                };
+            });
+
+
+        const sourceInclusionFragment = document.createDocumentFragment();
+        sourceInclusionFragment.append('RegExp patterns for pathnames of notes that should be shown in Influx in relevant pages. ')
+        sourceInclusionFragment.append('One pattern per line. See ');
+        const sourceInclusionLink = document.createElement('a');
+        sourceInclusionLink.href =
+            'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#writing_a_regular_expression_pattern';
+        sourceInclusionLink.text = 'MDN - Regular expressions';
+        sourceInclusionFragment.append(sourceInclusionLink);
+        sourceInclusionFragment.append(' for help.');
+
+        new Setting(containerEl)
+            .setName('Include notes')
+            .setDesc(sourceInclusionFragment)
+            .addTextArea((textArea) => {
+                textArea.inputEl.setAttr('rows', 6);
+                textArea
+                    .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
+                    .setValue(this.plugin.settings.sourceInclusionPattern.join('\n'));
+                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                    const patterns = (e.target as HTMLInputElement).value;
+                    this.plugin.settings.sourceInclusionPattern = patterns.split('\n');
+                    await this.saveSettings()
+                };
+            });
+
+
+
+        containerEl.createEl('h2', { text: 'In which pages should Influx be collapsed by default?' });
 
         const collapseFragment = document.createDocumentFragment();
         collapseFragment.append('RegExp patterns for pathnames of notes where the list of backlinked clippings in the Influx component should be collapsed by default. ')
@@ -226,6 +301,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     await this.saveSettings()
                 };
             });
+
 
     }
 }

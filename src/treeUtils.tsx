@@ -178,8 +178,6 @@ export const nodeToMarkdownSummary = (lineNum: number, nodeLookup: NodeLookup, n
 
     traverse(nodeTree[lookup[0]], 0, lookup)
 
-    console.log('ou', output)
-
     return output
 
 }
@@ -196,8 +194,6 @@ export const treeToMarkdownSummary = (nodeTree: TreeNode[]): string => {
     nodeTree.forEach((node: TreeNode) => {
         traverse(node, 0)
     })
-
-    console.log('out', output)
 
     return output
 }

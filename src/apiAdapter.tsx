@@ -51,6 +51,8 @@ export class ApiAdapter {
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
         const div = document.createElement('div');
         await MarkdownRenderer.renderMarkdown(markdown, div, '/', null)
+        // @ts-ignore
+        div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"') 
         return div
     }
 
@@ -77,6 +79,17 @@ export class ApiAdapter {
             : settings.showBehaviour === 'OPT_OUT' && !matched ? true
                 : false
         return show
+    }
+
+
+    isIncludableSource(path: string) : boolean {
+        const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
+        const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern
+        const matched = this.patternMatchingFn(path, patterns)
+        const isIncludable = settings.sourceBehaviour === 'OPT_IN' && matched ? true
+            : settings.sourceBehaviour === 'OPT_OUT' && !matched ? true
+                : false
+        return isIncludable
     }
 
 

@@ -34,7 +34,9 @@ export default class InfluxFile {
 
     async makeInfluxList() {
         const inlinkingFilesNew: InlinkingFile[] = []
-        const backlinksAsFiles = Object.keys(this.backlinks.data).map((pathAsKey) => this.api.getFileByPath(pathAsKey))
+        const backlinksAsFiles = Object.keys(this.backlinks.data)
+            .filter((pathAsKey) => this.api.isIncludableSource(pathAsKey))
+            .map((pathAsKey) => this.api.getFileByPath(pathAsKey))
         await Promise.all(backlinksAsFiles.map(async (file: TFile) => {
             const inlinkingFile = new InlinkingFile(file, this.api)
             await inlinkingFile.makeContextualSummaries(this)

@@ -16,6 +16,9 @@ export interface ObsidianInfluxSettings {
 	exclusionPattern: string[];
 	inclusionPattern: string[];
 	collapsedPattern: string[];
+	sourceBehaviour: 'OPT_OUT' | 'OPT_IN';
+	sourceInclusionPattern: string[];
+	sourceExclusionPattern: string[];
 	listLimit: number;
 	variant: 'CENTER_ALIGNED' | 'ROWS';
 	fontSize: number;
@@ -30,6 +33,9 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	exclusionPattern: [],
 	inclusionPattern: [],
 	collapsedPattern: [],
+	sourceBehaviour: 'OPT_OUT',
+	sourceInclusionPattern: [],
+	sourceExclusionPattern: [],
 	listLimit: 0,
 	variant: 'CENTER_ALIGNED',
 	fontSize: 13,
@@ -54,8 +60,7 @@ export default class ObsidianInflux extends Plugin {
 		this.updating = false
 		this.api = new ApiAdapter(this.app)
 		this.stylesheet = createStyleSheet(this.api)
-
-		await this.loadSettings();
+		this.settings = await this.loadSettings();
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
 
@@ -72,11 +77,23 @@ export default class ObsidianInflux extends Plugin {
 
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data = await this.loadData()
+		return Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+    toggleSortOrder () {
+        const newOrder = this.settings.sortingPrinciple === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST'
+        this.settings.sortingPrinciple = newOrder;
+        this.saveSettingsByParams({...this.settings, "sortingPrinciple": newOrder})
+    }
+
+	async saveSettingsByParams(settings: ObsidianInfluxSettings) {
+		await this.saveData(settings);
+		this.triggerUpdates('save-settings')
 	}
 
 	async onunload() {

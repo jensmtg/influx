@@ -15,11 +15,7 @@ interface StyleProps {
 }
 
 export type StyleSheetType = StyleSheet<
-    "root"
-    | "openerButton"
-    | "inlinked"
-    | "inlinkedMetaDiv"
-    | "inlinkedEntries"
+    "inlinkedEntries"
     | "inlinkedEntry"
 >
 
@@ -47,78 +43,40 @@ export function createStyleSheet(api: ApiAdapter) {
     const sheet = jss
         .createStyleSheet(
             {
-                root: {
-                    //border: '1px solid pink',
+                inlinkedEntries: {
                     fontSize: `${props.fontSize}px`,
                     lineHeight: `${props.lineHeight}px`,
-                    padding: '8px',
-                    paddingRight: '0',
-                    maxWidth: !props.preview ? `calc(var(--line-width-adaptive) - var(--folding-offset))` : '',
-                    marginLeft: !props.preview ? `max(calc(50% + var(--folding-offset) - var(--line-width-adaptive)/ 2),calc(50% + var(--folding-offset) - var(--max-width)/ 2)) !important` : '',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    '& h2': {
-                        fontSize: `${props.largeFontSize}px`,
-                        lineHeight: `${props.largeLineHeight}px`,
-                    },
-                    '& h3': {
-                        fontSize: `${props.fontSize}px`,
-                        lineHeight: `${props.lineHeight}px`,
-                        textTransform: 'uppercase',
-                        letterSpacing: '2px',
-                        margin: 0,
-                        color: 'lightsteelblue',
-                    },
-                },
-
-                openerButton: {
-                    marginRight: `${props.fontSize}px`,
-                    cursor: 'pointer',
-                },
-
-                inlinked: {
-                    display: 'flex',
-                    marginTop: `${props.margin}px`,
-                    marginBottom: props.centered ? `${props.margin}px` : '',
-                    flexDirection: props.centered ? 'row' : 'column',
-                },
-
-                inlinkedMetaDiv: props.centered ? {
-                    width: '160px',
-                    minWidth: '160px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    borderRight: '1px dashed lightsteelblue',
-                    paddingRight: '1rem',
-                } : {
-                    borderTop: '1px dashed lightsteelblue',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    // backgroundColor: '#fafafa'
-                },
-
-                inlinkedEntries: {
                     width: '100%',
                     flexGrow: 1,
                     display: 'flex',
                     flexDirection: 'column',
                     paddingLeft: '1rem',
+                    '& h1': {
+                        marginTop: '0px',
+                        marginBottom: '0px',
+                        fontSize: `${props.fontSize}px`,
+                        lineHeight: `${props.lineHeight}px`,
+                    },
                     '& h2': {
-                        marginTop: '9px',
-                        marginBottom: '9px',
-
-                    }
+                        marginTop: '0px',
+                        marginBottom: '0px',
+                        fontSize: `${props.fontSize}px`,
+                        lineHeight: `${props.lineHeight}px`,
+                    },
+                    '& h3': {
+                        fontSize: `${props.fontSize}px`,
+                        lineHeight: `${props.lineHeight}px`,
+                    },
                 },
 
                 inlinkedEntry: {
-                    paddingLeft: '8px',
-                    marginLeft: '8px',
+                    // paddingLeft: '8px',
+                    // marginLeft: '8px',
                     paddingBottom: `${props.lineHeight}px !important`,
                     '& input[type=checkbox]': {
                         width: `${props.fontSize}px`,
                         height: `${props.fontSize}px`,
-                        marginTop: `-${props.margin + 2}px`,
+                        marginTop: `-${props.margin + props.lineHeight/2}px`,
                     },
                     '& *': {
                         marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
