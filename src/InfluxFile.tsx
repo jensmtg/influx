@@ -2,11 +2,11 @@ import { TFile, CachedMetadata } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
 import ObsidianInflux from './main';
-
+import { v4 as uuidv4 } from 'uuid';
 
 
 export default class InfluxFile {
-    id: string;
+    uuid: string;
     api: ApiAdapter;
     influx: ObsidianInflux;
     file: TFile;
@@ -19,7 +19,7 @@ export default class InfluxFile {
 
 
     constructor(path: string, apiAdapter: ApiAdapter, influx: ObsidianInflux) {
-        this.id = Math.random().toString()
+        this.uuid = uuidv4()
         this.api = apiAdapter
         this.influx = influx
         this.file = this.api.getFileByPath(path)
@@ -33,6 +33,7 @@ export default class InfluxFile {
     }
 
     async makeInfluxList() {
+        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
         const inlinkingFilesNew: InlinkingFile[] = []
         const backlinksAsFiles = Object.keys(this.backlinks.data)
             .filter((pathAsKey) => this.api.isIncludableSource(pathAsKey))

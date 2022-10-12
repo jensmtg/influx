@@ -174,7 +174,11 @@ export default class ObsidianInflux extends Plugin {
 
 			const apiAdapter = new ApiAdapter(app)
 			// @ts-ignore
-			const influxFile = new InfluxFile(leaf.view?.file.path, apiAdapter, this)
+			const path = leaf.view?.file.path
+			if (!path) {
+				return
+			}
+			const influxFile = new InfluxFile(path, apiAdapter, this)
 			await influxFile.makeInfluxList()
 			await influxFile.renderAllMarkdownBlocks()
 
@@ -182,13 +186,12 @@ export default class ObsidianInflux extends Plugin {
 			this.removeInfluxFromPreview(leaf)
 
 			const influxContainer = document.createElement("influx-preview-container")
-			influxContainer.id = influxFile.id
+			influxContainer.id = influxFile.uuid
 			previewDiv.lastChild.appendChild(influxContainer)
 
 			const anchor = createRoot(influxContainer)
 
 			anchor.render(<InfluxReactComponent
-				rand={Math.random()}
 				influxFile={influxFile}
 				preview={true}
 				sheet={this.stylesheet}

@@ -7,7 +7,7 @@ import { StyleSheetType } from "./createStyleSheet";
 // import { ChakraProvider, Box, Text } from '@chakra-ui/react'
 
 
-interface InfluxReactComponentProps { influxFile: InfluxFile, rand: number, preview: boolean, sheet: StyleSheetType }
+interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): JSX.Element {
 
@@ -15,7 +15,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		influxFile,
 		preview,
 		sheet,
-		// rand,
 	} = props
 
 	const [components, setComponents] = React.useState(influxFile.components)
@@ -33,17 +32,17 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const isCollapsed = (basename: string) => basename in _isCollapsed && _isCollapsed[basename] === true
 
-	const callback: (op: string, file: TFile, stylesheet: StyleSheetType) => void = async (op, file, stylesheet) => {
-		// TODO: Add change diff for file vs this file. (Is file part of inlinked? Or referenced in inlinked?)
-		setStyleSheet(stylesheet)
-		await influxFile.makeInfluxList()
-		setComponents(await influxFile.renderAllMarkdownBlocks())
-	}
-
-
 	React.useEffect(() => {
+
+		const respondToUpdateTrigger: (op: string, file: TFile, stylesheet: StyleSheetType) => void = async (op, file, stylesheet) => {
+			// TODO: Add change diff for file vs this file. (Is file part of inlinked? Or referenced in inlinked?)
+			setStyleSheet(stylesheet)
+			await influxFile.makeInfluxList()
+			setComponents(await influxFile.renderAllMarkdownBlocks())
+		}
+
 		if (preview === false) {
-			influxFile.influx.registerInfluxComponent(influxFile.id, callback)
+			influxFile.influx.registerInfluxComponent(influxFile.uuid, respondToUpdateTrigger)
 
 		}
 		return () => {

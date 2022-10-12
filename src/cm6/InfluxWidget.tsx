@@ -47,10 +47,8 @@ export class InfluxWidget extends WidgetType {
         container.id = 'influx-react-anchor-div'
         const reactAnchor = container.appendChild(document.createElement('div'))
         const anchor = createRoot(reactAnchor)
-        const rand = Math.random()
         anchor.render(<InfluxReactComponent
-            key={rand}
-            rand={rand}
+            key={Math.random()}
             influxFile={this.influxFile}
             preview={false}
             sheet={this.influxFile.influx.stylesheet}
@@ -61,7 +59,7 @@ export class InfluxWidget extends WidgetType {
 
 
     unmount(influxFile: InfluxFile) {
-        this.influxFile.influx.deregisterInfluxComponent(influxFile.id)
+        this.influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
     }
 }
 
