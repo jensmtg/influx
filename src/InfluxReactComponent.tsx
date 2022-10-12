@@ -34,13 +34,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	React.useEffect(() => {
 
-		const respondToUpdateTrigger: (op: string, file: TFile, stylesheet: StyleSheetType) => void = async (op, file, stylesheet) => {
-			
-			if (influxFile.shouldUpdate(file)) {
-				setStyleSheet(stylesheet)
-				await influxFile.makeInfluxList()
-				setComponents(await influxFile.renderAllMarkdownBlocks())
+		const respondToUpdateTrigger: (op: string, stylesheet: StyleSheetType, file?: TFile) => void = async (op, stylesheet, file) => {
+
+			if (op === 'modify' && !influxFile.shouldUpdate(file)) {
+				return
 			}
+
+			setStyleSheet(stylesheet)
+			await influxFile.makeInfluxList()
+			setComponents(await influxFile.renderAllMarkdownBlocks())
 
 		}
 
