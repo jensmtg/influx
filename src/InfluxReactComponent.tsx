@@ -35,10 +35,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	React.useEffect(() => {
 
 		const respondToUpdateTrigger: (op: string, file: TFile, stylesheet: StyleSheetType) => void = async (op, file, stylesheet) => {
-			// TODO: Add change diff for file vs this file. (Is file part of inlinked? Or referenced in inlinked?)
-			setStyleSheet(stylesheet)
-			await influxFile.makeInfluxList()
-			setComponents(await influxFile.renderAllMarkdownBlocks())
+			
+			if (influxFile.shouldUpdate(file)) {
+				setStyleSheet(stylesheet)
+				await influxFile.makeInfluxList()
+				setComponents(await influxFile.renderAllMarkdownBlocks())
+			}
+
 		}
 
 		if (preview === false) {

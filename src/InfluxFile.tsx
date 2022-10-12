@@ -32,6 +32,13 @@ export default class InfluxFile {
 
     }
 
+    // is the file that triggers update part of the current files inlinked files?
+    shouldUpdate(file: TFile) {
+        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
+        const paths = Object.keys(this.backlinks.data)
+        return paths.includes(file.path)
+    }
+
     async makeInfluxList() {
         this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
         const inlinkingFilesNew: InlinkingFile[] = []
