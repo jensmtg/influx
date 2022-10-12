@@ -59,7 +59,7 @@ export class ApiAdapter {
 
     getSettings() {
         // @ts-ignore
-        const settings = this.app.plugins?.plugins?.influx?.settings || {}
+        const settings = this.app.plugins?.plugins?.influx?.data?.settings || {}
         return settings
     }
 

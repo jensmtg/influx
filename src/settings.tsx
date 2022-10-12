@@ -11,7 +11,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
     }
 
     async saveSettings() {
-        await this.plugin.saveSettings();
+        await this.plugin.saveData(this.plugin.data);
         this.plugin.triggerUpdates('save-settings')
     }
 
@@ -32,10 +32,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 dropdown
                     .addOption('NEWEST_FIRST', 'Newest first')
                     .addOption('OLDEST_FIRST', 'Oldest first')
-                    .setValue(this.plugin.settings.sortingPrinciple)
+                    .setValue(this.plugin.data.settings.sortingPrinciple)
                     .onChange(async (value) => {
                         if (value === 'NEWEST_FIRST' || value === 'OLDEST_FIRST') {
-                            this.plugin.settings.sortingPrinciple = value;
+                            this.plugin.data.settings.sortingPrinciple = value;
                             await this.saveSettings()
                         }
                     });
@@ -48,10 +48,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 dropdown
                     .addOption('ctime', 'By date created')
                     .addOption('mtime', 'By date last modified')
-                    .setValue(this.plugin.settings.sortingAttribute)
+                    .setValue(this.plugin.data.settings.sortingAttribute)
                     .onChange(async (value) => {
                         if (value === 'ctime' || value === 'mtime') {
-                            this.plugin.settings.sortingAttribute = value;
+                            this.plugin.data.settings.sortingAttribute = value;
                             await this.saveSettings()
                         }
                     });
@@ -70,9 +70,9 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .addOption('25', '25')
                     .addOption('50', '50')
 
-                    .setValue(this.plugin.settings.listLimit.toString())
+                    .setValue(this.plugin.data.settings.listLimit.toString())
                     .onChange(async (value) => {
-                        this.plugin.settings.listLimit = Number(value);
+                        this.plugin.data.settings.listLimit = Number(value);
                         await this.saveSettings()
 
                     });
@@ -89,9 +89,9 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .addOption('13', 'Small')
                     .addOption('11', 'Smaller')
                     .addOption('10', 'Smallest')
-                    .setValue(this.plugin.settings.fontSize.toString())
+                    .setValue(this.plugin.data.settings.fontSize.toString())
                     .onChange(async (value) => {
-                        this.plugin.settings.fontSize = Number(value);
+                        this.plugin.data.settings.fontSize = Number(value);
                         await this.saveSettings()
 
                     });
@@ -104,10 +104,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 dropdown
                     .addOption('CENTER_ALIGNED', 'Continous stream')
                     .addOption('ROWS', 'Note by note')
-                    .setValue(this.plugin.settings.variant)
+                    .setValue(this.plugin.data.settings.variant)
                     .onChange(async (value) => {
                         if (value === 'CENTER_ALIGNED' || value === 'ROWS') {
-                            this.plugin.settings.variant = value;
+                            this.plugin.data.settings.variant = value;
                             await this.saveSettings()
                         }
                     });
@@ -120,9 +120,9 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .setDesc("Influx will use the topmost markdown-formatted header it can find in a page.")
             .addToggle(toggle => {
                 toggle
-                    .setValue(this.plugin.settings.entryHeaderVisible)
+                    .setValue(this.plugin.data.settings.entryHeaderVisible)
                     .onChange(async (value) => {
-                        this.plugin.settings.entryHeaderVisible = value;
+                        this.plugin.data.settings.entryHeaderVisible = value;
                         await this.saveSettings()
                     });
             })
@@ -138,10 +138,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 dropdown
                     .addOption('OPT_OUT', 'Show on all pages')
                     .addOption('OPT_IN', 'Show on no pages')
-                    .setValue(this.plugin.settings.showBehaviour)
+                    .setValue(this.plugin.data.settings.showBehaviour)
                     .onChange(async (value) => {
                         if (value === 'OPT_OUT' || value === 'OPT_IN') {
-                            this.plugin.settings.showBehaviour = value;
+                            this.plugin.data.settings.showBehaviour = value;
                             await this.saveSettings()
                         }
                     });
@@ -166,10 +166,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
-                    .setValue(this.plugin.settings.exclusionPattern.join('\n'));
+                    .setValue(this.plugin.data.settings.exclusionPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.settings.exclusionPattern = patterns.split('\n');
+                    this.plugin.data.settings.exclusionPattern = patterns.split('\n');
                     await this.saveSettings()
                 };
             });
@@ -192,10 +192,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
-                    .setValue(this.plugin.settings.inclusionPattern.join('\n'));
+                    .setValue(this.plugin.data.settings.inclusionPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.settings.inclusionPattern = patterns.split('\n');
+                    this.plugin.data.settings.inclusionPattern = patterns.split('\n');
                     await this.saveSettings()
                 };
             });
@@ -211,10 +211,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 dropdown
                     .addOption('OPT_OUT', 'Include all notes')
                     .addOption('OPT_IN', 'Exclude all notes')
-                    .setValue(this.plugin.settings.sourceBehaviour)
+                    .setValue(this.plugin.data.settings.sourceBehaviour)
                     .onChange(async (value) => {
                         if (value === 'OPT_OUT' || value === 'OPT_IN') {
-                            this.plugin.settings.sourceBehaviour = value;
+                            this.plugin.data.settings.sourceBehaviour = value;
                             await this.saveSettings()
                         }
                     });
@@ -239,10 +239,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
-                    .setValue(this.plugin.settings.sourceExclusionPattern.join('\n'));
+                    .setValue(this.plugin.data.settings.sourceExclusionPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.settings.sourceExclusionPattern = patterns.split('\n');
+                    this.plugin.data.settings.sourceExclusionPattern = patterns.split('\n');
                     await this.saveSettings()
                 };
             });
@@ -265,10 +265,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
-                    .setValue(this.plugin.settings.sourceInclusionPattern.join('\n'));
+                    .setValue(this.plugin.data.settings.sourceInclusionPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.settings.sourceInclusionPattern = patterns.split('\n');
+                    this.plugin.data.settings.sourceInclusionPattern = patterns.split('\n');
                     await this.saveSettings()
                 };
             });
@@ -294,10 +294,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea.inputEl.setAttr('rows', 6);
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
-                    .setValue(this.plugin.settings.collapsedPattern.join('\n'));
+                    .setValue(this.plugin.data.settings.collapsedPattern.join('\n'));
                 textArea.inputEl.onblur = async (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.settings.collapsedPattern = patterns.split('\n');
+                    this.plugin.data.settings.collapsedPattern = patterns.split('\n');
                     await this.saveSettings()
                 };
             });

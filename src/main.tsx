@@ -43,16 +43,20 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 };
 
 export type ComponentCallback = (op: string, file: TFile, stylesheet: StyleSheetType) => void
-
+export interface Data {
+	settings: ObsidianInfluxSettings,
+	cache: any
+}
 
 
 export default class ObsidianInflux extends Plugin {
 
-	settings: ObsidianInfluxSettings;
+	// settings: ObsidianInfluxSettings;
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: boolean;
 	stylesheet: StyleSheetType;
 	api: ApiAdapter;
+	data: Data;
 
 	async onload(): Promise<void> {
 
@@ -60,7 +64,7 @@ export default class ObsidianInflux extends Plugin {
 		this.updating = false
 		this.api = new ApiAdapter(this.app)
 		this.stylesheet = createStyleSheet(this.api)
-		this.settings = await this.loadSettings();
+		this.data = await this.loadDataInitially()
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
 
@@ -72,27 +76,27 @@ export default class ObsidianInflux extends Plugin {
 		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
 		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
 
-
 	}
 
 
-	async loadSettings() {
-		const data = await this.loadData()
-		return Object.assign({}, DEFAULT_SETTINGS, data);
+	async loadDataInitially() {
+		const _data = await this.loadData()
+		const data: Data = {
+			settings: Object.assign({}, DEFAULT_SETTINGS, _data?.settings),
+			cache: {}
+		}
+		return data
 	}
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
 
     toggleSortOrder () {
-        const newOrder = this.settings.sortingPrinciple === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST'
-        this.settings.sortingPrinciple = newOrder;
-        this.saveSettingsByParams({...this.settings, "sortingPrinciple": newOrder})
+        const newOrder = this.data.settings.sortingPrinciple === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST'
+        this.data.settings.sortingPrinciple = newOrder;
+        this.saveSettingsByParams({...this.data.settings, "sortingPrinciple": newOrder})
     }
 
 	async saveSettingsByParams(settings: ObsidianInfluxSettings) {
-		await this.saveData(settings);
+		await this.saveData({ ...this.data, settings: settings});
 		this.triggerUpdates('save-settings')
 	}
 
@@ -114,13 +118,11 @@ export default class ObsidianInflux extends Plugin {
 
 	triggerUpdates(op: string, file?: TAbstractFile) {
 
-		const _file = file instanceof TFile ? file : null
-
-		this.stylesheet = createStyleSheet(this.api)
-
-		Object.values(this.componentCallbacks).forEach(callback => callback(op, _file, this.stylesheet))
-
-		// this.updateInfluxInAllPreviews()
+		if (file instanceof TFile) {
+			this.stylesheet = createStyleSheet(this.api)
+			Object.values(this.componentCallbacks).forEach(callback => callback(op, file, this.stylesheet))
+			// this.updateInfluxInAllPreviews()
+		}
 
 	}
 
@@ -184,11 +186,9 @@ export default class ObsidianInflux extends Plugin {
 			previewDiv.lastChild.appendChild(influxContainer)
 
 			const anchor = createRoot(influxContainer)
-			const rand = Math.random()
 
 			anchor.render(<InfluxReactComponent
-				key={rand}
-				rand={rand}
+				rand={Math.random()}
 				influxFile={influxFile}
 				preview={true}
 				sheet={this.stylesheet}
