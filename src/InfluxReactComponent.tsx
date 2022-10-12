@@ -4,7 +4,6 @@ import { ExtendedInlinkingFile } from './apiAdapter';
 import { ObsidianInfluxSettings } from "./main";
 import { TFile } from "obsidian";
 import { StyleSheetType } from "./createStyleSheet";
-// import { ChakraProvider, Box, Text } from '@chakra-ui/react'
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
@@ -19,18 +18,29 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [stylesheet, setStyleSheet] = React.useState(sheet)
-	const [_isCollapsed, setIsCollapsed] = React.useState({})
+	const [toggled, setToggled]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState([])
+	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
 
-	const toggleCollapse = (basename: string) => {
-		if (basename in _isCollapsed && _isCollapsed[basename] === true) {
-			setIsCollapsed({ ..._isCollapsed, [basename]: false })
+	const doToggle = (basename: string) => {
+		if (toggled.includes(basename)) {
+			setToggled(toggled.filter(name => name !== basename))
 		}
 		else {
-			setIsCollapsed({ ..._isCollapsed, [basename]: true })
+			setToggled([...toggled, basename])
 		}
 	}
 
-	const isCollapsed = (basename: string) => basename in _isCollapsed && _isCollapsed[basename] === true
+	const toggleAll = () => {
+		if (toggleAllToOpen) {
+			const all = components.map(component => component.inlinkingFile.file.basename)
+			setToggled(all)
+			setToggleAllToOpen(false)
+		}
+		else {
+			setToggled([])
+			setToggleAllToOpen(true)
+		}
+	}
 
 	React.useEffect(() => {
 
@@ -56,18 +66,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const classes = stylesheet.classes
 
-	const length = influxFile?.inlinkingFiles.length || 0
-	const shownLength = influxFile?.components.length || 0
+	// const length = influxFile?.inlinkingFiles.length || 0
+	// const shownLength = influxFile?.components.length || 0
 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
 
 	const centered = settings.variant !== 'ROWS'
-
-
-	const [isOpen, setIsOpen] = React.useState(!influxFile.collapsed)
-	const toggleOpen = () => { isOpen ? setIsOpen(false) : setIsOpen(true) }
-
-	const hiddenLength = isOpen ? length - shownLength : length
 
 
 	if (!influxFile.show) {
@@ -81,13 +85,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 			<div className="nav-header">
 				<div className="nav-buttons-container">
-					<div className="nav-action-button" aria-label="Collapse results">
+					{/* <div className="nav-action-button" 
+					aria-label="Collapse results"
+					>
 						<svg viewBox="0 0 100 100" className="bullet-list" width="20" height="20">
 							<path fill="currentColor" stroke="currentColor" d="M16.4,16.4c-3.5,0-6.4,2.9-6.4,6.4s2.9,6.4,6.4,6.4s6.4-2.9,6.4-6.4S19.9,16.4,16.4,16.4z M16.4,19.6 c1.8,0,3.2,1.4,3.2,3.2c0,1.8-1.4,3.2-3.2,3.2s-3.2-1.4-3.2-3.2C13.2,21,14.6,19.6,16.4,19.6z M29.2,21.2v3.2H90v-3.2H29.2z M16.4,43.6c-3.5,0-6.4,2.9-6.4,6.4s2.9,6.4,6.4,6.4s6.4-2.9,6.4-6.4S19.9,43.6,16.4,43.6z M16.4,46.8c1.8,0,3.2,1.4,3.2,3.2 s-1.4,3.2-3.2,3.2s-3.2-1.4-3.2-3.2S14.6,46.8,16.4,46.8z M29.2,48.4v3.2H90v-3.2H29.2z M16.4,70.8c-3.5,0-6.4,2.9-6.4,6.4 c0,3.5,2.9,6.4,6.4,6.4s6.4-2.9,6.4-6.4C22.8,73.7,19.9,70.8,16.4,70.8z M16.4,74c1.8,0,3.2,1.4,3.2,3.2c0,1.8-1.4,3.2-3.2,3.2 s-3.2-1.4-3.2-3.2C13.2,75.4,14.6,74,16.4,74z M29.2,75.6v3.2H90v-3.2H29.2z">
 							</path>
 						</svg>
-					</div>
-					<div className="nav-action-button" aria-label="Show more context">
+					</div> */}
+					<div 
+					className="nav-action-button" 
+					aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
+					onClick={() => toggleAll()}
+					>
 						<svg viewBox="0 0 100 100" className="expand-vertically" width="20" height="20">
 							<path fill="currentColor" stroke="currentColor" d="M92,92H8v-4h84V92z M50,86.8L34.6,71.4l2.8-2.8L48,79.2V20.8L37.4,31.4l-2.8-2.8L50,13.2l15.4,15.4l-2.8,2.8L52,20.8v58.3 l10.6-10.6l2.8,2.8L50,86.8z M92,12H8V8h84V12z">
 							</path>
@@ -123,9 +133,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			<div className="backlink-pane">
 
 				<div
-					onClick={toggleOpen}
-					className={`tree-item-self is-clickable ${isOpen ? '' : 'is-collapsed'}`}
-					aria-label={isOpen ? "Click to collapse" : "Click to expand"}
+					//onClick={toggleOpen}
+					className={`tree-item-self is-clickable 
+					${
+					'' //	isOpen ? '' : 'is-collapsed'
+					}`}
+					// aria-label={isOpen ? "Click to collapse" : "Click to expand"}
 				>
 
 					{/* <span className="tree-item-icon collapse-icon">
@@ -146,7 +159,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					<div className="search-results-children" >
 
-						{!isOpen ? null : components.map((extended: ExtendedInlinkingFile) => {
+						{components.map((extended: ExtendedInlinkingFile) => {
+
+							const inlinkedCollapsed = (influxFile.collapsed && !toggled.includes(extended.inlinkingFile.file.basename))
+							|| (!influxFile.collapsed && toggled.includes(extended.inlinkingFile.file.basename))
 
 							const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 								<h2>
@@ -160,14 +176,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							return (
 
 								<div key={extended.inlinkingFile.file.basename}
-									className={`tree-item search-result ${isCollapsed(extended.inlinkingFile.file.basename) ? 'is-collapsed' : ''}`}
+									className={`tree-item search-result ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
 									style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 								>
 									<div className="tree-item-self search-result-file-title is-clickable"
 										style={centered ? { width: '160px', minWidth: '160px' } : {}}>
 
 										<div className="tree-item-icon collapse-icon"
-											onClick={() => toggleCollapse(extended.inlinkingFile.file.basename)}>
+											onClick={() => doToggle(extended.inlinkingFile.file.basename)}>
 											<svg viewBox="0 0 100 100" className="right-triangle" width="8" height="8">
 												<path fill="currentColor" stroke="currentColor" d="M94.9,20.8c-1.4-2.5-4.1-4.1-7.1-4.1H12.2c-3,0-5.7,1.6-7.1,4.1c-1.3,2.4-1.2,5.2,0.2,7.6L43.1,88c1.5,2.3,4,3.7,6.9,3.7 s5.4-1.4,6.9-3.7l37.8-59.6C96.1,26,96.2,23.2,94.9,20.8L94.9,20.8z">
 												</path>
@@ -189,7 +205,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										</div>
 									</div>
 									<div className="search-result-file-matches"
-										style={isCollapsed(extended.inlinkingFile.file.basename) ? { display: 'none' }
+										style={inlinkedCollapsed ? { display: 'none' }
 											: centered ? { flexGrow: 1 } : {}
 										}>
 										<div className="">
