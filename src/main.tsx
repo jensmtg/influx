@@ -10,6 +10,7 @@ import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 
 
 export interface ObsidianInfluxSettings {
+	liveUpdate: boolean;
 	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
 	sortingAttribute: 'ctime' | 'mtime'; // created or modified.
 	showBehaviour: 'OPT_OUT' | 'OPT_IN';
@@ -27,6 +28,7 @@ export interface ObsidianInfluxSettings {
 }
 
 const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
+	liveUpdate: true,
 	sortingPrinciple: 'NEWEST_FIRST',
 	sortingAttribute: 'ctime',
 	showBehaviour: 'OPT_OUT',
@@ -45,7 +47,6 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 export type ComponentCallback = (op: string, file: TFile, stylesheet: StyleSheetType) => void
 export interface Data {
 	settings: ObsidianInfluxSettings,
-	cache: any
 }
 
 
@@ -83,7 +84,6 @@ export default class ObsidianInflux extends Plugin {
 		const _data = await this.loadData()
 		const data: Data = {
 			settings: Object.assign({}, DEFAULT_SETTINGS, _data?.settings),
-			cache: {}
 		}
 		return data
 	}
@@ -118,7 +118,7 @@ export default class ObsidianInflux extends Plugin {
 
 	triggerUpdates(op: string, file?: TAbstractFile) {
 
-		if (file instanceof TFile) {
+		if (this.data.settings.liveUpdate && file instanceof TFile) {
 			this.stylesheet = createStyleSheet(this.api)
 			Object.values(this.componentCallbacks).forEach(callback => callback(op, file, this.stylesheet))
 			// this.updateInfluxInAllPreviews()

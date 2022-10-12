@@ -26,6 +26,19 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
 
         new Setting(containerEl)
+        .setName("Live update")
+        .setDesc("With live update enabled, changes in a note is immediately reflected in Infux components where that note appears. (This can reduce overall performance.)")
+        .addToggle(toggle => {
+            toggle
+                .setValue(this.plugin.data.settings.liveUpdate)
+                .onChange(async (value) => {
+                    this.plugin.data.settings.liveUpdate = value;
+                    await this.saveSettings()
+                });
+        })
+
+
+        new Setting(containerEl)
             .setName("Sorting principle")
             .setDesc("Order notes in which direction from the top.")
             .addDropdown(dropdown => {
