@@ -126,6 +126,7 @@ export default class ObsidianInflux extends Plugin {
 			}
 		}
 		else {
+			this.stylesheet = createStyleSheet(this.api)
 			Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
 		}
 	}
