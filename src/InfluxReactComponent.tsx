@@ -18,26 +18,26 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [stylesheet, setStyleSheet] = React.useState(sheet)
-	const [toggled, setToggled]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState([])
+	const [collapsed, setCollapsed]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState(influxFile.collapsed ? components.map(component => component.inlinkingFile.file.basename): [])
 	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
 
 	const doToggle = (basename: string) => {
-		if (toggled.includes(basename)) {
-			setToggled(toggled.filter(name => name !== basename))
+		if (collapsed.includes(basename)) {
+			setCollapsed(collapsed.filter(name => name !== basename))
 		}
 		else {
-			setToggled([...toggled, basename])
+			setCollapsed([...collapsed, basename])
 		}
 	}
 
 	const toggleAll = () => {
+		const all = components.map(component => component.inlinkingFile.file.basename)
 		if (toggleAllToOpen) {
-			const all = components.map(component => component.inlinkingFile.file.basename)
-			setToggled(all)
+			setCollapsed([])
 			setToggleAllToOpen(false)
 		}
 		else {
-			setToggled([])
+			setCollapsed(all)
 			setToggleAllToOpen(true)
 		}
 	}
@@ -67,14 +67,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const classes = stylesheet.classes
 
 	// const length = influxFile?.inlinkingFiles.length || 0
-	// const shownLength = influxFile?.components.length || 0
+	const shownLength = influxFile?.components.length || 0
 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
 
 	const centered = settings.variant !== 'ROWS'
 
 
-	if (!influxFile.show) {
+	if (!influxFile.show || shownLength === 0 ) {
 		return null
 	}
 
@@ -161,8 +161,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 						{components.map((extended: ExtendedInlinkingFile) => {
 
-							const inlinkedCollapsed = (influxFile.collapsed && !toggled.includes(extended.inlinkingFile.file.basename))
-							|| (!influxFile.collapsed && toggled.includes(extended.inlinkingFile.file.basename))
+							const inlinkedCollapsed = collapsed.includes(extended.inlinkingFile.file.basename)
 
 							const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 								<h2>
