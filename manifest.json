@@ -1,9 +1,9 @@
 {
 	"id": "influx",
 	"name": "Influx",
-	"version": "1.2.1",
+	"version": "2.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "A bullet journaling plugin that aggregates a terse stream of backlinked clippings in the footer of notes.",
+	"description": "An alternative backlinks plugin, which displays relevant and formatted excerpts from notes with linked mentions, based on the position of mentions in the notes' hierarchical structure (bullet level indentation).",
 	"author": "Jens M Gleditsch",
 	"authorUrl": "https://github.com/jensmtg",
 	"isDesktopOnly": false
