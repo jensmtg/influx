@@ -2,13 +2,18 @@
 
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jensmtg/influx?style=for-the-badge&sort=semver)
 
-A plugin for [Obsidian](https://obsidian.md/) that aggregates a terse stream of backlinked clippings in the footer of notes.
+Similar to the *backlinks* core plugin for [Obsidian](https://obsidian.md/), but made to display relevant and formatted excerpts from notes with linked mentions, based on the position of mentions in the notes' hierarchical structure (bullet level indentation).
 
-### Intended usage pattern: 
+### Suggested usage pattern: 
 (Or: How to get the most out of this plugin.)
 
 * Information should mainly be written in daily (or Zettelkasten-ish) notes. Topical notes will then mainly be aggregates of clippings from daily notes.
 * Notes should be taken hierarchically, in the form of bullet lists/*bullet journaling*. This helps keep clippings terse and relevant.
 * Links should be used as the only organizing principle in the vault - forgo use of tags and files/folders. This helps with completeness; the plugin only considers links when aggregating.
 
-![arrows](https://user-images.githubusercontent.com/6455628/189475242-aa9522ea-3b6e-42ad-845c-efd71bd099b2.png)
+![screenshot](https://user-images.githubusercontent.com/6455628/195661061-3f1e28d5-4202-4565-873f-d6667422bc86.png)
+
+### Frequently asked questions (FAQ)
+
+* Q: Is it intentional that the plugin is visible in live preview, but not reading view?
+  * A: Yes, in the sense that Obsidian currently cannot add widgets to reading view in the same way as live preview (through code mirror extensions.)
