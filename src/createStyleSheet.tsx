@@ -96,6 +96,10 @@ export function createStyleSheet(api: ApiAdapter) {
                         marginBlockEnd: `${0}px !important`,
                     },
 
+                    '& mark': {
+                        backgroundColor: 'var(--text-highlight-bg)',
+                    },
+
                     '& span[data-callout-title]': {
                         backgroundColor: 'rgba(var(--callout-color), 0.1)',
                         borderRadius: '4px',
