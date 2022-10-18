@@ -97,6 +97,8 @@ export function createStyleSheet(api: ApiAdapter) {
                         borderRadius: '4px',
                         paddingLeft: '3px',
                         paddingRight: '3px',
+                        paddingTop: '1px',
+                        paddingBottom: '1px',
                         borderLeftWidth: '3px',
                         borderTopLeftRadius: '2px',
                         borderBottomLeftRadius: '2px',
