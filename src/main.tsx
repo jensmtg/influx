@@ -52,7 +52,6 @@ export interface Data {
 
 export default class ObsidianInflux extends Plugin {
 
-	// settings: ObsidianInfluxSettings;
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: boolean;
 	stylesheet: StyleSheetType;
