@@ -2,6 +2,7 @@ const SHOW_ANCESTORS = true
 const CALLOUT_SIGN = '> '
 const CALLOUT_HEADER_SIGN = '[!'
 const BULLET_SIGN = '* '
+const FRONTMATTER_SIGN = '---'
 
 export type TreeNode = {
     text: string;
@@ -11,10 +12,11 @@ export type TreeNode = {
     lineNum?: number;
     calloutLevel: number;
     calloutTitle: string;
+    isFrontmatter: boolean;
 }
 
 export type NodeLookup = {
-    [key: string]: number[] 
+    [key: number]: number[] 
 }
 
 
@@ -58,23 +60,27 @@ export const makeLineItemsFromIndentedText = (text: string): TreeNode[] => {
             plain: lineIsCalloutHeader ? calloutPlain : lineTrimmed.trim(),
             calloutLevel: calloutLevel,
             calloutTitle: calloutTitle,
+            isFrontmatter: false,
         }
     })
 
 
     // Prune frontmatter if present
-    if (lines[0].text === '---') {
-        const prunedLines: TreeNode[] = []
+    if (lines[0].text === FRONTMATTER_SIGN) {
+        const linesWithFrontmatter: TreeNode[] = []
         let passedFrontmatter = false
-        for (let i = 1; i < lines.length; i++) {
+        for (let i = 0; i < lines.length; i++) {
             if (passedFrontmatter) {
-                prunedLines.push(lines[i])
+                linesWithFrontmatter.push(lines[i])
             }
-            else if (lines[i].text === '---') {
-                passedFrontmatter = true
+            else {
+                linesWithFrontmatter.push({...lines[i], isFrontmatter: true})
+                if (i > 0 && lines[i].text === FRONTMATTER_SIGN) {
+                    passedFrontmatter = true
+                }
             }
         }
-        return prunedLines
+        return linesWithFrontmatter
     }
 
     return lines
@@ -155,6 +161,7 @@ export const recursivelyBuildLookup = (nodeTree: TreeNode[]): NodeLookup => {
 
 
 export const nodeToMarkdownSummary = (lineNum: number, nodeLookup: NodeLookup, nodeTree: TreeNode[]): string => {
+
     const lookup = nodeLookup[lineNum]
 
     let output = ''
@@ -192,7 +199,9 @@ export const treeToMarkdownSummary = (nodeTree: TreeNode[]): string => {
     }
 
     nodeTree.forEach((node: TreeNode) => {
-        traverse(node, 0)
+        if (!node.isFrontmatter) {
+            traverse(node, 0)
+        }
     })
 
     return output
