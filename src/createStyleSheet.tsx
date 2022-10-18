@@ -86,6 +86,10 @@ export function createStyleSheet(api: ApiAdapter) {
                     },
                     '&> ul': {
                         marginTop: `${0}px`,
+
+                    },
+                    '& ul': {
+                        paddingInlineStart: `${20}px`,
                     },
                     // Fix for list callouts bug; https://github.com/jensmtg/influx/issues/20
                     '& span[class=lc-li-wrapper]': {
