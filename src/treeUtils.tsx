@@ -2,6 +2,7 @@ const SHOW_ANCESTORS = true
 const CALLOUT_SIGN = '> '
 const CALLOUT_HEADER_SIGN = '[!'
 const BULLET_SIGN = '* '
+const DASH_SIGN = '- '
 const FRONTMATTER_SIGN = '---'
 
 export type TreeNode = {
@@ -210,7 +211,7 @@ export const treeToMarkdownSummary = (nodeTree: TreeNode[]): string => {
 
 export const parseNodeToMd = (node: TreeNode, level: number, isAncestor: boolean): string => {
 
-    const hasLeadingBullet = node.plain.substring(0, 2) === BULLET_SIGN
+    const hasLeadingBullet = [DASH_SIGN, BULLET_SIGN].includes(node.plain.substring(0, 2))
     const stringWithoutBullet = hasLeadingBullet ? node.plain.slice(2) : node.plain.trim()
     const isCallout = node.calloutLevel > 0
     const bulletForCallouts = isCallout && !hasLeadingBullet ? BULLET_SIGN : ''
