@@ -43,7 +43,8 @@ export default class InfluxFile {
         this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
         const inlinkingFilesNew: InlinkingFile[] = []
         const backlinksAsFiles = Object.keys(this.backlinks.data)
-            .filter((pathAsKey) => this.api.isIncludableSource(pathAsKey))
+            .filter((pathAsKey) => pathAsKey !== this.file.path // Exclude mentions of self
+                && this.api.isIncludableSource(pathAsKey)) // Exclude by regex patterns
             .map((pathAsKey) => this.api.getFileByPath(pathAsKey))
         await Promise.all(backlinksAsFiles.map(async (file: TFile) => {
             const inlinkingFile = new InlinkingFile(file, this.api)
