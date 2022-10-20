@@ -12,7 +12,7 @@ import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 export interface ObsidianInfluxSettings {
 	liveUpdate: boolean;
 	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
-	sortingAttribute: 'ctime' | 'mtime'; // created or modified.
+	sortingAttribute: 'ctime' | 'mtime' | 'FILENAME'; // created or modified.
 	showBehaviour: 'OPT_OUT' | 'OPT_IN';
 	exclusionPattern: string[];
 	inclusionPattern: string[];

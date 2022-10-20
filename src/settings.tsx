@@ -61,9 +61,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 dropdown
                     .addOption('ctime', 'By date created')
                     .addOption('mtime', 'By date last modified')
+                    .addOption('FILENAME', 'By filename')
                     .setValue(this.plugin.data.settings.sortingAttribute)
                     .onChange(async (value) => {
-                        if (value === 'ctime' || value === 'mtime') {
+                        if (value === 'ctime' || value === 'mtime' || value === 'FILENAME') {
                             this.plugin.data.settings.sortingAttribute = value;
                             await this.saveSettings()
                         }

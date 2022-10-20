@@ -52,7 +52,7 @@ export class ApiAdapter {
         const div = document.createElement('div');
         await MarkdownRenderer.renderMarkdown(markdown, div, '/', null)
         // @ts-ignore
-        div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"') 
+        div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"')
         return div
     }
 
@@ -71,7 +71,7 @@ export class ApiAdapter {
 
 
     /** For a given file, should Influx component be shown on it's page? */
-    getShowStatus(file: TFile) : boolean {
+    getShowStatus(file: TFile): boolean {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern
         const matched = this.patternMatchingFn(file.path, patterns)
@@ -82,7 +82,7 @@ export class ApiAdapter {
     }
 
 
-    isIncludableSource(path: string) : boolean {
+    isIncludableSource(path: string): boolean {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern
         const matched = this.patternMatchingFn(path, patterns)
@@ -94,14 +94,14 @@ export class ApiAdapter {
 
 
     /** For a given file, should Influx component be shown as collapsed on it's page? */
-    getCollapsedStatus(file: TFile) : boolean {
+    getCollapsedStatus(file: TFile): boolean {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const matched = this.patternMatchingFn(file.path, settings.collapsedPattern)
         return matched
     }
 
 
-    patternMatchingFn = (path: string, _patterns: string[]) : boolean => {
+    patternMatchingFn = (path: string, _patterns: string[]): boolean => {
         const patterns = _patterns.filter((_path: string) => _path.length > 0)
         const pathMatchesRegex = (pattern: string): boolean => {
             try {
@@ -119,18 +119,34 @@ export class ApiAdapter {
     /** A sort function to order notes correctly, based on settings. */
     makeComparisonFn(): (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1 {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
-        const sortingAttr = settings.sortingAttribute === 'ctime' || settings.sortingAttribute === 'mtime' ? settings.sortingAttribute : 'ctime'
+
         const flip = settings.sortingPrinciple === 'OLDEST_FIRST'
 
-        return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
-            if (a.file.stat[sortingAttr] < b.file.stat[sortingAttr]) return flip ? -1 : 1
-            else if (a.file.stat[sortingAttr] > b.file.stat[sortingAttr]) return flip ? 1 : -1
-            else return 0
+        if (settings.sortingAttribute === 'FILENAME') {
+            return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
+                if (a.file.basename < b.file.basename) return flip ? -1 : 1
+                else if (a.file.basename > b.file.basename) return flip ? 1 : -1
+                else return 0
+            }
         }
+
+        else {
+
+            const sortingAttr = settings.sortingAttribute === 'ctime' || settings.sortingAttribute === 'mtime' ? settings.sortingAttribute : 'ctime'
+
+            return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
+                if (a.file.stat[sortingAttr] < b.file.stat[sortingAttr]) return flip ? -1 : 1
+                else if (a.file.stat[sortingAttr] > b.file.stat[sortingAttr]) return flip ? 1 : -1
+                else return 0
+            }
+
+        }
+
+
     }
 
 
-    async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]) : Promise<ExtendedInlinkingFile[]> {
+    async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const comparator = this.makeComparisonFn()
         const components = await Promise.all(inlinkingsFiles
@@ -167,6 +183,6 @@ export class ApiAdapter {
         return false
     }
 
-    
+
 
 }
