@@ -12,7 +12,7 @@ try {
     })
 }
 catch (e) {
-    console.warn('disconnect-element allready defined?')
+    // console.warn('disconnect-element allready defined?')
 }
 
 

@@ -67,6 +67,9 @@ export function createStyleSheet(api: ApiAdapter) {
                         fontSize: `${props.fontSize}px`,
                         lineHeight: `${props.lineHeight}px`,
                     },
+                    '& mark': {
+                        backgroundColor: 'var(--text-highlight-bg)',
+                    },
                 },
 
                 inlinkedEntry: {
@@ -98,10 +101,6 @@ export function createStyleSheet(api: ApiAdapter) {
                     // Fix for list callouts bug; https://github.com/jensmtg/influx/issues/20
                     '& span[class=lc-li-wrapper]': {
                         marginBlockEnd: `${0}px !important`,
-                    },
-
-                    '& mark': {
-                        backgroundColor: 'var(--text-highlight-bg)',
                     },
 
                     '& span[data-callout-title]': {
