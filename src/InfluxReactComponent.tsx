@@ -81,7 +81,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	return <React.Fragment>
 
 
-		<div className="embedded-backlinks">
+		<div className={`embedded-backlinks ${classes.influxComponent}`}> 
 
 			<div className="nav-header">
 

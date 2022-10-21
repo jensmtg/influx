@@ -17,6 +17,7 @@ interface StyleProps {
 export type StyleSheetType = StyleSheet<
     "inlinkedEntries"
     | "inlinkedEntry"
+    | "influxComponent"
 >
 
 export function createStyleSheet(api: ApiAdapter) {
@@ -43,6 +44,11 @@ export function createStyleSheet(api: ApiAdapter) {
     const sheet = jss
         .createStyleSheet(
             {
+                influxComponent: {
+                    marginTop: `3em`, //--line-height-normal is 1.5
+
+                },
+
                 inlinkedEntries: {
                     fontSize: `${props.fontSize}px`,
                     lineHeight: `${props.lineHeight}px`,
