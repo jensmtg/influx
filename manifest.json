@@ -1,7 +1,7 @@
 {
 	"id": "influx",
 	"name": "Influx",
-	"version": "2.0.6",
+	"version": "2.0.7",
 	"minAppVersion": "1.0.0",
 	"description": "An alternative backlinks plugin, which displays relevant and formatted excerpts from notes with linked mentions, based on the position of mentions in the notes' hierarchical structure (bullet level indentation).",
 	"author": "Jens M Gleditsch",
