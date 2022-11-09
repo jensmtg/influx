@@ -1,3 +1,10 @@
+import { marked } from 'marked'
+
+marked.setOptions({
+    gfm: true,
+    breaks: true
+})
+
 const SHOW_ANCESTORS = true
 const CALLOUT_SIGN = '> '
 const CALLOUT_HEADER_SIGN = '[!'
@@ -20,6 +27,30 @@ export type NodeLookup = {
     [key: number]: number[] 
 }
 
+
+export const lexer = (markdown: string): marked.TokensList => {
+
+    const md = markdown.replace(/^---$.*^---$/ms, ''); // Strip frontmatter before lexing
+    const tokens = marked.lexer(md);
+    return tokens
+
+}
+
+export const relexer = (tokens: marked.TokensList): string => {
+    let ret = ''
+    tokens.forEach(token => {
+        if (token.type === 'paragraph') {
+            ret = ret + token.raw
+        }
+        else if (token.type === 'code') {
+            ret = ret + `\`\`\`${token.lang || ''}\n${token.text}\n\`\`\``
+        }
+        else if (token.type === 'heading') {
+            ret = ret + token.raw
+        }
+    }) 
+    return ret
+}
 
 export const makeLineItemsFromIndentedText = (text: string): TreeNode[] => {
 
