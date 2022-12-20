@@ -174,9 +174,16 @@ export class ApiAdapter {
      * to find relevant links.
      */
     compareLinkName(link: LinkCache, basename: string) {
+        
         // format link name to be comparable with base names:
-        // strip any block references from the end
-        const linkname = link.link.split("#^")[0]
+
+        const path = link.link;
+        // grab only the filename from a multi-folder path
+        const filenameOnly = path.split("/").slice(-1)[0]
+
+        // strip any block references from the end and the ".md" extension
+        const linkname = filenameOnly.split("#^")[0].split(".md")[0]
+
         if (linkname.toLowerCase() === basename.toLowerCase()) {
             return true
         }
