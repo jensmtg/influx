@@ -260,10 +260,6 @@ export class StructuredText {
 
     public reparentNode = (childToBeId: NodeId, parentToBeId: NodeId): void => {
 
-        // const internals: InternalsIndex = { ..._indexState.internals }
-        // const children: ChildrenIndex = { ..._indexState.children }
-        // const parents: ParentsIndex = { ..._indexState.parents }
-
         if (!(childToBeId in this.internals && parentToBeId in this.internals)) {
             throw new Error('Missing nodes')
         }
@@ -304,8 +300,10 @@ export class StructuredText {
                 }
 
                 else if (internals.mode === ModeType.CallOut) {
-                    str += OUTPUT_INDENT.repeat(level)
-                    str += OUTPUT_BULLET
+                    if (internals.type === NodeType.CallOutHeader) {
+                                             str += OUTPUT_QUOTE
+                    }
+                    str += OUTPUT_QUOTE.repeat(level)
                     str += internals.stripped
                     str += '\n'
                 }

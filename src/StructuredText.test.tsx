@@ -133,3 +133,26 @@ test('buildAncestorsAndDescendantsIndexes should work for descendants', () => {
 
 });
 
+
+
+
+test('Should handle bullet lists inside callouts', () => {
+
+  const input =
+
+    `> [!INFO] Callout \n` +        // 0000
+    `> * Parent \n` +               // 0001
+    `>   * Child A \n` +              // 0002
+    `>   * Child B \n`                // 0003
+
+  const struct = new StructuredText(input)
+
+  // console.log(JSON.stringify(struct, null, 2))
+  // console.log('str\n', struct.stringify())
+
+  expect(struct.children["0000"]).toEqual(["0001"])
+  expect(struct.children["0001"]).toEqual(["0002", "0003"])
+
+
+});
+
