@@ -29,6 +29,8 @@ export interface NodeInternal {
     type: NodeType;
     mode: ModeType;
     stripped: string;
+    calloutLevel?: number;
+    isQuotedBullet?: boolean;
     debug: any;
 }
 
@@ -109,15 +111,16 @@ export class StructuredText {
             const leadingIndent = line.search(/\S|$/);
             const trimmed = line.slice(leadingIndent);
             const id: NodeId = `${i}`.padStart(4, '0')
+            const isProperBullet = [DASH_SIGN, BULLET_SIGN].includes(trimmed.substring(0, 2))
 
             let stripped = ''
             let type: NodeType
             let indent = 0
+            const debug: any = {}
+            let isQuotedBullet: boolean;
 
 
-            // ===== start sline
-
-            if ([DASH_SIGN, BULLET_SIGN].includes(trimmed.substring(0, 2))) {
+            if (isProperBullet) {
                 stack = mode === ModeType.List ? stack : []
                 type = NodeType.ListItem
                 mode = ModeType.List
@@ -132,19 +135,27 @@ export class StructuredText {
 
             else if (trimmed.substring(0, 1) === QUOTE_SIGN) {
 
-                let quoteLevel = 0
                 let i = 0
+                let quoteLevel = 0
+                let quoteLevelPos = 0
 
                 for (; trimmed[i] === '>';) {
                     quoteLevel++
+                    quoteLevelPos = i
                     const trim = trimmed.slice(i + 1)
                     const advance = trim.search(/\S|$/)
                     i = i + advance + 1
                 }
 
-                stripped = trimmed.slice(i)
+                const strippedAfterLastQuote = trimmed.slice(quoteLevelPos + 1)
+                const strippedBeforeNextChar = trimmed.slice(i)
 
-                if (stripped.substring(0, 2) === CALLOUT_HEADER_SIGN) {
+                stripped = strippedBeforeNextChar
+
+                const indentFromQuoteLevel = strippedAfterLastQuote.search(/\S|$/);
+                isQuotedBullet = [DASH_SIGN, BULLET_SIGN].includes(strippedBeforeNextChar.substring(0, 2))
+
+                if (strippedBeforeNextChar.substring(0, 2) === CALLOUT_HEADER_SIGN) {
                     type = NodeType.CallOutHeader
                     stack = mode === ModeType.CallOut ? stack : []
                     mode = ModeType.CallOut
@@ -155,7 +166,10 @@ export class StructuredText {
                 else if (mode === ModeType.CallOut) {
                     type = NodeType.Quote
                     mode = ModeType.CallOut
-                    indent = quoteLevel
+
+                    indent = isQuotedBullet ? quoteLevel + indentFromQuoteLevel : quoteLevel
+
+                    // indent = quoteLevel
                 }
 
                 else {
@@ -185,7 +199,9 @@ export class StructuredText {
                 stripped: stripped,
                 type: type,
                 mode: mode,
-                debug: indent,
+                debug: debug,
+                calloutLevel,
+                isQuotedBullet,
             };
 
             (types[type] ||= []).push(id);
@@ -290,7 +306,7 @@ export class StructuredText {
 
         const depthFirstStringify = (id: string, level: number) => {
             const internals = this.internals[id]
-            if (internals) { 
+            if (internals) {
 
                 if (internals.mode === ModeType.List) {
                     str += OUTPUT_INDENT.repeat(level)
@@ -300,12 +316,24 @@ export class StructuredText {
                 }
 
                 else if (internals.mode === ModeType.CallOut) {
+
                     if (internals.type === NodeType.CallOutHeader) {
-                                             str += OUTPUT_QUOTE
+                        str += OUTPUT_QUOTE
                     }
-                    str += OUTPUT_QUOTE.repeat(level)
-                    str += internals.stripped
-                    str += '\n'
+
+                    if (internals.isQuotedBullet) {
+                        str += OUTPUT_QUOTE.repeat(internals.calloutLevel)
+                        str += OUTPUT_INDENT.repeat(level - internals.calloutLevel)
+                        str += internals.stripped
+                        str += '\n'
+                    }
+                    else {
+                        str += OUTPUT_QUOTE.repeat(level)
+                        str += internals.stripped
+                        str += '\n'
+                    }
+
+
                 }
 
                 else if (internals.type === NodeType.Quote) {
@@ -319,7 +347,7 @@ export class StructuredText {
                     str += '\n'
                 }
 
-    
+
                 this.children[id]?.forEach(childId => depthFirstStringify(childId, level + 1))
 
             }
