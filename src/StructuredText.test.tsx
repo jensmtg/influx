@@ -26,7 +26,9 @@ test('parseIndentedText should handle simple quotes', () => {
     `>  child(> 1 tab)`              // 0007
 
   const struct = new StructuredText(input)
+
   // console.log(JSON.stringify(struct, null, 2))
+  // console.log('str\n', struct.stringify())
 
   expect(struct.children["0000"]).toEqual(["0001"])
   expect(struct.children["0001"]).toEqual(["0002"])
@@ -50,16 +52,13 @@ test('parseIndentedText should handle callouts', () => {
     `> Lower level\n`                               // 0008 -- 0 + 1
 
   const struct = new StructuredText(input)
-  console.log(JSON.stringify(struct, null, 2))
+  // console.log(JSON.stringify(struct, null, 2))
+  // console.log('str\n', struct.stringify())
 
   expect(struct.internals["0007"].stripped).toEqual("Stripped?")
   expect(struct.children["0000"]).toEqual(["0001", "0002"])
   expect(struct.children["0004"]).toEqual(["0005", "0006", "0008"])
   expect(struct.children["0006"]).toEqual(["0007"])
-
-
-  // expect(is.children["0001"]).toEqual(["0002"])
-  // expect(isEmpty(is.children["0004"])).toBeTruthy()
 
 });
 
@@ -75,6 +74,7 @@ test('reparentNode should update relevant indexes', () => {
 
   const struct = new StructuredText(input)
   // console.log(JSON.stringify(struct, null, 2))
+  // console.log('str\n', struct.stringify())
 
   expect(isEmpty(struct.children["0001"])).toBeTruthy()
   expect(struct.children["0002"]).toEqual(["0003"])
@@ -123,7 +123,7 @@ test('buildAncestorsAndDescendantsIndexes should work for descendants', () => {
     `     - delta\n`      // 0003
 
 
-    const struct = new StructuredText(input)
+  const struct = new StructuredText(input)
 
   expect(struct.descendants["0000"]).toEqual(["0001", "0002", "0003"])
   expect(struct.descendants["0001"]).toEqual([])
@@ -132,3 +132,4 @@ test('buildAncestorsAndDescendantsIndexes should work for descendants', () => {
 
 
 });
+

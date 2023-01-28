@@ -3,6 +3,9 @@ const BULLET_SIGN = '* '
 const DASH_SIGN = '- '
 const QUOTE_SIGN = '>'
 const CALLOUT_HEADER_SIGN = '[!'
+const OUTPUT_INDENT = '  '
+const OUTPUT_QUOTE = '> '
+const OUTPUT_BULLET = '* '
 
 export type NodeId = string;
 
@@ -34,6 +37,8 @@ export type ChildrenIndex = { [key: NodeId]: NodeId[] }
 export type ParentsIndex = { [key: NodeId]: NodeId }
 export type DescendantsIndex = { [key: NodeId]: NodeId[] }
 export type AncestorsIndex = { [key: NodeId]: NodeId[] }
+export type RootsIndex = { [key: NodeId]: any }
+
 export type TypeIndex = { [key in NodeType]: NodeId[] }
 
 
@@ -46,25 +51,28 @@ export class StructuredText {
     types: TypeIndex;
     descendants: DescendantsIndex = {}
     ancestors: AncestorsIndex = {}
+    roots: RootsIndex = {}
 
 
     constructor(raw: string) {
-        const { internals, children, parents } = this.parseIndentedText(raw)
+        const { internals, children, parents, roots } = this.parseText(raw)
 
         this.raw = raw
         this.internals = internals
         this.children = children
         this.parents = parents
+        this.roots = roots
 
         this.buildAncestorsAndDescendantsIndexes()
     }
 
-    private parseIndentedText(text: string): { internals: InternalsIndex, children: ChildrenIndex, parents: ParentsIndex } {
+    private parseText(text: string): { internals: InternalsIndex, children: ChildrenIndex, parents: ParentsIndex, roots: RootsIndex } {
 
         const lines = text.split('\n');
         const internals: InternalsIndex = {}
         const children: ChildrenIndex = {}
         const parents: ParentsIndex = {}
+        const roots: RootsIndex = {}
         const types: TypeIndex = {
             [NodeType.ListItem]: [],
             [NodeType.CallOutHeader]: [],
@@ -92,8 +100,8 @@ export class StructuredText {
         }
 
 
-     
-      
+
+
 
         for (let i = 0; i < lines.length; i++) {
 
@@ -106,7 +114,7 @@ export class StructuredText {
             let type: NodeType
             let indent = 0
 
-        
+
             // ===== start sline
 
             if ([DASH_SIGN, BULLET_SIGN].includes(trimmed.substring(0, 2))) {
@@ -147,7 +155,7 @@ export class StructuredText {
                 else if (mode === ModeType.CallOut) {
                     type = NodeType.Quote
                     mode = ModeType.CallOut
-                    indent = quoteLevel 
+                    indent = quoteLevel
                 }
 
                 else {
@@ -161,8 +169,9 @@ export class StructuredText {
             else {
 
                 type = NodeType.Other
+                stripped = trimmed
                 if (mode === ModeType.CallOut) {
-                    indent = calloutLevel 
+                    indent = calloutLevel
                 }
                 else {
                     mode = ModeType.None
@@ -195,29 +204,34 @@ export class StructuredText {
                 parents[id] = parentId;
             }
 
+            if (indent === 0) {
+                roots[id] = {};
+            }
+
 
         }
 
         return {
             children,
             internals,
-            parents
+            parents,
+            roots,
         }
 
     }
 
-    private buildAncestorsAndDescendantsIndexes (): void {
-    
+    private buildAncestorsAndDescendantsIndexes(): void {
+
         this.descendants = {}
         this.ancestors = {}
-    
+
         // ### Ancestors iteration
-    
+
         for (let i = 0; i < Object.keys(this.internals).length; i++) {
             const id = Object.keys(this.internals)[i]
-    
+
             const parentId = this.parents[id]
-    
+
             if (!parentId) {
                 this.ancestors[id] = []
             }
@@ -226,21 +240,21 @@ export class StructuredText {
                 this.ancestors[parentId] = this.ancestors[parentId] || []
                 this.ancestors[id] = [...this.ancestors[id], parentId, ...this.ancestors[parentId]]
             }
-    
+
         }
-    
+
         // ### Descendants iteration
-    
+
         for (let i = 0; i < Object.keys(this.internals).length; i++) {
             const id = Object.keys(this.internals)[i]
-    
+
             this.descendants[id] = this.descendants[id] || []
             const ancestorsOfId = this.ancestors[id];
-    
+
             ancestorsOfId.forEach(ancestorId => {
                 (this.descendants[ancestorId] ||= []).push(id);
             })
-    
+
         }
     }
 
@@ -249,29 +263,77 @@ export class StructuredText {
         // const internals: InternalsIndex = { ..._indexState.internals }
         // const children: ChildrenIndex = { ..._indexState.children }
         // const parents: ParentsIndex = { ..._indexState.parents }
-    
+
         if (!(childToBeId in this.internals && parentToBeId in this.internals)) {
             throw new Error('Missing nodes')
         }
-    
+
         if (this.children[parentToBeId] && this.children[parentToBeId].includes(childToBeId)) {
             throw new Error('Parent-child relationship allready exists.')
-        } 
-    
+        }
+
         // Remove child from original parents children index
         const parentAsIsId = childToBeId in this.parents ? this.parents[childToBeId] : '';
         if (parentAsIsId) {
             this.children[parentAsIsId] = this.children[parentAsIsId].filter(id => id !== childToBeId)
         }
-    
+
         // Add child to new parent's children index
         (this.children[parentToBeId] ||= []).push(childToBeId);
-    
+
         // Add new parent to child's parent index
         this.parents[childToBeId] = parentToBeId;
-    
+
         this.buildAncestorsAndDescendantsIndexes()
+
+    }
+
+    public stringify = (): string => {
+
+        let str = ''
+
+        const depthFirstStringify = (id: string, level: number) => {
+            const internals = this.internals[id]
+            if (internals) { 
+
+                if (internals.mode === ModeType.List) {
+                    str += OUTPUT_INDENT.repeat(level)
+                    str += OUTPUT_BULLET
+                    str += internals.stripped
+                    str += '\n'
+                }
+
+                else if (internals.mode === ModeType.CallOut) {
+                    str += OUTPUT_INDENT.repeat(level)
+                    str += OUTPUT_BULLET
+                    str += internals.stripped
+                    str += '\n'
+                }
+
+                else if (internals.type === NodeType.Quote) {
+                    str += OUTPUT_QUOTE.repeat(level + 1)
+                    str += internals.stripped
+                    str += '\n'
+                }
+
+                else {
+                    str += internals.stripped
+                    str += '\n'
+                }
+
     
+                this.children[id]?.forEach(childId => depthFirstStringify(childId, level + 1))
+
+            }
+
+        }
+
+        Object.keys(this.roots).forEach(id => {
+            depthFirstStringify(id, 0)
+        })
+
+        return str
+
     }
 
 }
