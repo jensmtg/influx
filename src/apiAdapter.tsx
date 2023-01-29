@@ -6,7 +6,7 @@ export type BacklinksObject = { data: { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
     inlinkingFile: InlinkingFile;
     titleInnerHTML: string;
-    inner: HTMLDivElement[];
+    inner: HTMLDivElement;
 }
 
 export class ApiAdapter {
@@ -162,7 +162,8 @@ export class ApiAdapter {
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
                     titleInnerHTML: titleInnerHTML,
-                    inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.renderMarkdown(summary))),
+                    inner: await this.renderMarkdown(inlinkingFile.summary),
+                    //inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.renderMarkdown(summary))),
                 }
                 return extended
             }))

@@ -1,4 +1,4 @@
-
+const FRONTMATTER_SIGN = '---'
 const BULLET_SIGN = '* '
 const DASH_SIGN = '- '
 const QUOTE_SIGN = '>'
@@ -8,10 +8,12 @@ const OUTPUT_QUOTE = '> '
 const OUTPUT_BULLET = '* '
 
 export type NodeId = string;
+export type ExplicitIncludes = boolean[]
 
 export enum ModeType {
     List = 'LIST',
     CallOut = 'CALLOUT',
+    Frontmatter = 'FRONTMATTER',
     None = 'NONE',
 }
 
@@ -86,6 +88,7 @@ export class StructuredText {
         let stack: NodeId[] = []
         let mode: ModeType = ModeType.None
         let calloutLevel = 0
+        let frontmatterDone = false
 
 
         const lastNonEmptyElement = (stack: NodeId[], offset = 0): NodeId | null => {
@@ -120,7 +123,18 @@ export class StructuredText {
             let isQuotedBullet: boolean;
 
 
-            if (isProperBullet) {
+            if (i === 0 && line.substring(0, 3) === FRONTMATTER_SIGN) {
+                mode = ModeType.Frontmatter
+            }
+
+            else if (mode === ModeType.Frontmatter && !frontmatterDone) {
+                if (line.substring(0, 3) === FRONTMATTER_SIGN) {
+                    frontmatterDone = true
+                }
+            }
+
+
+            else if (isProperBullet) {
                 stack = mode === ModeType.List ? stack : []
                 type = NodeType.ListItem
                 mode = ModeType.List
@@ -300,15 +314,21 @@ export class StructuredText {
 
     }
 
-    public stringify = (): string => {
+    public stringify = (explIncludes?: ExplicitIncludes): string => {
 
         let str = ''
 
         const depthFirstStringify = (id: string, level: number) => {
             const internals = this.internals[id]
-            if (internals) {
+            const include = !explIncludes || explIncludes[Number(id)]
 
-                if (internals.mode === ModeType.List) {
+            if (internals && include) {
+
+                if (internals.mode === ModeType.Frontmatter) {
+                    // pass
+                }
+
+                else if (internals.mode === ModeType.List) {
                     str += OUTPUT_INDENT.repeat(level)
                     str += OUTPUT_BULLET
                     str += internals.stripped
@@ -360,6 +380,25 @@ export class StructuredText {
 
         return str
 
+    }
+
+    public stringifyBranchesOfNodesWithLinks = (lineNumbers: number[]) => {
+
+        // Use array as map to reduce iterations
+        const explIncludes: ExplicitIncludes = []
+
+        lineNumbers.forEach(lineNumber => {
+
+            const id: NodeId = `${lineNumber}`.padStart(4, '0')
+
+            explIncludes[lineNumber] = true
+            this.ancestors[id].forEach(_id => { explIncludes[Number(_id)] = true})
+            this.descendants[id].forEach(_id => { explIncludes[Number(_id)] = true })
+
+            
+        })
+
+        return this.stringify(explIncludes)
     }
 
 }

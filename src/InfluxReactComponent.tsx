@@ -238,13 +238,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 											<div className={classes.inlinkedEntries} >
 												{entryHeader}
-												{extended.inner.map((div: HTMLDivElement, i: number) => (
-													<div
-														key={i}
-														dangerouslySetInnerHTML={{ __html: div.innerHTML }}
+												<div
+														dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
 														className={classes.inlinkedEntry}
 													/>
-												))}
 											</div>
 										</div>
 									</div>

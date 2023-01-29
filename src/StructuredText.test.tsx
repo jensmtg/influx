@@ -1,4 +1,4 @@
-import { StructuredText } from "./StructuredText";
+import { ModeType, StructuredText } from "./StructuredText";
 
 const isEmpty = (val: any) => {
   if (val === undefined) {
@@ -146,14 +146,72 @@ test('Should handle bullet lists inside callouts', () => {
 
   const struct = new StructuredText(input)
 
-  console.log(JSON.stringify(struct, null, 2))
+  // console.log(JSON.stringify(struct, null, 2))
 
   expect(struct.children["0000"]).toEqual(["0001"])
   expect(struct.children["0001"]).toEqual(["0002", "0003"])
 
   expect(struct.stringify().trim()).toEqual(input.trim())
 
+});
 
+
+
+
+test('Stringify should handle explicit includes', () => {
+
+  const input =
+    `* Alpha \n` +                  // 0000
+    `  * Bravo (LINK) \n` +         // 0001
+    `    * Bravo-A \n` +            // 0002
+    `    * Bravo-B \n` +            // 0003
+    `  * Charlie \n` +              // 0004
+    `    * Charlie-A \n` +          // 0005
+    `* Epsilon (LINK) \n` +        // 0006
+    `  * Zeta \n` +                 // 0007
+    `  * Thetta \n` +               // 0008
+    `    * Omega \n`                // 0009
+
+  const struct = new StructuredText(input)
+  // console.log(JSON.stringify(struct, null, 2))
+  const lineNumbersWithLinks = [1, 6]
+  const output = struct.stringifyBranchesOfNodesWithLinks(lineNumbersWithLinks)
+
+  expect(output).toContain("Alpha")
+  expect(output).toContain("Bravo-A")
+  expect(output).toContain("Bravo-B")
+
+  expect(output).not.toContain("Charlie")
+  expect(output).not.toContain("Charlie-A")
+
+  expect(output).toContain("Epsilon")
+  expect(output).toContain("Zeta")
+  expect(output).toContain("Thetta")
+  expect(output).toContain("Omega")
 
 });
 
+
+test('Should handle frontmatter', () => {
+
+  const input =
+    `---\n` +          // 0000
+    `tag: frontmatter \n` +    // 0001
+    `---\n` +          // 0002
+    `* A \n` +         // 0003
+    `  * B \n`         // 0004
+
+  const struct = new StructuredText(input)
+
+  // console.log(JSON.stringify(struct, null, 2))
+  const output = struct.stringify()
+
+  expect(struct.internals["0000"].mode).toEqual(ModeType.Frontmatter)
+  expect(struct.internals["0001"].mode).toEqual(ModeType.Frontmatter)
+  expect(struct.internals["0002"].mode).toEqual(ModeType.Frontmatter)
+
+  expect(output.includes('frontmatter')).toBeFalsy
+  expect(output.includes('---')).toBeFalsy
+
+
+});

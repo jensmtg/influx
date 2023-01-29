@@ -1,7 +1,8 @@
 import { TFile, CachedMetadata } from 'obsidian';
 import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
-import { TreeNode, makeLineItemsFromIndentedText, makeNodeTreefromLineItems, nodeToMarkdownSummary, recursivelyBuildLookup, treeToMarkdownSummary } from './treeUtils';
+import { StructuredText } from './StructuredText';
+import { TreeNode } from './treeUtils';
 
 const FRONTMATTER_KEY = 'influx-title' // Unexposed feature to show frontmatter value as title for clipping.
 
@@ -18,6 +19,7 @@ export class InlinkingFile {
     contextFile: InfluxFile;
     contextSummaries: string[]
     isLinkInTitle: boolean;
+    summary: string;
 
     constructor(file: TFile, apiAdapter: ApiAdapter) {
         this.api = apiAdapter
@@ -25,22 +27,24 @@ export class InlinkingFile {
         this.meta = this.api.getMetadata(this.file)
     }
 
-    async makeContextualSummaries(contextFile: InfluxFile) {
-        this.setTitle()
-        this.content = await this.api.readFile(this.file)
-        this.nodeTree = makeNodeTreefromLineItems(makeLineItemsFromIndentedText(this.content))
-        this.nodeLookup = recursivelyBuildLookup(this.nodeTree)
+    public async makeSummary(contextFile: InfluxFile) {
+        
         this.contextFile = contextFile
+        this.content = await this.api.readFile(this.file)
+        
+        const struct = new StructuredText(this.content)
         const links = this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
-        const linksAtLineNums = links.map(link => link.position.start.line)
+        const lineNumbersOfLinks = links.map(link => link.position.start.line)
 
-        this.isLinkInTitle = this.titleLineNum !== undefined && linksAtLineNums.includes(this.titleLineNum)
+        this.setTitle()
+        this.isLinkInTitle = this.titleLineNum !== undefined && lineNumbersOfLinks.includes(this.titleLineNum)
 
         if (this.isLinkInTitle) {
-            this.contextSummaries = [treeToMarkdownSummary(this.nodeTree)]
+            this.summary = struct.stringify()
         }
         else {
-            this.contextSummaries = links.map(link => nodeToMarkdownSummary(link.position.start.line, this.nodeLookup, this.nodeTree))
+            this.summary = struct.stringifyBranchesOfNodesWithLinks(lineNumbersOfLinks)
+            console.log('this.summary', this.summary)
         }
 
     }
