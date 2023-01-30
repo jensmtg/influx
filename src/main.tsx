@@ -123,14 +123,14 @@ export default class ObsidianInflux extends Plugin {
 			if (this.data.settings.liveUpdate && file instanceof TFile) {
 				this.stylesheet = createStyleSheet(this.api)
 				Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet, file))
-				this.updateInfluxInAllPreviews()
+				// this.updateInfluxInAllPreviews()
 			}
 		}
 		else {
 			this.stylesheet = createStyleSheet(this.api)
-			this.stylesheetForPreview = createStyleSheet(this.api, true)
+			// this.stylesheetForPreview = createStyleSheet(this.api, true)
 			Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
-			this.updateInfluxInAllPreviews()
+			// this.updateInfluxInAllPreviews()
 		}
 	}
 
