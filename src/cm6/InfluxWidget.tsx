@@ -67,5 +67,5 @@ export class InfluxWidget extends WidgetType {
 export const influxDecoration = (influxWidgetSpec: InfluxWidgetSpec) => Decoration.widget({
     widget: new InfluxWidget(influxWidgetSpec),
     side: 1,
-    block: true,
+    // block: true,
 })

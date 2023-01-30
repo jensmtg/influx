@@ -2,10 +2,16 @@ const FRONTMATTER_SIGN = '---'
 const BULLET_SIGN = '* '
 const DASH_SIGN = '- '
 const QUOTE_SIGN = '>'
+const ORDERED_LISTITEM_REGEX = /^(\d+)[.] /gm;
+const TABLE_ROW_REGEX = /^\|(.+)\|(.*)\|/gm;
 const CALLOUT_HEADER_SIGN = '[!'
-const OUTPUT_INDENT = '  '
+const OUTPUT_INDENT_SPACES = 2
+const OUTPUT_INDENT = ' '
+const OUTPUT_INDENT_STEP = OUTPUT_INDENT.repeat(OUTPUT_INDENT_SPACES)
+const OUTPUT_ORDINAL_SIGN = '. '
 const OUTPUT_QUOTE = '> '
 const OUTPUT_BULLET = '* '
+
 
 export type NodeId = string;
 export type ExplicitIncludes = boolean[]
@@ -14,12 +20,19 @@ export enum ModeType {
     List = 'LIST',
     CallOut = 'CALLOUT',
     Frontmatter = 'FRONTMATTER',
+    Quote = 'QUOTE',
+    Table = 'TABLE',
+    Other = 'OTHER',
     None = 'NONE',
 }
 
 export enum NodeType {
-    ListItem = 'LIST_ITEM',
+    ListUnordered = 'LIST_UNORDERED',
+    ListOrdered = 'LIST_ORDERED',
     CallOutHeader = 'CALLOUT_HEADER',
+    TableHeader = 'TABLE_HEADER',
+    TableDivider = 'TABLE_DIVIDER',
+    TableRow = 'TABLE_ROW',
     Quote = 'QUOTE',
     Blank = 'BLANK',
     Other = 'OTHER',
@@ -33,6 +46,10 @@ export interface NodeInternal {
     stripped: string;
     calloutLevel?: number;
     isQuotedBullet?: boolean;
+    isFirstOfMode?: boolean;
+    ordinal?: number;
+    cols?: number;
+    headerId?: string;
     debug: any;
 }
 
@@ -60,7 +77,6 @@ export class StructuredText {
 
     constructor(raw: string) {
         const { internals, children, parents, roots } = this.parseText(raw)
-
         this.raw = raw
         this.internals = internals
         this.children = children
@@ -78,9 +94,13 @@ export class StructuredText {
         const parents: ParentsIndex = {}
         const roots: RootsIndex = {}
         const types: TypeIndex = {
-            [NodeType.ListItem]: [],
+            [NodeType.ListUnordered]: [],
+            [NodeType.ListOrdered]: [],
             [NodeType.CallOutHeader]: [],
             [NodeType.Other]: [],
+            [NodeType.TableHeader]: [],
+            [NodeType.TableDivider]: [],
+            [NodeType.TableRow]: [],
             [NodeType.Quote]: [],
             [NodeType.Blank]: [],
         }
@@ -104,7 +124,41 @@ export class StructuredText {
             return null
         }
 
+        const ifOrderedListItemReturnOrdinal = (str: string): number | undefined => {
+            const matches = str.matchAll(ORDERED_LISTITEM_REGEX);
+            for (const match of matches) {
+                if (match[1]) {
+                    return Number(match[1])
+                }
+            }
+            return undefined
+        }
 
+        const parseMarkdownTableRow = (row: string): null | { cols: number; isDivider: boolean } => {
+
+            const match = row.match(TABLE_ROW_REGEX);
+            if (!match) return null            
+
+            let cols = 0
+            let isDivider = true
+
+            const cells = match[0]
+            .slice(1, match[0].length - 1)
+            .split('|')
+
+            cells.forEach(cell => {
+                if (cell.trim() !== '---') {
+                    isDivider = false
+                }
+                cols += 1
+            })
+
+            return {
+                cols,
+                isDivider
+            }
+
+          }
 
 
 
@@ -116,11 +170,17 @@ export class StructuredText {
             const id: NodeId = `${i}`.padStart(4, '0')
             const isProperBullet = [DASH_SIGN, BULLET_SIGN].includes(trimmed.substring(0, 2))
 
+
             let stripped = ''
             let type: NodeType
             let indent = 0
             const debug: any = {}
             let isQuotedBullet: boolean;
+            let isFirstOfMode: boolean;
+            let ordinal: number;
+            let tr: null | { cols: number, isDivider: boolean };
+            let cols: number;
+            let headerId: string
 
 
             if (i === 0 && line.substring(0, 3) === FRONTMATTER_SIGN) {
@@ -135,9 +195,12 @@ export class StructuredText {
 
 
             else if (isProperBullet) {
-                stack = mode === ModeType.List ? stack : []
-                type = NodeType.ListItem
-                mode = ModeType.List
+                if (mode !== ModeType.List) {
+                    mode = ModeType.List
+                    isFirstOfMode = true
+                    stack = []
+                }
+                type = NodeType.ListUnordered
                 stripped = trimmed.slice(2)
                 indent = leadingIndent
             }
@@ -170,9 +233,12 @@ export class StructuredText {
                 isQuotedBullet = [DASH_SIGN, BULLET_SIGN].includes(strippedBeforeNextChar.substring(0, 2))
 
                 if (strippedBeforeNextChar.substring(0, 2) === CALLOUT_HEADER_SIGN) {
+                    if (mode !== ModeType.CallOut) {
+                        mode = ModeType.CallOut
+                        isFirstOfMode = true
+                        stack = []
+                    }
                     type = NodeType.CallOutHeader
-                    stack = mode === ModeType.CallOut ? stack : []
-                    mode = ModeType.CallOut
                     calloutLevel = quoteLevel
                     indent = quoteLevel - 1
                 }
@@ -187,23 +253,66 @@ export class StructuredText {
                 }
 
                 else {
+                    if (mode !== ModeType.Quote) {
+                        mode = ModeType.Quote
+                        isFirstOfMode = true
+                    }
                     type = NodeType.Quote
-                    mode = ModeType.None
                     indent = quoteLevel - 1
                 }
 
             }
 
+
+
             else {
 
-                type = NodeType.Other
-                stripped = trimmed
-                if (mode === ModeType.CallOut) {
-                    indent = calloutLevel
+                ordinal = ifOrderedListItemReturnOrdinal(trimmed)
+                tr = parseMarkdownTableRow(trimmed)
+
+                if (ordinal) {
+                    if (mode !== ModeType.List) {
+                        mode = ModeType.List
+                        isFirstOfMode = true
+                        stack = []
+                    }
+                    type = NodeType.ListOrdered
+                    stripped = trimmed.slice(String(ordinal).length + 2)
+                    indent = leadingIndent
                 }
+
+                else if (tr) {
+                    if (mode !== ModeType.Table) {
+                        mode = ModeType.Table
+                        isFirstOfMode = true
+                        stack = []
+                        type = NodeType.TableHeader
+                    }
+                    else if (tr.isDivider) {
+                        type = NodeType.TableDivider
+                        headerId = `${i - 1}`.padStart(4, '0')
+                    }
+                    else {
+                        type = NodeType.TableRow
+                    }
+                    cols = tr.cols
+                    stripped = trimmed
+                    indent = isFirstOfMode ? 0 : 2
+                }
+
                 else {
-                    mode = ModeType.None
+                    type = NodeType.Other
+                    stripped = trimmed
+                    if (mode === ModeType.CallOut) {
+                        indent = calloutLevel
+                    }
+                    else if (mode !== ModeType.Other) {
+                        mode = ModeType.Other
+                        isFirstOfMode = true
+
+                    }
                 }
+
 
             }
 
@@ -216,6 +325,10 @@ export class StructuredText {
                 debug: debug,
                 calloutLevel,
                 isQuotedBullet,
+                isFirstOfMode,
+                ordinal,
+                cols,
+                headerId,
             };
 
             (types[type] ||= []).push(id);
@@ -322,15 +435,38 @@ export class StructuredText {
             const internals = this.internals[id]
             const include = !explIncludes || explIncludes[Number(id)]
 
+
             if (internals && include) {
+
+                if (explIncludes && internals.isFirstOfMode) {
+                    str += '\n'
+                }
 
                 if (internals.mode === ModeType.Frontmatter) {
                     // pass
                 }
 
                 else if (internals.mode === ModeType.List) {
-                    str += OUTPUT_INDENT.repeat(level)
-                    str += OUTPUT_BULLET
+                    // str += OUTPUT_INDENT_STEP.repeat(level)
+
+                    this.ancestors[id].forEach(_id => {
+                        const anc = this.internals[_id]
+                        if (anc.ordinal) {
+                            str += OUTPUT_INDENT.repeat(String(anc.ordinal).length + OUTPUT_ORDINAL_SIGN.length)
+                        }
+                        else {
+                            str += OUTPUT_INDENT_STEP
+                        }
+                    })
+                   
+                    if (internals.type === NodeType.ListOrdered) {
+                        str += internals.ordinal
+                        str += OUTPUT_ORDINAL_SIGN
+                    }
+                    else {
+                        str += OUTPUT_BULLET
+                    }
+
                     str += internals.stripped
                     str += '\n'
                 }
@@ -343,7 +479,7 @@ export class StructuredText {
 
                     if (internals.isQuotedBullet) {
                         str += OUTPUT_QUOTE.repeat(internals.calloutLevel)
-                        str += OUTPUT_INDENT.repeat(level - internals.calloutLevel)
+                        str += OUTPUT_INDENT_STEP.repeat(level - internals.calloutLevel)
                         str += internals.stripped
                         str += '\n'
                     }
@@ -362,6 +498,11 @@ export class StructuredText {
                     str += '\n'
                 }
 
+                else if (internals.mode === ModeType.Table) {
+                    str += internals.stripped
+                    str += '\n'
+                }
+
                 else {
                     str += internals.stripped
                     str += '\n'
@@ -369,6 +510,20 @@ export class StructuredText {
 
 
                 this.children[id]?.forEach(childId => depthFirstStringify(childId, level + 1))
+
+            }
+
+            else if (internals) {
+
+                // Some includes are implicit, like table divider rows.
+
+                if (internals.type === NodeType.TableDivider) {
+                    // const headerId: NodeId = `${Number(internals.id)}`.padStart(4, '0')
+                    if (explIncludes[Number(internals.headerId)]) {
+                        str += internals.stripped
+                        str += '\n'
+                    }
+                }
 
             }
 
@@ -392,10 +547,10 @@ export class StructuredText {
             const id: NodeId = `${lineNumber}`.padStart(4, '0')
 
             explIncludes[lineNumber] = true
-            this.ancestors[id].forEach(_id => { explIncludes[Number(_id)] = true})
+            this.ancestors[id].forEach(_id => { explIncludes[Number(_id)] = true })
             this.descendants[id].forEach(_id => { explIncludes[Number(_id)] = true })
 
-            
+
         })
 
         return this.stringify(explIncludes)

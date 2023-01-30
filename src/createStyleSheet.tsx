@@ -43,7 +43,8 @@ export function createStyleSheet(api: ApiAdapter) {
 
     const sheet = jss
         .createStyleSheet(
-            {
+            {         
+
                 influxComponent: {
                     marginTop: `3em`, //--line-height-normal is 1.5
 
@@ -79,30 +80,77 @@ export function createStyleSheet(api: ApiAdapter) {
                 },
 
                 inlinkedEntry: {
-                    // paddingLeft: '8px',
-                    // marginLeft: '8px',
+
+
+                    '--checkbox-size': `${props.fontSize}px`,
+
                     paddingBottom: `${props.lineHeight}px !important`,
+
+
                     '& input[type=checkbox]': {
-                        width: `${props.fontSize}px`,
-                        height: `${props.fontSize}px`,
-                        marginTop: `-${props.margin + props.lineHeight/2}px`,
+                        marginTop: `-${props.lineHeight}px`,
                     },
+
                     '& *': {
                         marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
                     '& li:nth-child(1)': {
                         marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
-                    '&> ul': {
-                        marginTop: `${0}px`,
-                    },
+
                     '& ul': {
+                        marginTop: `${0}px`,
                         paddingInlineStart: `${20}px`,
+
                     },
+
                     '& p': {
                         paddingInlineStart: `${0}px`,
                         marginBlockStart: `auto`,
                     },
+
+                    '& li p': {
+                        marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+                    },
+
+                    '& blockquote': {
+                        borderLeft: 'var(--blockquote-border-thickness) solid',
+                        borderLeftColor: 'var(--blockquote-border-color)',
+                        marginBlockStart: 0,
+                        paddingInlineStart: `${props.lineHeight/2}px`,
+                        marginInlineStart: 0,
+                        marginInlineEnd: 0,
+                        '& p': {
+                            marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+                        },
+                    },
+
+                    '& .callout': {
+                        marginTop: '6px !important',
+                        marginBottom: '0 !important',
+                        marginLeft: '1em !important',
+                        marginRight: '1em !important',
+                        paddingTop: 'var(--size-4-1)',
+                        paddingBottom: 'var(--size-4-1)',
+                        paddingRight: 'var(--size-4-1)',
+                        paddingLeft: 'var(--size-4-2)',
+                        marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
+                        //  // marginBlockEnd: '0px !important',
+                        //  '& ul': {
+                        //     paddingInlineStart: `${0}px`,
+                        // },
+                    },
+                    '& .callout > *': {
+                       //  margin: '4px',
+                         marginBlockEnd: '0px !important',
+                    },
+                    '&> .callout': {
+                        marginLeft: '0px !important',
+                    },
+ 
+                    '& .callout-icon': {
+                        width: 0,
+                    },  
 
                     '& span[data-callout-title]': {
                         backgroundColor: 'rgba(var(--callout-color), 0.1)',

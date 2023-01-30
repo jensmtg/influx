@@ -2,7 +2,6 @@ import { TFile, CachedMetadata } from 'obsidian';
 import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
 import { StructuredText } from './StructuredText';
-import { TreeNode } from './treeUtils';
 
 const FRONTMATTER_KEY = 'influx-title' // Unexposed feature to show frontmatter value as title for clipping.
 
@@ -14,7 +13,6 @@ export class InlinkingFile {
     content: string;
     title: string;
     titleLineNum: number;
-    nodeTree: TreeNode[];
     nodeLookup: { [key: string]: number[] }; // find node by lineNum
     contextFile: InfluxFile;
     contextSummaries: string[]
