@@ -20,7 +20,7 @@ export type StyleSheetType = StyleSheet<
     | "influxComponent"
 >
 
-export function createStyleSheet(api: ApiAdapter) {
+export function createStyleSheet(api: ApiAdapter, preview=false) {
 
     const settings: Partial<ObsidianInfluxSettings> = api.getSettings()
 
@@ -35,7 +35,7 @@ export function createStyleSheet(api: ApiAdapter) {
         lineHeight: sizing + sizing / 2,
         largeFontSize: sizing, // sizing + 2,
         largeLineHeight: sizing + sizing / 2, // sizing + 4,
-        preview: false,
+        preview: preview,
     }
 
 
@@ -84,8 +84,7 @@ export function createStyleSheet(api: ApiAdapter) {
 
                     '--checkbox-size': `${props.fontSize}px`,
 
-                    paddingBottom: `${props.lineHeight}px !important`,
-
+                    paddingBottom: !props.preview ? `${props.lineHeight}px !important` : '',
 
                     '& input[type=checkbox]': {
                         marginTop: `-${props.lineHeight}px`,

@@ -55,6 +55,7 @@ export default class ObsidianInflux extends Plugin {
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: boolean;
 	stylesheet: StyleSheetType;
+	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
 
@@ -64,6 +65,7 @@ export default class ObsidianInflux extends Plugin {
 		this.updating = false
 		this.api = new ApiAdapter(this.app)
 		this.stylesheet = createStyleSheet(this.api)
+		this.stylesheetForPreview = createStyleSheet(this.api, true)
 		this.data = await this.loadDataInitially()
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
@@ -121,12 +123,14 @@ export default class ObsidianInflux extends Plugin {
 			if (this.data.settings.liveUpdate && file instanceof TFile) {
 				this.stylesheet = createStyleSheet(this.api)
 				Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet, file))
-				// this.updateInfluxInAllPreviews()
+				this.updateInfluxInAllPreviews()
 			}
 		}
 		else {
 			this.stylesheet = createStyleSheet(this.api)
+			this.stylesheetForPreview = createStyleSheet(this.api, true)
 			Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
+			this.updateInfluxInAllPreviews()
 		}
 	}
 
@@ -198,7 +202,7 @@ export default class ObsidianInflux extends Plugin {
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}
-				sheet={this.stylesheet}
+				sheet={this.stylesheetForPreview}
 			/>);
 			resolve('Ok')
 		})

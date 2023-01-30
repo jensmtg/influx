@@ -12,7 +12,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const {
 		influxFile,
-		preview,
+		preview = false,
 		sheet,
 	} = props
 
