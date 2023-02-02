@@ -1,12 +1,12 @@
 import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
-import { ObsidianInfluxSettings } from './main';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 
 export type BacklinksObject = { data: { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
     inlinkingFile: InlinkingFile;
     titleInnerHTML: string;
-    inner: HTMLDivElement[];
+    inner: HTMLDivElement;
 }
 
 export class ApiAdapter {
@@ -57,9 +57,9 @@ export class ApiAdapter {
     }
 
 
-    getSettings() {
+    getSettings(): ObsidianInfluxSettings {
         // @ts-ignore
-        const settings = this.app.plugins?.plugins?.influx?.data?.settings || {}
+        const settings = this.app.plugins?.plugins?.influx?.data?.settings || DEFAULT_SETTINGS
         return settings
     }
 
@@ -162,7 +162,8 @@ export class ApiAdapter {
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
                     titleInnerHTML: titleInnerHTML,
-                    inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.renderMarkdown(summary))),
+                    inner: await this.renderMarkdown(inlinkingFile.summary),
+                    //inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.renderMarkdown(summary))),
                 }
                 return extended
             }))

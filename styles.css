@@ -3,3 +3,13 @@
 .cm-content {
     padding-bottom: 1.5rem !important;
 }
+
+body .markdown-preview-sizer {
+    padding-bottom: unset !important;
+}
+
+
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }

@@ -8,7 +8,6 @@ import { createRoot } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
 import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 
-
 export interface ObsidianInfluxSettings {
 	liveUpdate: boolean;
 	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
@@ -24,10 +23,12 @@ export interface ObsidianInfluxSettings {
 	variant: 'CENTER_ALIGNED' | 'ROWS';
 	fontSize: number;
 	entryHeaderVisible: boolean;
+	influxAtTopOfPage: boolean;
+	hideInfluxWhileTyping: boolean;
 
 }
 
-const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
+export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	liveUpdate: true,
 	sortingPrinciple: 'NEWEST_FIRST',
 	sortingAttribute: 'ctime',
@@ -42,6 +43,8 @@ const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	variant: 'CENTER_ALIGNED',
 	fontSize: 13,
 	entryHeaderVisible: true,
+	influxAtTopOfPage: false,
+	hideInfluxWhileTyping: true,
 };
 
 export type ComponentCallback = (op: string, stylesheet: StyleSheetType, file?: TFile) => void
@@ -55,8 +58,10 @@ export default class ObsidianInflux extends Plugin {
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: boolean;
 	stylesheet: StyleSheetType;
+	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
+	delayedShowCallbacks: { callback: () => void, time: number }[] = [];
 
 	async onload(): Promise<void> {
 
@@ -64,6 +69,7 @@ export default class ObsidianInflux extends Plugin {
 		this.updating = false
 		this.api = new ApiAdapter(this.app)
 		this.stylesheet = createStyleSheet(this.api)
+		this.stylesheetForPreview = createStyleSheet(this.api, true)
 		this.data = await this.loadDataInitially()
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
@@ -75,6 +81,33 @@ export default class ObsidianInflux extends Plugin {
 		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => { this.triggerUpdates('delete', file) }));
 		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
 		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
+
+		setInterval(this.tick.bind(this), 1000)
+	}
+
+	public delayShowInflux(showCallback: () => void) {
+		this.delayedShowCallbacks.push({
+			time: Date.now(),
+			callback: showCallback
+		})
+	}
+
+	private tick() {
+
+		const now = Date.now()
+		const remaining: { callback: () => void, time: number }[] = []
+
+		this.delayedShowCallbacks.forEach((cb => {
+			if (now > cb.time + 2000 ) {
+				cb.callback()
+			}
+			else {
+				remaining.push(cb)
+			}
+		}))
+
+		this.delayedShowCallbacks = remaining
+
 
 	}
 
@@ -126,7 +159,9 @@ export default class ObsidianInflux extends Plugin {
 		}
 		else {
 			this.stylesheet = createStyleSheet(this.api)
+			// this.stylesheetForPreview = createStyleSheet(this.api, true)
 			Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
+			this.updateInfluxInAllPreviews()
 		}
 	}
 
@@ -198,7 +233,7 @@ export default class ObsidianInflux extends Plugin {
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}
-				sheet={this.stylesheet}
+				sheet={this.stylesheetForPreview}
 			/>);
 			resolve('Ok')
 		})

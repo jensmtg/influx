@@ -12,7 +12,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const {
 		influxFile,
-		preview,
+		preview = false,
 		sheet,
 	} = props
 
@@ -73,15 +73,17 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const centered = settings.variant !== 'ROWS'
 
-
 	if (!influxFile.show || shownLength === 0) {
 		return null
 	}
 
 	return <React.Fragment>
 
-
-		<div className={`embedded-backlinks ${classes.influxComponent}`}> 
+		<div className={`embedded-backlinks ${classes.influxComponent}`} 
+		style={{
+			animation: 'fadeIn .6s'
+		}}
+		> 
 
 			<div className="nav-header">
 
@@ -170,7 +172,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					</path></svg></span> */}
 
 					<div className="tree-item-inner" >
-						Linked mentions (influx)
+						Linked mentions
 					</div>
 
 
@@ -238,13 +240,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 											<div className={classes.inlinkedEntries} >
 												{entryHeader}
-												{extended.inner.map((div: HTMLDivElement, i: number) => (
-													<div
-														key={i}
-														dangerouslySetInnerHTML={{ __html: div.innerHTML }}
+												<div
+														dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
 														className={classes.inlinkedEntry}
 													/>
-												))}
 											</div>
 										</div>
 									</div>

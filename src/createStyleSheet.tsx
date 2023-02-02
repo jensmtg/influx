@@ -20,7 +20,7 @@ export type StyleSheetType = StyleSheet<
     | "influxComponent"
 >
 
-export function createStyleSheet(api: ApiAdapter) {
+export function createStyleSheet(api: ApiAdapter, preview=false) {
 
     const settings: Partial<ObsidianInfluxSettings> = api.getSettings()
 
@@ -35,7 +35,7 @@ export function createStyleSheet(api: ApiAdapter) {
         lineHeight: sizing + sizing / 2,
         largeFontSize: sizing, // sizing + 2,
         largeLineHeight: sizing + sizing / 2, // sizing + 4,
-        preview: false,
+        preview: preview,
     }
 
 
@@ -43,9 +43,11 @@ export function createStyleSheet(api: ApiAdapter) {
 
     const sheet = jss
         .createStyleSheet(
-            {
+            {         
+
                 influxComponent: {
                     marginTop: `3em`, //--line-height-normal is 1.5
+                    // animation: 'fadeIn .6s',
 
                 },
 
@@ -79,30 +81,73 @@ export function createStyleSheet(api: ApiAdapter) {
                 },
 
                 inlinkedEntry: {
-                    // paddingLeft: '8px',
-                    // marginLeft: '8px',
-                    paddingBottom: `${props.lineHeight}px !important`,
+
+
+                    '--checkbox-size': `${props.fontSize}px`,
+
+                    paddingBottom: !props.preview ? `${props.lineHeight}px !important` : '',
+
                     '& input[type=checkbox]': {
-                        width: `${props.fontSize}px`,
-                        height: `${props.fontSize}px`,
-                        marginTop: `-${props.margin + props.lineHeight/2}px`,
+                        marginTop: `-${props.lineHeight}px`,
                     },
-                    '& *': {
+
+                    '& li, & h1, & ul, & input, & blockquote, & p, & .callout, & .callout-title, & ol': {
                         marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
+
                     '& li:nth-child(1)': {
                         marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
-                    '&> ul': {
-                        marginTop: `${0}px`,
-                    },
+
                     '& ul': {
+                        marginTop: `${0}px`,
                         paddingInlineStart: `${20}px`,
+                        marginBlockEnd: props.preview ? `0px !important` : '',
+
                     },
+
                     '& p': {
                         paddingInlineStart: `${0}px`,
                         marginBlockStart: `auto`,
+                        marginBlockEnd: props.preview ? `0px !important` : '',
                     },
+
+                    '& li p': {
+                        marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+                    },
+
+
+                    '& blockquote': {
+                        borderLeft: 'var(--blockquote-border-thickness) solid',
+                        borderLeftColor: 'var(--blockquote-border-color)',
+                        marginBlockStart: 0,
+                        paddingInlineStart: `${props.lineHeight/2}px`,
+                        marginInlineStart: 0,
+                        marginInlineEnd: 0,
+                        '& p': {
+                            marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+                        },
+                    },
+
+                    '& .callout': {
+                        marginTop: '6px !important',
+                       // marginBottom: '0px !important',
+                        marginLeft: '1em !important',
+                        marginRight: '1em !important',
+                        paddingTop: 'var(--size-4-1)',
+                        paddingBottom: 'var(--size-4-1)',
+                        paddingRight: 'var(--size-4-1)',
+                        paddingLeft: 'var(--size-4-2)',
+
+                    },
+
+                    '&> .callout': {
+                        marginLeft: '0px !important',
+                    },
+ 
+                    '& .callout-icon': {
+                        width: 0,
+                    },  
 
                     '& span[data-callout-title]': {
                         backgroundColor: 'rgba(var(--callout-color), 0.1)',
@@ -121,9 +166,9 @@ export function createStyleSheet(api: ApiAdapter) {
                     },
 
                     // Fix for list callouts bug; https://github.com/jensmtg/influx/issues/20
-                    '& span[class=lc-li-wrapper]': {
-                        marginBlockEnd: `${0}px !important`,
-                    },
+                    // '& span[class=lc-li-wrapper]': {
+                    //     marginBlockEnd: `${0}px !important`,
+                    // },
 
                     // Fix for minimal theme bugs; https://github.com/jensmtg/influx/issues/30
                     '& a[class=tag]': {
