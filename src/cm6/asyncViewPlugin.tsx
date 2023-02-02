@@ -27,7 +27,7 @@ const asyncViewPlugin = ViewPlugin.fromClass(
              * Changes to title of document is not caught.
              * Changes to other documents that are referenced in the influx of host file are not caught.
             */
-            if (update.docChanged || update.viewportChanged) {
+            if (update.docChanged) {
                 const { app } = this.statefulDecorationsSet.editor.state.field(editorViewField)
                  // @ts-ignore
                 const influx: ObsidianInflux = app?.plugins?.plugins?.influx
