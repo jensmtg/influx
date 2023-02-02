@@ -13,9 +13,18 @@ Similar to the *backlinks* core plugin for [Obsidian](https://obsidian.md/), but
 * Notes should be taken hierarchically, in the form of bullet lists/*bullet journaling*. This helps keep clippings terse and relevant.
 * Links should be used as the only organizing principle in the vault - forgo use of tags and files/folders. This helps with completeness; the plugin only considers links when aggregating.
 
-### Frequently asked questions (FAQ)
+### Release notes
 
-* Q: Is it intentional that the plugin is visible in live preview, but not reading view?
-  * A: Yes, in the sense that Obsidian currently cannot add widgets to reading view in the same way as live preview (through code mirror extensions.)
-* Q; Why can't I see the Influx component in some pages?
-  * A: As of version 2, Influx will by default not be shown on pages with no inbound mentions.
+#### 02.02.23
+
+The focus of this update has been to reimplement part of the core of the Influx plugin; the functions that generate the excerpts. The new implementation is more robust, more correct(!) and also has an extensive test coverage, which makes it easier to maintain and make changes to features without breaking other features. Here are the main features of the new update, in terms of functionality:
+
+* A lot of things should generally just work better. Like: Nested callouts, ordered lists, different indentation levels in general, tables and LaTex-formatted blocks.
+* The issue where text appears below the Influx-component when typing has gotten a workaround fix, by hiding Influx while typing.
+* Influx in reading mode is enabled.
+
+Thanks to kenlim for contributing to development through a pull request!
+
+Thanks to ericlpeterson, alranel, FilSalustri, Josh2K, mrkuramoto and Mat4m0 for sponsoring, and supporting ongoing maintainance!
+
+

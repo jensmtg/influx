@@ -172,7 +172,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					</path></svg></span> */}
 
 					<div className="tree-item-inner" >
-						Linked mentions (influx)
+						Linked mentions
 					</div>
 
 
