@@ -31,8 +31,14 @@ const asyncViewPlugin = ViewPlugin.fromClass(
                 const { app } = this.statefulDecorationsSet.editor.state.field(editorViewField)
                  // @ts-ignore
                 const influx: ObsidianInflux = app?.plugins?.plugins?.influx
-                influx.delayShowInflux(() => this.showInflux(update.view))
-                this.hideInflux(update.view)
+                const settings = influx.api.getSettings()
+                if (settings.hideInfluxWhileTyping) {
+                    influx.delayShowInflux(() => this.showInflux(update.view))
+                    this.hideInflux(update.view)
+                }
+                else {
+                    this.showInflux(update.view)
+                }
             }
         }
 

@@ -128,6 +128,17 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
             })
 
+            new Setting(containerEl)
+            .setName("Hide Influx while typing")
+            .setDesc("If disabled, Influx will be shown even while editing a document: This may cause glitches where the text temporarily appears below Influx.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.data.settings.hideInfluxWhileTyping)
+                    .onChange(async (value) => {
+                        this.plugin.data.settings.hideInfluxWhileTyping = value;
+                        await this.saveSettings()
+                    });
+            })
 
             new Setting(containerEl)
             .setName("Show Influx below text")
