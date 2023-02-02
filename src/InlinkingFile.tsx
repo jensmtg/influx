@@ -42,7 +42,7 @@ export class InlinkingFile {
         }
         else {
             this.summary = struct.stringifyBranchesOfNodesWithLinks(lineNumbersOfLinks)
-            console.log('this.summary', this.summary)
+            // console.log('this.summary', this.summary)
         }
 
     }

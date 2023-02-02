@@ -19,15 +19,19 @@ catch (e) {
 
 interface InfluxWidgetSpec {
     influxFile: InfluxFile;
+    show: boolean;
 }
 
 
 export class InfluxWidget extends WidgetType {
     protected influxFile
+    protected show
 
-    constructor({ influxFile }: InfluxWidgetSpec) {
+    constructor({ influxFile, show }: InfluxWidgetSpec) {
         super()
         this.influxFile = influxFile
+        this.show = show
+
     }
 
     eq(influxWidget: InfluxWidget) {
@@ -36,8 +40,11 @@ export class InfluxWidget extends WidgetType {
          * Changes to other documents that are referenced in the influx of host file are not caught.
          * Therefore: Bypass this eq-check.
         */
-        return true
+        // return true
         // return influxWidget.influxFile?.file?.path === this.influxFile?.file?.path
+
+        // fail eq check if show is different
+        return true
     }
 
     toDOM() {
@@ -47,12 +54,17 @@ export class InfluxWidget extends WidgetType {
         container.id = 'influx-react-anchor-div'
         const reactAnchor = container.appendChild(document.createElement('div'))
         const anchor = createRoot(reactAnchor)
-        anchor.render(<InfluxReactComponent
-            key={Math.random()}
-            influxFile={this.influxFile}
-            preview={false}
-            sheet={this.influxFile.influx.stylesheet}
-        />);
+        if (this.show) {
+            anchor.render(<InfluxReactComponent
+                key={Math.random()}
+                influxFile={this.influxFile}
+                preview={false}
+                sheet={this.influxFile.influx.stylesheet}
+            />);
+        }
+        else {
+            anchor.render(null)
+        }
 
         return container
     }
@@ -64,8 +76,9 @@ export class InfluxWidget extends WidgetType {
 }
 
 
-export const influxDecoration = (influxWidgetSpec: InfluxWidgetSpec) => Decoration.widget({
-    widget: new InfluxWidget(influxWidgetSpec),
-    side: 1,
-    // block: true,
-})
+export const influxDecoration = (influxWidgetSpec: InfluxWidgetSpec) =>  Decoration.widget({
+            widget: new InfluxWidget(influxWidgetSpec),
+            side: influxWidgetSpec.influxFile.api.getSettings().influxAtTopOfPage ? 0 : 1,
+            block: true,
+        })
+    

@@ -1,6 +1,6 @@
 import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
-import { ObsidianInfluxSettings } from './main';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 
 export type BacklinksObject = { data: { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -57,9 +57,9 @@ export class ApiAdapter {
     }
 
 
-    getSettings() {
+    getSettings(): ObsidianInfluxSettings {
         // @ts-ignore
-        const settings = this.app.plugins?.plugins?.influx?.data?.settings || {}
+        const settings = this.app.plugins?.plugins?.influx?.data?.settings || DEFAULT_SETTINGS
         return settings
     }
 

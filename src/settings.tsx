@@ -129,6 +129,18 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             })
 
 
+            new Setting(containerEl)
+            .setName("Show Influx below text")
+            .setDesc("If disabled, Influx will be shown above the note body instead.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(!this.plugin.data.settings.influxAtTopOfPage)
+                    .onChange(async (value) => {
+                        this.plugin.data.settings.influxAtTopOfPage = !value;
+                        await this.saveSettings()
+                    });
+            })
+
         new Setting(containerEl)
             .setName("Show headers")
             .setDesc("Influx will use the topmost markdown-formatted header it can find in a page.")

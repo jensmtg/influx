@@ -73,15 +73,17 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const centered = settings.variant !== 'ROWS'
 
-
 	if (!influxFile.show || shownLength === 0) {
 		return null
 	}
 
 	return <React.Fragment>
 
-
-		<div className={`embedded-backlinks ${classes.influxComponent}`}> 
+		<div className={`embedded-backlinks ${classes.influxComponent}`} 
+		style={{
+			animation: 'fadeIn .6s'
+		}}
+		> 
 
 			<div className="nav-header">
 

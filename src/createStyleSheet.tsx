@@ -47,6 +47,7 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
 
                 influxComponent: {
                     marginTop: `3em`, //--line-height-normal is 1.5
+                    // animation: 'fadeIn .6s',
 
                 },
 
@@ -90,9 +91,10 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                         marginTop: `-${props.lineHeight}px`,
                     },
 
-                    '& *': {
+                    '& li, & h1, & ul, & input, & blockquote, & p, & .callout, & .callout-title, & ol': {
                         marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
+
                     '& li:nth-child(1)': {
                         marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
@@ -100,17 +102,20 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                     '& ul': {
                         marginTop: `${0}px`,
                         paddingInlineStart: `${20}px`,
+                        marginBlockEnd: props.preview ? `0px !important` : '',
 
                     },
 
                     '& p': {
                         paddingInlineStart: `${0}px`,
                         marginBlockStart: `auto`,
+                        marginBlockEnd: props.preview ? `0px !important` : '',
                     },
 
                     '& li p': {
                         marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
+
 
                     '& blockquote': {
                         borderLeft: 'var(--blockquote-border-thickness) solid',
@@ -126,23 +131,16 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
 
                     '& .callout': {
                         marginTop: '6px !important',
-                        marginBottom: '0 !important',
+                       // marginBottom: '0px !important',
                         marginLeft: '1em !important',
                         marginRight: '1em !important',
                         paddingTop: 'var(--size-4-1)',
                         paddingBottom: 'var(--size-4-1)',
                         paddingRight: 'var(--size-4-1)',
                         paddingLeft: 'var(--size-4-2)',
-                        marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
-                        //  // marginBlockEnd: '0px !important',
-                        //  '& ul': {
-                        //     paddingInlineStart: `${0}px`,
-                        // },
+
                     },
-                    '& .callout > *': {
-                       //  margin: '4px',
-                         marginBlockEnd: '0px !important',
-                    },
+
                     '&> .callout': {
                         marginLeft: '0px !important',
                     },
@@ -168,9 +166,9 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                     },
 
                     // Fix for list callouts bug; https://github.com/jensmtg/influx/issues/20
-                    '& span[class=lc-li-wrapper]': {
-                        marginBlockEnd: `${0}px !important`,
-                    },
+                    // '& span[class=lc-li-wrapper]': {
+                    //     marginBlockEnd: `${0}px !important`,
+                    // },
 
                     // Fix for minimal theme bugs; https://github.com/jensmtg/influx/issues/30
                     '& a[class=tag]': {

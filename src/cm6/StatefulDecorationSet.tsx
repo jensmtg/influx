@@ -1,4 +1,4 @@
-import { debounce, editorViewField } from "obsidian";
+import { editorViewField } from "obsidian";
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
 import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
@@ -15,7 +15,7 @@ export class StatefulDecorationSet {
         this.editor = editor;
     }
 
-    async computeAsyncDecorations(state: EditorState): Promise<DecorationSet | null> {
+    async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
         if (!state.field(editorViewField)) return null; // If not yet loaded.
         const { app, file } = state.field(editorViewField);
         const apiAdapter = new ApiAdapter(app)
@@ -24,16 +24,18 @@ export class StatefulDecorationSet {
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 
-        const decorations: Range<Decoration>[] = []
-        decorations.push(influxDecoration({ influxFile }).range(state.doc.length))
+        const decorations: Range<Decoration>[] = [] 
+        if (show) {
+            decorations.push(influxDecoration({ influxFile, show }).range(state.doc.length))
+
+        }
         return Decoration.set(decorations, true);
 
     }
 
-    debouncedUpdate = debounce(this.updateAsyncDecorations, 100, true);
 
-    async updateAsyncDecorations(state: EditorState): Promise<void> {
-        const decorations = await this.computeAsyncDecorations(state);
+    async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
+        const decorations = await this.computeAsyncDecorations(state, show);
         // if our compute function returned nothing and the state field still has decorations, clear them out
         if (decorations || this.editor.state.field(statefulDecorations.field).size) {
             this.editor.dispatch({ effects: statefulDecorations.update.of(decorations || Decoration.none) });
