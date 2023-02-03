@@ -7,6 +7,7 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
 import { createStyleSheet, StyleSheetType } from './createStyleSheet';
+import { EditorView } from '@codemirror/view';
 
 export interface ObsidianInfluxSettings {
 	liveUpdate: boolean;
@@ -61,7 +62,7 @@ export default class ObsidianInflux extends Plugin {
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
-	delayedShowCallbacks: { path: string, callback: () => void, time: number }[] = [];
+	delayedShowCallbacks: { editor: EditorView, callback: () => void, time: number }[] = [];
 
 	async onload(): Promise<void> {
 
@@ -85,10 +86,10 @@ export default class ObsidianInflux extends Plugin {
 		setInterval(this.tick.bind(this), 1000)
 	}
 
-	public delayShowInflux(path: string, showCallback: () => void) {
-		this.delayedShowCallbacks = this.delayedShowCallbacks.filter(cb => cb.path !== path)
+	public delayShowInflux(editor: EditorView, showCallback: () => void) {
+		this.delayedShowCallbacks = this.delayedShowCallbacks.filter(cb => cb.editor !== editor)
 		this.delayedShowCallbacks.push({
-			path: path,
+			editor: editor,
 			time: Date.now(),
 			callback: showCallback
 		})
@@ -97,7 +98,7 @@ export default class ObsidianInflux extends Plugin {
 	private tick() {
 
 		const now = Date.now()
-		const remaining: { path: string, callback: () => void, time: number }[] = []
+		const remaining: { editor: EditorView, callback: () => void, time: number }[] = []
 
 		this.delayedShowCallbacks.forEach((cb => {
 			if (now > cb.time + 2000 ) {
