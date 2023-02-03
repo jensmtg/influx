@@ -76,7 +76,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	if (!influxFile.show || shownLength === 0) {
 		return null
 	}
-
+	
 	return <React.Fragment>
 
 		<div className={`embedded-backlinks ${classes.influxComponent}`} 

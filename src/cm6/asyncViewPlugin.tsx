@@ -28,12 +28,13 @@ const asyncViewPlugin = ViewPlugin.fromClass(
              * Changes to other documents that are referenced in the influx of host file are not caught.
             */
             if (update.docChanged) {
-                const { app } = this.statefulDecorationsSet.editor.state.field(editorViewField)
+                const { app, file } = this.statefulDecorationsSet.editor.state.field(editorViewField)
+
                  // @ts-ignore
                 const influx: ObsidianInflux = app?.plugins?.plugins?.influx
                 const settings = influx.api.getSettings()
                 if (settings.hideInfluxWhileTyping) {
-                    influx.delayShowInflux(() => this.showInflux(update.view))
+                    influx.delayShowInflux(file.path, () => this.showInflux(update.view))
                     this.hideInflux(update.view)
                 }
                 else {

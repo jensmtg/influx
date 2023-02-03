@@ -48,7 +48,6 @@ export class InfluxWidget extends WidgetType {
     }
 
     toDOM() {
-
         const container = document.createElement("influx-element")
         container.addEventListener("disconnected", () => this.unmount(this.influxFile))
         container.id = 'influx-react-anchor-div'

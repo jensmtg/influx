@@ -61,7 +61,7 @@ export default class ObsidianInflux extends Plugin {
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
-	delayedShowCallbacks: { callback: () => void, time: number }[] = [];
+	delayedShowCallbacks: { path: string, callback: () => void, time: number }[] = [];
 
 	async onload(): Promise<void> {
 
@@ -85,8 +85,10 @@ export default class ObsidianInflux extends Plugin {
 		setInterval(this.tick.bind(this), 1000)
 	}
 
-	public delayShowInflux(showCallback: () => void) {
+	public delayShowInflux(path: string, showCallback: () => void) {
+		this.delayedShowCallbacks = this.delayedShowCallbacks.filter(cb => cb.path !== path)
 		this.delayedShowCallbacks.push({
+			path: path,
 			time: Date.now(),
 			callback: showCallback
 		})
@@ -95,7 +97,7 @@ export default class ObsidianInflux extends Plugin {
 	private tick() {
 
 		const now = Date.now()
-		const remaining: { callback: () => void, time: number }[] = []
+		const remaining: { path: string, callback: () => void, time: number }[] = []
 
 		this.delayedShowCallbacks.forEach((cb => {
 			if (now > cb.time + 2000 ) {

@@ -17,6 +17,7 @@ export class StatefulDecorationSet {
 
     async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
         if (!state.field(editorViewField)) return null; // If not yet loaded.
+
         const { app, file } = state.field(editorViewField);
         const apiAdapter = new ApiAdapter(app)
         // @ts-ignore
