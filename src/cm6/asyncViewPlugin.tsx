@@ -1,8 +1,7 @@
 import { EditorView, ViewUpdate, ViewPlugin } from "@codemirror/view";
 import { StatefulDecorationSet } from "./StatefulDecorationSet";
 import { statefulDecorations } from "./helpers";
-import { editorViewField } from "obsidian";
-import ObsidianInflux from "src/main";
+import { debounce } from "obsidian";
 
 
 const asyncViewPlugin = ViewPlugin.fromClass(
@@ -22,28 +21,23 @@ const asyncViewPlugin = ViewPlugin.fromClass(
             this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
          }
 
-        update(update: ViewUpdate) {
-            /** Only changes within the same host document flow to this diffing point.
-             * Changes to title of document is not caught.
-             * Changes to other documents that are referenced in the influx of host file are not caught.
-            */
-            if (update.docChanged) {
-                const { app } = this.statefulDecorationsSet.editor.state.field(editorViewField)
+		update(update: ViewUpdate) {
+			/** Only changes within the same host document flow to this diffing point.
+			 * Changes to title of document is not caught.
+			 * Changes to other documents that are referenced in the influx of host file are not caught.
+			 */
+			if (update.docChanged) {
+				this.debouncedShow(update)
+			}
+		}
 
-                 // @ts-ignore
-                const influx: ObsidianInflux = app?.plugins?.plugins?.influx
-                const settings = influx.api.getSettings()
-                if (settings.hideInfluxWhileTyping) {
-                    influx.delayShowInflux(update.view, () => this.showInflux(update.view))
-                    this.hideInflux(update.view)
-                }
-                else {
-                    this.showInflux(update.view)
-                }
-            }
-        }
+		debouncedShow = debounce((update: ViewUpdate) => {
+			this.showInflux(update.view);
+		}, 3000, true)
 
-        destroy() { }
+
+		destroy() {
+		}
 
     }
 );

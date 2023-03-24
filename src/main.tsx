@@ -25,8 +25,6 @@ export interface ObsidianInfluxSettings {
 	fontSize: number;
 	entryHeaderVisible: boolean;
 	influxAtTopOfPage: boolean;
-	hideInfluxWhileTyping: boolean;
-
 }
 
 export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
@@ -45,7 +43,6 @@ export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	fontSize: 13,
 	entryHeaderVisible: true,
 	influxAtTopOfPage: false,
-	hideInfluxWhileTyping: true,
 };
 
 export type ComponentCallback = (op: string, stylesheet: StyleSheetType, file?: TFile) => void
