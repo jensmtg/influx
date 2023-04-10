@@ -185,10 +185,7 @@ export class ApiAdapter {
         // strip any block and heading references from the end and the ".md" extension
         const linkname = filenameOnly.split(/[\#\^]/)[0].split(".md")[0]
 
-        if (linkname.toLowerCase() === basename.toLowerCase()) {
-            return true
-        }
-        return false
+        return linkname.toLowerCase() === basename.toLowerCase()
     }
 
 
