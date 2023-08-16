@@ -1,5 +1,5 @@
-> **Notice**
-> As the creator mentioned below, the plugin is no longer maintained. Check out an alternative implementation: [in Obsidian](obsidian://show-plugin?id=better-search-views) or [on Github](https://github.com/ivan-lednev/better-search-views)
+> **Note**
+> As the creator mentioned below, the plugin is no longer maintained. Check out an [alternative implementation](https://github.com/ivan-lednev/better-search-views)
 
 > **Warning**
 > I'm sad to say I can't find the time to maintain this plug-in. As such, issues will not be read. I may merge pull requests from time to time. If you think you can maintain this plugin please contact me.
