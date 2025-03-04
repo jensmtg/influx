@@ -125,17 +125,17 @@ export class ApiAdapter extends Component {
             .sort(comparator)
             .slice(0, settings.listLimit || inlinkingsFiles.length)
             .map(async (inlinkingFile) => {
-
-                // Parse title, and strip innerHTML of enclosing <p>:
-                // Also pad with underscore and slice away, to avoid parsing "2022." as ordered list. 
                 const titleAsMd = await this.renderMarkdown(`_${inlinkingFile.title}`)
-                const titleInnerHTML = titleAsMd.innerHTML.slice(4, -4)
+                // Remove the <p dir="auto"> tag and </p> properly
+                const titleInnerHTML = titleAsMd.innerHTML
+                    .replace(/<p[^>]*>/g, '')  // Remove opening p tag with any attributes
+                    .replace(/<\/p>/g, '')     // Remove closing p tag
+                    .replace(/^_/, '')         // Remove leading underscore we added
 
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
                     titleInnerHTML: titleInnerHTML,
                     inner: await this.renderMarkdown(inlinkingFile.summary),
-                    //inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.renderMarkdown(summary))),
                 }
                 return extended
             }))
