@@ -1,4 +1,4 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 
@@ -9,67 +9,51 @@ export type ExtendedInlinkingFile = {
     inner: HTMLDivElement;
 }
 
-export class ApiAdapter {
+export class ApiAdapter extends Component {
     app: App;
 
     constructor(app: App) {
+        super();
         this.app = app
     }
-
-
+    
     /** =================
      * OBSIDIAN resources 
      * ==================
      */
-
-
     getFileByPath(path: string): TFile {
         const file = this.app.vault.getAbstractFileByPath(path)
         if (file instanceof TFile) {
             return file
         }
     }
-
-
     async readFile(file: TFile): Promise<string> {
         return await this.app.vault.read(file)
     }
-
-
     getMetadata(file: TFile): CachedMetadata {
         return this.app.metadataCache.getFileCache(file);
     }
-
-
     getBacklinks(file: TFile): BacklinksObject {
         // getBacklinksForFile is not document officially, so it might break at some point.
         // @ts-ignore
         return this.app.metadataCache.getBacklinksForFile(file)
     }
-
-
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
         const div = document.createElement('div');
-        await MarkdownRenderer.renderMarkdown(markdown, div, '/', null)
+        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this)
         // @ts-ignore
         div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"')
         return div
     }
-
-
     getSettings(): ObsidianInfluxSettings {
         // @ts-ignore
         const settings = this.app.plugins?.plugins?.influx?.data?.settings || DEFAULT_SETTINGS
         return settings
     }
-
-
     /** =================
      * INFLUX utils 
      * ==================
      */
-
-
     /** For a given file, should Influx component be shown on it's page? */
     getShowStatus(file: TFile): boolean {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
@@ -80,8 +64,6 @@ export class ApiAdapter {
                 : false
         return show
     }
-
-
     isIncludableSource(path: string): boolean {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern
@@ -91,16 +73,12 @@ export class ApiAdapter {
                 : false
         return isIncludable
     }
-
-
     /** For a given file, should Influx component be shown as collapsed on it's page? */
     getCollapsedStatus(file: TFile): boolean {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const matched = this.patternMatchingFn(file.path, settings.collapsedPattern)
         return matched
     }
-
-
     patternMatchingFn = (path: string, _patterns: string[]): boolean => {
         const patterns = _patterns.filter((_path: string) => _path.length > 0)
         const pathMatchesRegex = (pattern: string): boolean => {
@@ -114,8 +92,6 @@ export class ApiAdapter {
         const matched = patterns.some(pathMatchesRegex);
         return matched
     };
-
-
     /** A sort function to order notes correctly, based on settings. */
     makeComparisonFn(): (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1 {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
@@ -141,11 +117,7 @@ export class ApiAdapter {
             }
 
         }
-
-
     }
-
-
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const comparator = this.makeComparisonFn()
@@ -153,31 +125,27 @@ export class ApiAdapter {
             .sort(comparator)
             .slice(0, settings.listLimit || inlinkingsFiles.length)
             .map(async (inlinkingFile) => {
-
-                // Parse title, and strip innerHTML of enclosing <p>:
-                // Also pad with underscore and slice away, to avoid parsing "2022." as ordered list. 
                 const titleAsMd = await this.renderMarkdown(`_${inlinkingFile.title}`)
-                const titleInnerHTML = titleAsMd.innerHTML.slice(4, -4)
+                // Remove the <p dir="auto"> tag and </p> properly
+                const titleInnerHTML = titleAsMd.innerHTML
+                    .replace(/<p[^>]*>/g, '')  // Remove opening p tag with any attributes
+                    .replace(/<\/p>/g, '')     // Remove closing p tag
+                    .replace(/^_/, '')         // Remove leading underscore we added
 
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
                     titleInnerHTML: titleInnerHTML,
                     inner: await this.renderMarkdown(inlinkingFile.summary),
-                    //inner: await Promise.all(inlinkingFile.contextSummaries.map(async (summary) => await this.renderMarkdown(summary))),
                 }
                 return extended
             }))
         return components
     }
-
-
     /** comparison fn for filter in function to make contextual summaries,
      * to find relevant links.
      */
     compareLinkName(link: LinkCache, basename: string) {
-
         // format link name to be comparable with base names:
-
         const path = link.link;
         // grab only the filename from a multi-folder path
         const filenameOnly = path.split("/").slice(-1)[0]
@@ -187,7 +155,4 @@ export class ApiAdapter {
 
         return linkname.toLowerCase() === basename.toLowerCase()
     }
-
-
-
-}
+} // Add this closing brace
