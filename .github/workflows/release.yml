@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "20" # You might need to adjust this value to your own version
-          cache: 'yarn' # This speeds up builds by caching dependencies
+          # cache: 'yarn' # This speeds up builds by caching dependencies
       - name: Build
         id: build
         run: |
