@@ -212,7 +212,7 @@ export default class ObsidianInflux extends Plugin {
 				return
 			}
 
-			const apiAdapter = new ApiAdapter(app)
+			const apiAdapter = new ApiAdapter(this.app)
 			// @ts-ignore
 			const path = leaf.view?.file.path
 			if (!path) {
