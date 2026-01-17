@@ -1,8 +1,8 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 
-export type BacklinksObject = { data: { [key: string]: LinkCache[] } }
+export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
     inlinkingFile: InlinkingFile;
     titleInnerHTML: string;
@@ -11,9 +11,11 @@ export type ExtendedInlinkingFile = {
 
 export class ApiAdapter {
     app: App;
+    component: Component;
 
     constructor(app: App) {
         this.app = app
+        this.component = new Component()
     }
 
 
@@ -50,7 +52,7 @@ export class ApiAdapter {
 
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
         const div = document.createElement('div');
-        await MarkdownRenderer.renderMarkdown(markdown, div, '/', null)
+        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this.component)
         // @ts-ignore
         div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"')
         return div

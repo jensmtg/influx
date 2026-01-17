@@ -25,9 +25,9 @@ export class StatefulDecorationSet {
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 
-        const decorations: Range<Decoration>[] = [] 
-        if (show) {
-            decorations.push(influxDecoration({ influxFile, show }).range(state.doc.length))
+        const decorations: Range<Decoration>[] = []
+        if (show && influxFile.show) {
+            decorations.push(influxDecoration({ influxFile, show: influxFile.show }).range(state.doc.length))
 
         }
         return Decoration.set(decorations, true);
