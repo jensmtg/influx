@@ -1,7 +1,7 @@
 {
 	"name": "influx",
-	"version": "2.1.2",
-	"description": ".",
+	"version": "2.1.3",
+	"description": "An alternative backlinks plugin, which displays relevant and formatted excerpts from notes with linked mentions, based on the position of mentions in the notes' hierarchical structure (bullet level indentation).",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -9,8 +9,15 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test": "jest"
 	},
-	"keywords": [],
-	"author": "",
+	"keywords": [
+		"obsidian",
+		"plugin",
+		"influx",
+		"backlinks",
+		"excerpts",
+		"notes"
+	],
+	"author": "Jens M Gleditsch",
 	"license": "MIT",
 	"devDependencies": {
 		"@babel/core": "^7.28.5",
