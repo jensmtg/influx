@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.2] - 2023-02-02
 
+This update reimplemented part of the core of the Influx plugin - the functions that generate the excerpts. The new implementation is more robust, more correct, and includes extensive test coverage, making it easier to maintain and make changes without breaking other features.
+
 ### Added
 
 - Influx in reading mode is now enabled
@@ -39,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Workaround for text appearing below Influx component when typing (by hiding Influx while typing)
+
+### Contributors
+
+Thanks to kenlim for contributing to development through a pull request!
 
 ## Previous Releases
 
