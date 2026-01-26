@@ -1,13 +1,25 @@
-import { Plugin, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
+import { Plugin, TAbstractFile, TFile, WorkspaceLeaf, View } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from './settings';
 import { asyncDecoBuilderExt } from './cm6/asyncViewPlugin';
 import InfluxFile from './InfluxFile';
 import InfluxReactComponent from './InfluxReactComponent';
 import * as React from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, Root } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
 import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 import { EditorView } from '@codemirror/view';
+
+// Type definitions for Obsidian internal properties
+type InfluxView = View & {
+	file?: TFile;
+	currentMode?: { type: string };
+	mode?: string;
+};
+
+type InfluxWorkspaceLeaf = WorkspaceLeaf & {
+	view?: InfluxView;
+	containerEl: HTMLDivElement;
+};
 
 export interface ObsidianInfluxSettings {
 	liveUpdate: boolean;
@@ -51,6 +63,11 @@ export interface Data {
 }
 
 
+// Constants for magic numbers
+const DEBOUNCE_DELAY_MS = 100;
+const DOM_STABILITY_DELAY_MS = 50;
+const DELAYED_CALLBACK_TIMEOUT_MS = 2000;
+
 export default class ObsidianInflux extends Plugin {
 
 	componentCallbacks: { [key: string]: ComponentCallback };
@@ -61,6 +78,10 @@ export default class ObsidianInflux extends Plugin {
 	data: Data;
 	delayedShowCallbacks: { editor: EditorView, callback: () => void, time: number }[] = [];
 	private updateDebouncers: { [key: string]: NodeJS.Timeout } = {};
+	// Track React roots for proper cleanup to prevent memory leaks
+	private previewReactRoots: WeakMap<HTMLElement, Root> = new WeakMap();
+	// Track file hashes to avoid unnecessary re-renders
+	private previewFileHashes: Map<string, string> = new Map();
 
 	async onload(): Promise<void> {
 
@@ -110,7 +131,7 @@ export default class ObsidianInflux extends Plugin {
 		const remaining: { editor: EditorView, callback: () => void, time: number }[] = []
 
 		this.delayedShowCallbacks.forEach((cb => {
-			if (now > cb.time + 2000 ) {
+			if (now > cb.time + DELAYED_CALLBACK_TIMEOUT_MS ) {
 				cb.callback()
 			}
 			else {
@@ -143,6 +164,8 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async onunload() {
+		// Note: WeakMap doesn't provide iteration, so we rely on individual cleanup in updateInfluxInPreview
+		// The React roots will be automatically cleaned up when DOM elements are garbage collected
 	}
 
 	registerInfluxComponent(id: string, callback: ComponentCallback) {
@@ -177,7 +200,7 @@ export default class ObsidianInflux extends Plugin {
 				this.updateInfluxInAllPreviews()
 			}
 			delete this.updateDebouncers[op]
-		}, 100) // 100ms debounce delay
+		}, DEBOUNCE_DELAY_MS)
 	}
 
 	async updateInfluxInAllPreviews() {
@@ -190,17 +213,14 @@ export default class ObsidianInflux extends Plugin {
 
 		this.app.workspace.iterateRootLeaves(leaf => {
 			// Better preview mode detection - check multiple possible indicators
-			// @ts-ignore
-			const leafType: string = leaf.view?.currentMode?.type
-			// @ts-ignore
-			const viewMode: string = leaf.view?.mode
-			// @ts-ignore
-			const hasPreviewClass = leaf.containerEl?.querySelector('.markdown-preview-view')
-			// @ts-ignore
-			const hasPreviewMode = leaf.view?.mode === 'preview'
-			
+			const influxLeaf = leaf as InfluxWorkspaceLeaf;
+			const leafType: string = influxLeaf.view?.currentMode?.type
+			const viewMode: string = influxLeaf.view?.mode
+			const hasPreviewClass = influxLeaf.containerEl?.querySelector('.markdown-preview-view')
+			const hasPreviewMode = influxLeaf.view?.mode === 'preview'
+
 			console.log(`🔍 Influx: Leaf - type: ${leafType}, mode: ${viewMode}, hasPreviewClass: ${!!hasPreviewClass}, hasPreviewMode: ${hasPreviewMode}`);
-			
+
 			if ((leafType === 'preview') || (viewMode === 'preview') || hasPreviewClass || hasPreviewMode) {
 				previewLeaves.push(leaf)
 				console.log('✅ Influx: Found preview leaf');
@@ -212,8 +232,8 @@ export default class ObsidianInflux extends Plugin {
 		// Track per-file updates to prevent concurrent updates to the same file
 		// while allowing multiple different files to update simultaneously
 		const updatePromises = previewLeaves.map(leaf => {
-			// @ts-ignore
-			const filePath = leaf.view?.file?.path
+			const influxLeaf = leaf as InfluxWorkspaceLeaf;
+			const filePath = influxLeaf.view?.file?.path
 			if (!filePath) {
 				return Promise.resolve()
 			}
@@ -237,74 +257,90 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async updateInfluxInPreview(leaf: WorkspaceLeaf) {
-		// eslint-disable-next-line no-async-promise-executor
-		return new Promise(async (resolve, reject) => {
-			console.log(' Influx: updateInfluxInPreview called');
+		console.log(' Influx: updateInfluxInPreview called');
 
-			// @ts-ignore
-			const container: HTMLDivElement = leaf.containerEl
-			console.log(' Influx: Container:', container);
+		const influxLeaf = leaf as InfluxWorkspaceLeaf;
+		const container: HTMLDivElement = influxLeaf.containerEl
+		console.log(' Influx: Container:', container);
 
-			const previewDiv = container.querySelector(".markdown-preview-view");
+		const previewDiv = container.querySelector(".markdown-preview-view");
 
-			if (!previewDiv) {
-				reject('No preview found')
-				return
-			}
+		if (!previewDiv) {
+			throw new Error('No preview found')
+		}
 
-			const apiAdapter = new ApiAdapter(this.app)
-			// @ts-ignore
-			const path = leaf.view?.file.path
-			if (!path) {
-				reject('No file path found')
-				return
-			}
-			const influxFile = new InfluxFile(path, apiAdapter, this)
-			await influxFile.makeInfluxList()
-			await influxFile.renderAllMarkdownBlocks()
+		const apiAdapter = new ApiAdapter(this.app)
+		const path = influxLeaf.view?.file?.path
+		if (!path) {
+			throw new Error('No file path found')
+		}
 
-			// Remove any existing influx blocks before creating new ones to avoid flickering
-			const influxContainers = container.getElementsByTagName("influx-preview-container")
-			for (let i = 0; i < influxContainers.length; i++) {
-				influxContainers[i].remove()
-			}
+		// Check if we already have an Influx container for this file
+		const existingWrapper = previewDiv.querySelector('.influx-preview-wrapper') as HTMLElement
+		const existingContainer = existingWrapper?.querySelector('influx-preview-container') as HTMLElement
 
-			// Add a small delay to ensure DOM is ready after removal
-			setTimeout(() => {
-				try {
-					// Create a wrapper div that will be positioned based on settings
-					const influxWrapper = document.createElement("div");
-					influxWrapper.className = "influx-preview-wrapper";
+		// Calculate a simple hash of the influx data to detect changes
+		const fileHash = `${path}-${this.data.settings.sortingPrinciple}-${this.data.settings.sortingAttribute}`
 
-					const influxContainer = document.createElement("influx-preview-container");
-					influxContainer.id = influxFile.uuid;
-					influxWrapper.appendChild(influxContainer);
+		// If we have an existing container with the same data, skip the update
+		if (existingContainer && this.previewFileHashes.get(path) === fileHash) {
+			console.log(' Influx: Skipping update, content unchanged');
+			return
+		}
 
-					// Position based on influxAtTopOfPage setting
-					// When true (checkbox OFF), show at top; when false (checkbox ON), show at bottom
-					const settings = this.data.settings;
-					if (settings.influxAtTopOfPage) {
-						// Insert at the beginning of preview view (top)
-						previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
-					} else {
-						// Append to the end of preview view (bottom)
-						previewDiv.appendChild(influxWrapper);
-					}
+		const influxFile = new InfluxFile(path, apiAdapter, this)
+		await influxFile.makeInfluxList()
+		await influxFile.renderAllMarkdownBlocks()
 
-					const anchor = createRoot(influxContainer);
+		// Update the hash
+		this.previewFileHashes.set(path, fileHash)
 
-					anchor.render(<InfluxReactComponent
-						influxFile={influxFile}
-						preview={true}
-						sheet={this.stylesheetForPreview}
-					/>);
-					resolve('Ok');
-				} catch (error) {
-					console.error('Influx: Error rendering preview component:', error);
-					reject(error);
+		let anchor: Root;
+
+		if (existingContainer) {
+			// Reuse existing container and root
+			anchor = this.previewReactRoots.get(existingContainer)!
+			console.log(' Influx: Reusing existing React root');
+		} else {
+			// Clean up any old containers
+			const oldContainers = previewDiv.querySelectorAll("influx-preview-container")
+			oldContainers.forEach(el => {
+				const oldContainer = el as HTMLElement
+				const oldRoot = this.previewReactRoots.get(oldContainer)
+				if (oldRoot) {
+					oldRoot.unmount()
+					this.previewReactRoots.delete(oldContainer)
 				}
-			}, 50); // Small delay to ensure DOM stability
-		})
+				oldContainer.parentElement?.remove()
+			})
+
+			// Create new wrapper and container
+			const influxWrapper = document.createElement("div");
+			influxWrapper.className = "influx-preview-wrapper";
+
+			const influxContainer = document.createElement("influx-preview-container");
+			influxContainer.id = influxFile.uuid;
+			influxWrapper.appendChild(influxContainer);
+
+			// Position based on influxAtTopOfPage setting
+			const settings = this.data.settings;
+			if (settings.influxAtTopOfPage) {
+				previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
+			} else {
+				previewDiv.appendChild(influxWrapper);
+			}
+
+			// Create and track the React root
+			anchor = createRoot(influxContainer);
+			this.previewReactRoots.set(influxContainer, anchor);
+		}
+
+		// Render or update the React component
+		anchor.render(<InfluxReactComponent
+			influxFile={influxFile}
+			preview={true}
+			sheet={this.stylesheetForPreview}
+		/>);
 	}
 
 	async handlePreviewMode(element: HTMLElement, context: any) {
@@ -319,9 +355,19 @@ export default class ObsidianInflux extends Plugin {
 			return;
 		}
 
-		// Remove any existing Influx elements first
+		// Clean up any existing React roots before removing elements
 		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
-		existingInflux.forEach(el => el.remove());
+		existingInflux.forEach(wrapper => {
+			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
+			if (container) {
+				const root = this.previewReactRoots.get(container);
+				if (root) {
+					root.unmount();
+					this.previewReactRoots.delete(container);
+				}
+			}
+			wrapper.remove();
+		});
 
 		try {
 			const apiAdapter = new ApiAdapter(this.app);
@@ -353,8 +399,9 @@ export default class ObsidianInflux extends Plugin {
 				element.appendChild(influxWrapper);
 			}
 
-			// Render React component
+			// Create and track the React root
 			const anchor = createRoot(influxContainer);
+			this.previewReactRoots.set(influxContainer, anchor);
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}
