@@ -54,17 +54,17 @@ export interface Data {
 export default class ObsidianInflux extends Plugin {
 
 	componentCallbacks: { [key: string]: ComponentCallback };
-	updating: boolean;
+	updating: Set<string> = new Set();
 	stylesheet: StyleSheetType;
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
 	delayedShowCallbacks: { editor: EditorView, callback: () => void, time: number }[] = [];
+	private updateDebouncers: { [key: string]: NodeJS.Timeout } = {};
 
 	async onload(): Promise<void> {
 
 		this.componentCallbacks = {}
-		this.updating = false
 		this.api = new ApiAdapter(this.app)
 		this.stylesheet = createStyleSheet(this.api)
 		this.stylesheetForPreview = createStyleSheet(this.api, true)
@@ -111,7 +111,6 @@ export default class ObsidianInflux extends Plugin {
 
 	}
 
-
 	async loadDataInitially() {
 		const _data = await this.loadData()
 		const data: Data = {
@@ -119,7 +118,6 @@ export default class ObsidianInflux extends Plugin {
 		}
 		return data
 	}
-
 
 	toggleSortOrder() {
 		const newOrder = this.data.settings.sortingPrinciple === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST'
@@ -147,22 +145,27 @@ export default class ObsidianInflux extends Plugin {
 		}
 	}
 
-
 	triggerUpdates(op: string, file?: TAbstractFile) {
+		// Clear existing debouncer for this operation type
+		if (this.updateDebouncers[op]) {
+			clearTimeout(this.updateDebouncers[op])
+		}
 
-		if (op === 'modify') {
-			if (this.data.settings.liveUpdate && file instanceof TFile) {
-				this.stylesheet = createStyleSheet(this.api)
-				Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet, file))
-				// this.updateInfluxInAllPreviews()
+		// Debounce rapid successive updates to prevent conflicts
+		this.updateDebouncers[op] = setTimeout(async () => {
+			if (op === 'modify') {
+				if (this.data.settings.liveUpdate && file instanceof TFile) {
+					this.stylesheet = createStyleSheet(this.api)
+					Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet, file))
+				}
 			}
-		}
-		else {
-			this.stylesheet = createStyleSheet(this.api)
-			// this.stylesheetForPreview = createStyleSheet(this.api, true)
-			Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
-			this.updateInfluxInAllPreviews()
-		}
+			else {
+				this.stylesheet = createStyleSheet(this.api)
+				Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
+				this.updateInfluxInAllPreviews()
+			}
+			delete this.updateDebouncers[op]
+		}, 100) // 100ms debounce delay
 	}
 
 	async updateInfluxInAllPreviews() {
@@ -173,29 +176,45 @@ export default class ObsidianInflux extends Plugin {
 		const previewLeaves: WorkspaceLeaf[] = []
 
 		this.app.workspace.iterateRootLeaves(leaf => {
+			// Better preview mode detection - check multiple possible indicators
 			// @ts-ignore
 			const leafType: string = leaf.view?.currentMode?.type
-			if (leafType && leafType === 'preview') {
+			// @ts-ignore
+			const viewMode: string = leaf.view?.mode
+			// @ts-ignore
+			const hasPreviewClass = leaf.containerEl?.querySelector('.markdown-preview-view')
+			// @ts-ignore
+			const hasPreviewMode = leaf.view?.mode === 'preview'
+			if ((leafType === 'preview') || (viewMode === 'preview') || hasPreviewClass || hasPreviewMode) {
 				previewLeaves.push(leaf)
 			}
 		})
 
-		if (this.updating) {
-			return
-		}
+		// Track per-file updates to prevent concurrent updates to the same file
+		// while allowing multiple different files to update simultaneously
+		const updatePromises = previewLeaves.map(leaf => {
+			// @ts-ignore
+			const filePath = leaf.view?.file?.path
+			if (!filePath) {
+				return Promise.resolve()
+			}
 
-		else {
-			this.updating = true
-			try {
-				await Promise.all(previewLeaves.map(leaf => this.updateInfluxInPreview(leaf)))
+			// Skip if this file is already being updated
+			if (this.updating.has(filePath)) {
+				return Promise.resolve()
 			}
-			catch (e) {
-				// console.warn(e)
-			}
-			finally {
-				this.updating = false
-			}
-		}
+
+			// Mark this file as being updated
+			this.updating.add(filePath)
+
+			return this.updateInfluxInPreview(leaf)
+				.finally(() => {
+					// Always remove the lock, even if update fails
+					this.updating.delete(filePath)
+				})
+		})
+
+		await Promise.all(updatePromises)
 	}
 
 	async updateInfluxInPreview(leaf: WorkspaceLeaf) {
@@ -223,28 +242,36 @@ export default class ObsidianInflux extends Plugin {
 			await influxFile.makeInfluxList()
 			await influxFile.renderAllMarkdownBlocks()
 
-			// Remove any existing influx blocks after async flows
+			// Remove any existing influx blocks before creating new ones to avoid flickering
 			this.removeInfluxFromPreview(leaf)
 
-			// Create a wrapper div that will be positioned at the bottom of the content
-			const influxWrapper = document.createElement("div");
-			influxWrapper.className = "influx-preview-wrapper";
+			// Add a small delay to ensure DOM is ready after removal
+			setTimeout(() => {
+				try {
+					// Create a wrapper div that will be positioned at the bottom of the content
+					const influxWrapper = document.createElement("div");
+					influxWrapper.className = "influx-preview-wrapper";
 
-			const influxContainer = document.createElement("influx-preview-container");
-			influxContainer.id = influxFile.uuid;
-			influxWrapper.appendChild(influxContainer);
-			
-			// Append to the preview view directly
-			previewDiv.appendChild(influxWrapper);
+					const influxContainer = document.createElement("influx-preview-container");
+					influxContainer.id = influxFile.uuid;
+					influxWrapper.appendChild(influxContainer);
+					
+					// Append to the preview view directly
+					previewDiv.appendChild(influxWrapper);
 
-			const anchor = createRoot(influxContainer);
+					const anchor = createRoot(influxContainer);
 
-			anchor.render(<InfluxReactComponent
-				influxFile={influxFile}
-				preview={true}
-				sheet={this.stylesheetForPreview}
-			/>);
-			resolve('Ok');
+					anchor.render(<InfluxReactComponent
+						influxFile={influxFile}
+						preview={true}
+						sheet={this.stylesheetForPreview}
+					/>);
+					resolve('Ok');
+				} catch (error) {
+					console.error('Influx: Error rendering preview component:', error);
+					reject(error);
+				}
+			}, 50); // Small delay to ensure DOM stability
 		})
 	}
 
