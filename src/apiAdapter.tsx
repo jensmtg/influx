@@ -9,13 +9,12 @@ export type ExtendedInlinkingFile = {
     inner: HTMLDivElement;
 }
 
-export class ApiAdapter {
+export class ApiAdapter extends Component {
     app: App;
-    component: Component;
 
     constructor(app: App) {
+        super();
         this.app = app
-        this.component = new Component()
     }
 
 
@@ -52,7 +51,7 @@ export class ApiAdapter {
 
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
         const div = document.createElement('div');
-        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this.component)
+        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this)
         // @ts-ignore
         div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"')
         return div
@@ -185,7 +184,7 @@ export class ApiAdapter {
         const filenameOnly = path.split("/").slice(-1)[0]
 
         // strip any block and heading references from the end and the ".md" extension
-        const linkname = filenameOnly.split(/[\#\^]/)[0].split(".md")[0]
+        const linkname = filenameOnly.split(/[#^]/)[0].split(".md")[0]
 
         return linkname.toLowerCase() === basename.toLowerCase()
     }
