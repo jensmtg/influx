@@ -1,7 +1,7 @@
 // Unit tests for race condition protection in preview mode updates
 // These tests verify the per-file update tracking logic
 
-interface MockLeaf {
+interface MockWorkspaceLeaf {
     view: {
         file?: {
             path: string;
@@ -19,7 +19,7 @@ describe('Race Condition Protection Tests', () => {
             const updateOrder: string[] = [];
 
             // Simulate updating multiple files concurrently
-            const mockLeaves: MockLeaf[] = [
+            const mockLeaves: MockWorkspaceLeaf[] = [
                 { view: { file: { path: 'file1.md' } } },
                 { view: { file: { path: 'file2.md' } } },
                 { view: { file: { path: 'file3.md' } } }
@@ -106,7 +106,7 @@ describe('Race Condition Protection Tests', () => {
             let completedUpdates = 0;
 
             // Simulate leaves with and without file paths
-            const mockLeaves: MockLeaf[] = [
+            const mockLeaves: MockWorkspaceLeaf[] = [
                 { view: { file: { path: 'file1.md' } } },
                 { view: null },
                 { view: { file: null } },
