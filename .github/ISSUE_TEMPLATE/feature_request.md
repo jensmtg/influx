@@ -3,8 +3,6 @@ name: Feature request
 about: Suggest an idea for this project
 title: ''
 labels: feature request
-assignees: ''
-
 ---
 
 *Please consider sponsoring the project when submitting feature requests.*
