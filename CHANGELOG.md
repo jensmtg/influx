@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed all remaining `@ts-ignore` usages with proper TypeScript type definitions
 - Fixed `setInterval` runtime error by using `window.setInterval`
 - Fixed excessive DOM manipulation - React roots are now reused
+- Fixed markdown title rendering to properly remove leading underscores from italicized titles
 
 ### Changed
 
