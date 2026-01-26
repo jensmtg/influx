@@ -1,8 +1,8 @@
-![Obsidian Influx logo](./doc/logo.png)
+![Obsidian Influx logo](./docs/assets/logo.png)
 
 See more than just links - **Influx** shows actual excerpts from your notes, giving you context instead of just connections. Customize what you see and how you see it, making backlinks actually _useful_ for research and discovery.
 
-![screencap](./doc/screencap.png)
+![screencap](./docs/assets/screencap.png)
 
 ### Why Influx over core backlinks?
 
