@@ -9,10 +9,10 @@ import type { Root } from "react-dom/client";
 const reactRoots = new WeakMap<HTMLElement, Root>();
 
 // Use a unique custom element name to avoid conflicts with other plugins
-const INFUX_ELEMENT_TAG = "obsidian-influx-element";
+const INFLUX_ELEMENT_TAG = "obsidian-influx-element";
 
 try {
-    customElements.define(INFUX_ELEMENT_TAG, class extends HTMLElement {
+    customElements.define(INFLUX_ELEMENT_TAG, class extends HTMLElement {
         disconnectedCallback() {
             this.dispatchEvent(new CustomEvent("disconnected"))
         }
@@ -53,7 +53,7 @@ export class InfluxWidget extends WidgetType {
     }
 
     toDOM(view: EditorView) {
-        const container = document.createElement(INFUX_ELEMENT_TAG)
+        const container = document.createElement(INFLUX_ELEMENT_TAG)
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 
