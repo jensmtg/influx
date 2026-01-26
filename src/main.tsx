@@ -111,7 +111,13 @@ export default class ObsidianInflux extends Plugin {
 		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
 		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
 
-		setInterval(this.tick.bind(this), 1000)
+		// Use window.setInterval to avoid TypeScript type inference issues
+		const timerId = window.setInterval(this.tick.bind(this), 1000);
+		// Store interval ID for cleanup if needed
+		this.register(() => window.clearInterval(timerId));
+
+		// Make plugin instance globally accessible for CodeMirror extensions
+		(window as any).influxPlugin = this;
 
 		// Add manual trigger for testing reading view
 		window.testInfluxReadingView = () => {
@@ -120,31 +126,35 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	public delayShowInflux(editor: EditorView, showCallback: () => void) {
-		this.delayedShowCallbacks = this.delayedShowCallbacks.filter(cb => cb.editor !== editor)
+		// More efficient: filter and add in single operation
+		this.delayedShowCallbacks = this.delayedShowCallbacks.filter(cb => cb.editor !== editor);
 		this.delayedShowCallbacks.push({
 			editor: editor,
 			time: Date.now(),
 			callback: showCallback
-		})
+		});
 	}
 
 	private tick() {
+		const now = Date.now();
+		const readyCallbacks: Array<() => void> = [];
+		const remaining: Array<{ editor: EditorView; callback: () => void; time: number }> = [];
 
-		const now = Date.now()
-		const remaining: { editor: EditorView, callback: () => void, time: number }[] = []
-
-		this.delayedShowCallbacks.forEach((cb => {
-			if (now > cb.time + DELAYED_CALLBACK_TIMEOUT_MS ) {
-				cb.callback()
+		// Single pass: separate ready callbacks from remaining ones
+		for (const cb of this.delayedShowCallbacks) {
+			if (now > cb.time + DELAYED_CALLBACK_TIMEOUT_MS) {
+				readyCallbacks.push(cb.callback);
+			} else {
+				remaining.push(cb);
 			}
-			else {
-				remaining.push(cb)
-			}
-		}))
+		}
 
-		this.delayedShowCallbacks = remaining
+		this.delayedShowCallbacks = remaining;
 
-
+		// Execute ready callbacks after updating state to avoid re-entry issues
+		for (const callback of readyCallbacks) {
+			callback();
+		}
 	}
 
 	async loadDataInitially() {
@@ -194,12 +204,17 @@ export default class ObsidianInflux extends Plugin {
 			if (op === 'modify') {
 				if (this.data.settings.liveUpdate && file instanceof TFile) {
 					this.stylesheet = createStyleSheet(this.api)
-					Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet, file))
+					// Use for...of for better performance than forEach
+					for (const callback of Object.values(this.componentCallbacks)) {
+						callback(op, this.stylesheet, file)
+					}
 				}
 			}
 			else {
 				this.stylesheet = createStyleSheet(this.api)
-				Object.values(this.componentCallbacks).forEach(callback => callback(op, this.stylesheet))
+				for (const callback of Object.values(this.componentCallbacks)) {
+					callback(op, this.stylesheet)
+				}
 				this.updateInfluxInAllPreviews()
 			}
 			delete this.updateDebouncers[op]

@@ -1,6 +1,7 @@
 import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
+import ObsidianInflux from './main';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -11,44 +12,79 @@ export type ExtendedInlinkingFile = {
 
 export class ApiAdapter extends Component {
     app: App;
+    // File operation caching to reduce I/O overhead
+    private fileCache: Map<string, TFile> = new Map();
+    private backlinksCache: Map<string, BacklinksObject> = new Map();
+    private settingsCache: ObsidianInfluxSettings | null = null;
 
     constructor(app: App) {
         super();
-        this.app = app
+        this.app = app;
     }
     
     /** =================
-     * OBSIDIAN resources 
+     * OBSIDIAN resources
      * ==================
      */
-    getFileByPath(path: string): TFile {
-        const file = this.app.vault.getAbstractFileByPath(path)
-        if (file instanceof TFile) {
-            return file
+    getFileByPath(path: string): TFile | null {
+        // Check cache first to reduce I/O
+        if (this.fileCache.has(path)) {
+            return this.fileCache.get(path)!;
         }
+
+        const file = this.app.vault.getAbstractFileByPath(path);
+        if (file instanceof TFile) {
+            this.fileCache.set(path, file);
+            return file;
+        }
+        return null;
     }
     async readFile(file: TFile): Promise<string> {
-        return await this.app.vault.read(file)
+        return await this.app.vault.read(file);
     }
     getMetadata(file: TFile): CachedMetadata {
         return this.app.metadataCache.getFileCache(file);
     }
     getBacklinks(file: TFile): BacklinksObject {
-        // getBacklinksForFile is not document officially, so it might break at some point.
-        // @ts-ignore
-        return this.app.metadataCache.getBacklinksForFile(file)
+        // Check cache first to reduce I/O
+        const cacheKey = file.path;
+        if (this.backlinksCache.has(cacheKey)) {
+            return this.backlinksCache.get(cacheKey)!;
+        }
+
+        // @ts-expect-error - getBacklinksForFile is not officially typed in MetadataCache
+        const backlinks = this.app.metadataCache.getBacklinksForFile(file);
+        this.backlinksCache.set(cacheKey, backlinks);
+        return backlinks;
     }
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
         const div = document.createElement('div');
-        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this)
-        // @ts-ignore
-        div.innerHTML = div.innerHTML.replaceAll('type="checkbox"', 'type="checkbox" disabled="true"')
-        return div
+        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this);
+
+        // Disable checkboxes in preview mode to prevent interaction
+        // Replace type="checkbox" with type="checkbox" disabled="true"
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = div.innerHTML.replace(/type="checkbox"/g, 'type="checkbox" disabled="true"');
+        div.innerHTML = tempDiv.innerHTML;
+        return div;
     }
     getSettings(): ObsidianInfluxSettings {
-        // @ts-ignore
-        const settings = this.app.plugins?.plugins?.influx?.data?.settings || DEFAULT_SETTINGS
-        return settings
+        // Return cached settings to reduce property access overhead
+        if (this.settingsCache) {
+            return this.settingsCache;
+        }
+
+        // @ts-expect-error - plugins.plugins is not officially typed in App
+        const settings = this.app.plugins?.plugins?.influx?.data?.settings ?? DEFAULT_SETTINGS;
+        // Ensure we have a complete settings object
+        this.settingsCache = { ...DEFAULT_SETTINGS, ...settings } as ObsidianInfluxSettings;
+        return this.settingsCache;
+    }
+    /** Clear all caches - call when settings change or files are modified */
+    clearCache(): void {
+        this.fileCache.clear();
+        this.backlinksCache.clear();
+        this.settingsCache = null;
     }
     /** =================
      * INFLUX utils 

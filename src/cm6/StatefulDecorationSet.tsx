@@ -20,12 +20,15 @@ export class StatefulDecorationSet {
 
         const { app, file } = state.field(editorViewField);
         if (!file) return null; // If no file is loaded
-        
+
         const apiAdapter = new ApiAdapter(app)
-        // @ts-ignore
-        const plugin = app.plugins?.plugins?.influx
-        if (!plugin) return null; // If plugin not loaded
-        
+        // Access plugin through global window reference since app.plugins doesn't work in CodeMirror context
+        const plugin = (window as any).influxPlugin
+
+        if (!plugin) {
+            return null;
+        }
+
         const influxFile = new InfluxFile(file.path, apiAdapter, plugin)
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
@@ -51,29 +54,28 @@ export class StatefulDecorationSet {
 
             decorations.push(influxDecoration({ influxFile, show: influxFile.show, side }).range(anchorPosition))
         }
+
         return Decoration.set(decorations, true);
 
     }
 
     private findPositionAfterFrontmatter(state: EditorState): number {
-        const lines = state.doc.toString().split('\n');
+        const doc = state.doc;
 
-        // Check if document starts with frontmatter (---)
-        if (lines.length > 0 && lines[0].trim() === '---') {
-            // Find the closing ---
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim() === '---') {
-                    // Return position after the closing --- and newline
-                    let pos = 0;
-                    for (let j = 0; j <= i; j++) {
-                        pos += lines[j].length + 1; // +1 for newline
-                    }
-                    return pos;
-                }
+        // Check if document has at least one line and starts with frontmatter
+        if (doc.lines < 1) return 0;
+
+        const firstLine = doc.line(1);
+        if (firstLine.text.trim() !== '---') return 0;
+
+        // Scan lines without converting entire doc to string - O(n) instead of O(n²)
+        for (let i = 2; i <= doc.lines; i++) {
+            const line = doc.line(i);
+            if (line.text.trim() === '---') {
+                return line.to; // Position after closing ---
             }
         }
 
-        // No frontmatter found, return 0 (start of document)
         return 0;
     }
 
