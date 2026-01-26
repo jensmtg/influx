@@ -19,9 +19,14 @@ export class StatefulDecorationSet {
         if (!state.field(editorViewField)) return null; // If not yet loaded.
 
         const { app, file } = state.field(editorViewField);
+        if (!file) return null; // If no file is loaded
+        
         const apiAdapter = new ApiAdapter(app)
         // @ts-ignore
-        const influxFile = new InfluxFile(file.path, apiAdapter, app.plugins.plugins.influx)
+        const plugin = app.plugins?.plugins?.influx
+        if (!plugin) return null; // If plugin not loaded
+        
+        const influxFile = new InfluxFile(file.path, apiAdapter, plugin)
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 

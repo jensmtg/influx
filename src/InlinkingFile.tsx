@@ -34,7 +34,9 @@ export class InlinkingFile {
         const links = (this.meta && this.meta.links)
             ? this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
             : []
-        const lineNumbersOfLinks = links.map(link => link.position.start.line)
+        const lineNumbersOfLinks = links
+            .filter(link => link.position && link.position.start)
+            .map(link => link.position.start.line)
 
         this.setTitle()
         this.isLinkInTitle = this.titleLineNum !== undefined && lineNumbersOfLinks.includes(this.titleLineNum)
@@ -53,7 +55,7 @@ export class InlinkingFile {
         const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[FRONTMATTER_KEY] : null
         const titleByFirstHeader = this.meta.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
-        if (titleByFirstHeader) {
+        if (titleByFirstHeader && titleByFirstHeader.position) {
             this.titleLineNum = titleByFirstHeader.position.start.line
         }
     }

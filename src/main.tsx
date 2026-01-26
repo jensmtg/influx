@@ -175,7 +175,7 @@ export default class ObsidianInflux extends Plugin {
 		this.app.workspace.iterateRootLeaves(leaf => {
 			// @ts-ignore
 			const leafType: string = leaf.view?.currentMode?.type
-			if (leafType === 'preview') {
+			if (leafType && leafType === 'preview') {
 				previewLeaves.push(leaf)
 			}
 		})
