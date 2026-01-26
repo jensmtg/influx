@@ -75,7 +75,8 @@ export default class InfluxFile {
             }
         }
         const backlinksAsFiles = validPaths.map((pathAsKey) => this.api.getFileByPath(pathAsKey))
-        await Promise.all(backlinksAsFiles.map(async (file: TFile) => {
+        const validFiles = backlinksAsFiles.filter((file: TFile) => file !== null)
+        await Promise.all(validFiles.map(async (file: TFile) => {
             const inlinkingFile = new InlinkingFile(file, this.api)
             await inlinkingFile.makeSummary(this)
             inlinkingFilesNew.push(inlinkingFile)
