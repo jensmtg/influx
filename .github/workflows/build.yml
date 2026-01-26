@@ -20,16 +20,16 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20" # You might need to adjust this value to your own version
-          # cache: 'yarn' # This speeds up builds by caching dependencies
+          node-version: "20"
+          cache: 'npm'
       - name: Build
         id: build
         run: |
-          yarn
-          yarn run build --if-present
+          npm ci
+          npm run build
           mkdir ${{ env.PLUGIN_NAME }}
           cp main.js manifest.json ${{ env.PLUGIN_NAME }}
           zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
           ls
-          echo "::set-output name=tag_name::$(git tag --sort version:refname | tail -n 1)"
+          echo "tag_name=$(git tag --sort version:refname | tail -n 1)" >> $GITHUB_OUTPUT
 
