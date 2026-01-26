@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added unit tests for null safety scenarios
 
+### Changed
+
+- Improved test organization by adding `describe` blocks to `StructuredText.test.ts`
+- Replaced `any` types with proper TypeScript types in test helper functions
+- Fixed broken `.toBeFalsy` assertions in frontmatter tests
+- Renamed test files from `.tsx` to `.ts` (no JSX content)
+
 ## [2.2.0] - 2026-01-26
 
 This updates the plugin's dependency stack, bringing all major dependencies to their latest stable versions while maintaining full compatibility with the Obsidian ecosystem.
