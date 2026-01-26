@@ -32,11 +32,49 @@ export class StatefulDecorationSet {
 
         const decorations: Range<Decoration>[] = []
         if (show && influxFile.show) {
-            decorations.push(influxDecoration({ influxFile, show: influxFile.show }).range(state.doc.length))
+            const settings = influxFile.influx.data.settings;
 
+            // Determine anchor position based on influxAtTopOfPage setting
+            let anchorPosition: number;
+            let side: number;
+
+            if (settings.influxAtTopOfPage) {
+                // Show at top of page (before content)
+                // Try to find position after frontmatter (if exists)
+                anchorPosition = this.findPositionAfterFrontmatter(state);
+                side = -1; // Before the position
+            } else {
+                // Show at bottom of page (after all content)
+                anchorPosition = state.doc.length;
+                side = 1; // After the position
+            }
+
+            decorations.push(influxDecoration({ influxFile, show: influxFile.show, side }).range(anchorPosition))
         }
         return Decoration.set(decorations, true);
 
+    }
+
+    private findPositionAfterFrontmatter(state: EditorState): number {
+        const lines = state.doc.toString().split('\n');
+
+        // Check if document starts with frontmatter (---)
+        if (lines.length > 0 && lines[0].trim() === '---') {
+            // Find the closing ---
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '---') {
+                    // Return position after the closing --- and newline
+                    let pos = 0;
+                    for (let j = 0; j <= i; j++) {
+                        pos += lines[j].length + 1; // +1 for newline
+                    }
+                    return pos;
+                }
+            }
+        }
+
+        // No frontmatter found, return 0 (start of document)
+        return 0;
     }
 
 

@@ -20,6 +20,7 @@ catch (e) {
 interface InfluxWidgetSpec {
     influxFile: InfluxFile;
     show: boolean;
+    side?: number;
 }
 
 
@@ -35,27 +36,29 @@ export class InfluxWidget extends WidgetType {
     }
 
     eq(influxWidget: InfluxWidget) {
-        /** Only changes within the same host document flow to this diffing point.
-         * Changes to title of document is not caught.
-         * Changes to other documents that are referenced in the influx of host file are not caught.
-         * Therefore: Bypass this eq-check.
-        */
-        // return true
-        // return influxWidget.influxFile?.file?.path === this.influxFile?.file?.path
-
-        // fail eq check if show is different
-        return true
+        // Proper comparison to avoid unnecessary re-renders
+        // Only recreate if show status or file path changes
+        return this.show === influxWidget.show &&
+               this.influxFile?.file?.path === influxWidget.influxFile?.file?.path;
     }
 
     toDOM() {
         const container = document.createElement("influx-element")
+        // Use unique ID based on file path to avoid conflicts
+        container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`
         container.addEventListener("disconnected", () => this.unmount(this.influxFile))
-        container.id = 'influx-react-anchor-div'
         const reactAnchor = container.appendChild(document.createElement('div'))
-        const anchor = createRoot(reactAnchor)
+
+        // Reuse existing root if available, otherwise create new one
+        let anchor = (reactAnchor as any)._reactRoot;
+        if (!anchor) {
+            anchor = createRoot(reactAnchor);
+            (reactAnchor as any)._reactRoot = anchor;
+        }
+
         if (this.show) {
             anchor.render(<InfluxReactComponent
-                key={Math.random()}
+                key={this.influxFile.file?.path || 'influx'}
                 influxFile={this.influxFile}
                 preview={false}
                 sheet={this.influxFile.influx.stylesheet}
@@ -75,9 +78,13 @@ export class InfluxWidget extends WidgetType {
 }
 
 
-export const influxDecoration = (influxWidgetSpec: InfluxWidgetSpec) =>  Decoration.widget({
-            widget: new InfluxWidget(influxWidgetSpec),
-            side: influxWidgetSpec.influxFile.api.getSettings().influxAtTopOfPage ? 0 : 1,
-            block: true,
-        })
+export const influxDecoration = (influxWidgetSpec: InfluxWidgetSpec) =>  {
+    // Use provided side, or default to -1 (before position) for top placement
+    const side = influxWidgetSpec.side ?? -1;
+    return Decoration.widget({
+        widget: new InfluxWidget(influxWidgetSpec),
+        side: side,
+        block: true,
+    })
+}
     
