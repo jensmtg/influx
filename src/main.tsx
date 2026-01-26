@@ -233,10 +233,12 @@ export default class ObsidianInflux extends Plugin {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
 			const leafType: string = influxLeaf.view?.currentMode?.type
 			const viewMode: string = influxLeaf.view?.mode
-			const hasPreviewClass = influxLeaf.containerEl?.querySelector('.markdown-preview-view')
-			const hasPreviewMode = influxLeaf.view?.mode === 'preview'
 
-			if ((leafType === 'preview') || (viewMode === 'preview') || hasPreviewClass || hasPreviewMode) {
+			// Use classList.contains() instead of querySelector() for better performance
+			// classList.contains() is O(1) and doesn't trigger layout recalculation
+			const hasPreviewClass = influxLeaf.containerEl?.classList.contains('markdown-preview-view')
+
+			if (leafType === 'preview' || viewMode === 'preview' || hasPreviewClass) {
 				previewLeaves.push(leaf)
 			}
 		})
@@ -285,8 +287,8 @@ export default class ObsidianInflux extends Plugin {
 		}
 
 		// Check if we already have an Influx container for this file
-		const existingWrapper = previewDiv.querySelector('.influx-preview-wrapper') as HTMLElement
-		const existingContainer = existingWrapper?.querySelector('influx-preview-container') as HTMLElement
+		// Use a single query with descendant selector to avoid multiple DOM traversals
+		const existingContainer = previewDiv.querySelector('.influx-preview-wrapper > influx-preview-container') as HTMLElement
 
 		// Calculate a simple hash of the influx data to detect changes
 		const fileHash = `${path}-${this.data.settings.sortingPrinciple}-${this.data.settings.sortingAttribute}`
