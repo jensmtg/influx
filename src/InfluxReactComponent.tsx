@@ -56,11 +56,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 		}
 
-		if (preview === false) {
-			influxFile.influx.registerInfluxComponent(influxFile.uuid, respondToUpdateTrigger)
+		influxFile.influx.registerInfluxComponent(influxFile.uuid, respondToUpdateTrigger)
 
-		}
 		return () => {
+			influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
 		}
 	}, [])
 

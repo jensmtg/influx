@@ -37,6 +37,7 @@ const asyncViewPlugin = ViewPlugin.fromClass(
 
 
 		destroy() {
+			// Cleanup handled by WeakMap garbage collection
 		}
 
     }

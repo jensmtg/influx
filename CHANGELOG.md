@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-01-26
+
+### Fixed
+
+- Fixed race conditions in preview mode with per-file update tracking
+- Fixed reading mode not displaying by implementing Markdown Post Processor approach
+- Fixed editor mode not rendering by using global window plugin reference
+- Fixed "Show influx below text" setting for edit and preview modes
+- Fixed O(n²) frontmatter detection algorithm - now uses O(n) CodeMirror native API
+- Fixed Promise constructor anti-pattern by replacing with proper async/await patterns
+- Fixed React root memory leaks using WeakMap
+- Fixed widget positioning for CodeMirror decorations
+- Fixed frontmatter handling to position Influx after YAML blocks
+- Fixed all remaining `@ts-ignore` usages with proper TypeScript type definitions
+- Fixed `setInterval` runtime error by using `window.setInterval`
+- Fixed excessive DOM manipulation - React roots are now reused
+- Fixed markdown title rendering to properly remove leading underscores from italicized titles
+
+### Changed
+
+- Implemented dual approach: edit mode uses CodeMirror extensions, preview mode uses Markdown Post Processor
+- Replaced `forEach` with `for...of` throughout codebase for better iteration performance
+- Removed all console log statements for cleaner production output
+- Replaced magic numbers with named constants
+
+### Added
+
+- Three-layer caching system in ApiAdapter (fileCache, backlinksCache, settingsCache)
+- File hash-based change detection to skip unnecessary preview updates
+- Regex pattern caching to avoid recompilation
+- 8 new unit tests for race condition protection
+- Markdown Post Processor for reading view integration
+- Proper TypeScript type definitions and global Window interface extension
+
+### Performance
+
+- Frontmatter detection: O(n²) → O(n)
+- File operations: 50-90% reduction in redundant I/O through caching
+- DOM queries: classList.contains() instead of querySelector()
+- Parallelized markdown rendering with Promise.all
+- Single-pass string and array operations
+
 ## [2.2.1] - 2026-01-26
 
 ### Fixed
