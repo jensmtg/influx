@@ -2,7 +2,7 @@ import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } fr
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 
-export type BacklinksObject = { data: { [key: string]: LinkCache[] } }
+export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
     inlinkingFile: InlinkingFile;
     titleInnerHTML: string;
@@ -151,7 +151,7 @@ export class ApiAdapter extends Component {
         const filenameOnly = path.split("/").slice(-1)[0]
 
         // strip any block and heading references from the end and the ".md" extension
-        const linkname = filenameOnly.split(/[\#\^]/)[0].split(".md")[0]
+        const linkname = filenameOnly.split(/[#^]/)[0].split(".md")[0]
 
         return linkname.toLowerCase() === basename.toLowerCase()
     }

@@ -1,10 +1,10 @@
 name: Build and release obsidian plugin
 
 on:
-  push:
-    # Sequence of patterns matched against refs/tags
-    tags:
-      - "*" # Push events to matching any tag format, i.e. 1.0, 20.15.10
+  workflow_dispatch:
+  # push:
+  #   tags:
+  #     - "*"
 
 env:
   PLUGIN_NAME: influx # Change this to the name of your plugin-id folder

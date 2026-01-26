@@ -23,6 +23,15 @@ export default class InfluxFile {
         this.api = apiAdapter
         this.influx = influx
         this.file = this.api.getFileByPath(path)
+        if (!this.file) {
+            this.show = false
+            this.collapsed = false
+            this.meta = null
+            this.backlinks = null
+            this.inlinkingFiles = []
+            this.components = []
+            return
+        }
         this.meta = this.api.getMetadata(this.file)
         this.backlinks = this.api.getBacklinks(this.file)
         this.inlinkingFiles = []
@@ -35,57 +44,43 @@ export default class InfluxFile {
     // is the file that triggers update part of the current files inlinked files?
     shouldUpdate(file: TFile) {
         this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
-        const paths = Object.keys(this.backlinks.data)
+        if (!this.backlinks || !this.backlinks.data) {
+            return false
+        }
+        const paths = this.backlinks.data instanceof Map
+            ? Array.from(this.backlinks.data.keys())
+            : Object.keys(this.backlinks.data)
         return paths.includes(file.path)
     }
 
     async makeInfluxList() {
-        // 1. Get the Map from getBacklinks
-        this.backlinks = this.api.getBacklinks(this.file);
-        // console.log('Backlinks data:', this.backlinks.data);
-        
-        // 2. Create an array of valid paths
-        const validPaths: string[] = [];
-        // Convert Map-like structure to entries and iterate
-        const entries = this.backlinks.data instanceof Map ? 
-            Array.from(this.backlinks.data) : 
-            Object.entries(this.backlinks.data);
-            
-        for (const [pathAsKey, backlinkArray] of entries) {
-            // console.log('Processing path:', pathAsKey);
-            // console.log('Backlink array:', backlinkArray);
-            // console.log('Current file path:', this.file.path);
-            // console.log('Is includable source:', await this.api.isIncludableSource(pathAsKey));
-            
-            const isIncludable = await this.api.isIncludableSource(pathAsKey);
-            if (pathAsKey !== this.file.path && isIncludable) {
-                validPaths.push(pathAsKey);
-                // console.log('Added valid path:', pathAsKey);
-            } else {
-                console.log('Path rejected because:', {
-                    isSameAsCurrentFile: pathAsKey === this.file.path,
-                    isIncludableSource: isIncludable
-                });
+        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
+        const inlinkingFilesNew: InlinkingFile[] = []
+        if (!this.backlinks || !this.backlinks.data) {
+            this.inlinkingFiles = inlinkingFilesNew
+            return
+        }
+        const validPaths: string[] = []
+        if (this.backlinks.data instanceof Map) {
+            for (const [pathAsKey] of this.backlinks.data) {
+                if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
+                    validPaths.push(pathAsKey)
+                }
+            }
+        } else {
+            for (const pathAsKey of Object.keys(this.backlinks.data)) {
+                if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
+                    validPaths.push(pathAsKey)
+                }
             }
         }
-        // console.log('Valid paths collected:', validPaths);
-
-        // 3. Convert those paths to TFile objects
-        const backlinksAsFiles = validPaths.map((pathAsKey) => this.api.getFileByPath(pathAsKey));
-        // console.log('Converted to TFiles:', backlinksAsFiles);
-
-        // 4. Create InlinkingFile objects & do the summary calls
-        const inlinkingFilesNew: InlinkingFile[] = [];
-        await Promise.all(backlinksAsFiles.map(async (file) => {
-            // console.log('Processing file for InlinkingFile:', file?.path);
-            const inlinkingFile = new InlinkingFile(file, this.api);
-            await inlinkingFile.makeSummary(this);
-            inlinkingFilesNew.push(inlinkingFile);
-        }));
-        // console.log('Created InlinkingFiles:', inlinkingFilesNew);
-
-        // 5. Store them on this.inlinkingFiles
-        this.inlinkingFiles = inlinkingFilesNew;
+        const backlinksAsFiles = validPaths.map((pathAsKey) => this.api.getFileByPath(pathAsKey))
+        await Promise.all(backlinksAsFiles.map(async (file: TFile) => {
+            const inlinkingFile = new InlinkingFile(file, this.api)
+            await inlinkingFile.makeSummary(this)
+            inlinkingFilesNew.push(inlinkingFile)
+        }))
+        this.inlinkingFiles = inlinkingFilesNew
     }
     async renderAllMarkdownBlocks() {
 

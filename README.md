@@ -20,15 +20,15 @@ See the new [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ## Maintainers
 
-**Current Maintainer:** [@semanticdata](https://github.com/semanticdata) (Miguel Pimentel)
-
-**Past Maintainer:** [@jensmtg](https://github.com/jensmtg) (Jens M Gleditsch) - Original creator
+- **Current Maintainer:** [@semanticdata](https://github.com/semanticdata) (Miguel Pimentel)
+- **Past Maintainer:** [@jensmtg](https://github.com/jensmtg) (Jens M Gleditsch) - Original creator
 
 ## Contributors & Sponsors
 
 Thanks to everyone who has contributed to the development of Influx:
 
 - **kenlim** - Contributed to development through pull requests
+- **funamorikeitou** - Fixed compatibility with Obsidian's Map-based backlinks data structure
 - **ericlpeterson, alranel, FilSalustri, Josh2K, mrkuramoto, and Mat4m0** - Sponsors and supporters of ongoing maintenance
 
 ### Additional Thanks
