@@ -176,9 +176,10 @@ export class ApiAdapter extends Component {
                     this.renderMarkdown(inlinkingFile.summary),
                 ])
 
-                // Optimize string processing: combine regex operations into single pass
+                // Optimize string processing: remove p tags, then clean up any remaining underscores
                 const titleInnerHTML = titleAsMd.innerHTML
-                    .replace(/<\/?p[^>]*>|^_/g, '')  // Remove <p>, </p> tags and leading underscore in one pass
+                    .replace(/<\/?p[^>]*>/g, '')  // Remove <p>, </p> tags
+                    .replace(/^_/, '')            // Remove leading underscore (now at start after p tag removal)
 
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
