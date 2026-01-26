@@ -82,7 +82,6 @@ export default class InfluxFile {
         }))
         this.inlinkingFiles = inlinkingFilesNew
     }
-
     async renderAllMarkdownBlocks() {
 
         // Avoid rendering if no-show

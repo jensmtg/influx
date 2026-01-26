@@ -205,16 +205,18 @@ export default class ObsidianInflux extends Plugin {
 			// @ts-ignore
 			const container: HTMLDivElement = leaf.containerEl
 
-			const previewDiv = container.querySelector(".markdown-preview-section");
+			const previewDiv = container.querySelector(".markdown-preview-view");
 
 			if (!previewDiv) {
 				reject('No preview found')
+				return
 			}
 
-			const apiAdapter = new ApiAdapter(app)
+			const apiAdapter = new ApiAdapter(this.app)
 			// @ts-ignore
 			const path = leaf.view?.file.path
 			if (!path) {
+				reject('No file path found')
 				return
 			}
 			const influxFile = new InfluxFile(path, apiAdapter, this)
@@ -224,23 +226,26 @@ export default class ObsidianInflux extends Plugin {
 			// Remove any existing influx blocks after async flows
 			this.removeInfluxFromPreview(leaf)
 
-			const influxContainer = document.createElement("influx-preview-container")
-			influxContainer.id = influxFile.uuid
-			previewDiv.lastChild.appendChild(influxContainer)
+			// Create a wrapper div that will be positioned at the bottom of the content
+			const influxWrapper = document.createElement("div");
+			influxWrapper.className = "influx-preview-wrapper";
 
-			const anchor = createRoot(influxContainer)
+			const influxContainer = document.createElement("influx-preview-container");
+			influxContainer.id = influxFile.uuid;
+			influxWrapper.appendChild(influxContainer);
+			
+			// Append to the preview view directly
+			previewDiv.appendChild(influxWrapper);
+
+			const anchor = createRoot(influxContainer);
 
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}
 				sheet={this.stylesheetForPreview}
 			/>);
-			resolve('Ok')
+			resolve('Ok');
 		})
-
-
-
-
 	}
 
 	removeInfluxFromPreview(leaf: WorkspaceLeaf) {
