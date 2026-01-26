@@ -22,6 +22,12 @@ See more than just links - **Influx** shows actual excerpts from your notes, giv
 
 Join users who've discovered that seeing your connections shouldn't mean losing the context.
 
+## Getting Started
+
+Once installed and enabled, Influx automatically appears at the bottom of your notes showing contextual backlinks. 
+
+Customize your experience in Settings → Community Plugins → Influx.
+
 ## Release notes
 
 See the new [CHANGELOG.md](CHANGELOG.md) for the full version history.
