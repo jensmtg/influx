@@ -2,7 +2,6 @@ import { editorViewField } from "obsidian";
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
 import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
-import { ApiAdapter } from '../apiAdapter';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
 
@@ -18,16 +17,18 @@ export class StatefulDecorationSet {
     async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
         if (!state.field(editorViewField)) return null; // If not yet loaded.
 
-        const { app, file } = state.field(editorViewField);
+        const { file } = state.field(editorViewField);
         if (!file) return null; // If no file is loaded
 
-        const apiAdapter = new ApiAdapter(app)
         // Access plugin through global window reference since app.plugins doesn't work in CodeMirror context
         const plugin = (window as any).influxPlugin
 
         if (!plugin) {
             return null;
         }
+
+        // Reuse plugin's api instance instead of creating new one (preserves cache)
+        const apiAdapter = plugin.api
 
         const influxFile = new InfluxFile(file.path, apiAdapter, plugin)
         await influxFile.makeInfluxList()

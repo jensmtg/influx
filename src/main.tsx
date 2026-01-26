@@ -280,7 +280,8 @@ export default class ObsidianInflux extends Plugin {
 			throw new Error('No preview found')
 		}
 
-		const apiAdapter = new ApiAdapter(this.app)
+		// Reuse existing api instance instead of creating new one (preserves cache)
+		const apiAdapter = this.api
 		const path = influxLeaf.view?.file?.path
 		if (!path) {
 			throw new Error('No file path found')
