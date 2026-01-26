@@ -8,7 +8,7 @@ import { StyleSheetType } from "./createStyleSheet";
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
 
-export default function InfluxReactComponent(props: InfluxReactComponentProps): JSX.Element {
+export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
 
 	const {
 		influxFile,
