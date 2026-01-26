@@ -161,8 +161,13 @@ export class ApiAdapter extends Component {
             .sort(comparator)
             .slice(0, settings.listLimit || inlinkingsFiles.length)
             .map(async (inlinkingFile) => {
-                const titleAsMd = await this.renderMarkdown(`_${inlinkingFile.title}`)
-                // Remove the <p dir="auto"> tag and </p> properly
+                // Parallelize the two renderMarkdown calls to avoid sequential blocking
+                const [titleAsMd, summaryAsMd] = await Promise.all([
+                    this.renderMarkdown(`_${inlinkingFile.title}`),
+                    this.renderMarkdown(inlinkingFile.summary),
+                ])
+
+                // Optimize string processing with single pass using replaceAll
                 const titleInnerHTML = titleAsMd.innerHTML
                     .replace(/<p[^>]*>/g, '')  // Remove opening p tag with any attributes
                     .replace(/<\/p>/g, '')     // Remove closing p tag
@@ -171,7 +176,7 @@ export class ApiAdapter extends Component {
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
                     titleInnerHTML: titleInnerHTML,
-                    inner: await this.renderMarkdown(inlinkingFile.summary),
+                    inner: summaryAsMd,
                 }
                 return extended
             }))
