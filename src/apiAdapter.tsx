@@ -16,6 +16,8 @@ export class ApiAdapter extends Component {
     private fileCache: Map<string, TFile> = new Map();
     private backlinksCache: Map<string, BacklinksObject> = new Map();
     private settingsCache: ObsidianInfluxSettings | null = null;
+    // Cache compiled regex patterns to avoid recompilation on every pattern match
+    private regexCache: Map<string, RegExp> = new Map();
 
     constructor(app: App) {
         super();
@@ -85,6 +87,7 @@ export class ApiAdapter extends Component {
         this.fileCache.clear();
         this.backlinksCache.clear();
         this.settingsCache = null;
+        this.regexCache.clear();
     }
     /** =================
      * INFLUX utils 
@@ -119,7 +122,13 @@ export class ApiAdapter extends Component {
         const patterns = _patterns.filter((_path: string) => _path.length > 0)
         const pathMatchesRegex = (pattern: string): boolean => {
             try {
-                return new RegExp(pattern).test(path);
+                // Use cached regex if available, otherwise compile and cache it
+                let regex = this.regexCache.get(pattern);
+                if (!regex) {
+                    regex = new RegExp(pattern);
+                    this.regexCache.set(pattern, regex);
+                }
+                return regex.test(path);
             } catch (err) {
                 console.error('Recent Files: Invalid regex pattern: ' + pattern);
                 return false;
