@@ -1,18 +1,25 @@
-import { Decoration, WidgetType } from "@codemirror/view";
+import { Decoration, WidgetType, EditorView } from "@codemirror/view";
 import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
+
+// Global WeakMap to track React roots for proper cleanup and reuse
+const reactRoots = new WeakMap<HTMLElement, Root>();
+
+// Use a unique custom element name to avoid conflicts with other plugins
+const INFUX_ELEMENT_TAG = "obsidian-influx-element";
 
 try {
-    customElements.define("influx-element", class extends HTMLElement {
+    customElements.define(INFUX_ELEMENT_TAG, class extends HTMLElement {
         disconnectedCallback() {
             this.dispatchEvent(new CustomEvent("disconnected"))
         }
     })
 }
 catch (e) {
-    // console.warn('disconnect-element allready defined?')
+    // Element already defined, which is fine
 }
 
 
@@ -35,29 +42,32 @@ export class InfluxWidget extends WidgetType {
 
     }
 
-    eq(influxWidget: InfluxWidget) {
+    eq(influxWidget: WidgetType) {
         // Proper comparison to avoid unnecessary re-renders
         // Only recreate if show status or file path changes
+        if (!(influxWidget instanceof InfluxWidget)) {
+            return false;
+        }
         return this.show === influxWidget.show &&
                this.influxFile?.file?.path === influxWidget.influxFile?.file?.path;
     }
 
-    toDOM() {
-        const container = document.createElement("influx-element")
+    toDOM(view: EditorView) {
+        const container = document.createElement(INFUX_ELEMENT_TAG)
         // Use unique ID based on file path to avoid conflicts
-        container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`
-        container.addEventListener("disconnected", () => this.unmount(this.influxFile))
+        container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
+
         const reactAnchor = container.appendChild(document.createElement('div'))
 
-        // Reuse existing root if available, otherwise create new one
-        let anchor = (reactAnchor as any)._reactRoot;
-        if (!anchor) {
-            anchor = createRoot(reactAnchor);
-            (reactAnchor as any)._reactRoot = anchor;
+        // Get or create React root using WeakMap for proper cleanup
+        let root = reactRoots.get(reactAnchor);
+        if (!root) {
+            root = createRoot(reactAnchor);
+            reactRoots.set(reactAnchor, root);
         }
 
         if (this.show) {
-            anchor.render(<InfluxReactComponent
+            root.render(<InfluxReactComponent
                 key={this.influxFile.file?.path || 'influx'}
                 influxFile={this.influxFile}
                 preview={false}
@@ -65,8 +75,25 @@ export class InfluxWidget extends WidgetType {
             />);
         }
         else {
-            anchor.render(null)
+            root.render(null)
         }
+
+        // Cleanup when element is disconnected from DOM
+        const disconnectedHandler = () => {
+            // Remove event listener to prevent memory leaks
+            container.removeEventListener("disconnected", disconnectedHandler);
+
+            // Unmount React root to prevent memory leaks
+            const rootToCleanup = reactRoots.get(reactAnchor);
+            if (rootToCleanup) {
+                rootToCleanup.unmount();
+                reactRoots.delete(reactAnchor);
+            }
+            // Deregister the influx component
+            this.unmount(this.influxFile);
+        };
+
+        container.addEventListener("disconnected", disconnectedHandler)
 
         return container
     }
@@ -87,4 +114,3 @@ export const influxDecoration = (influxWidgetSpec: InfluxWidgetSpec) =>  {
         block: true,
     })
 }
-    
