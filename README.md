@@ -1,18 +1,26 @@
-![Obsidian Influx logo](https://user-images.githubusercontent.com/6455628/178807529-785b29cd-b1d7-4586-99de-5b4411d8fd17.png)
+![Obsidian Influx logo](./doc/logo.png)
 
-<!-- ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/jensmtg/influx?style=for-the-badge&sort=semver) -->
+See more than just links - **Influx** shows actual excerpts from your notes, giving you context instead of just connections. Customize what you see and how you see it, making backlinks actually _useful_ for research and discovery.
 
-Similar to the *backlinks* core plugin for [Obsidian](https://obsidian.md/), but made to display relevant and formatted excerpts from notes with linked mentions, based on the position of mentions in the notes' hierarchical structure (bullet level indentation).
+![screencap](./doc/screencap.png)
 
-![screencap](https://user-images.githubusercontent.com/6455628/196566154-404086ad-9a6c-49b0-bb5c-f7335090e2fb.png)
+### Why Influx over core backlinks?
 
-## Suggested usage pattern
+- **Rich context**: See excerpts instead of just link titles
+- **Smart organization**: Automatically groups by bullet point hierarchy  
+- **Full control**: Customize sorting, layout, and filtering
+- **Research ready**: Perfect for academic work and deep knowledge discovery
 
-(Or: How to get the most out of this plugin.)
+#### Perfect for productivity enthusiasts and academics who want to:
 
-* Information should mainly be written in daily (or Zettelkasten-ish) notes. Topical notes will then mainly be aggregates of clippings from daily notes.
-* Notes should be taken hierarchically, in the form of bullet lists/*bullet journaling*. This helps keep clippings terse and relevant.
-* Links should be used as the only organizing principle in the vault - forgo use of tags and files/folders. This helps with completeness; the plugin only considers links when aggregating.
+- See the actual content around their links, not just the links themselves  
+- Customize how backlinks are displayed and organized
+- Turn their note connections into genuine insights
+- Build knowledge webs that are actually useful
+
+> _"I much prefer Influx over the core Backlinks plugin"_
+
+Join users who've discovered that seeing your connections shouldn't mean losing the context.
 
 ## Release notes
 
