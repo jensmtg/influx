@@ -52,7 +52,7 @@ This updates the plugin's dependency stack, bringing all major dependencies to t
 
 This is a breaking change release due to the React 19 upgrade and esbuild API changes. All existing functionality remains intact, but the plugin now uses updated versions of all dependencies.
 
-## [2.1.4] - Unreleased
+## [2.1.4] - 2026-01-26
 
 ### Fixed
 
