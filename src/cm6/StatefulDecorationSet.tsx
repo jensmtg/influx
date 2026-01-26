@@ -42,11 +42,11 @@ export class StatefulDecorationSet {
                 // Show at top of page (before content)
                 // Try to find position after frontmatter (if exists)
                 anchorPosition = this.findPositionAfterFrontmatter(state);
-                side = -1; // Before the position
+                side = 1; // After the position (places it at the start of the content)
             } else {
                 // Show at bottom of page (after all content)
                 anchorPosition = state.doc.length;
-                side = 1; // After the position
+                side = -1; // Before the position (places it at the end of the content)
             }
 
             decorations.push(influxDecoration({ influxFile, show: influxFile.show, side }).range(anchorPosition))

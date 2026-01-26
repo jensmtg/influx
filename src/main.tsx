@@ -74,6 +74,9 @@ export default class ObsidianInflux extends Plugin {
 
 		this.addSettingTab(new ObsidianInfluxSettingsTab(this.app, this));
 
+		// Register Markdown Post Processor for preview/reading mode
+		this.registerMarkdownPostProcessor(this.handlePreviewMode.bind(this));
+
 		this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => { this.triggerUpdates('modify', file) }));
 		// this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile) => { this.triggerUpdates('rename', file) }));
 		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => { this.triggerUpdates('delete', file) }));
@@ -81,6 +84,15 @@ export default class ObsidianInflux extends Plugin {
 		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
 
 		setInterval(this.tick.bind(this), 1000)
+
+		// Add manual trigger for testing reading view
+		// @ts-ignore
+		window.testInfluxReadingView = () => {
+			console.log('🧪 Manual trigger: Testing reading view...');
+			this.updateInfluxInAllPreviews();
+		};
+
+		console.log('🚀 Influx: Plugin loaded. Run window.testInfluxReadingView() to test reading view');
 	}
 
 	public delayShowInflux(editor: EditorView, showCallback: () => void) {
@@ -170,9 +182,10 @@ export default class ObsidianInflux extends Plugin {
 
 	async updateInfluxInAllPreviews() {
 		/**
-		 * ! This is a best-effort feature to maintain a live-updated
+		 * ! This is best-effort feature to maintain a live-updated
 		 * ! influx footer in preview mode pages. It's buggy.
 		 */
+		console.log('🔍 Influx: updateInfluxInAllPreviews called');
 		const previewLeaves: WorkspaceLeaf[] = []
 
 		this.app.workspace.iterateRootLeaves(leaf => {
@@ -185,10 +198,16 @@ export default class ObsidianInflux extends Plugin {
 			const hasPreviewClass = leaf.containerEl?.querySelector('.markdown-preview-view')
 			// @ts-ignore
 			const hasPreviewMode = leaf.view?.mode === 'preview'
+			
+			console.log(`🔍 Influx: Leaf - type: ${leafType}, mode: ${viewMode}, hasPreviewClass: ${!!hasPreviewClass}, hasPreviewMode: ${hasPreviewMode}`);
+			
 			if ((leafType === 'preview') || (viewMode === 'preview') || hasPreviewClass || hasPreviewMode) {
 				previewLeaves.push(leaf)
+				console.log('✅ Influx: Found preview leaf');
 			}
 		})
+
+		console.log(`🔍 Influx: Found ${previewLeaves.length} preview leaves`);
 
 		// Track per-file updates to prevent concurrent updates to the same file
 		// while allowing multiple different files to update simultaneously
@@ -220,9 +239,11 @@ export default class ObsidianInflux extends Plugin {
 	async updateInfluxInPreview(leaf: WorkspaceLeaf) {
 		// eslint-disable-next-line no-async-promise-executor
 		return new Promise(async (resolve, reject) => {
+			console.log(' Influx: updateInfluxInPreview called');
 
 			// @ts-ignore
 			const container: HTMLDivElement = leaf.containerEl
+			console.log(' Influx: Container:', container);
 
 			const previewDiv = container.querySelector(".markdown-preview-view");
 
@@ -243,21 +264,32 @@ export default class ObsidianInflux extends Plugin {
 			await influxFile.renderAllMarkdownBlocks()
 
 			// Remove any existing influx blocks before creating new ones to avoid flickering
-			this.removeInfluxFromPreview(leaf)
+			const influxContainers = container.getElementsByTagName("influx-preview-container")
+			for (let i = 0; i < influxContainers.length; i++) {
+				influxContainers[i].remove()
+			}
 
 			// Add a small delay to ensure DOM is ready after removal
 			setTimeout(() => {
 				try {
-					// Create a wrapper div that will be positioned at the bottom of the content
+					// Create a wrapper div that will be positioned based on settings
 					const influxWrapper = document.createElement("div");
 					influxWrapper.className = "influx-preview-wrapper";
 
 					const influxContainer = document.createElement("influx-preview-container");
 					influxContainer.id = influxFile.uuid;
 					influxWrapper.appendChild(influxContainer);
-					
-					// Append to the preview view directly
-					previewDiv.appendChild(influxWrapper);
+
+					// Position based on influxAtTopOfPage setting
+					// When true (checkbox OFF), show at top; when false (checkbox ON), show at bottom
+					const settings = this.data.settings;
+					if (settings.influxAtTopOfPage) {
+						// Insert at the beginning of preview view (top)
+						previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
+					} else {
+						// Append to the end of preview view (bottom)
+						previewDiv.appendChild(influxWrapper);
+					}
 
 					const anchor = createRoot(influxContainer);
 
@@ -275,22 +307,62 @@ export default class ObsidianInflux extends Plugin {
 		})
 	}
 
-	removeInfluxFromPreview(leaf: WorkspaceLeaf) {
-
-		// @ts-ignore
-		const container: HTMLDivElement = leaf.containerEl
-
-		const influxContainers = container.getElementsByTagName("influx-preview-container")
-
-		if (influxContainers.length) {
-
-			for (let i = 0; i < influxContainers.length; i++) {
-				influxContainers[i].remove()
-			}
-
+	async handlePreviewMode(element: HTMLElement, context: any) {
+		// Only process if this is a markdown preview element
+		if (!element.classList.contains('markdown-preview-view')) {
+			return;
 		}
 
+		// Get the file path from context
+		const filePath = context.sourcePath;
+		if (!filePath) {
+			return;
+		}
 
+		// Remove any existing Influx elements first
+		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
+		existingInflux.forEach(el => el.remove());
+
+		try {
+			const apiAdapter = new ApiAdapter(this.app);
+			const influxFile = new InfluxFile(filePath, apiAdapter, this);
+			await influxFile.makeInfluxList();
+			await influxFile.renderAllMarkdownBlocks();
+
+			// Check if we should show Influx for this file
+			if (!influxFile.show) {
+				return;
+			}
+
+			// Create the Influx wrapper
+			const influxWrapper = document.createElement("div");
+			influxWrapper.className = "influx-preview-wrapper";
+
+			const influxContainer = document.createElement("influx-preview-container");
+			influxContainer.id = influxFile.uuid;
+			influxWrapper.appendChild(influxContainer);
+
+			// Position based on influxAtTopOfPage setting
+			// When true (checkbox OFF), show at top; when false (checkbox ON), show at bottom
+			const settings = this.data.settings;
+			if (settings.influxAtTopOfPage) {
+				// Insert at the beginning (top of content)
+				element.insertBefore(influxWrapper, element.firstChild);
+			} else {
+				// Append to the end (bottom of content)
+				element.appendChild(influxWrapper);
+			}
+
+			// Render React component
+			const anchor = createRoot(influxContainer);
+			anchor.render(<InfluxReactComponent
+				influxFile={influxFile}
+				preview={true}
+				sheet={this.stylesheetForPreview}
+			/>);
+		} catch (error) {
+			console.error('Influx: Error in preview mode post processor:', error);
+		}
 	}
 
 }
