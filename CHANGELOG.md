@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-01-26
+
+### Fixed
+
+- Fixed race conditions in preview mode (#72) with per-file update tracking
+- Fixed "Show influx below text" setting - now works correctly in both edit and preview modes
+- Fixed reading mode not displaying by implementing Markdown Post Processor approach
+- Fixed React root memory leaks using WeakMap
+- Fixed widget positioning for CodeMirror decorations
+- Fixed frontmatter handling to position Influx after YAML blocks
+
+### Changed
+
+- Implemented dual approach: edit mode uses CodeMirror extensions, preview mode uses Markdown Post Processor (following Obsidian best practices)
+- Added debouncing and DOM stability delays to prevent update conflicts
+
+### Added
+
+- Added 8 new unit tests for race condition protection
+- Added Markdown Post Processor for reading view integration
+
 ## [2.2.1] - 2026-01-26
 
 ### Fixed
