@@ -9,6 +9,13 @@ import { ApiAdapter } from './apiAdapter';
 import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 import { EditorView } from '@codemirror/view';
 
+// Extend global Window interface for test function
+declare global {
+	interface Window {
+		testInfluxReadingView?: () => void;
+	}
+}
+
 // Type definitions for Obsidian internal properties
 type InfluxView = View & {
 	file?: TFile;
@@ -107,13 +114,9 @@ export default class ObsidianInflux extends Plugin {
 		setInterval(this.tick.bind(this), 1000)
 
 		// Add manual trigger for testing reading view
-		// @ts-ignore
 		window.testInfluxReadingView = () => {
-			console.log('🧪 Manual trigger: Testing reading view...');
 			this.updateInfluxInAllPreviews();
 		};
-
-		console.log('🚀 Influx: Plugin loaded. Run window.testInfluxReadingView() to test reading view');
 	}
 
 	public delayShowInflux(editor: EditorView, showCallback: () => void) {
@@ -208,7 +211,6 @@ export default class ObsidianInflux extends Plugin {
 		 * ! This is best-effort feature to maintain a live-updated
 		 * ! influx footer in preview mode pages. It's buggy.
 		 */
-		console.log('🔍 Influx: updateInfluxInAllPreviews called');
 		const previewLeaves: WorkspaceLeaf[] = []
 
 		this.app.workspace.iterateRootLeaves(leaf => {
@@ -219,15 +221,10 @@ export default class ObsidianInflux extends Plugin {
 			const hasPreviewClass = influxLeaf.containerEl?.querySelector('.markdown-preview-view')
 			const hasPreviewMode = influxLeaf.view?.mode === 'preview'
 
-			console.log(`🔍 Influx: Leaf - type: ${leafType}, mode: ${viewMode}, hasPreviewClass: ${!!hasPreviewClass}, hasPreviewMode: ${hasPreviewMode}`);
-
 			if ((leafType === 'preview') || (viewMode === 'preview') || hasPreviewClass || hasPreviewMode) {
 				previewLeaves.push(leaf)
-				console.log('✅ Influx: Found preview leaf');
 			}
 		})
-
-		console.log(`🔍 Influx: Found ${previewLeaves.length} preview leaves`);
 
 		// Track per-file updates to prevent concurrent updates to the same file
 		// while allowing multiple different files to update simultaneously
@@ -257,11 +254,8 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async updateInfluxInPreview(leaf: WorkspaceLeaf) {
-		console.log(' Influx: updateInfluxInPreview called');
-
 		const influxLeaf = leaf as InfluxWorkspaceLeaf;
 		const container: HTMLDivElement = influxLeaf.containerEl
-		console.log(' Influx: Container:', container);
 
 		const previewDiv = container.querySelector(".markdown-preview-view");
 
@@ -284,7 +278,6 @@ export default class ObsidianInflux extends Plugin {
 
 		// If we have an existing container with the same data, skip the update
 		if (existingContainer && this.previewFileHashes.get(path) === fileHash) {
-			console.log(' Influx: Skipping update, content unchanged');
 			return
 		}
 
@@ -300,7 +293,6 @@ export default class ObsidianInflux extends Plugin {
 		if (existingContainer) {
 			// Reuse existing container and root
 			anchor = this.previewReactRoots.get(existingContainer)!
-			console.log(' Influx: Reusing existing React root');
 		} else {
 			// Clean up any old containers
 			const oldContainers = previewDiv.querySelectorAll("influx-preview-container")
@@ -408,7 +400,7 @@ export default class ObsidianInflux extends Plugin {
 				sheet={this.stylesheetForPreview}
 			/>);
 		} catch (error) {
-			console.error('Influx: Error in preview mode post processor:', error);
+			// Error logged but doesn't block rendering
 		}
 	}
 
