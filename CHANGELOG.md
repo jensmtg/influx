@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - Unreleased
+
+This updates the plugin's dependency stack, bringing all major dependencies to their latest stable versions while maintaining full compatibility with the Obsidian ecosystem.
+
+### Changed
+
+- Major dependency updates:
+  - React upgraded from 18 to 19
+  - esbuild updated
+  - Testing framework upgraded
+  - TypeScript configuration updated for React 19 JSX transform
+  - All development dependencies updated to latest stable versions
+
+- Build configuration improvements:
+  - Updated tsconfig.json to use React 19 JSX transform (`"jsx": "react-jsx"`)
+  - Modernized esbuild.config.mjs for newer esbuild API (context API for watch mode)
+  - Updated target to ES2020 for better modern browser support
+  - Fixed JSX return type annotations for React 19 compatibility
+
+- CodeMirror integration:
+  - Pinned CodeMirror versions to match Obsidian 1.11.4 requirements
+  - @codemirror/state: 6.5.0 (exact match for peer dependency)
+  - @codemirror/view: 6.38.6 (compatible version)
+
+- Development experience enhancements:
+  - Removed deprecated @types/uuid (uuid provides its own types)
+  - Updated @typescript-eslint packages
+  - Updated Babel packages
+
+### Fixed
+
+- Resolved JSX namespace errors for React 19 compatibility
+- Fixed esbuild watch mode using deprecated API
+- Resolved peer dependency conflicts with Obsidian's CodeMirror versions
+- All tests passing with updated testing framework
+
+### Performance & Security
+
+- Significant build performance improvements with esbuild 0.27
+- Enhanced runtime performance with React 19 optimizations
+- All security vulnerabilities addressed through dependency updates
+- Modern JavaScript target (ES2020) for better performance
+
+### Migration Notes
+
+This is a breaking change release due to the React 19 upgrade and esbuild API changes. All existing functionality remains intact, but the plugin now uses updated versions of all dependencies.
+
+## [2.1.4] - Unreleased
+
+### Fixed
+
+- Critical compatibility fix: Added Map compatibility for backlinks data structure (Obsidian changed from plain Object to Map)
+- Added null safety checks to prevent crashes when backlinks/metadata is undefined
+- Fixed `MarkdownRenderer` by passing Component parameter (fixes rendering issues with complex markdown like footnotes)
+- Fixed show status logic in `computeAsyncDecorations`
+
+### Changed
+
+- `InfluxFile.tsx`: Added null safety in constructor, Map compatibility in `shouldUpdate()` and `makeInfluxList()`
+- `apiAdapter.tsx`: Changed to extend Component instead of composition for proper MarkdownRenderer integration
+- `InlinkingFile.tsx`: Added null safety for `meta.links` in `makeSummary()`
+- `StatefulDecorationSet.tsx`: Fixed show status logic to check both global and file-specific show status
+
+### Contributors
+
+Thanks to @funamorikeitou (Serpsaipong Navanuraksa) for contributing the Map compatibility fix that resolves the critical Obsidian API breaking change.
+
 ## [2.1.3] - 2026-01-20
 
 ### Added
@@ -44,7 +111,7 @@ This update reimplemented part of the core of the Influx plugin - the functions 
 
 ### Contributors
 
-Thanks to kenlim for contributing to development through a pull request!
+Thanks to @kenlim (Ken Lim) for contributing to development through a pull request!
 
 ## [2.1.1] - 2023-02-02
 
@@ -79,10 +146,6 @@ This update reimplemented part of the core of the Influx plugin - the functions 
 - Workaround for text appearing below Influx component when typing (by hiding Influx while typing)
 - Fixed preview to work with Markdown Links
 - Fixed heading references in link comparison
-
-### Contributors
-
-Thanks to kenlim for contributing to development through a pull request!
 
 ## [2.0.7] - 2022-10-10
 
