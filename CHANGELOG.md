@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added null safety for link position access in `InlinkingFile.makeSummary`
 - Added null safety for title position access in `InlinkingFile.setTitle`
 
+### Added
+
+- Added unit tests for null safety scenarios
+
 ## [2.2.0] - 2026-01-26
 
 This updates the plugin's dependency stack, bringing all major dependencies to their latest stable versions while maintaining full compatibility with the Obsidian ecosystem.
