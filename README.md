@@ -22,15 +22,28 @@ Perfect for productivity enthusiasts and academics who want to:
 
 Join users who've discovered that seeing your connections shouldn't mean losing the context.
 
+## Installation
+
+1. Open **Obsidian Settings** → **Community Plugins** → **Browse**
+2. Search for "Influx" and click **Install**
+3. Enable the plugin
+4. Influx will automatically appear at the bottom of your notes
+
 ## Getting Started
 
-Once installed and enabled, Influx automatically appears at the bottom of your notes showing contextual backlinks. 
+Once installed and enabled, Influx automatically appears at the bottom of your notes showing contextual backlinks. You'll see actual excerpts from linked notes instead of just empty titles.
 
-Customize your experience in `Settings → Community Plugins → Influx`.
+**Basic setup**: Go to `Settings → Community Plugins → Influx` to customize your experience.
+
+**First steps**:
+- Open any note that has backlinks
+- Scroll to the bottom to see Influx in action
+- Try clicking on different backlinks to see the context
+- Explore the settings to adjust excerpt length and grouping.
 
 ## Release Notes
 
-See the new [Changelog](CHANGELOG.md) for the full version history.
+View the [Changelog](CHANGELOG.md) for the full version history.
 
 ## Maintainers
 
