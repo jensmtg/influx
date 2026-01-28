@@ -1,6 +1,18 @@
 # Influx Documentation
 
-Welcome to the Influx documentation. This guide will help you get the most out of contextual backlinks in Obsidian.
+**Influx** transforms your Obsidian backlinks from simple links into rich, contextual excerpts that help you discover connections in your notes. Instead of seeing just a list of note titles, you'll see the actual content surrounding each link, giving you immediate context and understanding.
+
+## Why Influx?
+
+Obsidian's core backlinks show you *that* notes are connected, but Influx shows you *how* and *why* they're connected. This transforms your backlinks from a simple navigation tool into a powerful research and discovery engine.
+
+Perfect for:
+- **Academic research**: Trace ideas and sources across your knowledge base
+- **Knowledge management**: Build interconnected webs of understanding
+- **Creative writing**: Track themes, characters, and plot development
+- **Personal learning**: Discover unexpected connections in your notes
+
+This guide covers everything from basic setup to advanced customization.
 
 ## Quick Start
 
