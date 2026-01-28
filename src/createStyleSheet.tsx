@@ -54,7 +54,8 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                 inlinkedEntries: {
                     fontSize: `${props.fontSize}px`,
                     lineHeight: `${props.lineHeight}px`,
-                    width: '100%',
+                    width: 'var(--file-line-width, 100%)',
+                    maxWidth: '100%',
                     flexGrow: 1,
                     display: 'flex',
                     flexDirection: 'column',
