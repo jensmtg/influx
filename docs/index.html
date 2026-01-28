@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Obsidian Influx - Obsidian plugin for contextual backlinks">
+
+  <!-- Core Theme -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@^5.0.0-rc/dist/themes/core.min.css">
+
+  <!-- Dark Theme -->
+  <!-- <link rel="stylesheet" href="https://preview.docsifyjs.org/dist/themes/addons/core-dark.min.css"
+    media="(prefers-color-scheme: dark)" data-group="addon" data-sheet="core-dark-auto" /> -->
+  <!-- <link rel="stylesheet" href="https://preview.docsifyjs.org/dist/themes/addons/core-dark.min.css" data-group="addon"
+    data-sheet="core-dark" disabled /> -->
+
+  <style>
+    :root {
+      --theme-color: #7b3bc4;
+      --font-size: 15px;
+      --line-height: 1.5;
+    }
+
+    [data-origin="assets/logo.png"] {
+      max-width: 100%;
+    }
+  </style>
+</head>
+
+<body class="loading">
+  <div id="app"></div>
+
+  <!-- Configuration -->
+  <script>
+    window.$docsify = {
+      repo: 'jensmtg/influx',
+      name: 'Obsidian Influx',
+       nameLink: '#',
+      coverpage: true,
+      maxLevel: 2,
+      auto2top: true,
+      logo: './assets/logo.png',
+      skipLink: true,
+      // subMaxLevel: 2,
+      // search: 'auto',
+      alias: {
+        '/CHANGELOG':
+          'https://raw.githubusercontent.com/jensmtg/influx/master/CHANGELOG.md',
+      },
+      // keyBindings: {
+      //   myCustomBinding: {
+      //     bindings: ['alt+a', 'shift+a'],
+      //     callback(event) {
+      //       alert('Hello, World!');
+      //     },
+      //   },
+      // },
+    };
+  </script>
+
+  <!-- Docsify.js -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@^5.0.0-rc"></script>
+
+  <!-- Plugins (optional) -->
+  <!-- <script src="//cdn.jsdelivr.net/npm/docsify@^5.0.0-rc/dist/plugins/search.min.js"></script> -->
+</body>
+
+</html>
