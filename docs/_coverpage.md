@@ -1,11 +1,11 @@
 ![Obsidian Influx logo](assets/logo.png)
 
-> See your notes in context, not just links
+> Transform backlinks from links to insights
 
-Transform how you explore your knowledge with rich backlinks that show actual excerpts instead of empty titles.
+See the actual content around your connections, not just empty titles. Influx shows rich excerpts that give you immediate context and understanding.
 
 - **Rich context**: See excerpts around your links
-- **Smart organization**: Automatic grouping by hierarchy
+- **Smart organization**: Automatic grouping by hierarchy  
 - **Full control**: Customize layout and filtering
 - **Research ready**: Perfect for deep knowledge discovery
 
