@@ -4,19 +4,19 @@ See more than just links - **Influx** shows actual excerpts from your notes, giv
 
 ![screencap](./docs/assets/screencap.png)
 
-### Why Influx over core backlinks?
+## Why Influx over core backlinks?
 
 - **Rich context**: See excerpts instead of just link titles
 - **Smart organization**: Automatically groups by bullet point hierarchy  
 - **Full control**: Customize sorting, layout, and filtering
 - **Research ready**: Perfect for academic work and deep knowledge discovery
 
-#### Perfect for productivity enthusiasts and academics who want to:
+Perfect for productivity enthusiasts and academics who want to:
 
 - See the actual content around their links, not just the links themselves  
 - Customize how backlinks are displayed and organized
 - Turn their note connections into genuine insights
-- Build knowledge webs that are actually useful
+- Build knowledge webs that are actually useful.
 
 > _"I much prefer Influx over the core Backlinks plugin"_
 
@@ -26,11 +26,11 @@ Join users who've discovered that seeing your connections shouldn't mean losing 
 
 Once installed and enabled, Influx automatically appears at the bottom of your notes showing contextual backlinks. 
 
-Customize your experience in Settings → Community Plugins → Influx.
+Customize your experience in `Settings → Community Plugins → Influx`.
 
-## Release notes
+## Release Notes
 
-See the new [CHANGELOG.md](CHANGELOG.md) for the full version history.
+See the new [Changelog](CHANGELOG.md) for the full version history.
 
 ## Maintainers
 

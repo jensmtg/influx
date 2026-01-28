@@ -1,46 +1,76 @@
-![Obsidian Influx logo](./assets/logo.png)
+# Influx Documentation
 
-See more than just links - **Influx** shows actual excerpts from your notes, giving you context instead of just connections. Customize what you see and how you see it, making backlinks actually _useful_ for research and discovery.
+Welcome to the Influx documentation. This guide will help you get the most out of contextual backlinks in Obsidian.
 
-![screencap](./assets/screencap.png)
-
-### Why Influx over core backlinks?
-
-- **Rich context**: See excerpts instead of just link titles
-- **Smart organization**: Automatically groups by bullet point hierarchy  
-- **Full control**: Customize sorting, layout, and filtering
-- **Research ready**: Perfect for academic work and deep knowledge discovery
-
-#### Perfect for productivity enthusiasts and academics who want to:
-
-- See the actual content around their links, not just the links themselves  
-- Customize how backlinks are displayed and organized
-- Turn their note connections into genuine insights
-- Build knowledge webs that are actually useful
-
-> _"I much prefer Influx over the core Backlinks plugin"_
-
-Join users who've discovered that seeing your connections shouldn't mean losing the context.
-
-## Getting Started
+## Quick Start
 
 Once installed and enabled, Influx automatically appears at the bottom of your notes showing contextual backlinks. 
 
-Customize your experience in Settings → Community Plugins → Influx.
+**Basic setup**: Go to **Settings** → **Community Plugins** → **Influx** to customize your experience.
 
-## Release notes
+## Configuration
 
-See the new [CHANGELOG.md](CHANGELOG.md) for the full version history.
+### Display Options
 
-## Maintainers
+- **Excerpt Length**: Control how much context to show around each backlink
+- **Grouping**: Organize backlinks by hierarchy or chronology
+- **Sorting**: Choose how to order your backlinks (alphabetical, by date, etc.)
 
-- Currently maintained by [@semanticdata](https://github.com/semanticdata) (Miguel Pimentel)
-- Originally created by [@jensmtg](https://github.com/jensmtg) (Jens M Gleditsch)
+### Layout Settings
 
-## Contributors & Sponsors
+- **Max Items**: Limit the number of backlinks shown
+- **Show Hierarchy**: Display bullet point structure
+- **Compact Mode**: Reduce spacing for dense information
 
-Thanks to everyone who has contributed to the development of Influx:
+### Filtering
 
-- [@kenlim](https://github.com/kenlim) - Contributed to development through pull requests
-- [@funamorikeitou](https://github.com/funamorikeitou) - Fixed compatibility with Obsidian's Map-based backlinks data structure
-- **ericlpeterson, alranel, FilSalustri, Josh2K, mrkuramoto, and Mat4m0** - Sponsors and supporters of ongoing maintenance
+- **Exclude Files**: Hide backlinks from specific files or folders
+- **Include Only**: Show backlinks only from selected sources
+- **Minimum Context**: Filter out links with insufficient context
+
+## Usage Examples
+
+### Academic Research
+Perfect for thesis work and research papers where you need to trace ideas across multiple notes.
+
+### Knowledge Management
+Build interconnected knowledge webs that show actual content relationships, not just empty links.
+
+### Creative Writing
+Track character development, plot points, and themes across your story notes with rich context.
+
+## Advanced Features
+
+### Custom CSS
+Add custom styles to match your Obsidian theme:
+
+```css
+.influx-excerpt {
+  font-style: italic;
+  color: var(--text-muted);
+}
+```
+
+### Keyboard Shortcuts
+- `Ctrl/Cmd + Click` on backlink to jump directly to the source
+- `Alt + Hover` to preview the linked note
+
+## Troubleshooting
+
+### Backlinks not showing
+1. Ensure Influx is enabled in Community Plugins
+2. Check that the current file has incoming links
+3. Verify file indexing is complete in Obsidian
+
+### Performance issues
+- Reduce the maximum number of displayed items
+- Exclude large folders from indexing
+- Use compact mode for faster rendering
+
+## Contributing
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/jensmtg/influx/issues) on GitHub.
+
+## Changelog
+
+See the [Changelog](CHANGELOG.md) for version history and updates.
