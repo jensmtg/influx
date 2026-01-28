@@ -1,5 +1,3 @@
-
-
 .cm-content {
     padding-bottom: 1.5rem !important;
 }
@@ -8,8 +6,20 @@ body .markdown-preview-sizer {
     padding-bottom: unset !important;
 }
 
+/* Fix for readable line width in reading mode */
+.markdown-preview-view .influx-preview-wrapper,
+.markdown-reading-view .influx-preview-wrapper {
+    max-width: var(--file-line-width, 100%);
+    margin-inline: auto;
+}
+
+/* Centering container when readable line length is enabled */
+body.is-readable-line-width .influx-preview-wrapper {
+    max-width: var(--file-line-width);
+    margin-inline: auto;
+}
 
 @keyframes fadeIn {
     0% { opacity: 0; }
     100% { opacity: 1; }
-  }
+}
