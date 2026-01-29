@@ -90,7 +90,8 @@ export default class ObsidianInflux extends Plugin {
 	delayedShowCallbacks: { editor: EditorView, callback: () => void, time: number }[] = [];
 	private updateDebouncers: { [key: string]: NodeJS.Timeout } = {};
 	// Track React roots for proper cleanup to prevent memory leaks
-	private previewReactRoots: WeakMap<HTMLElement, Root> = new WeakMap();
+	// Changed from WeakMap to Map to enable explicit cleanup and iteration
+	private previewReactRoots: Map<HTMLElement, Root> = new Map();
 	// Track file hashes to avoid unnecessary re-renders
 	private previewFileHashes: Map<string, string> = new Map();
 
@@ -111,10 +112,23 @@ export default class ObsidianInflux extends Plugin {
 		this.registerMarkdownPostProcessor(this.handlePreviewMode.bind(this));
 
 		this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => { this.triggerUpdates('modify', file) }));
-		// this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile) => { this.triggerUpdates('rename', file) }));
-		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => { this.triggerUpdates('delete', file) }));
+		this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile) => {
+			if (file instanceof TFile) {
+				this.cleanupFileHash(file.path);
+			}
+			this.triggerUpdates('rename', file);
+		}));
+		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => {
+			if (file instanceof TFile) {
+				this.cleanupFileHash(file.path);
+			}
+			this.triggerUpdates('delete', file);
+		}));
 		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
-		this.registerEvent(this.app.workspace.on('layout-change', () => { this.triggerUpdates('layout-change') }));
+		this.registerEvent(this.app.workspace.on('layout-change', () => {
+			this.cleanupReactRoots();
+			this.triggerUpdates('layout-change');
+		}));
 
 		// Use window.setInterval to avoid TypeScript type inference issues
 		const timerId = window.setInterval(this.tick.bind(this), 1000);
@@ -181,9 +195,38 @@ export default class ObsidianInflux extends Plugin {
 		this.triggerUpdates('save-settings')
 	}
 
+	/**
+	 * Cleanup React roots for containers that are no longer in the DOM.
+	 * This prevents memory leaks when files are closed or views are destroyed.
+	 */
+	private cleanupReactRoots(): void {
+		const toDelete: HTMLElement[] = [];
+		for (const [container, root] of this.previewReactRoots) {
+			if (!document.body.contains(container)) {
+				root.unmount();
+				toDelete.push(container);
+			}
+		}
+		for (const container of toDelete) {
+			this.previewReactRoots.delete(container);
+		}
+	}
+
+	/**
+	 * Cleanup file hash for a specific file path.
+	 * Call this when files are deleted, renamed, or moved.
+	 */
+	private cleanupFileHash(filePath: string): void {
+		this.previewFileHashes.delete(filePath);
+	}
+
 	async onunload() {
-		// Note: WeakMap doesn't provide iteration, so we rely on individual cleanup in updateInfluxInPreview
-		// The React roots will be automatically cleaned up when DOM elements are garbage collected
+		// Clean up all React roots on plugin unload
+		for (const [container, root] of this.previewReactRoots) {
+			root.unmount();
+		}
+		this.previewReactRoots.clear();
+		this.previewFileHashes.clear();
 	}
 
 	registerInfluxComponent(id: string, callback: ComponentCallback) {
