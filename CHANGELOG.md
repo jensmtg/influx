@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed regex JIT overhead by pre-compiling all regex patterns at settings load time
 - Fixed JSS stylesheet accumulation by only regenerating stylesheets when settings change (not on every update)
 - Fixed mode switching overlap by improving cleanup of orphaned Influx wrappers and containers
+- Fixed unused constant `DOM_STABILITY_DELAY_MS` by removing dead code
 - Fixed displayText fallback to use nullish coalescing operator (??) for proper null/undefined handling
 - Fixed YAML property validation to allow hyphens in property names
 - Fixed max line width to respect Obsidian readable line length option
