@@ -44,6 +44,8 @@ export interface ObsidianInfluxSettings {
 	fontSize: number;
 	entryHeaderVisible: boolean;
 	influxAtTopOfPage: boolean;
+	includeFrontmatterLinks: boolean;
+	frontmatterProperties: string[];
 }
 
 export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
@@ -62,6 +64,8 @@ export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
 	fontSize: 13,
 	entryHeaderVisible: true,
 	influxAtTopOfPage: false,
+	includeFrontmatterLinks: false,
+	frontmatterProperties: [],
 };
 
 export type ComponentCallback = (op: string, stylesheet: StyleSheetType, file?: TFile) => void

@@ -328,5 +328,43 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             });
 
 
+        containerEl.createEl('h2', { text: 'Front Matter Link Processing' });
+
+        new Setting(containerEl)
+            .setName("Include links from front matter properties")
+            .setDesc("Process Obsidian links found in front matter properties and include them in backlinks.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.data.settings.includeFrontmatterLinks)
+                    .onChange(async (value) => {
+                        this.plugin.data.settings.includeFrontmatterLinks = value;
+                        await this.saveSettings()
+                    });
+            })
+
+        const frontmatterPropertiesFragment = document.createDocumentFragment();
+        frontmatterPropertiesFragment.append('Comma-separated list of front matter property names to include links from. ')
+        frontmatterPropertiesFragment.append('Leave blank to include links from all front matter properties. ')
+        frontmatterPropertiesFragment.append('Example: "related,see_also,references"');
+
+        new Setting(containerEl)
+            .setName('Front matter properties')
+            .setDesc(frontmatterPropertiesFragment)
+            .addText((text) => {
+                text
+                    .setPlaceholder('related, see_also, references')
+                    .setValue(this.plugin.data.settings.frontmatterProperties.join(', '));
+                text.inputEl.onblur = async (e: FocusEvent) => {
+                    const value = (e.target as HTMLInputElement).value;
+                    const properties = value
+                        .split(',')
+                        .map(prop => prop.trim())
+                        .filter(prop => prop.length > 0);
+                    this.plugin.data.settings.frontmatterProperties = properties;
+                    await this.saveSettings()
+                };
+            });
+
+
     }
 }

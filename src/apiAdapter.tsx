@@ -1,4 +1,4 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, FrontmatterLinkCache } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 import ObsidianInflux from './main';
@@ -56,6 +56,13 @@ export class ApiAdapter extends Component {
 
         // @ts-expect-error - getBacklinksForFile is not officially typed in MetadataCache
         const backlinks = this.app.metadataCache.getBacklinksForFile(file);
+        const metadata = this.app.metadataCache.getFileCache(file);
+        
+        // Merge front matter links if enabled
+        if (this.shouldIncludeFrontmatterLinks() && metadata?.frontmatterLinks) {
+            this.mergeFrontmatterLinks(backlinks, metadata.frontmatterLinks);
+        }
+        
         this.backlinksCache.set(cacheKey, backlinks);
         return backlinks;
     }
@@ -203,5 +210,56 @@ export class ApiAdapter extends Component {
         const linkname = filenameOnly.split(/[#^]/)[0].split(".md")[0]
 
         return linkname.toLowerCase() === basename.toLowerCase()
+    }
+
+    /** =================
+     * FRONT MATTER LINK PROCESSING
+     * ==================
+     */
+    private shouldIncludeFrontmatterLinks(): boolean {
+        const settings = this.getSettings();
+        return settings.includeFrontmatterLinks;
+    }
+
+    private mergeFrontmatterLinks(
+        backlinks: BacklinksObject, 
+        frontmatterLinks: FrontmatterLinkCache[]
+    ): void {
+        const settings = this.getSettings();
+        const targetProperties = settings.frontmatterProperties;
+        
+        // Filter by specified properties if provided
+        const filteredLinks = targetProperties.length > 0
+            ? frontmatterLinks.filter(link => 
+                targetProperties.includes(link.key))
+            : frontmatterLinks;
+            
+        // Convert FrontmatterLinkCache to LinkCache format and merge
+        for (const fmLink of filteredLinks) {
+            const linkCache: LinkCache = {
+                link: fmLink.link,
+                displayText: fmLink.displayText,
+                position: {
+                    start: { line: 0, col: 0, offset: 0 },
+                    end: { line: 0, col: 0, offset: 0 }
+                },
+                original: fmLink.original
+            };
+            
+            // Add to backlinks structure
+            if (backlinks.data) {
+                if (backlinks.data instanceof Map) {
+                    if (!backlinks.data.has(fmLink.link)) {
+                        backlinks.data.set(fmLink.link, []);
+                    }
+                    backlinks.data.get(fmLink.link)!.push(linkCache);
+                } else {
+                    if (!backlinks.data[fmLink.link]) {
+                        backlinks.data[fmLink.link] = [];
+                    }
+                    backlinks.data[fmLink.link].push(linkCache);
+                }
+            }
+        }
     }
 } // Add this closing brace
