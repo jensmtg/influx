@@ -328,5 +328,83 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             });
 
 
+        containerEl.createEl('h2', { text: 'Front Matter Link Processing' });
+
+        new Setting(containerEl)
+            .setName("Include links from front matter properties")
+            .setDesc("Process Obsidian links found in front matter properties and include them in backlinks.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.data.settings.includeFrontmatterLinks)
+                    .onChange(async (value) => {
+                        this.plugin.data.settings.includeFrontmatterLinks = value;
+                        await this.saveSettings()
+                    });
+            })
+
+        const frontmatterPropertiesFragment = document.createDocumentFragment();
+        frontmatterPropertiesFragment.append('Comma-separated list of front matter property names to include links from. ')
+        frontmatterPropertiesFragment.append('Leave blank to include links from all front matter properties. ')
+        frontmatterPropertiesFragment.append('Example: "related,see_also,references". ')
+        frontmatterPropertiesFragment.append('Valid names: letters, numbers, underscores, hyphens only (no spaces).');
+
+        new Setting(containerEl)
+            .setName('Front matter properties')
+            .setDesc(frontmatterPropertiesFragment)
+            .addText((text) => {
+                text
+                    .setPlaceholder('related, see_also, references')
+                    .setValue(this.plugin.data.settings.frontmatterProperties.join(', '));
+                text.inputEl.onblur = async (e: FocusEvent) => {
+                    const value = (e.target as HTMLInputElement).value;
+                    const properties = value
+                        .split(',')
+                        .map(prop => prop.trim())
+                        .filter(prop => prop.length > 0);
+                    
+                    // Validate YAML property names
+                    const yamlPropertyRegex = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
+                    const invalidProperties = properties.filter(prop => !yamlPropertyRegex.test(prop));
+                    
+                    // Find the setting container
+                    const settingContainer = text.inputEl.closest('.setting-item');
+                    
+                    if (invalidProperties.length > 0) {
+                        // Show warning for invalid properties
+                        text.inputEl.addClass('is-invalid');
+                        const warningMsg = `Invalid property names: ${invalidProperties.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, underscores, and hyphens.`;
+                        
+                        // Create or update warning element
+                        let warningEl = settingContainer?.querySelector('.frontmatter-warning');
+                        if (!warningEl && settingContainer) {
+                            warningEl = document.createElement('div');
+                            warningEl.addClass('frontmatter-warning', 'setting-item-description');
+                            (warningEl as HTMLElement).style.color = 'var(--text-warning)';
+                            (warningEl as HTMLElement).style.fontSize = '0.9em';
+                            (warningEl as HTMLElement).style.marginTop = '0.5em';
+                            settingContainer.appendChild(warningEl);
+                        }
+                        if (warningEl) {
+                            warningEl.textContent = warningMsg;
+                        }
+                        
+                        // Filter out invalid properties
+                        const validProperties = properties.filter(prop => yamlPropertyRegex.test(prop));
+                        this.plugin.data.settings.frontmatterProperties = validProperties;
+                    } else {
+                        // Remove warning if all properties are valid
+                        text.inputEl.removeClass('is-invalid');
+                        const warningEl = settingContainer?.querySelector('.frontmatter-warning');
+                        if (warningEl) {
+                            warningEl.remove();
+                        }
+                        this.plugin.data.settings.frontmatterProperties = properties;
+                    }
+                    
+                    await this.saveSettings()
+                };
+            });
+
+
     }
 }

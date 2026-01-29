@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - Unreleased
+
+### Added
+
+- Front matter link processing: extract links from YAML front matter properties and include them in backlinks
+- New unit tests for frontmatter, link, and structuredtext utilities
+- YAML property name validation with user feedback in settings UI
+
+### Fixed
+
+- Fixed RangeError in StatefulDecorationSet when editor state is destroyed during async decoration updates
+- Fixed displayText fallback to use nullish coalescing operator (??) for proper null/undefined handling
+- Fixed YAML property validation to allow hyphens in property names
+- Fixed max line width to respect Obsidian readable line length option
+
+### Changed
+
+- Extracted pure functions from ApiAdapter (frontmatter-utils.ts, link-utils.ts)
+- Extracted pure functions from StructuredText class (structuredtext-utils.ts)
+- Removed bad/integration tests that were testing mocks instead of real behavior
+- Renamed test helper functions from createMock* to createTest* for clarity
+- Added comprehensive documentation site using Docsify
+
 ## [2.2.2] - 2026-01-26
 
 ### Fixed

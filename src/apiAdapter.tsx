@@ -1,7 +1,11 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, FrontmatterLinkCache } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 import ObsidianInflux from './main';
+import { 
+    processFrontmatterLinks,
+    shouldIncludeFrontmatterLinks
+} from './frontmatter-utils';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -56,6 +60,14 @@ export class ApiAdapter extends Component {
 
         // @ts-expect-error - getBacklinksForFile is not officially typed in MetadataCache
         const backlinks = this.app.metadataCache.getBacklinksForFile(file);
+        const metadata = this.app.metadataCache.getFileCache(file);
+        
+        // Process front matter links using the pure function pipeline
+        if (metadata?.frontmatterLinks) {
+            const settings = this.getSettings();
+            processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
+        }
+        
         this.backlinksCache.set(cacheKey, backlinks);
         return backlinks;
     }
@@ -204,4 +216,4 @@ export class ApiAdapter extends Component {
 
         return linkname.toLowerCase() === basename.toLowerCase()
     }
-} // Add this closing brace
+}
