@@ -83,6 +83,7 @@ export default class ObsidianInflux extends Plugin {
 
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: Set<string> = new Set();
+	pendingUpdates: Set<string> = new Set();
 	stylesheet: StyleSheetType;
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
@@ -242,6 +243,17 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	triggerUpdates(op: string, file?: TAbstractFile) {
+		// Create a unique key for this update to prevent overlapping async operations
+		const updateKey = `${op}:${file?.path || 'global'}`;
+
+		// Skip if this exact update is already pending
+		if (this.pendingUpdates.has(updateKey)) {
+			return;
+		}
+
+		// Mark this update as pending
+		this.pendingUpdates.add(updateKey);
+
 		// Clear existing debouncer for this operation type
 		if (this.updateDebouncers[op]) {
 			clearTimeout(this.updateDebouncers[op])
@@ -249,23 +261,28 @@ export default class ObsidianInflux extends Plugin {
 
 		// Debounce rapid successive updates to prevent conflicts
 		this.updateDebouncers[op] = setTimeout(async () => {
-			if (op === 'modify') {
-				if (this.data.settings.liveUpdate && file instanceof TFile) {
-					this.stylesheet = createStyleSheet(this.api)
-					// Use for...of for better performance than forEach
-					for (const callback of Object.values(this.componentCallbacks)) {
-						callback(op, this.stylesheet, file)
+			try {
+				if (op === 'modify') {
+					if (this.data.settings.liveUpdate && file instanceof TFile) {
+						this.stylesheet = createStyleSheet(this.api)
+						// Use for...of for better performance than forEach
+						for (const callback of Object.values(this.componentCallbacks)) {
+							callback(op, this.stylesheet, file)
+						}
 					}
 				}
-			}
-			else {
-				this.stylesheet = createStyleSheet(this.api)
-				for (const callback of Object.values(this.componentCallbacks)) {
-					callback(op, this.stylesheet)
+				else {
+					this.stylesheet = createStyleSheet(this.api)
+					for (const callback of Object.values(this.componentCallbacks)) {
+						callback(op, this.stylesheet)
+					}
+					this.updateInfluxInAllPreviews()
 				}
-				this.updateInfluxInAllPreviews()
+			} finally {
+				// Always clear pending state, even if update fails
+				this.pendingUpdates.delete(updateKey);
+				delete this.updateDebouncers[op]
 			}
-			delete this.updateDebouncers[op]
 		}, DEBOUNCE_DELAY_MS)
 	}
 
