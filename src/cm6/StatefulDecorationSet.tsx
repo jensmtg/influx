@@ -83,9 +83,36 @@ export class StatefulDecorationSet {
 
     async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
         const decorations = await this.computeAsyncDecorations(state, show);
-        // if our compute function returned nothing and the state field still has decorations, clear them out
-        if (decorations || this.editor.state.field(statefulDecorations.field).size) {
-            this.editor.dispatch({ effects: statefulDecorations.update.of(decorations || Decoration.none) });
+
+        // Check if editor is still valid before proceeding
+        if (!this.editor || !this.editor.state) {
+            return;
+        }
+
+        // Safely check if we need to update decorations
+        let hasExistingDecorations = false;
+        try {
+            hasExistingDecorations = this.editor.state.field(statefulDecorations.field).size > 0;
+        } catch {
+            // Field is not present in state (view being destroyed, plugin unloaded, etc.)
+            // If we have new decorations, try to apply them. Otherwise, silently exit.
+            if (decorations) {
+                try {
+                    this.editor.dispatch({ effects: statefulDecorations.update.of(decorations) });
+                } catch {
+                    // Dispatch failed - editor is being destroyed, ignore
+                }
+            }
+            return;
+        }
+
+        // Update decorations if we have new ones or need to clear existing ones
+        if (decorations || hasExistingDecorations) {
+            try {
+                this.editor.dispatch({ effects: statefulDecorations.update.of(decorations || Decoration.none) });
+            } catch {
+                // Dispatch failed - editor is being destroyed, ignore
+            }
         }
     }
 }
