@@ -79,6 +79,46 @@ const DEBOUNCE_DELAY_MS = 100;
 const DOM_STABILITY_DELAY_MS = 50;
 const DELAYED_CALLBACK_TIMEOUT_MS = 2000;
 
+// Debug mode - set to true to enable verbose logging
+const DEBUG_MODE = false;
+
+function debugLog(...args: any[]) {
+	if (DEBUG_MODE) {
+		console.log('[Influx Debug]', ...args);
+	}
+}
+
+/**
+ * Debug helper to inspect JSS stylesheets in the DOM
+ */
+function inspectStylesheets() {
+	const styleElements = document.querySelectorAll('style[data-jss]');
+	debugLog('=== JSS Stylesheets in DOM ===');
+	debugLog(`Total count: ${styleElements.length}`);
+
+	styleElements.forEach((el, index) => {
+		const content = el.textContent;
+		const influxRules = content?.match(/\.inlinked/g)?.length || 0;
+		debugLog(`[${index}] ${influxRules} influx rules, ${content?.length || 0} chars`);
+		if (influxRules > 0) {
+			debugLog('  Sample:', content?.substring(0, 200));
+		}
+	});
+
+	// Count unique class names
+	const allElements = document.querySelectorAll('[class*="inlinked"]');
+	const classNames = new Set<string>();
+	allElements.forEach(el => {
+		el.classList.forEach(cls => {
+			if (cls.includes('inlinked')) {
+				classNames.add(cls);
+			}
+		});
+	});
+	debugLog(`Unique influx class names in use: ${classNames.size}`);
+	Array.from(classNames).forEach(cls => debugLog('  -', cls));
+}
+
 export default class ObsidianInflux extends Plugin {
 
 	componentCallbacks: { [key: string]: ComponentCallback };
@@ -139,6 +179,26 @@ export default class ObsidianInflux extends Plugin {
 		// Make plugin instance globally accessible for CodeMirror extensions
 		(window as any).influxPlugin = this;
 
+		// Expose debug functions to browser console
+		if (DEBUG_MODE) {
+			(window as any).influxDebug = {
+				inspectStylesheets,
+				getReactRoots: () => ({
+					size: this.previewReactRoots.size,
+					entries: Array.from(this.previewReactRoots.keys()).map(el => ({
+						id: el.id,
+						inDom: document.body.contains(el),
+						visible: el.offsetParent !== null
+					}))
+				}),
+				getStylesheets: () => ({
+					main: this.stylesheet?.attached,
+					preview: this.stylesheetForPreview?.attached
+				})
+			};
+			debugLog('Debug mode enabled. Use window.influxDebug to inspect.');
+		}
+
 		// Add manual trigger for testing reading view
 		window.testInfluxReadingView = () => {
 			this.updateInfluxInAllPreviews();
@@ -197,13 +257,17 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	/**
-	 * Cleanup React roots for containers that are no longer in the DOM.
-	 * This prevents memory leaks when files are closed or views are destroyed.
+	 * Cleanup React roots for containers that are no longer in the DOM or are in hidden elements.
+	 * This prevents memory leaks and overlapping elements when switching modes.
 	 */
 	private cleanupReactRoots(): void {
 		const toDelete: HTMLElement[] = [];
 		for (const [container, root] of this.previewReactRoots) {
-			if (!document.body.contains(container)) {
+			// Check if container is no longer in DOM or is in a hidden element
+			const isInDom = document.body.contains(container);
+			const isVisible = container.offsetParent !== null || isInDom;
+
+			if (!isInDom || !isVisible) {
 				root.unmount();
 				toDelete.push(container);
 			}
@@ -211,6 +275,18 @@ export default class ObsidianInflux extends Plugin {
 		for (const container of toDelete) {
 			this.previewReactRoots.delete(container);
 		}
+
+		// Also clean up any orphaned wrapper elements in the DOM
+		const allWrappers = document.querySelectorAll('.influx-preview-wrapper');
+		allWrappers.forEach(wrapper => {
+			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
+			const root = container ? this.previewReactRoots.get(container) : null;
+
+			// If there's a wrapper but no tracked root, or if the root isn't in our map, clean it up
+			if (!root || !this.previewReactRoots.has(container)) {
+				wrapper.remove();
+			}
+		});
 	}
 
 	/**
@@ -222,6 +298,13 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async onunload() {
+		// Detach stylesheets to prevent DOM leaks
+		if (this.stylesheet) {
+			this.stylesheet.detach();
+		}
+		if (this.stylesheetForPreview) {
+			this.stylesheetForPreview.detach();
+		}
 		// Clean up all React roots on plugin unload
 		for (const [container, root] of this.previewReactRoots) {
 			root.unmount();
@@ -262,9 +345,22 @@ export default class ObsidianInflux extends Plugin {
 		// Debounce rapid successive updates to prevent conflicts
 		this.updateDebouncers[op] = setTimeout(async () => {
 			try {
+				// Only regenerate stylesheets when settings change, not on every update
+				// This prevents JSS from creating duplicate class names like .inlinkedEntries-0-0-35
+				const shouldRegenerateStylesheet = op === 'save-settings';
+				if (shouldRegenerateStylesheet) {
+					// Detach old stylesheet before creating a new one to prevent duplicates
+					if (this.stylesheet) {
+						debugLog('[triggerUpdates] Detaching old stylesheet');
+						this.stylesheet.detach();
+					}
+					debugLog('[triggerUpdates] Creating new stylesheet');
+					this.stylesheet = createStyleSheet(this.api)
+					debugLog('[triggerUpdates] Stylesheet attached, classes:', Object.keys(this.stylesheet.classes));
+				}
+
 				if (op === 'modify') {
 					if (this.data.settings.liveUpdate && file instanceof TFile) {
-						this.stylesheet = createStyleSheet(this.api)
 						// Use for...of for better performance than forEach
 						for (const callback of Object.values(this.componentCallbacks)) {
 							callback(op, this.stylesheet, file)
@@ -272,11 +368,13 @@ export default class ObsidianInflux extends Plugin {
 					}
 				}
 				else {
-					this.stylesheet = createStyleSheet(this.api)
 					for (const callback of Object.values(this.componentCallbacks)) {
 						callback(op, this.stylesheet)
 					}
 					this.updateInfluxInAllPreviews()
+				}
+				if (DEBUG_MODE) {
+					inspectStylesheets();
 				}
 			} finally {
 				// Always clear pending state, even if update fails
@@ -377,7 +475,7 @@ export default class ObsidianInflux extends Plugin {
 			// Reuse existing container and root
 			anchor = this.previewReactRoots.get(existingContainer)!
 		} else {
-			// Clean up any old containers
+			// Clean up any old containers and their parent wrappers
 			const oldContainers = previewDiv.querySelectorAll("influx-preview-container")
 			oldContainers.forEach(el => {
 				const oldContainer = el as HTMLElement
@@ -386,8 +484,16 @@ export default class ObsidianInflux extends Plugin {
 					oldRoot.unmount()
 					this.previewReactRoots.delete(oldContainer)
 				}
-				oldContainer.parentElement?.remove()
+				// Remove the entire wrapper, not just the container
+				const wrapper = oldContainer.closest('.influx-preview-wrapper');
+				wrapper?.remove();
 			})
+
+			// Also clean up any orphaned wrappers (without containers)
+			const orphanedWrappers = previewDiv.querySelectorAll('.influx-preview-wrapper');
+			orphanedWrappers.forEach(wrapper => {
+				wrapper.remove();
+			});
 
 			// Create new wrapper and container
 			const influxWrapper = document.createElement("div");
@@ -430,8 +536,12 @@ export default class ObsidianInflux extends Plugin {
 			return;
 		}
 
-		// Clean up any existing React roots before removing elements
+		debugLog('[handlePreviewMode] Processing file:', filePath);
+
+		// Clean up ALL existing Influx preview wrappers in this container
+		// This prevents overlapping elements when switching modes
 		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
+		debugLog('[handlePreviewMode] Found existing wrappers:', existingInflux.length);
 		existingInflux.forEach(wrapper => {
 			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
 			if (container) {
@@ -442,6 +552,19 @@ export default class ObsidianInflux extends Plugin {
 				}
 			}
 			wrapper.remove();
+		});
+
+		// Also clean up any orphaned influx-preview-container elements
+		// (e.g., from incomplete cleanups during mode switches)
+		const orphanedContainers = element.querySelectorAll('influx-preview-container');
+		debugLog('[handlePreviewMode] Found orphaned containers:', orphanedContainers.length);
+		orphanedContainers.forEach(container => {
+			const root = this.previewReactRoots.get(container as HTMLElement);
+			if (root) {
+				root.unmount();
+				this.previewReactRoots.delete(container as HTMLElement);
+			}
+			(container as HTMLElement).remove();
 		});
 
 		try {
