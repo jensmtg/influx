@@ -76,7 +76,6 @@ export interface Data {
 
 // Constants for magic numbers
 const DEBOUNCE_DELAY_MS = 100;
-const DOM_STABILITY_DELAY_MS = 50;
 const DELAYED_CALLBACK_TIMEOUT_MS = 2000;
 
 // Debug mode - set to true to enable verbose logging
