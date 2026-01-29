@@ -2,6 +2,10 @@ import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, Fro
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 import ObsidianInflux from './main';
+import { 
+    processFrontmatterLinks,
+    shouldIncludeFrontmatterLinks
+} from './frontmatter-utils';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -58,9 +62,10 @@ export class ApiAdapter extends Component {
         const backlinks = this.app.metadataCache.getBacklinksForFile(file);
         const metadata = this.app.metadataCache.getFileCache(file);
         
-        // Merge front matter links if enabled
-        if (this.shouldIncludeFrontmatterLinks() && metadata?.frontmatterLinks) {
-            this.mergeFrontmatterLinks(backlinks, metadata.frontmatterLinks);
+        // Process front matter links using the pure function pipeline
+        if (metadata?.frontmatterLinks) {
+            const settings = this.getSettings();
+            processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
         }
         
         this.backlinksCache.set(cacheKey, backlinks);
@@ -211,55 +216,4 @@ export class ApiAdapter extends Component {
 
         return linkname.toLowerCase() === basename.toLowerCase()
     }
-
-    /** =================
-     * FRONT MATTER LINK PROCESSING
-     * ==================
-     */
-    private shouldIncludeFrontmatterLinks(): boolean {
-        const settings = this.getSettings();
-        return settings.includeFrontmatterLinks;
-    }
-
-    private mergeFrontmatterLinks(
-        backlinks: BacklinksObject, 
-        frontmatterLinks: FrontmatterLinkCache[]
-    ): void {
-        const settings = this.getSettings();
-        const targetProperties = settings.frontmatterProperties;
-        
-        // Filter by specified properties if provided
-        const filteredLinks = targetProperties.length > 0
-            ? frontmatterLinks.filter(link => 
-                targetProperties.includes(link.key))
-            : frontmatterLinks;
-            
-        // Convert FrontmatterLinkCache to LinkCache format and merge
-        for (const fmLink of filteredLinks) {
-            const linkCache: LinkCache = {
-                link: fmLink.link,
-                displayText: fmLink.displayText,
-                position: {
-                    start: { line: 0, col: 0, offset: 0 },
-                    end: { line: 0, col: 0, offset: 0 }
-                },
-                original: fmLink.original
-            };
-            
-            // Add to backlinks structure
-            if (backlinks.data) {
-                if (backlinks.data instanceof Map) {
-                    if (!backlinks.data.has(fmLink.link)) {
-                        backlinks.data.set(fmLink.link, []);
-                    }
-                    backlinks.data.get(fmLink.link)!.push(linkCache);
-                } else {
-                    if (!backlinks.data[fmLink.link]) {
-                        backlinks.data[fmLink.link] = [];
-                    }
-                    backlinks.data[fmLink.link].push(linkCache);
-                }
-            }
-        }
-    }
-} // Add this closing brace
+}

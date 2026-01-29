@@ -345,7 +345,8 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         const frontmatterPropertiesFragment = document.createDocumentFragment();
         frontmatterPropertiesFragment.append('Comma-separated list of front matter property names to include links from. ')
         frontmatterPropertiesFragment.append('Leave blank to include links from all front matter properties. ')
-        frontmatterPropertiesFragment.append('Example: "related,see_also,references"');
+        frontmatterPropertiesFragment.append('Example: "related,see_also,references". ')
+        frontmatterPropertiesFragment.append('Valid names: letters, numbers, underscores only (no spaces).');
 
         new Setting(containerEl)
             .setName('Front matter properties')
@@ -360,7 +361,46 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         .split(',')
                         .map(prop => prop.trim())
                         .filter(prop => prop.length > 0);
-                    this.plugin.data.settings.frontmatterProperties = properties;
+                    
+                    // Validate YAML property names
+                    const yamlPropertyRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+                    const invalidProperties = properties.filter(prop => !yamlPropertyRegex.test(prop));
+                    
+                    // Find the setting container
+                    const settingContainer = text.inputEl.closest('.setting-item');
+                    
+                    if (invalidProperties.length > 0) {
+                        // Show warning for invalid properties
+                        text.inputEl.addClass('is-invalid');
+                        const warningMsg = `Invalid property names: ${invalidProperties.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, and underscores.`;
+                        
+                        // Create or update warning element
+                        let warningEl = settingContainer?.querySelector('.frontmatter-warning');
+                        if (!warningEl && settingContainer) {
+                            warningEl = document.createElement('div');
+                            warningEl.addClass('frontmatter-warning', 'setting-item-description');
+                            (warningEl as HTMLElement).style.color = 'var(--text-warning)';
+                            (warningEl as HTMLElement).style.fontSize = '0.9em';
+                            (warningEl as HTMLElement).style.marginTop = '0.5em';
+                            settingContainer.appendChild(warningEl);
+                        }
+                        if (warningEl) {
+                            warningEl.textContent = warningMsg;
+                        }
+                        
+                        // Filter out invalid properties
+                        const validProperties = properties.filter(prop => yamlPropertyRegex.test(prop));
+                        this.plugin.data.settings.frontmatterProperties = validProperties;
+                    } else {
+                        // Remove warning if all properties are valid
+                        text.inputEl.removeClass('is-invalid');
+                        const warningEl = settingContainer?.querySelector('.frontmatter-warning');
+                        if (warningEl) {
+                            warningEl.remove();
+                        }
+                        this.plugin.data.settings.frontmatterProperties = properties;
+                    }
+                    
                     await this.saveSettings()
                 };
             });
