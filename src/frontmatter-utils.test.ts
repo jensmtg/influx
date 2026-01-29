@@ -13,7 +13,7 @@ import {
 } from './frontmatter-utils';
 
 // Helper functions for creating test data
-const createMockFrontmatterLink = (key: string, link: string, displayText?: string): FrontmatterLinkCache => {
+const createTestFrontmatterLink = (key: string, link: string, displayText?: string): FrontmatterLinkCache => {
     return {
         key,
         link,
@@ -22,11 +22,11 @@ const createMockFrontmatterLink = (key: string, link: string, displayText?: stri
     } as FrontmatterLinkCache;
 };
 
-const createMockBacklinks = (data: Map<string, LinkCache[]> | Record<string, LinkCache[]> = new Map()) => {
+const createTestBacklinks = (data: Map<string, LinkCache[]> | Record<string, LinkCache[]> = new Map()) => {
     return { data };
 };
 
-const createMockSettings = (settings: Partial<ObsidianInfluxSettings> = {}): ObsidianInfluxSettings => {
+const createTestSettings = (settings: Partial<ObsidianInfluxSettings> = {}): ObsidianInfluxSettings => {
     return {
         liveUpdate: true,
         sortingPrinciple: "NEWEST_FIRST",
@@ -85,7 +85,7 @@ describe('Frontmatter Utils', () => {
     describe('shouldIncludeFrontmatterLinks', () => {
         test('should return false when includeFrontmatterLinks is false', () => {
             // Arrange
-            const settings = createMockSettings({ includeFrontmatterLinks: false });
+            const settings = createTestSettings({ includeFrontmatterLinks: false });
 
             // Act
             const result = shouldIncludeFrontmatterLinks(settings);
@@ -96,7 +96,7 @@ describe('Frontmatter Utils', () => {
 
         test('should return true when includeFrontmatterLinks is true', () => {
             // Arrange
-            const settings = createMockSettings({ includeFrontmatterLinks: true });
+            const settings = createTestSettings({ includeFrontmatterLinks: true });
 
             // Act
             const result = shouldIncludeFrontmatterLinks(settings);
@@ -109,7 +109,7 @@ describe('Frontmatter Utils', () => {
     describe('convertFrontmatterLinkToLinkCache', () => {
         test('should convert valid front matter link to link cache', () => {
             // Arrange
-            const fmLink = createMockFrontmatterLink('related', 'Test Note', 'Display Name');
+            const fmLink = createTestFrontmatterLink('related', 'Test Note', 'Display Name');
 
             // Act
             const result = convertFrontmatterLinkToLinkCache(fmLink);
@@ -161,9 +161,9 @@ describe('Frontmatter Utils', () => {
         test('should include all links when no properties specified', () => {
             // Arrange
             const frontmatterLinks = [
-                createMockFrontmatterLink('related', 'Note 1'),
-                createMockFrontmatterLink('author', 'Note 2'),
-                createMockFrontmatterLink('see_also', 'Note 3')
+                createTestFrontmatterLink('related', 'Note 1'),
+                createTestFrontmatterLink('author', 'Note 2'),
+                createTestFrontmatterLink('see_also', 'Note 3')
             ];
             const targetProperties: string[] = [];
 
@@ -178,9 +178,9 @@ describe('Frontmatter Utils', () => {
         test('should filter links when properties are specified', () => {
             // Arrange
             const frontmatterLinks = [
-                createMockFrontmatterLink('related', 'Note 1'),
-                createMockFrontmatterLink('author', 'Note 2'),
-                createMockFrontmatterLink('see_also', 'Note 3')
+                createTestFrontmatterLink('related', 'Note 1'),
+                createTestFrontmatterLink('author', 'Note 2'),
+                createTestFrontmatterLink('see_also', 'Note 3')
             ];
             const targetProperties = ['related', 'see_also'];
 
@@ -195,9 +195,9 @@ describe('Frontmatter Utils', () => {
         test('should handle links without key property', () => {
             // Arrange
             const frontmatterLinks = [
-                createMockFrontmatterLink('related', 'Note 1'),
+                createTestFrontmatterLink('related', 'Note 1'),
                 { link: 'Note 2', displayText: 'Note 2' } as FrontmatterLinkCache, // Missing key
-                createMockFrontmatterLink('see_also', 'Note 3')
+                createTestFrontmatterLink('see_also', 'Note 3')
             ];
             const targetProperties = ['related', 'see_also'];
 
@@ -219,7 +219,7 @@ describe('Frontmatter Utils', () => {
     describe('mergeConvertedLinksIntoBacklinks', () => {
         test('should merge links into Map backlinks', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map([
+            const backlinks = createTestBacklinks(new Map([
                 ['Existing Note', [{ link: 'Existing Note' } as LinkCache]]
             ]));
             const convertedLinks = [
@@ -238,7 +238,7 @@ describe('Frontmatter Utils', () => {
 
         test('should merge links into Object backlinks', () => {
             // Arrange
-            const backlinks = createMockBacklinks({
+            const backlinks = createTestBacklinks({
                 'Existing Note': [{ link: 'Existing Note' } as LinkCache]
             } as { [key: string]: LinkCache[] });
             const convertedLinks = [
@@ -255,7 +255,7 @@ describe('Frontmatter Utils', () => {
 
         test('should handle multiple links to same destination', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map());
+            const backlinks = createTestBacklinks(new Map());
             const convertedLinks = [
                 { link: 'Same Note' } as LinkCache,
                 { link: 'Same Note' } as LinkCache
@@ -270,7 +270,7 @@ describe('Frontmatter Utils', () => {
 
         test('should handle null/undefined inputs gracefully', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map());
+            const backlinks = createTestBacklinks(new Map());
             const validLinks = [{ link: 'Test Note' } as LinkCache];
 
             // Act & Assert - Should not throw
@@ -291,14 +291,14 @@ describe('Frontmatter Utils', () => {
     describe('processFrontmatterLinks', () => {
         test('should process complete pipeline when enabled', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map([
+            const backlinks = createTestBacklinks(new Map([
                 ['Existing Note', [{ link: 'Existing Note' } as LinkCache]]
             ]));
             const frontmatterLinks = [
-                createMockFrontmatterLink('related', 'Front Matter Note 1'),
-                createMockFrontmatterLink('author', 'Front Matter Note 2')
+                createTestFrontmatterLink('related', 'Front Matter Note 1'),
+                createTestFrontmatterLink('author', 'Front Matter Note 2')
             ];
-            const settings = createMockSettings({
+            const settings = createTestSettings({
                 includeFrontmatterLinks: true,
                 frontmatterProperties: ['related'] // Only include 'related'
             });
@@ -314,13 +314,13 @@ describe('Frontmatter Utils', () => {
 
         test('should return unchanged backlinks when disabled', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map([
+            const backlinks = createTestBacklinks(new Map([
                 ['Existing Note', [{ link: 'Existing Note' } as LinkCache]]
             ]));
             const frontmatterLinks = [
-                createMockFrontmatterLink('related', 'Front Matter Note 1')
+                createTestFrontmatterLink('related', 'Front Matter Note 1')
             ];
-            const settings = createMockSettings({
+            const settings = createTestSettings({
                 includeFrontmatterLinks: false // Disabled
             });
 
@@ -334,12 +334,12 @@ describe('Frontmatter Utils', () => {
 
         test('should include all links when no properties specified', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map());
+            const backlinks = createTestBacklinks(new Map());
             const frontmatterLinks = [
-                createMockFrontmatterLink('related', 'Note 1'),
-                createMockFrontmatterLink('author', 'Note 2')
+                createTestFrontmatterLink('related', 'Note 1'),
+                createTestFrontmatterLink('author', 'Note 2')
             ];
-            const settings = createMockSettings({
+            const settings = createTestSettings({
                 includeFrontmatterLinks: true,
                 frontmatterProperties: [] // Include all
             });
@@ -354,8 +354,8 @@ describe('Frontmatter Utils', () => {
 
         test('should handle errors gracefully', () => {
             // Arrange
-            const backlinks = createMockBacklinks(new Map());
-            const settings = createMockSettings({ includeFrontmatterLinks: true });
+            const backlinks = createTestBacklinks(new Map());
+            const settings = createTestSettings({ includeFrontmatterLinks: true });
 
             // Act & Assert - Should not throw even with malformed data
             expect(() => {

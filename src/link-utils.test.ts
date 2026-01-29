@@ -10,7 +10,7 @@ import {
 } from './link-utils';
 
 // Helper function to create mock LinkCache
-const createMockLink = (link: string): LinkCache => ({
+const createTestLink = (link: string): LinkCache => ({
     link,
     displayText: link,
     position: {
@@ -25,7 +25,7 @@ describe('Link Utils', () => {
     describe('extractLinkName', () => {
         test('should extract simple filename', () => {
             // Arrange
-            const link = createMockLink('Test Note');
+            const link = createTestLink('Test Note');
 
             // Act
             const result = extractLinkName(link);
@@ -36,7 +36,7 @@ describe('Link Utils', () => {
 
         test('should handle file paths with folders', () => {
             // Arrange
-            const link = createMockLink('folder/subfolder/Test Note');
+            const link = createTestLink('folder/subfolder/Test Note');
 
             // Act
             const result = extractLinkName(link);
@@ -47,7 +47,7 @@ describe('Link Utils', () => {
 
         test('should remove block references', () => {
             // Arrange
-            const link = createMockLink('Test Note#^block-id');
+            const link = createTestLink('Test Note#^block-id');
 
             // Act
             const result = extractLinkName(link);
@@ -58,7 +58,7 @@ describe('Link Utils', () => {
 
         test('should remove heading references', () => {
             // Arrange
-            const link = createMockLink('Test Note#heading');
+            const link = createTestLink('Test Note#heading');
 
             // Act
             const result = extractLinkName(link);
@@ -69,7 +69,7 @@ describe('Link Utils', () => {
 
         test('should remove .md extension', () => {
             // Arrange
-            const link = createMockLink('Test Note.md');
+            const link = createTestLink('Test Note.md');
 
             // Act
             const result = extractLinkName(link);
@@ -80,7 +80,7 @@ describe('Link Utils', () => {
 
         test('should handle complex paths with multiple separators', () => {
             // Arrange
-            const link = createMockLink('docs/notes/Test Note.md#heading^block');
+            const link = createTestLink('docs/notes/Test Note.md#heading^block');
 
             // Act
             const result = extractLinkName(link);
@@ -91,7 +91,7 @@ describe('Link Utils', () => {
 
         test('should convert to lowercase', () => {
             // Arrange
-            const link = createMockLink('TEST NOTE');
+            const link = createTestLink('TEST NOTE');
 
             // Act
             const result = extractLinkName(link);
@@ -104,7 +104,7 @@ describe('Link Utils', () => {
     describe('compareLinkName', () => {
         test('should match exact basename', () => {
             // Arrange
-            const link = createMockLink('Test Note');
+            const link = createTestLink('Test Note');
             const basename = 'Test Note';
 
             // Act
@@ -116,7 +116,7 @@ describe('Link Utils', () => {
 
         test('should match case-insensitive', () => {
             // Arrange
-            const link = createMockLink('test note');
+            const link = createTestLink('test note');
             const basename = 'TEST NOTE';
 
             // Act
@@ -128,7 +128,7 @@ describe('Link Utils', () => {
 
         test('should not match different names', () => {
             // Arrange
-            const link = createMockLink('Test Note');
+            const link = createTestLink('Test Note');
             const basename = 'Different Note';
 
             // Act
@@ -140,7 +140,7 @@ describe('Link Utils', () => {
 
         test('should handle complex link paths', () => {
             // Arrange
-            const link = createMockLink('folder/Test Note.md#heading');
+            const link = createTestLink('folder/Test Note.md#heading');
             const basename = 'Test Note';
 
             // Act
@@ -223,10 +223,10 @@ describe('Link Utils', () => {
         test('should filter links that match basename', () => {
             // Arrange
             const links = [
-                createMockLink('Test Note'),
-                createMockLink('Different Note'),
-                createMockLink('Test Note.md#heading'),
-                createMockLink('folder/Test Note')
+                createTestLink('Test Note'),
+                createTestLink('Different Note'),
+                createTestLink('Test Note.md#heading'),
+                createTestLink('folder/Test Note')
             ];
             const basename = 'Test Note';
 
@@ -241,9 +241,9 @@ describe('Link Utils', () => {
         test('should return empty array when no links match', () => {
             // Arrange
             const links = [
-                createMockLink('Note A'),
-                createMockLink('Note B'),
-                createMockLink('Note C')
+                createTestLink('Note A'),
+                createTestLink('Note B'),
+                createTestLink('Note C')
             ];
             const basename = 'Different Note';
 
@@ -269,9 +269,9 @@ describe('Link Utils', () => {
         test('should be case-insensitive', () => {
             // Arrange
             const links = [
-                createMockLink('test note'),
-                createMockLink('TEST NOTE'),
-                createMockLink('Test Note')
+                createTestLink('test note'),
+                createTestLink('TEST NOTE'),
+                createTestLink('Test Note')
             ];
             const basename = 'test note';
 

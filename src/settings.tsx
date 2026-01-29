@@ -346,7 +346,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         frontmatterPropertiesFragment.append('Comma-separated list of front matter property names to include links from. ')
         frontmatterPropertiesFragment.append('Leave blank to include links from all front matter properties. ')
         frontmatterPropertiesFragment.append('Example: "related,see_also,references". ')
-        frontmatterPropertiesFragment.append('Valid names: letters, numbers, underscores only (no spaces).');
+        frontmatterPropertiesFragment.append('Valid names: letters, numbers, underscores, hyphens only (no spaces).');
 
         new Setting(containerEl)
             .setName('Front matter properties')
@@ -363,7 +363,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         .filter(prop => prop.length > 0);
                     
                     // Validate YAML property names
-                    const yamlPropertyRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+                    const yamlPropertyRegex = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
                     const invalidProperties = properties.filter(prop => !yamlPropertyRegex.test(prop));
                     
                     // Find the setting container
@@ -372,7 +372,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     if (invalidProperties.length > 0) {
                         // Show warning for invalid properties
                         text.inputEl.addClass('is-invalid');
-                        const warningMsg = `Invalid property names: ${invalidProperties.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, and underscores.`;
+                        const warningMsg = `Invalid property names: ${invalidProperties.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, underscores, and hyphens.`;
                         
                         // Create or update warning element
                         let warningEl = settingContainer?.querySelector('.frontmatter-warning');
