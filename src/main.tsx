@@ -95,6 +95,7 @@ export default class ObsidianInflux extends Plugin {
 	private previewFileHashes: Map<string, string> = new Map();
 
 	async onload(): Promise<void> {
+		console.log(`Loading plugin: Influx v${this.manifest.version}`);
 
 		this.componentCallbacks = {}
 		this.api = new ApiAdapter(this.app)
