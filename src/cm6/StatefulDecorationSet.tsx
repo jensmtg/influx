@@ -30,7 +30,7 @@ export class StatefulDecorationSet {
         // Reuse plugin's api instance instead of creating new one (preserves cache)
         const apiAdapter = plugin.api
 
-        const influxFile = new InfluxFile(file.path, apiAdapter, plugin)
+        const influxFile = await InfluxFile.create(file.path, apiAdapter, plugin)
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 

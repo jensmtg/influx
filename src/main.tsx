@@ -347,7 +347,7 @@ export default class ObsidianInflux extends Plugin {
 			return
 		}
 
-		const influxFile = new InfluxFile(path, apiAdapter, this)
+		const influxFile = await InfluxFile.create(path, apiAdapter, this)
 		await influxFile.makeInfluxList()
 		await influxFile.renderAllMarkdownBlocks()
 
@@ -429,7 +429,7 @@ export default class ObsidianInflux extends Plugin {
 
 		try {
 			const apiAdapter = new ApiAdapter(this.app);
-			const influxFile = new InfluxFile(filePath, apiAdapter, this);
+			const influxFile = await InfluxFile.create(filePath, apiAdapter, this);
 			await influxFile.makeInfluxList();
 			await influxFile.renderAllMarkdownBlocks();
 

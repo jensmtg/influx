@@ -18,27 +18,42 @@ export default class InfluxFile {
     collapsed: boolean;
 
 
-    constructor(path: string, apiAdapter: ApiAdapter, influx: ObsidianInflux) {
+    /**
+     * Async factory method to create and initialize an InfluxFile.
+     * This prevents blocking operations in the constructor.
+     */
+    static async create(path: string, apiAdapter: ApiAdapter, influx: ObsidianInflux): Promise<InfluxFile> {
+        const influxFile = new InfluxFile(path, apiAdapter, influx);
+        await influxFile.initialize();
+        return influxFile;
+    }
+
+    private constructor(path: string, apiAdapter: ApiAdapter, influx: ObsidianInflux) {
         this.uuid = uuidv4()
         this.api = apiAdapter
         this.influx = influx
         this.file = this.api.getFileByPath(path)
+        // Initialize with default values
+        this.show = false
+        this.collapsed = false
+        this.meta = null
+        this.backlinks = null
+        this.inlinkingFiles = []
+        this.components = []
+    }
+
+    /**
+     * Initialize the InfluxFile with metadata, backlinks, and show status.
+     * This is called by the factory method to avoid blocking in the constructor.
+     */
+    private async initialize(): Promise<void> {
         if (!this.file) {
-            this.show = false
-            this.collapsed = false
-            this.meta = null
-            this.backlinks = null
-            this.inlinkingFiles = []
-            this.components = []
-            return
+            return;
         }
         this.meta = this.api.getMetadata(this.file)
         this.backlinks = this.api.getBacklinks(this.file)
-        this.inlinkingFiles = []
-        this.components = []
         this.show = this.api.getShowStatus(this.file)
         this.collapsed = this.api.getCollapsedStatus(this.file)
-
     }
 
     // is the file that triggers update part of the current files inlinked files?
