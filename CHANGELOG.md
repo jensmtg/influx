@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed memory leak in previewReactRoots by replacing WeakMap with Map and adding explicit cleanup
 - Fixed blocking operation in InfluxFile constructor by implementing async factory pattern
 - Fixed RangeError in StatefulDecorationSet when editor state is destroyed during async decoration updates
+- Fixed DOM performance by replacing innerHTML with direct DOM manipulation for checkbox disabling
+- Fixed code duplication in InfluxFile by unifying Map/Object iteration patterns
+- Fixed stale settings cache by adding explicit invalidation on settings save
 - Fixed displayText fallback to use nullish coalescing operator (??) for proper null/undefined handling
 - Fixed YAML property validation to allow hyphens in property names
 - Fixed max line width to respect Obsidian readable line length option
