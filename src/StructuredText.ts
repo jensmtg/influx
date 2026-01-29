@@ -1,9 +1,16 @@
+import {
+    lastNonEmptyElement,
+    ifOrderedListItemReturnOrdinal,
+    parseMarkdownTableRow,
+    isProperBullet,
+    calculateLeadingIndent,
+    generateNodeId
+} from './structuredtext-utils';
+
 const FRONTMATTER_SIGN = '---'
 const BULLET_SIGN = '* '
 const DASH_SIGN = '- '
 const QUOTE_SIGN = '>'
-const ORDERED_LISTITEM_REGEX = /^(\d+)[.] /gm;
-const TABLE_ROW_REGEX = /^\|(.+)\|(.*)\|/gm;
 const CALLOUT_HEADER_SIGN = '[!'
 const OUTPUT_INDENT_SPACES = 2
 const OUTPUT_INDENT = ' '
@@ -111,64 +118,13 @@ export class StructuredText {
         let frontmatterDone = false
 
 
-        const lastNonEmptyElement = (stack: NodeId[], offset = 0): NodeId | null => {
-            let ret = [...stack].slice(0, -offset)
-            for (let i = stack.length; i >= 0; i--) {
-                if (!ret[i]) {
-                    ret = ret.slice(0, i)
-                }
-                else {
-                    return ret[i]
-                }
-            }
-            return null
-        }
-
-        const ifOrderedListItemReturnOrdinal = (str: string): number | undefined => {
-            const matches = str.matchAll(ORDERED_LISTITEM_REGEX);
-            for (const match of matches) {
-                if (match[1]) {
-                    return Number(match[1])
-                }
-            }
-            return undefined
-        }
-
-        const parseMarkdownTableRow = (row: string): null | { cols: number; isDivider: boolean } => {
-
-            const match = row.match(TABLE_ROW_REGEX);
-            if (!match) return null            
-
-            let cols = 0
-            let isDivider = true
-
-            const cells = match[0]
-            .slice(1, match[0].length - 1)
-            .split('|')
-
-            cells.forEach(cell => {
-                if (cell.trim() !== '---') {
-                    isDivider = false
-                }
-                cols += 1
-            })
-
-            return {
-                cols,
-                isDivider
-            }
-
-          }
-
-
-
         for (let i = 0; i < lines.length; i++) {
 
             const line = lines[i]
-            const leadingIndent = line.search(/\S|$/);
+            const leadingIndent = calculateLeadingIndent(line);
             const trimmed = line.slice(leadingIndent);
-            const id: NodeId = `${i}`.padStart(4, '0')
-            const isProperBullet = [DASH_SIGN, BULLET_SIGN].includes(trimmed.substring(0, 2))
+            const id: NodeId = generateNodeId(i)
+            const isProperBulletVal = isProperBullet(trimmed)
 
 
             let stripped = ''
@@ -194,7 +150,7 @@ export class StructuredText {
             }
 
 
-            else if (isProperBullet) {
+            else if (isProperBulletVal) {
                 if (mode !== ModeType.List) {
                     mode = ModeType.List
                     isFirstOfMode = true

@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Front matter link processing: extract links from YAML front matter properties and include them in backlinks
-- Unit tests for frontmatter and link utilities
-- YAML property name validation
+- New unit tests for frontmatter, link, and structuredtext utilities
+- YAML property name validation with user feedback in settings UI
 
 ### Fixed
 
@@ -21,10 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Extracted pure functions from ApiAdapter
+- Extracted pure functions from ApiAdapter (frontmatter-utils.ts, link-utils.ts)
+- Extracted pure functions from StructuredText class (structuredtext-utils.ts)
 - Removed bad/integration tests that were testing mocks instead of real behavior
 - Renamed test helper functions from createMock* to createTest* for clarity
-- Added simple documentation site using Docsify
+- Added comprehensive documentation site using Docsify
 
 ## [2.2.2] - 2026-01-26
 
