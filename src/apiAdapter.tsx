@@ -93,6 +93,8 @@ export class ApiAdapter extends Component {
         const settings = this.app.plugins?.plugins?.influx?.data?.settings ?? DEFAULT_SETTINGS;
         // Ensure we have a complete settings object
         this.settingsCache = { ...DEFAULT_SETTINGS, ...settings } as ObsidianInfluxSettings;
+        // Pre-compile all regex patterns to eliminate JIT overhead on critical path
+        this.preCompileRegexPatterns(this.settingsCache);
         return this.settingsCache;
     }
     /** Clear all caches - call when settings change or files are modified */
@@ -105,6 +107,29 @@ export class ApiAdapter extends Component {
     /** Invalidate settings cache - call when settings are changed via UI */
     invalidateSettingsCache(): void {
         this.settingsCache = null;
+        this.regexCache.clear(); // Clear regex cache so new patterns are compiled
+    }
+    /** Pre-compile all regex patterns from settings to eliminate JIT overhead on critical path */
+    preCompileRegexPatterns(settings: Partial<ObsidianInfluxSettings>): void {
+        // Collect all pattern arrays from settings
+        const allPatterns = [
+            ...(settings.inclusionPattern || []),
+            ...(settings.exclusionPattern || []),
+            ...(settings.collapsedPattern || []),
+            ...(settings.sourceInclusionPattern || []),
+            ...(settings.sourceExclusionPattern || []),
+        ];
+
+        // Pre-compile all patterns to populate the cache
+        for (const pattern of allPatterns) {
+            if (pattern && pattern.length > 0 && !this.regexCache.has(pattern)) {
+                try {
+                    this.regexCache.set(pattern, new RegExp(pattern));
+                } catch (err) {
+                    console.error('Recent Files: Invalid regex pattern: ' + pattern);
+                }
+            }
+        }
     }
     /** =================
      * INFLUX utils 
