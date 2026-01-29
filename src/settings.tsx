@@ -12,6 +12,8 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
     async saveSettings() {
         await this.plugin.saveData(this.plugin.data);
+        // Invalidate settings cache to ensure fresh settings are used
+        this.plugin.api.invalidateSettingsCache();
         this.plugin.triggerUpdates('save-settings')
     }
 

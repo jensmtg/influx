@@ -76,10 +76,11 @@ export class ApiAdapter extends Component {
         await MarkdownRenderer.renderMarkdown(markdown, div, '/', this);
 
         // Disable checkboxes in preview mode to prevent interaction
-        // Replace type="checkbox" with type="checkbox" disabled="true"
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = div.innerHTML.replace(/type="checkbox"/g, 'type="checkbox" disabled="true"');
-        div.innerHTML = tempDiv.innerHTML;
+        // Use direct DOM manipulation instead of innerHTML replacement for better performance
+        const checkboxes = Array.from(div.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+        for (const checkbox of checkboxes) {
+            checkbox.disabled = true;
+        }
         return div;
     }
     getSettings(): ObsidianInfluxSettings {
@@ -100,6 +101,10 @@ export class ApiAdapter extends Component {
         this.backlinksCache.clear();
         this.settingsCache = null;
         this.regexCache.clear();
+    }
+    /** Invalidate settings cache - call when settings are changed via UI */
+    invalidateSettingsCache(): void {
+        this.settingsCache = null;
     }
     /** =================
      * INFLUX utils 

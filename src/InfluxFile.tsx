@@ -76,17 +76,14 @@ export default class InfluxFile {
             return
         }
         const validPaths: string[] = []
-        if (this.backlinks.data instanceof Map) {
-            for (const [pathAsKey] of this.backlinks.data) {
-                if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
-                    validPaths.push(pathAsKey)
-                }
-            }
-        } else {
-            for (const pathAsKey of Object.keys(this.backlinks.data)) {
-                if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
-                    validPaths.push(pathAsKey)
-                }
+        // Unify iteration pattern for both Map and Object backlinks data
+        const entries = this.backlinks.data instanceof Map
+            ? this.backlinks.data.entries()
+            : Object.entries(this.backlinks.data);
+
+        for (const [pathAsKey] of entries) {
+            if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
+                validPaths.push(pathAsKey);
             }
         }
         // Single pass: get files and filter nulls in one operation
