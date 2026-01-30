@@ -108,6 +108,7 @@ export class ApiAdapter extends Component {
     invalidateSettingsCache(): void {
         this.settingsCache = null;
         this.regexCache.clear(); // Clear regex cache so new patterns are compiled
+        this.backlinksCache.clear(); // Clear backlinks cache as frontmatter processing depends on settings
     }
     /** Pre-compile all regex patterns from settings to eliminate JIT overhead on critical path */
     preCompileRegexPatterns(settings: Partial<ObsidianInfluxSettings>): void {
