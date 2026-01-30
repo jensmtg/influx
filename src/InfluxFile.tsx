@@ -105,6 +105,11 @@ export default class InfluxFile {
             }
         }))
         this.inlinkingFiles = inlinkingFilesNew
+
+        // Warn user if some files failed to process
+        if (inlinkingFilesNew.length < validFiles.length) {
+            console.warn(`[Influx] Only ${inlinkingFilesNew.length} of ${validFiles.length} files processed successfully`);
+        }
     }
     async renderAllMarkdownBlocks() {
 

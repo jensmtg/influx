@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed race condition in `triggerUpdates` where concurrent file updates would cancel each other's timeouts
-- Fixed memory leak by cleaning up React roots when files are renamed or deleted
+- Fixed memory leak by cleaning up React roots when files are renamed or deleted (both `updateInfluxInPreview` and `handlePreviewMode`)
 - Fixed stale React root reuse in InfluxWidget by using container as WeakMap key
-- Fixed cascading failures in `Promise.all` by adding error handling for individual file processing
+- Fixed cascading failures in `Promise.all` by adding error handling for individual file processing with user warning
 - Fixed invalid regex patterns causing repeated error logging by caching sentinel values
 - Fixed undefined `titleLineNum` by using nullish coalescing for explicit initialization
 - Fixed inefficient DOM query in `cleanupReactRoots` by using direct child selector

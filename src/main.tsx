@@ -624,6 +624,7 @@ export default class ObsidianInflux extends Plugin {
 			// Create and track the React root
 			const anchor = createRoot(influxContainer);
 			this.previewReactRoots.set(influxContainer, anchor);
+			this.filePathToContainer.set(filePath, influxContainer);
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}
