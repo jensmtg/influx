@@ -148,7 +148,8 @@ export function createFileComparator(
     sortingAttribute: SortingAttribute,
     sortingPrinciple: SortingPrinciple
 ): (a: { file: { stat?: { ctime?: number; mtime?: number }; basename?: string } }, b: { file: { stat?: { ctime?: number; mtime?: number }; basename?: string } }) => number {
-    const flip = sortingPrinciple === 'OLDEST_FIRST' ? -1 : 1;
+    // NEWEST_FIRST reverses natural order (newest first), OLDEST_FIRST keeps natural order (oldest first)
+    const flip = sortingPrinciple === 'NEWEST_FIRST' ? -1 : 1;
 
     if (sortingAttribute === 'FILENAME') {
         return function compareByFilename(a, b): number {

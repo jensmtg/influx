@@ -11,6 +11,10 @@ import {
     patternMatches,
     createFileComparator,
     compareLinkName,
+    shouldShowInfluxWithMatcher,
+    isIncludableSourceWithMatcher,
+    shouldCollapseInfluxWithMatcher,
+    createInlinkingFileComparator,
     type FilterSettings
 } from './settings-utils';
 
@@ -480,8 +484,8 @@ describe('Settings Utils', () => {
                 const resultBA = comparator(fileB, fileA);
 
                 // Assert - With NEWEST_FIRST, B (newer) should come before A
-                expect(resultAB).toBe(-1); // A after B (A is older, should come after)
-                expect(resultBA).toBe(1);  // B before A (B is newer, should come before)
+                expect(resultAB).toBe(1);  // A after B (A is older, should come after)
+                expect(resultBA).toBe(-1); // B before A (B is newer, should come before)
             });
         });
 
@@ -495,8 +499,8 @@ describe('Settings Utils', () => {
                 const resultBA = comparator(fileB, fileA);
 
                 // Assert - With OLDEST_FIRST, A (older) should come before B
-                expect(resultAB).toBe(1); // A before B (A is older, should come before)
-                expect(resultBA).toBe(-1); // B after A (B is newer, should come after)
+                expect(resultAB).toBe(-1); // A before B (A is older, should come before)
+                expect(resultBA).toBe(1);  // B after A (B is newer, should come after)
             });
         });
 
@@ -509,7 +513,7 @@ describe('Settings Utils', () => {
                 const resultAB = comparator(fileA, fileB);
 
                 // Assert
-                expect(resultAB).toBe(-1); // A before B (alphabetical)
+                expect(resultAB).toBe(1); // A after B (reverse alphabetical)
             });
 
             test('should sort by filename with OLDEST_FIRST', () => {
@@ -520,7 +524,7 @@ describe('Settings Utils', () => {
                 const resultAB = comparator(fileA, fileB);
 
                 // Assert
-                expect(resultAB).toBe(1); // B before A (reverse alphabetical)
+                expect(resultAB).toBe(-1); // A before B (alphabetical)
             });
         });
 
@@ -634,6 +638,295 @@ describe('Settings Utils', () => {
 
             // Assert
             expect(result).toBe(true);
+        });
+    });
+
+    describe('shouldShowInfluxWithMatcher', () => {
+        test('should use default pattern matcher when none provided', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should use injected pattern matcher', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Any/File.md', settings, mockMatcher);
+
+            // Assert
+            expect(mockMatcher).toHaveBeenCalledWith('/Any/File.md', ['/Notes/']);
+            expect(result).toBe(true);
+        });
+
+        test('should handle OPT_IN with custom matcher returning true', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Special/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Random/File.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(true); // OPT_IN shows when matched
+        });
+
+        test('should handle OPT_IN with custom matcher returning false', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(false);
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(false); // OPT_IN hides when not matched
+        });
+
+        test('should handle OPT_OUT with custom matcher returning true', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Journal/Test.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(false); // OPT_OUT hides when matched
+        });
+
+        test('should handle OPT_OUT with custom matcher returning false', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(false);
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(true); // OPT_OUT shows when not matched
+        });
+    });
+
+    describe('isIncludableSourceWithMatcher', () => {
+        test('should use default pattern matcher when none provided', () => {
+            // Arrange
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_IN',
+                sourceInclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = isIncludableSourceWithMatcher('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should use injected pattern matcher', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_IN',
+                sourceInclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = isIncludableSourceWithMatcher('/Any/File.md', settings, mockMatcher);
+
+            // Assert
+            expect(mockMatcher).toHaveBeenCalledWith('/Any/File.md', ['/Notes/']);
+            expect(result).toBe(true);
+        });
+
+        test('should handle OPT_IN with custom matcher returning true', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_IN',
+                sourceInclusionPattern: ['/Special/']
+            });
+
+            // Act
+            const result = isIncludableSourceWithMatcher('/Random/File.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(true); // OPT_IN includes when matched
+        });
+
+        test('should handle OPT_OUT with custom matcher returning true', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_OUT',
+                sourceExclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = isIncludableSourceWithMatcher('/Journal/Test.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(false); // OPT_OUT excludes when matched
+        });
+    });
+
+    describe('shouldCollapseInfluxWithMatcher', () => {
+        test('should use default pattern matcher when none provided', () => {
+            // Arrange
+            const settings = createTestSettings({
+                collapsedPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldCollapseInfluxWithMatcher('/Journal/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should use injected pattern matcher', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(true);
+            const settings = createTestSettings({
+                collapsedPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldCollapseInfluxWithMatcher('/Any/File.md', settings, mockMatcher);
+
+            // Assert
+            expect(mockMatcher).toHaveBeenCalledWith('/Any/File.md', ['/Journal/']);
+            expect(result).toBe(true);
+        });
+
+        test('should return false when matcher returns false', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(false);
+            const settings = createTestSettings({
+                collapsedPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldCollapseInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('createInlinkingFileComparator', () => {
+        test('should create comparator for FILENAME with NEWEST_FIRST', () => {
+            // Arrange
+            const settings = {
+                sortingAttribute: 'FILENAME' as const,
+                sortingPrinciple: 'NEWEST_FIRST' as const
+            };
+            const fileA = createMockFile('/A.md', 1000, 1000, 'A');
+            const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+
+            // Act
+            const comparator = createInlinkingFileComparator(settings);
+            const result = comparator(fileA, fileB);
+
+            // Assert - reverse alphabetical with NEWEST_FIRST (flip = -1)
+            expect(result).toBe(1); // A comes after B (reverse alphabetical)
+        });
+
+        test('should create comparator for FILENAME with OLDEST_FIRST', () => {
+            // Arrange
+            const settings = {
+                sortingAttribute: 'FILENAME' as const,
+                sortingPrinciple: 'OLDEST_FIRST' as const
+            };
+            const fileA = createMockFile('/A.md', 1000, 1000, 'A');
+            const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+
+            // Act
+            const comparator = createInlinkingFileComparator(settings);
+            const result = comparator(fileA, fileB);
+
+            // Assert - alphabetical order with OLDEST_FIRST (flip = 1)
+            expect(result).toBe(-1); // A comes before B alphabetically
+        });
+
+        test('should create comparator for ctime with NEWEST_FIRST', () => {
+            // Arrange
+            const settings = {
+                sortingAttribute: 'ctime' as const,
+                sortingPrinciple: 'NEWEST_FIRST' as const
+            };
+            const fileA = createMockFile('/A.md', 1000, 1000, 'A');
+            const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+
+            // Act
+            const comparator = createInlinkingFileComparator(settings);
+            const resultAB = comparator(fileA, fileB);
+            const resultBA = comparator(fileB, fileA);
+
+            // Assert - With NEWEST_FIRST, B (newer) should come before A
+            expect(resultAB).toBe(1);  // A after B (A is older)
+            expect(resultBA).toBe(-1); // B before A (B is newer)
+        });
+
+        test('should create comparator for mtime with OLDEST_FIRST', () => {
+            // Arrange
+            const settings = {
+                sortingAttribute: 'mtime' as const,
+                sortingPrinciple: 'OLDEST_FIRST' as const
+            };
+            const fileA = createMockFile('/A.md', 1000, 2000, 'A'); // mtime 2000 (newer)
+            const fileB = createMockFile('/B.md', 1000, 1000, 'B'); // mtime 1000 (older)
+
+            // Act
+            const comparator = createInlinkingFileComparator(settings);
+            const resultAB = comparator(fileA, fileB);
+            const resultBA = comparator(fileB, fileA);
+
+            // Assert - With OLDEST_FIRST by mtime, B (older mtime) should come before A
+            expect(resultAB).toBe(1);  // A after B (A has newer mtime)
+            expect(resultBA).toBe(-1); // B before A (B has older mtime)
+        });
+
+        test('should return 0 for equal filenames', () => {
+            // Arrange
+            const settings = {
+                sortingAttribute: 'FILENAME' as const,
+                sortingPrinciple: 'NEWEST_FIRST' as const
+            };
+            const fileA = createMockFile('/A.md', 1000, 1000, 'Same');
+            const fileB = createMockFile('/B.md', 2000, 2000, 'Same');
+
+            // Act
+            const comparator = createInlinkingFileComparator(settings);
+            const result = comparator(fileA, fileB);
+
+            // Assert
+            expect(result).toBe(0);
         });
     });
 });
