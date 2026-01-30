@@ -191,3 +191,107 @@ export function compareLinkName(link: LinkCache, basename: string): boolean {
 
     return linkname.toLowerCase() === basename.toLowerCase();
 }
+
+/**
+ * Creates a file comparator function based on sorting settings.
+ * Works with InlinkingFile objects that have a `file` property.
+ *
+ * @param settings - Filter settings containing sort configuration
+ * @returns Comparison function returning -1, 0, or 1
+ */
+export function createInlinkingFileComparator(settings: {
+    sortingAttribute: SortingAttribute;
+    sortingPrinciple: SortingPrinciple;
+}): (a: { file: { stat?: { ctime?: number; mtime?: number }; basename?: string } }, b: { file: { stat?: { ctime?: number; mtime?: number }; basename?: string } }) => number {
+    return createFileComparator(settings.sortingAttribute, settings.sortingPrinciple);
+}
+
+/**
+ * Determines if Influx should be shown for a file based on show behaviour and pattern matching.
+ * Supports dependency injection for custom pattern matching functions (e.g., with caching).
+ *
+ * @param filePath - Path of the file to check
+ * @param settings - Filter settings containing show behaviour and patterns
+ * @param patternMatcher - Optional custom pattern matching function (defaults to patternMatches)
+ * @returns true if Influx should be shown, false otherwise
+ */
+export function shouldShowInfluxWithMatcher(
+    filePath: string,
+    settings: FilterSettings,
+    patternMatcher?: (path: string, patterns: string[]) => boolean
+): boolean {
+    const matcher = patternMatcher || patternMatches;
+    return shouldShowInfluxWithMatcherImpl(filePath, settings, matcher);
+}
+
+/**
+ * Internal implementation that uses a specific pattern matcher.
+ */
+function shouldShowInfluxWithMatcherImpl(
+    filePath: string,
+    settings: FilterSettings,
+    patternMatcher: (path: string, patterns: string[]) => boolean
+): boolean {
+    const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern;
+    const matched = patternMatcher(filePath, patterns);
+
+    if (settings.showBehaviour === 'OPT_IN') {
+        return matched; // Show only if pattern matches
+    } else {
+        return !matched; // Show unless pattern matches
+    }
+}
+
+/**
+ * Determines if a source file should be included in backlinks.
+ * Supports dependency injection for custom pattern matching functions (e.g., with caching).
+ *
+ * @param filePath - Path of the source file to check
+ * @param settings - Filter settings containing source behaviour and patterns
+ * @param patternMatcher - Optional custom pattern matching function (defaults to patternMatches)
+ * @returns true if file should be included, false otherwise
+ */
+export function isIncludableSourceWithMatcher(
+    filePath: string,
+    settings: FilterSettings,
+    patternMatcher?: (path: string, patterns: string[]) => boolean
+): boolean {
+    const matcher = patternMatcher || patternMatches;
+    return isIncludableSourceWithMatcherImpl(filePath, settings, matcher);
+}
+
+/**
+ * Internal implementation that uses a specific pattern matcher.
+ */
+function isIncludableSourceWithMatcherImpl(
+    filePath: string,
+    settings: FilterSettings,
+    patternMatcher: (path: string, patterns: string[]) => boolean
+): boolean {
+    const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern;
+    const matched = patternMatcher(filePath, patterns);
+
+    if (settings.sourceBehaviour === 'OPT_IN') {
+        return matched; // Include only if pattern matches
+    } else {
+        return !matched; // Include unless pattern matches
+    }
+}
+
+/**
+ * Determines if Influx should be collapsed for a file.
+ * Supports dependency injection for custom pattern matching functions (e.g., with caching).
+ *
+ * @param filePath - Path of the file to check
+ * @param settings - Filter settings containing collapsed pattern
+ * @param patternMatcher - Optional custom pattern matching function (defaults to patternMatches)
+ * @returns true if Influx should be collapsed, false otherwise
+ */
+export function shouldCollapseInfluxWithMatcher(
+    filePath: string,
+    settings: FilterSettings,
+    patternMatcher?: (path: string, patterns: string[]) => boolean
+): boolean {
+    const matcher = patternMatcher || patternMatches;
+    return matcher(filePath, settings.collapsedPattern);
+}
