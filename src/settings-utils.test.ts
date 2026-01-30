@@ -1,10 +1,38 @@
 // Unit tests for settings utility functions
-// Tests the actual pure functions extracted from settings.tsx
+// Tests the actual pure functions extracted from settings.tsx and apiAdapter.tsx
 
+import { LinkCache } from 'obsidian';
 import {
     validateYamlPropertyNames,
-    isValidYamlPropertyName
+    isValidYamlPropertyName,
+    shouldShowInflux,
+    isIncludableSource,
+    shouldCollapseInflux,
+    patternMatches,
+    createFileComparator,
+    compareLinkName,
+    type FilterSettings
 } from './settings-utils';
+
+// Helper function to create test settings
+const createTestSettings = (overrides: Partial<FilterSettings> = {}): FilterSettings => ({
+    showBehaviour: 'OPT_OUT',
+    inclusionPattern: [],
+    exclusionPattern: [],
+    sourceBehaviour: 'OPT_OUT',
+    sourceInclusionPattern: [],
+    sourceExclusionPattern: [],
+    collapsedPattern: [],
+    ...overrides
+});
+
+// Helper function to create mock file object
+const createMockFile = (path: string, ctime = 1000, mtime = 1000, basename?: string) => ({
+    file: {
+        stat: { ctime, mtime },
+        basename: basename || path.split('/').pop()
+    }
+});
 
 describe('Settings Utils', () => {
 
@@ -202,6 +230,410 @@ describe('Settings Utils', () => {
             expect(isValidYamlPropertyName(123 as any)).toBe(false);
             expect(isValidYamlPropertyName({} as any)).toBe(false);
             expect(isValidYamlPropertyName([] as any)).toBe(false);
+        });
+    });
+
+    describe('shouldShowInflux', () => {
+        test('should return true for OPT_IN when pattern matches', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = shouldShowInflux('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return false for OPT_IN when pattern does not match', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = shouldShowInflux('/Journal/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false for OPT_IN with empty patterns', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: []
+            });
+
+            // Act
+            const result = shouldShowInflux('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false for OPT_OUT when pattern matches', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldShowInflux('/Journal/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return true for OPT_OUT when pattern does not match', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldShowInflux('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return true for OPT_OUT with empty patterns', () => {
+            // Arrange
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: []
+            });
+
+            // Act
+            const result = shouldShowInflux('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+    });
+
+    describe('isIncludableSource', () => {
+        test('should return true for OPT_IN when pattern matches', () => {
+            // Arrange
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_IN',
+                sourceInclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = isIncludableSource('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return false for OPT_IN when pattern does not match', () => {
+            // Arrange
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_IN',
+                sourceInclusionPattern: ['/Notes/']
+            });
+
+            // Act
+            const result = isIncludableSource('/Journal/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false for OPT_OUT when pattern matches', () => {
+            // Arrange
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_OUT',
+                sourceExclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = isIncludableSource('/Journal/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return true for OPT_OUT when pattern does not match', () => {
+            // Arrange
+            const settings = createTestSettings({
+                sourceBehaviour: 'OPT_OUT',
+                sourceExclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = isIncludableSource('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+    });
+
+    describe('shouldCollapseInflux', () => {
+        test('should return true when pattern matches', () => {
+            // Arrange
+            const settings = createTestSettings({
+                collapsedPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldCollapseInflux('/Journal/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return false when pattern does not match', () => {
+            // Arrange
+            const settings = createTestSettings({
+                collapsedPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldCollapseInflux('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false for empty patterns', () => {
+            // Arrange
+            const settings = createTestSettings({
+                collapsedPattern: []
+            });
+
+            // Act
+            const result = shouldCollapseInflux('/Notes/Test.md', settings);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('patternMatches', () => {
+        test('should match simple pattern', () => {
+            // Act & Assert
+            expect(patternMatches('/Notes/Test.md', ['/Notes/'])).toBe(true);
+            expect(patternMatches('/Journal/Test.md', ['/Notes/'])).toBe(false);
+        });
+
+        test('should match regex pattern', () => {
+            // Act & Assert
+            expect(patternMatches('/Notes/Test.md', ['/.*Notes/'])).toBe(true);
+            expect(patternMatches('/Journal/Test.md', ['/.*Notes/'])).toBe(false);
+        });
+
+        test('should handle multiple patterns', () => {
+            // Arrange
+            const patterns = ['/Notes/', '/Journal/'];
+
+            // Act & Assert
+            expect(patternMatches('/Notes/Test.md', patterns)).toBe(true);
+            expect(patternMatches('/Journal/Test.md', patterns)).toBe(true);
+            expect(patternMatches('/Tasks/Test.md', patterns)).toBe(false);
+        });
+
+        test('should filter empty patterns', () => {
+            // Act
+            const result = patternMatches('/Notes/Test.md', ['', '/Notes/', '   ']);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return false for all empty patterns', () => {
+            // Act
+            const result = patternMatches('/Notes/Test.md', ['', '   ']);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should handle invalid regex patterns gracefully', () => {
+            // Act - Unclosed bracket should cause syntax error
+            const result = patternMatches('/Notes/Test.md', ['[(invalid']);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('createFileComparator', () => {
+        const fileA = createMockFile('/A.md', 1000, 1000, 'A');
+        const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+
+        describe('by ctime with NEWEST_FIRST', () => {
+            test('should sort newest first', () => {
+                // Arrange
+                const comparator = createFileComparator('ctime', 'NEWEST_FIRST');
+
+                // Act
+                const resultAB = comparator(fileA, fileB);
+                const resultBA = comparator(fileB, fileA);
+
+                // Assert - With NEWEST_FIRST, B (newer) should come before A
+                expect(resultAB).toBe(-1); // A after B (A is older, should come after)
+                expect(resultBA).toBe(1);  // B before A (B is newer, should come before)
+            });
+        });
+
+        describe('by ctime with OLDEST_FIRST', () => {
+            test('should sort oldest first', () => {
+                // Arrange
+                const comparator = createFileComparator('ctime', 'OLDEST_FIRST');
+
+                // Act
+                const resultAB = comparator(fileA, fileB);
+                const resultBA = comparator(fileB, fileA);
+
+                // Assert - With OLDEST_FIRST, A (older) should come before B
+                expect(resultAB).toBe(1); // A before B (A is older, should come before)
+                expect(resultBA).toBe(-1); // B after A (B is newer, should come after)
+            });
+        });
+
+        describe('by FILENAME', () => {
+            test('should sort by filename with NEWEST_FIRST', () => {
+                // Arrange
+                const comparator = createFileComparator('FILENAME', 'NEWEST_FIRST');
+
+                // Act
+                const resultAB = comparator(fileA, fileB);
+
+                // Assert
+                expect(resultAB).toBe(-1); // A before B (alphabetical)
+            });
+
+            test('should sort by filename with OLDEST_FIRST', () => {
+                // Arrange
+                const comparator = createFileComparator('FILENAME', 'OLDEST_FIRST');
+
+                // Act
+                const resultAB = comparator(fileA, fileB);
+
+                // Assert
+                expect(resultAB).toBe(1); // B before A (reverse alphabetical)
+            });
+        });
+
+        describe('equal values', () => {
+            test('should return 0 for equal ctime', () => {
+                // Arrange
+                const fileA2 = createMockFile('/A.md', 1000, 1000, 'A');
+                const comparator = createFileComparator('ctime', 'NEWEST_FIRST');
+
+                // Act
+                const result = comparator(fileA, fileA2);
+
+                // Assert
+                expect(result).toBe(0);
+            });
+
+            test('should return 0 for equal filename', () => {
+                // Arrange
+                const fileA2 = createMockFile('/A.md', 1000, 1000, 'A');
+                const comparator = createFileComparator('FILENAME', 'NEWEST_FIRST');
+
+                // Act
+                const result = comparator(fileA, fileA2);
+
+                // Assert
+                expect(result).toBe(0);
+            });
+        });
+    });
+
+    describe('compareLinkName', () => {
+        test('should match exact basename', () => {
+            // Arrange
+            const link = { link: 'Test Note' } as LinkCache;
+            const basename = 'Test Note';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should match case-insensitive', () => {
+            // Arrange
+            const link = { link: 'test note' } as LinkCache;
+            const basename = 'TEST NOTE';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should not match different names', () => {
+            // Arrange
+            const link = { link: 'Test Note' } as LinkCache;
+            const basename = 'Different Note';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should handle complex link paths', () => {
+            // Arrange
+            const link = { link: 'folder/Test Note.md#heading' } as LinkCache;
+            const basename = 'Test Note';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should handle block references', () => {
+            // Arrange
+            const link = { link: 'Test Note#^block-id' } as LinkCache;
+            const basename = 'Test Note';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should remove .md extension', () => {
+            // Arrange
+            const link = { link: 'Test Note.md' } as LinkCache;
+            const basename = 'Test Note';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should handle folder paths', () => {
+            // Arrange
+            const link = { link: 'folder/subfolder/Test Note' } as LinkCache;
+            const basename = 'Test Note';
+
+            // Act
+            const result = compareLinkName(link, basename);
+
+            // Assert
+            expect(result).toBe(true);
         });
     });
 });
