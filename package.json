@@ -1,7 +1,7 @@
 {
 	"name": "influx",
 	"version": "2.3.1",
-	"description": "An alternative backlinks plugin, which displays relevant and formatted excerpts from notes with linked mentions, based on the position of mentions in the notes' hierarchical structure (bullet level indentation).",
+	"description": "Transform your Obsidian backlinks from simple links into rich, contextual excerpts. See the actual content surrounding each link, turning your note connections into genuine insights.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
