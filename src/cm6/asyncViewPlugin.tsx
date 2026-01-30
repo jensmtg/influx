@@ -38,7 +38,6 @@ const asyncViewPlugin = ViewPlugin.fromClass(
 
 		destroy() {
 			// Cancel debounced callback to prevent post-destroy execution
-			// @ts-expect-error - Obsidian's debounce returns a function with cancel method
 			this.debouncedShow?.cancel?.();
 		}
 
