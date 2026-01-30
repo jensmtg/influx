@@ -132,6 +132,8 @@ export default class ObsidianInflux extends Plugin {
 	// Track React roots for proper cleanup to prevent memory leaks
 	// Changed from WeakMap to Map to enable explicit cleanup and iteration
 	private previewReactRoots: Map<HTMLElement, Root> = new Map();
+	// Map file paths to their container elements for cleanup on rename/delete
+	private filePathToContainer: Map<string, HTMLElement> = new Map();
 	// Track file hashes to avoid unnecessary re-renders
 	private previewFileHashes: Map<string, string> = new Map();
 
@@ -276,16 +278,37 @@ export default class ObsidianInflux extends Plugin {
 		}
 
 		// Also clean up any orphaned wrapper elements in the DOM
-		const allWrappers = document.querySelectorAll('.influx-preview-wrapper');
-		allWrappers.forEach(wrapper => {
-			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
-			const root = container ? this.previewReactRoots.get(container) : null;
+		// Use direct child selector for better performance
+		const allContainers = document.querySelectorAll('.influx-preview-wrapper > influx-preview-container');
+		allContainers.forEach(container => {
+			const root = this.previewReactRoots.get(container as HTMLElement);
 
-			// If there's a wrapper but no tracked root, or if the root isn't in our map, clean it up
-			if (!root || !this.previewReactRoots.has(container)) {
-				wrapper.remove();
+			// If there's a container but no tracked root, clean up its wrapper
+			if (!root) {
+				const wrapper = (container as HTMLElement).closest('.influx-preview-wrapper');
+				wrapper?.remove();
 			}
 		});
+	}
+
+	/**
+	 * Cleanup React roots for a specific file path.
+	 * Call this when files are deleted, renamed, or moved.
+	 */
+	private cleanupFileReactRoots(filePath: string): void {
+		const container = this.filePathToContainer.get(filePath);
+		if (container) {
+			const root = this.previewReactRoots.get(container);
+			if (root) {
+				root.unmount();
+				this.previewReactRoots.delete(container);
+			}
+			this.filePathToContainer.delete(filePath);
+
+			// Remove the wrapper from DOM
+			const wrapper = container.closest('.influx-preview-wrapper');
+			wrapper?.remove();
+		}
 	}
 
 	/**
@@ -294,6 +317,7 @@ export default class ObsidianInflux extends Plugin {
 	 */
 	private cleanupFileHash(filePath: string): void {
 		this.previewFileHashes.delete(filePath);
+		this.cleanupFileReactRoots(filePath);
 	}
 
 	async onunload() {
@@ -336,13 +360,13 @@ export default class ObsidianInflux extends Plugin {
 		// Mark this update as pending
 		this.pendingUpdates.add(updateKey);
 
-		// Clear existing debouncer for this operation type
-		if (this.updateDebouncers[op]) {
-			clearTimeout(this.updateDebouncers[op])
+		// Clear existing debouncer for this specific update (not just operation type)
+		if (this.updateDebouncers[updateKey]) {
+			clearTimeout(this.updateDebouncers[updateKey])
 		}
 
 		// Debounce rapid successive updates to prevent conflicts
-		this.updateDebouncers[op] = setTimeout(async () => {
+		this.updateDebouncers[updateKey] = setTimeout(async () => {
 			try {
 				// Only regenerate stylesheets when settings change, not on every update
 				// This prevents JSS from creating duplicate class names like .inlinkedEntries-0-0-35
@@ -378,7 +402,7 @@ export default class ObsidianInflux extends Plugin {
 			} finally {
 				// Always clear pending state, even if update fails
 				this.pendingUpdates.delete(updateKey);
-				delete this.updateDebouncers[op]
+				delete this.updateDebouncers[updateKey]
 			}
 		}, DEBOUNCE_DELAY_MS)
 	}
@@ -513,6 +537,7 @@ export default class ObsidianInflux extends Plugin {
 			// Create and track the React root
 			anchor = createRoot(influxContainer);
 			this.previewReactRoots.set(influxContainer, anchor);
+			this.filePathToContainer.set(path, influxContainer);
 		}
 
 		// Render or update the React component
@@ -599,6 +624,7 @@ export default class ObsidianInflux extends Plugin {
 			// Create and track the React root
 			const anchor = createRoot(influxContainer);
 			this.previewReactRoots.set(influxContainer, anchor);
+			this.filePathToContainer.set(filePath, influxContainer);
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}

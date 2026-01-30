@@ -21,7 +21,10 @@ export class ApiAdapter extends Component {
     private backlinksCache: Map<string, BacklinksObject> = new Map();
     private settingsCache: ObsidianInfluxSettings | null = null;
     // Cache compiled regex patterns to avoid recompilation on every pattern match
-    private regexCache: Map<string, RegExp> = new Map();
+    // Use null as a sentinel value for invalid regex patterns
+    private regexCache: Map<string, RegExp | null> = new Map();
+    // Sentinel value to mark invalid regex patterns
+    private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
 
     constructor(app: App) {
         super();
@@ -127,7 +130,9 @@ export class ApiAdapter extends Component {
                 try {
                     this.regexCache.set(pattern, new RegExp(pattern));
                 } catch (err) {
-                    console.error('Recent Files: Invalid regex pattern: ' + pattern);
+                    console.error('[Influx] Invalid regex pattern: ' + pattern);
+                    // Cache sentinel to prevent repeated error logging
+                    this.regexCache.set(pattern, ApiAdapter.INVALID_REGEX_SENTINEL);
                 }
             }
         }
@@ -167,13 +172,19 @@ export class ApiAdapter extends Component {
             try {
                 // Use cached regex if available, otherwise compile and cache it
                 let regex = this.regexCache.get(pattern);
+                // Check if this is a known invalid pattern
+                if (regex === ApiAdapter.INVALID_REGEX_SENTINEL) {
+                    return false;
+                }
                 if (!regex) {
                     regex = new RegExp(pattern);
                     this.regexCache.set(pattern, regex);
                 }
                 return regex.test(path);
             } catch (err) {
-                console.error('Recent Files: Invalid regex pattern: ' + pattern);
+                console.error('[Influx] Invalid regex pattern: ' + pattern);
+                // Cache sentinel to prevent repeated error logging
+                this.regexCache.set(pattern, ApiAdapter.INVALID_REGEX_SENTINEL);
                 return false;
             }
         };

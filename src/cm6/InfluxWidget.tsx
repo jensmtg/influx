@@ -57,13 +57,12 @@ export class InfluxWidget extends WidgetType {
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 
-        const reactAnchor = container.appendChild(document.createElement('div'))
-
         // Get or create React root using WeakMap for proper cleanup
-        let root = reactRoots.get(reactAnchor);
+        // Use container directly as the React root anchor to ensure WeakMap key matches disconnect listener target
+        let root = reactRoots.get(container);
         if (!root) {
-            root = createRoot(reactAnchor);
-            reactRoots.set(reactAnchor, root);
+            root = createRoot(container);
+            reactRoots.set(container, root);
         }
 
         if (this.show) {
@@ -84,10 +83,10 @@ export class InfluxWidget extends WidgetType {
             container.removeEventListener("disconnected", disconnectedHandler);
 
             // Unmount React root to prevent memory leaks
-            const rootToCleanup = reactRoots.get(reactAnchor);
+            const rootToCleanup = reactRoots.get(container);
             if (rootToCleanup) {
                 rootToCleanup.unmount();
-                reactRoots.delete(reactAnchor);
+                reactRoots.delete(container);
             }
             // Deregister the influx component
             this.unmount(this.influxFile);

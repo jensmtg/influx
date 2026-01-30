@@ -55,9 +55,8 @@ export class InlinkingFile {
         const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[FRONTMATTER_KEY] : null
         const titleByFirstHeader = this.meta.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
-        if (titleByFirstHeader && titleByFirstHeader.position) {
-            this.titleLineNum = titleByFirstHeader.position.start.line
-        }
+        // Explicitly set to undefined if no position data available
+        this.titleLineNum = titleByFirstHeader?.position?.start.line ?? undefined;
     }
 
 }
