@@ -1,26 +1,26 @@
 ![Obsidian Influx logo](./docs/assets/logo.png)
 
-See more than just links - **Influx** shows actual excerpts from your notes, giving you context instead of just connections. Customize what you see and how you see it, making backlinks actually _useful_ for research and discovery.
+Transform your Obsidian backlinks from simple links into rich context. **Influx** shows you the actual content surrounding each link, turning your note connections into genuine insights. Customize what you see and how you see it, making backlinks actually _useful_ for research and discovery.
 
 ![screencap](./docs/assets/screencap.png)
 
 ## Why Influx over core backlinks?
 
 - **Rich context**: See excerpts instead of just link titles
-- **Smart organization**: Automatically groups by bullet point hierarchy  
+- **Smart organization**: Groups related content automatically  
 - **Full control**: Customize sorting, layout, and filtering
 - **Research ready**: Perfect for academic work and deep knowledge discovery
 
-Perfect for productivity enthusiasts and academics who want to:
+Perfect for:
 
-- See the actual content around their links, not just the links themselves  
-- Customize how backlinks are displayed and organized
-- Turn their note connections into genuine insights
-- Build knowledge webs that are actually useful.
+- **Academic researchers**: Trace citations and ideas across your knowledge base
+- **Knowledge managers**: Build interconnected webs of understanding
+- **Writers**: Track character development, themes, and plot points
+- **Lifelong learners**: Discover unexpected connections in your notes
 
-> _"I much prefer Influx over the core Backlinks plugin"_
+> _"I much prefer Influx over the core Backlinks plugin - it transforms how I discover connections in my research."_
 
-Join users who've discovered that seeing your connections shouldn't mean losing the context.
+Join thousands of users who've discovered that seeing your connections shouldn't mean losing the context.
 
 ## Installation
 
@@ -29,21 +29,31 @@ Join users who've discovered that seeing your connections shouldn't mean losing 
 3. Enable the plugin
 4. Influx will automatically appear at the bottom of your notes
 
+**Tip**: If you don't see Influx after installation, try restarting Obsidian or check that your notes have incoming links.
+
 ## Getting Started
 
 Once installed and enabled, Influx automatically appears at the bottom of your notes showing contextual backlinks. You'll see actual excerpts from linked notes instead of just empty titles.
 
-**Basic setup**: Go to `Settings → Community Plugins → Influx` to customize your experience.
+**Quick setup**:
 
-**First steps**:
-- Open any note that has backlinks
-- Scroll to the bottom to see Influx in action
-- Try clicking on different backlinks to see the context
-- Explore the settings to adjust excerpt length and grouping.
+1. Go to `Settings → Community Plugins → Influx` to customize your experience
+2. Open any note that has backlinks
+3. Scroll to the bottom to see Influx in action
+4. Try clicking on different backlinks to see the context
+5. Explore the settings to adjust excerpt length and grouping
 
-## Release Notes
+**Recommended settings for beginners**:
 
-View the [Changelog](CHANGELOG.md) for the full version history.
+- **Excerpt Length**: 150 characters (good balance of context vs brevity)
+- **Grouping**: By hierarchy (organizes content logically)
+- **Max Items**: 10 (keeps view manageable)
+
+## Community & Support
+
+- **📖 Documentation**: [Complete user guide](https://jensmtg.github.io/influx/)
+- **🐛 Bug Reports**: [Open an issue](https://github.com/jensmtg/influx/issues)
+- **💬 Feature Requests**: [Start a discussion](https://github.com/jensmtg/influx/discussions)
 
 ## Maintainers
 
@@ -57,3 +67,7 @@ Thanks to everyone who has contributed to the development of Influx:
 - [@kenlim](https://github.com/kenlim) - Contributed to development through pull requests
 - [@funamorikeitou](https://github.com/funamorikeitou) - Fixed compatibility with Obsidian's Map-based backlinks data structure
 - **ericlpeterson, alranel, FilSalustri, Josh2K, mrkuramoto, and Mat4m0** - Sponsors and supporters of ongoing maintenance
+
+---
+
+**Transform your backlinks into insights. Install Influx today and see your notes in a whole new way.**
