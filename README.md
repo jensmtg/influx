@@ -49,6 +49,8 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 - **Grouping**: By hierarchy (organizes content logically)
 - **Max Items**: 10 (keeps view manageable)
 
+**📖 Need more help?** Check out our [complete documentation](https://jensmtg.github.io/influx/) for advanced configuration and usage examples.
+
 ## Community & Support
 
 - **📖 Documentation**: [Complete user guide](https://jensmtg.github.io/influx/)
