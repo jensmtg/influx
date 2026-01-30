@@ -2,10 +2,18 @@ import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, Fro
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 import ObsidianInflux from './main';
-import { 
+import {
     processFrontmatterLinks,
     shouldIncludeFrontmatterLinks
 } from './frontmatter-utils';
+import {
+    compareLinkName,
+    createInlinkingFileComparator,
+    shouldShowInfluxWithMatcher,
+    isIncludableSourceWithMatcher,
+    shouldCollapseInfluxWithMatcher,
+    type FilterSettings
+} from './settings-utils';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -143,28 +151,20 @@ export class ApiAdapter extends Component {
      */
     /** For a given file, should Influx component be shown on it's page? */
     getShowStatus(file: TFile): boolean {
-        const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
-        const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern
-        const matched = this.patternMatchingFn(file.path, patterns)
-        const show = settings.showBehaviour === 'OPT_IN' && matched ? true
-            : settings.showBehaviour === 'OPT_OUT' && !matched ? true
-                : false
-        return show
+        const settings = this.getSettings();
+        // Use extracted pure function with our cached pattern matcher
+        return shouldShowInfluxWithMatcher(file.path, settings as FilterSettings, this.patternMatchingFn);
     }
     isIncludableSource(path: string): boolean {
-        const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
-        const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern
-        const matched = this.patternMatchingFn(path, patterns)
-        const isIncludable = settings.sourceBehaviour === 'OPT_IN' && matched ? true
-            : settings.sourceBehaviour === 'OPT_OUT' && !matched ? true
-                : false
-        return isIncludable
+        const settings = this.getSettings();
+        // Use extracted pure function with our cached pattern matcher
+        return isIncludableSourceWithMatcher(path, settings as FilterSettings, this.patternMatchingFn);
     }
     /** For a given file, should Influx component be shown as collapsed on it's page? */
     getCollapsedStatus(file: TFile): boolean {
-        const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
-        const matched = this.patternMatchingFn(file.path, settings.collapsedPattern)
-        return matched
+        const settings = this.getSettings();
+        // Use extracted pure function with our cached pattern matcher
+        return shouldCollapseInfluxWithMatcher(file.path, settings as FilterSettings, this.patternMatchingFn);
     }
     patternMatchingFn = (path: string, _patterns: string[]): boolean => {
         const patterns = _patterns.filter((_path: string) => _path.length > 0)
@@ -193,29 +193,9 @@ export class ApiAdapter extends Component {
     };
     /** A sort function to order notes correctly, based on settings. */
     makeComparisonFn(): (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1 {
-        const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
-
-        const flip = settings.sortingPrinciple === 'OLDEST_FIRST'
-
-        if (settings.sortingAttribute === 'FILENAME') {
-            return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
-                if (a.file.basename < b.file.basename) return flip ? -1 : 1
-                else if (a.file.basename > b.file.basename) return flip ? 1 : -1
-                else return 0
-            }
-        }
-
-        else {
-
-            const sortingAttr = settings.sortingAttribute === 'ctime' || settings.sortingAttribute === 'mtime' ? settings.sortingAttribute : 'ctime'
-
-            return function compareDatesFn(a: InlinkingFile, b: InlinkingFile) {
-                if (a.file.stat[sortingAttr] < b.file.stat[sortingAttr]) return flip ? -1 : 1
-                else if (a.file.stat[sortingAttr] > b.file.stat[sortingAttr]) return flip ? 1 : -1
-                else return 0
-            }
-
-        }
+        const settings = this.getSettings();
+        // Use extracted pure function for file comparison
+        return createInlinkingFileComparator(settings) as (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1;
     }
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
@@ -246,16 +226,9 @@ export class ApiAdapter extends Component {
     }
     /** comparison fn for filter in function to make contextual summaries,
      * to find relevant links.
+     * Delegates to the pure function in settings-utils.
      */
-    compareLinkName(link: LinkCache, basename: string) {
-        // format link name to be comparable with base names:
-        const path = link.link;
-        // grab only the filename from a multi-folder path
-        const filenameOnly = path.split("/").slice(-1)[0]
-
-        // strip any block and heading references from the end and the ".md" extension
-        const linkname = filenameOnly.split(/[#^]/)[0].split(".md")[0]
-
-        return linkname.toLowerCase() === basename.toLowerCase()
+    compareLinkName(link: LinkCache, basename: string): boolean {
+        return compareLinkName(link, basename);
     }
 }

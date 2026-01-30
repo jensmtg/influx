@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Unit tests for settings validation utilities (YAML property name validation)
+- Unit tests for filter and pattern matching logic
+- Unit tests for dependency injection functions (actual production code):
+  - `shouldShowInfluxWithMatcher()` with default and injected pattern matchers
+  - `isIncludableSourceWithMatcher()` with default and injected pattern matchers
+  - `shouldCollapseInfluxWithMatcher()` with default and injected pattern matchers
+  - `createInlinkingFileComparator()` for all sorting attributes and principles
+- Pure utility functions for settings, filtering, and sorting (extracted for testability)
+
+### Changed
+
+- Refactored apiAdapter.tsx methods to use extracted pure functions from settings-utils.ts:
+  - `getShowStatus()` now delegates to `shouldShowInfluxWithMatcher()`
+  - `isIncludableSource()` now delegates to `isIncludableSourceWithMatcher()`
+  - `getCollapsedStatus()` now delegates to `shouldCollapseInfluxWithMatcher()`
+  - `makeComparisonFn()` now delegates to `createInlinkingFileComparator()`
+  - `compareLinkName()` now delegates to the pure function from settings-utils.ts
+- Pure functions support dependency injection for pattern matching to preserve regex caching optimization
+
 ### Fixed
 
+- Fixed sorting comparator flip logic: `NEWEST_FIRST` now correctly reverses order, `OLDEST_FIRST` preserves natural ascending order
+  - Previously: flip was inverted, causing OLDEST_FIRST to sort descending and NEWEST_FIRST to sort ascending
+  - Now: `flip = -1` for NEWEST_FIRST (reverse order), `flip = 1` for OLDEST_FIRST (natural order)
 - Fixed race condition in `triggerUpdates` where concurrent file updates would cancel each other's timeouts
 - Fixed memory leak by cleaning up React roots when files are renamed or deleted (both `updateInfluxInPreview` and `handlePreviewMode`)
 - Fixed stale React root reuse in InfluxWidget by using container as WeakMap key
