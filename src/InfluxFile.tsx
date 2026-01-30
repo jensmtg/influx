@@ -95,9 +95,14 @@ export default class InfluxFile {
             }
         }
         await Promise.all(validFiles.map(async (file: TFile) => {
-            const inlinkingFile = new InlinkingFile(file, this.api)
-            await inlinkingFile.makeSummary(this)
-            inlinkingFilesNew.push(inlinkingFile)
+            try {
+                const inlinkingFile = new InlinkingFile(file, this.api);
+                await inlinkingFile.makeSummary(this);
+                inlinkingFilesNew.push(inlinkingFile);
+            } catch (error) {
+                console.error(`[Influx] Failed to process file ${file.path}:`, error);
+                // Continue processing other files
+            }
         }))
         this.inlinkingFiles = inlinkingFilesNew
     }

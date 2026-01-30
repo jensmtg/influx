@@ -64,7 +64,7 @@ export class StatefulDecorationSet {
         const doc = state.doc;
 
         // Check if document has at least one line and starts with frontmatter
-        if (doc.lines < 1) return 0;
+        if (doc.lines === 0) return 0;
 
         const firstLine = doc.line(1);
         if (firstLine.text.trim() !== '---') return 0;

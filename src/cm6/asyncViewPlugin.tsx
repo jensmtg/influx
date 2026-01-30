@@ -37,7 +37,9 @@ const asyncViewPlugin = ViewPlugin.fromClass(
 
 
 		destroy() {
-			// Cleanup handled by WeakMap garbage collection
+			// Cancel debounced callback to prevent post-destroy execution
+			// @ts-expect-error - Obsidian's debounce returns a function with cancel method
+			this.debouncedShow?.cancel?.();
 		}
 
     }
