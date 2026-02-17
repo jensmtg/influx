@@ -25,6 +25,7 @@ export type ExtendedInlinkingFile = {
 
 export class ApiAdapter extends Component {
     app: App;
+    private plugin: ObsidianInflux;
     // File operation caching to reduce I/O overhead
     private fileCache: Map<string, TFile> = new Map();
     private backlinksCache: Map<string, BacklinksObject> = new Map();
@@ -35,9 +36,10 @@ export class ApiAdapter extends Component {
     // Sentinel value to mark invalid regex patterns
     private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
 
-    constructor(app: App) {
+    constructor(app: App, plugin: ObsidianInflux) {
         super();
         this.app = app;
+        this.plugin = plugin;
     }
     
     /** =================
@@ -110,13 +112,10 @@ export class ApiAdapter extends Component {
             return this.settingsCache;
         }
 
-        // Runtime check for plugin settings availability
-        // @ts-expect-error - plugins.plugins is not officially typed in App
-        const plugins = this.app.plugins as any;
+        // Access settings directly from plugin instance
         let settings: ObsidianInfluxSettings;
-
-        if (plugins?.plugins?.influx?.data?.settings) {
-            settings = { ...DEFAULT_SETTINGS, ...plugins.plugins.influx.data.settings };
+        if (this.plugin?.data?.settings) {
+            settings = { ...DEFAULT_SETTINGS, ...this.plugin.data.settings };
         } else {
             logger.warn('Plugin settings not found, using defaults');
             settings = DEFAULT_SETTINGS as ObsidianInfluxSettings;

@@ -4,7 +4,6 @@ import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
-import { logger } from '../utils/logger';
 
 
 export class StatefulDecorationSet {
@@ -89,10 +88,12 @@ export class StatefulDecorationSet {
             return;
         }
 
+        // Compute decorations using the state at call time
         const decorations = await this.computeAsyncDecorations(state, show);
 
-        // Revalidate editor and state match
-        if (!this.editor?.state || this.editor.state !== state) {
+        // Check if editor is still valid before proceeding
+        // Use current editor state, not the original state (which may have changed)
+        if (!this.editor || !this.editor.state) {
             return;
         }
 
@@ -101,36 +102,22 @@ export class StatefulDecorationSet {
             return;
         }
 
-        // Check if editor is still valid before proceeding
-        if (!this.editor || !this.editor.state) {
-            return;
-        }
-
         // Safely check if we need to update decorations
         let hasExistingDecorations = false;
         try {
             hasExistingDecorations = this.editor.state.field(statefulDecorations.field).size > 0;
         } catch {
-            // Field is not present in state (view being destroyed, plugin unloaded, etc.)
-            // If we have new decorations, try to apply them. Otherwise, silently exit.
-            if (decorations) {
-                try {
-                    this.editor.dispatch({ effects: statefulDecorations.update.of(decorations) });
-                } catch (e) {
-                    // Debug logging for failed updates
-                    logger.debug('Decoration update failed - editor destroyed', { error: e });
-                }
-            }
-            return;
+            // Field is not present in state - try to apply decorations anyway
+            // This handles the case where the field hasn't been initialized yet
+            hasExistingDecorations = false;
         }
 
         // Update decorations if we have new ones or need to clear existing ones
         if (decorations || hasExistingDecorations) {
             try {
                 this.editor.dispatch({ effects: statefulDecorations.update.of(decorations || Decoration.none) });
-            } catch (e) {
-                // Debug logging for failed updates
-                logger.debug('Decoration update failed - editor destroyed', { error: e });
+            } catch {
+                // Silently ignore errors from destroyed editors
             }
         }
     }

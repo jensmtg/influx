@@ -31,16 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
 - Replaced string-keyed component callbacks registry with Observable pattern for type-safe updates
 - Replaced basename-based collapsed state tracking (`string[]`) with path-based normalized storage (`Set<string>`)
- - Replaced all magic numbers with named constants across codebase
- - Replaced all `console.*` calls with new logger utility
- - Updated type imports to use centralized type definitions
- - Extracted event handling logic into `src/managers/EventManager.ts` for better code organization
- - Extracted preview mode logic into `src/managers/PreviewManager.tsx` for better separation of concerns
- - Reduced `main.tsx` size through manager extraction
- - Settings validation in `src/settings.tsx`:
-   - Changed all onblur handlers from async to synchronous for immediate user feedback
-   - Queue async save operations without blocking UI
-   - Handlers updated: exclusionPattern, inclusionPattern, sourceExclusionPattern, sourceInclusionPattern, collapsedPattern, frontmatterProperties
+- Replaced all magic numbers with named constants across codebase
+- Replaced all `console.*` calls with new logger utility
+- Updated type imports to use centralized type definitions
+- Extracted event handling logic into `src/managers/EventManager.ts` for better code organization
+- Extracted preview mode logic into `src/managers/PreviewManager.tsx` for better separation of concerns
+- Reduced `main.tsx` size through manager extraction
+- Settings validation in `src/settings.tsx`:
+  - Changed all onblur handlers from async to synchronous for immediate user feedback
+  - Queue async save operations without blocking UI
+  - Handlers updated: exclusionPattern, inclusionPattern, sourceExclusionPattern, sourceInclusionPattern, collapsedPattern, frontmatterProperties
+- ApiAdapter now requires plugin instance in constructor to access settings directly instead of through Obsidian's plugin registry
+- PreviewManager now uses plugin's shared ApiAdapter instance instead of creating new instances
 
 ### Removed
 
@@ -69,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inefficient DOM query in `cleanupReactRoots` by using direct child selector
 - Missing cleanup in `asyncViewPlugin.destroy()` by cancelling debounced callback
 - Empty document check to use exact equality (`=== 0`) for clarity
+- Editing mode not displaying Influx widget due to strict state equality check blocking decoration updates
+- Settings access in `ApiAdapter.getSettings()` - changed from broken `app.plugins.plugins.influx.data.settings` path to direct `plugin.data.settings` access
+- Initialization order in `onload()` - moved `loadDataInitially()` before stylesheet creation to ensure settings are available
+- PreviewManager creating duplicate ApiAdapter instances - now reuses `plugin.api` for consistency and caching benefits
 
 ## [2.3.1] - 2025-01-30
 

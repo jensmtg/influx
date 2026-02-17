@@ -87,11 +87,16 @@ export default class ObsidianInflux extends Plugin {
 		// Migrate old Influx elements from previous plugin versions
 		this.migrateOldElements();
 
-		this.componentCallbacks = {}
-		this.api = new ApiAdapter(this.app)
-		this.stylesheet = createStyleSheet(this.api)
-		this.stylesheetForPreview = createStyleSheet(this.api, true)
-		this.data = await this.loadDataInitially()
+		this.componentCallbacks = {};
+		this.api = new ApiAdapter(this.app, this);
+		this.data = await this.loadDataInitially();
+		this.stylesheet = createStyleSheet(this.api);
+		this.stylesheetForPreview = createStyleSheet(this.api, true);
+
+		// CRITICAL: Set window plugin reference BEFORE registering editor extension
+		// This prevents race condition where CodeMirror extension initializes
+		// and tries to access window.influxPlugin before it's set
+		(window as any).influxPlugin = this;
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
 
@@ -104,9 +109,6 @@ export default class ObsidianInflux extends Plugin {
 
 		// Register Markdown Post Processor for preview/reading mode
 		this.registerMarkdownPostProcessor(this.previewManager.handlePreviewMode.bind(this.previewManager));
-
-		// Make plugin instance globally accessible for CodeMirror extensions
-		(window as any).influxPlugin = this;
 
 		// Expose debug functions to browser console
 		if (CONSTANTS.DEBUG_MODE) {

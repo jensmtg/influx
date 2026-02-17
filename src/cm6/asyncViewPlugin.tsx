@@ -22,7 +22,7 @@ const asyncViewPlugin = ViewPlugin.fromClass(
             this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
          }
 
-		update(update: ViewUpdate) {
+        update(update: ViewUpdate) {
 			/** Only changes within the same host document flow to this diffing point.
 			 * Changes to title of document is not caught.
 			 * Changes to other documents that are referenced in the influx of host file are not caught.

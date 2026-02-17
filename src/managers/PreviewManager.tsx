@@ -180,8 +180,8 @@ export class PreviewManager {
 		});
 
 		try {
-			const apiAdapter = new ApiAdapter(this.plugin.app);
-			const influxFile = await InfluxFile.create(filePath, apiAdapter, this.plugin);
+			// Use plugin's apiAdapter to preserve cache and ensure settings are available
+			const influxFile = await InfluxFile.create(filePath, this.plugin.api, this.plugin);
 			await influxFile.makeInfluxList();
 			await influxFile.renderAllMarkdownBlocks();
 
