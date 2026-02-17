@@ -5,9 +5,7 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { CONSTANTS } from '../constants';
-
-// Global WeakMap to track React roots for proper cleanup and reuse
-const reactRoots = new WeakMap<HTMLElement, Root>();
+import { rootManager } from '../react/RootManager';
 
 try {
     customElements.define(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY, class extends HTMLElement {
@@ -51,16 +49,20 @@ export class InfluxWidget extends WidgetType {
     }
 
     toDOM(view: EditorView) {
-        const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY)
+        const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG)
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 
-        // Get or create React root using WeakMap for proper cleanup
-        // Use container directly as the React root anchor to ensure WeakMap key matches disconnect listener target
-        let root = reactRoots.get(container);
+        // Use unified root manager to get or create React root
+        const existingInfo = rootManager.get(container);
+        let root = existingInfo?.root;
+
         if (!root) {
             root = createRoot(container);
-            reactRoots.set(container, root);
+            rootManager.register(container, root, 'editor', this.influxFile.file?.path, {
+				widget: this,
+				view
+			});
         }
 
         if (this.show) {
@@ -81,11 +83,7 @@ export class InfluxWidget extends WidgetType {
             container.removeEventListener("disconnected", disconnectedHandler);
 
             // Unmount React root to prevent memory leaks
-            const rootToCleanup = reactRoots.get(container);
-            if (rootToCleanup) {
-                rootToCleanup.unmount();
-                reactRoots.delete(container);
-            }
+            rootManager.unmount(container);
             // Deregister the influx component
             this.unmount(this.influxFile);
         };

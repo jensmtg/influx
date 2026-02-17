@@ -11,6 +11,9 @@ import { EditorView } from '@codemirror/view';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS, ComponentCallback, Data } from './types';
 import { CONSTANTS } from './constants';
 import { logger } from './utils/logger';
+import { rootManager } from './react/RootManager';
+import { updateCoordinator } from './utils/UpdateCoordinator';
+import { influxUpdates$ } from './utils/Observable';
 
 // Extend global Window interface for test function
 declare global {
@@ -66,17 +69,10 @@ export default class ObsidianInflux extends Plugin {
 
 	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: Set<string> = new Set();
-	pendingUpdates: Set<string> = new Set();
 	stylesheet: StyleSheetType;
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
-	private updateDebouncers: { [key: string]: NodeJS.Timeout } = {};
-	// Track React roots for proper cleanup to prevent memory leaks
-	// Changed from WeakMap to Map to enable explicit cleanup and iteration
-	private previewReactRoots: Map<HTMLElement, Root> = new Map();
-	// Map file paths to their container elements for cleanup on rename/delete
-	private filePathToContainer: Map<string, HTMLElement> = new Map();
 	// Track file hashes to avoid unnecessary re-renders
 	private previewFileHashes: Map<string, string> = new Map();
 
@@ -123,11 +119,13 @@ export default class ObsidianInflux extends Plugin {
 			(window as any).influxDebug = {
 				inspectStylesheets,
 				getReactRoots: () => ({
-					size: this.previewReactRoots.size,
-					entries: Array.from(this.previewReactRoots.keys()).map(el => ({
-						id: el.id,
-						inDom: document.body.contains(el),
-						visible: el.offsetParent !== null
+					size: rootManager.size,
+					entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
+						id: container.id,
+						inDom,
+						visible: container.offsetParent !== null,
+						type: info.type,
+						filePath: info.filePath
 					}))
 				}),
 				getStylesheets: () => ({
@@ -168,30 +166,19 @@ export default class ObsidianInflux extends Plugin {
 	 * This prevents memory leaks and overlapping elements when switching modes.
 	 */
 	private cleanupReactRoots(): void {
-		const toDelete: HTMLElement[] = [];
-		for (const [container, root] of this.previewReactRoots) {
-			// Check if container is no longer in DOM or is in a hidden element
-			const isInDom = document.body.contains(container);
-			const isVisible = container.offsetParent !== null || isInDom;
-
-			if (!isInDom || !isVisible) {
-				root.unmount();
-				toDelete.push(container);
-			}
-		}
-		for (const container of toDelete) {
-			this.previewReactRoots.delete(container);
-		}
+		// Clean up stale roots using rootManager
+		rootManager.cleanupStale();
 
 		// Also clean up any orphaned wrapper elements in the DOM
 		// Use direct child selector for better performance
 		const allContainers = document.querySelectorAll('.influx-preview-wrapper > influx-preview-container');
 		allContainers.forEach(container => {
-			const root = this.previewReactRoots.get(container as HTMLElement);
+			const containerElement = container as HTMLElement;
+			const info = rootManager.get(containerElement);
 
 			// If there's a container but no tracked root, clean up its wrapper
-			if (!root) {
-				const wrapper = (container as HTMLElement).closest('.influx-preview-wrapper');
+			if (!info) {
+				const wrapper = containerElement.closest('.influx-preview-wrapper');
 				wrapper?.remove();
 			}
 		});
@@ -202,19 +189,8 @@ export default class ObsidianInflux extends Plugin {
 	 * Call this when files are deleted, renamed, or moved.
 	 */
 	private cleanupFileReactRoots(filePath: string): void {
-		const container = this.filePathToContainer.get(filePath);
-		if (container) {
-			const root = this.previewReactRoots.get(container);
-			if (root) {
-				root.unmount();
-				this.previewReactRoots.delete(container);
-			}
-			this.filePathToContainer.delete(filePath);
-
-			// Remove the wrapper from DOM
-			const wrapper = container.closest('.influx-preview-wrapper');
-			wrapper?.remove();
-		}
+		// Use rootManager to unmount by file path
+		rootManager.unmountByFilePath(filePath);
 	}
 
 	/**
@@ -227,6 +203,9 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async onunload() {
+		// Cancel all pending update operations
+		updateCoordinator.unload();
+
 		// Detach stylesheets to prevent DOM leaks
 		if (this.stylesheet) {
 			this.stylesheet.detach();
@@ -235,10 +214,7 @@ export default class ObsidianInflux extends Plugin {
 			this.stylesheetForPreview.detach();
 		}
 		// Clean up all React roots on plugin unload
-		for (const [container, root] of this.previewReactRoots) {
-			root.unmount();
-		}
-		this.previewReactRoots.clear();
+		rootManager.unmountAll();
 		this.previewFileHashes.clear();
 	}
 
@@ -256,61 +232,46 @@ export default class ObsidianInflux extends Plugin {
 
 	triggerUpdates(op: string, file?: TAbstractFile) {
 		// Create a unique key for this update to prevent overlapping async operations
-		const updateKey = `${op}:${file?.path || 'global'}`;
+		const id = `${op}:${file?.path || 'global'}`;
 
-		// Skip if this exact update is already pending
-		if (this.pendingUpdates.has(updateKey)) {
-			return;
-		}
+		updateCoordinator.schedule(id, op, file?.path, async (signal) => {
+			if (signal.aborted) return;
 
-		// Mark this update as pending
-		this.pendingUpdates.add(updateKey);
+			// Only regenerate stylesheets when settings change, not on every update
+			// This prevents JSS from creating duplicate class names like .inlinkedEntries-0-0-35
+			const shouldRegenerateStylesheet = op === 'save-settings';
+			if (shouldRegenerateStylesheet) {
+				if (signal.aborted) return;
 
-		// Clear existing debouncer for this specific update (not just operation type)
-		if (this.updateDebouncers[updateKey]) {
-			clearTimeout(this.updateDebouncers[updateKey])
-		}
-
-		// Debounce rapid successive updates to prevent conflicts
-		this.updateDebouncers[updateKey] = setTimeout(async () => {
-			try {
-				// Only regenerate stylesheets when settings change, not on every update
-				// This prevents JSS from creating duplicate class names like .inlinkedEntries-0-0-35
-				const shouldRegenerateStylesheet = op === 'save-settings';
-				if (shouldRegenerateStylesheet) {
-					// Detach old stylesheet before creating a new one to prevent duplicates
-					if (this.stylesheet) {
-						logger.debug('[triggerUpdates] Detaching old stylesheet');
-						this.stylesheet.detach();
-					}
-					logger.debug('[triggerUpdates] Creating new stylesheet');
-					this.stylesheet = createStyleSheet(this.api)
-					logger.debug('[triggerUpdates] Stylesheet attached, classes:', { classes: Object.keys(this.stylesheet.classes) });
+				// Detach old stylesheet before creating a new one to prevent duplicates
+				if (this.stylesheet) {
+					logger.debug('[triggerUpdates] Detaching old stylesheet');
+					this.stylesheet.detach();
 				}
-
-				if (op === 'modify') {
-					if (this.data.settings.liveUpdate && file instanceof TFile) {
-						// Use for...of for better performance than forEach
-						for (const callback of Object.values(this.componentCallbacks)) {
-							callback(op, this.stylesheet, file)
-						}
-					}
-				}
-				else {
-					for (const callback of Object.values(this.componentCallbacks)) {
-						callback(op, this.stylesheet)
-					}
-					this.updateInfluxInAllPreviews()
-				}
-				if (CONSTANTS.DEBUG_MODE) {
-					inspectStylesheets();
-				}
-			} finally {
-				// Always clear pending state, even if update fails
-				this.pendingUpdates.delete(updateKey);
-				delete this.updateDebouncers[updateKey]
+				logger.debug('[triggerUpdates] Creating new stylesheet');
+				this.stylesheet = createStyleSheet(this.api)
+				logger.debug('[triggerUpdates] Stylesheet attached, classes:', { classes: Object.keys(this.stylesheet.classes) });
 			}
-		}, CONSTANTS.DEBOUNCE_DELAY_MS)
+
+			if (signal.aborted) return;
+
+			// Notify components via observable
+			await influxUpdates$.notify({
+				op,
+				stylesheet: this.stylesheet,
+				file: file instanceof TFile ? file : undefined
+			});
+
+			if (!signal.aborted && op !== 'modify') {
+				await this.updateInfluxInAllPreviews()
+			}
+
+			if (!signal.aborted && CONSTANTS.DEBUG_MODE) {
+				inspectStylesheets();
+			}
+		}).catch(e => {
+			// Error already logged by coordinator
+		});
 	}
 
 	async updateInfluxInAllPreviews() {
@@ -402,17 +363,20 @@ export default class ObsidianInflux extends Plugin {
 
 		if (existingContainer) {
 			// Reuse existing container and root
-			anchor = this.previewReactRoots.get(existingContainer)!
+			const info = rootManager.get(existingContainer);
+			if (info) {
+				anchor = info.root;
+			} else {
+				// Shouldn't happen, but create a new root if needed
+				anchor = createRoot(existingContainer);
+				rootManager.register(existingContainer, anchor, 'preview', path);
+			}
 		} else {
 			// Clean up any old containers and their parent wrappers
 			const oldContainers = previewDiv.querySelectorAll("influx-preview-container")
 			oldContainers.forEach(el => {
 				const oldContainer = el as HTMLElement
-				const oldRoot = this.previewReactRoots.get(oldContainer)
-				if (oldRoot) {
-					oldRoot.unmount()
-					this.previewReactRoots.delete(oldContainer)
-				}
+				rootManager.unmount(oldContainer)
 				// Remove the entire wrapper, not just the container
 				const wrapper = oldContainer.closest('.influx-preview-wrapper');
 				wrapper?.remove();
@@ -440,10 +404,9 @@ export default class ObsidianInflux extends Plugin {
 				previewDiv.appendChild(influxWrapper);
 			}
 
-			// Create and track the React root
+			// Create and track the React root using rootManager
 			anchor = createRoot(influxContainer);
-			this.previewReactRoots.set(influxContainer, anchor);
-			this.filePathToContainer.set(path, influxContainer);
+			rootManager.register(influxContainer, anchor, 'preview', path);
 		}
 
 		// Render or update the React component
@@ -475,11 +438,7 @@ export default class ObsidianInflux extends Plugin {
 		existingInflux.forEach(wrapper => {
 			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
 			if (container) {
-				const root = this.previewReactRoots.get(container);
-				if (root) {
-					root.unmount();
-					this.previewReactRoots.delete(container);
-				}
+				rootManager.unmount(container);
 			}
 			wrapper.remove();
 		});
@@ -489,12 +448,9 @@ export default class ObsidianInflux extends Plugin {
 		const orphanedContainers = element.querySelectorAll('influx-preview-container');
 		logger.debug('[handlePreviewMode] Found orphaned containers:', { count: orphanedContainers.length });
 		orphanedContainers.forEach(container => {
-			const root = this.previewReactRoots.get(container as HTMLElement);
-			if (root) {
-				root.unmount();
-				this.previewReactRoots.delete(container as HTMLElement);
-			}
-			(container as HTMLElement).remove();
+			const containerElement = container as HTMLElement;
+			rootManager.unmount(containerElement);
+			containerElement.remove();
 		});
 
 		try {
@@ -527,10 +483,9 @@ export default class ObsidianInflux extends Plugin {
 				element.appendChild(influxWrapper);
 			}
 
-			// Create and track the React root
+			// Create and track the React root using rootManager
 			const anchor = createRoot(influxContainer);
-			this.previewReactRoots.set(influxContainer, anchor);
-			this.filePathToContainer.set(filePath, influxContainer);
+			rootManager.register(influxContainer, anchor, 'preview', filePath);
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}

@@ -5,6 +5,8 @@ import { ObsidianInfluxSettings } from "./types";
 import { TFile } from "obsidian";
 import { StyleSheetType } from "./createStyleSheet";
 import { CONSTANTS } from './constants';
+import { influxUpdates$, InfluxUpdateEvent } from './utils/Observable';
+import { CollapsedStateManager } from './utils/CollapsedStateManager';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
@@ -19,50 +21,46 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [stylesheet, setStyleSheet] = React.useState(sheet)
-	const [collapsed, setCollapsed]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState(influxFile.collapsed ? components.map(component => component.inlinkingFile.file.basename) : [])
-	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
+	const [collapsedManager] = React.useState(() =>
+		new CollapsedStateManager(
+			influxFile.collapsed ? components.map(c => c.inlinkingFile.file.path) : []
+		)
+	)
+	const [, forceUpdate] = React.useReducer(x => x + 1, 0)
 
-	const doToggle = (basename: string) => {
-		if (collapsed.includes(basename)) {
-			setCollapsed(collapsed.filter(name => name !== basename))
-		}
-		else {
-			setCollapsed([...collapsed, basename])
-		}
+	React.useEffect(() => {
+		return collapsedManager.subscribe(forceUpdate)
+	}, [collapsedManager])
+
+	const doToggle = (path: string) => {
+		collapsedManager.toggle(path)
 	}
 
 	const toggleAll = () => {
-		const all = components.map(component => component.inlinkingFile.file.basename)
-		if (toggleAllToOpen) {
-			setCollapsed([])
-			setToggleAllToOpen(false)
-		}
-		else {
-			setCollapsed(all)
-			setToggleAllToOpen(true)
-		}
+		const allPaths = components.map(c => c.inlinkingFile.file.path)
+		collapsedManager.toggleAll(allPaths)
 	}
+
+	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
 
 	React.useEffect(() => {
 
-		const respondToUpdateTrigger: (op: string, stylesheet: StyleSheetType, file?: TFile) => void = async (op, stylesheet, file) => {
-
-			if (op === 'modify' && !influxFile.shouldUpdate(file)) {
+		const handleUpdate = async (event: InfluxUpdateEvent) => {
+			if (event.op === 'modify' && !influxFile.shouldUpdate(event.file)) {
 				return
 			}
 
-			setStyleSheet(stylesheet)
+			setStyleSheet(event.stylesheet)
 			await influxFile.makeInfluxList()
 			setComponents(await influxFile.renderAllMarkdownBlocks())
-
 		}
 
-		influxFile.influx.registerInfluxComponent(influxFile.uuid, respondToUpdateTrigger)
+		const unsubscribe = influxUpdates$.subscribe(influxFile.uuid, handleUpdate)
 
 		return () => {
-			influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
+			unsubscribe()
 		}
-	}, [])
+	}, [influxFile.uuid])
 
 	const classes = stylesheet.classes
 
@@ -188,7 +186,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 						{components.map((extended: ExtendedInlinkingFile) => {
 
-							const inlinkedCollapsed = collapsed.includes(extended.inlinkingFile.file.basename)
+							const inlinkedCollapsed = collapsedManager.isCollapsed(extended.inlinkingFile.file.path)
 
 							const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 								<h2>
@@ -210,7 +208,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 
 										<div className="tree-item-icon collapse-icon"
-											onClick={() => doToggle(extended.inlinkingFile.file.basename)}
+											onClick={() => doToggle(extended.inlinkingFile.file.path)}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon right-triangle">
 												<path d="M3 8L12 17L21 8"></path>

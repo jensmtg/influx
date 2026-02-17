@@ -9,16 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Unified Root Manager (`src/react/RootManager.ts`) for consistent React root lifecycle management across editor and preview modes
+- Update Coordinator (`src/utils/UpdateCoordinator.ts`) with AbortController-based cancellation and proper async operation scheduling
+- Observable Update System (`src/utils/Observable.ts`) with type-safe observer pattern for component updates
+- Collapsed State Manager (`src/utils/CollapsedStateManager.ts`) using path-based Set storage instead of basename-based arrays
 - Centralized type definitions in `src/types/settings.ts` and `src/types/index.ts`
 - New constants file (`src/constants.ts`) for all magic numbers and string literals
 - Logger utility (`src/utils/logger.ts`) with consistent formatting and debug mode support
 
 ### Changed
 
+- Replaced dual React root systems (Map in main.tsx, WeakMap in InfluxWidget.tsx) with unified RootManager
+- Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
+- Replaced string-keyed component callbacks registry with Observable pattern for type-safe updates
+- Replaced basename-based collapsed state tracking (`string[]`) with path-based normalized storage (`Set<string>`)
 - Replaced all magic numbers with named constants across the codebase
-- Replaced all `console.*` calls with the new logger utility
+- Replaced all `console.*` calls with new logger utility
 - Updated type imports to use centralized type definitions
 - Removed dead code: delay show callback system, timer setup, and associated methods
+
+### Fixed
+
+- Fixed memory leaks from dual React root management systems with unified lifecycle and cleanup
+- Fixed async operation cancellation issues causing missed or duplicate updates
+- Fixed stale closure problems in component callbacks by replacing string-keyed registry with Observable pattern
+- Fixed collapsed state collisions for files with same basename in different folders by using normalized paths
+- Fixed missing cleanup on plugin unload by coordinating all operation cancellations through UpdateCoordinator
 
 ## [2.3.1] - 2025-01-30
 
