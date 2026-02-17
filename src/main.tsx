@@ -79,6 +79,9 @@ export default class ObsidianInflux extends Plugin {
 	async onload(): Promise<void> {
 		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
 
+		// Migrate old Influx elements from previous plugin versions
+		this.migrateOldElements();
+
 		this.componentCallbacks = {}
 		this.api = new ApiAdapter(this.app)
 		this.stylesheet = createStyleSheet(this.api)
@@ -150,6 +153,24 @@ export default class ObsidianInflux extends Plugin {
 		return data
 	}
 
+	/**
+	 * Migrate old Influx elements from previous plugin versions
+	 */
+	private migrateOldElements(): void {
+		const oldWidgets = document.querySelectorAll(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY);
+		const oldContainers = document.querySelectorAll(CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY);
+
+		if (oldWidgets.length > 0 || oldContainers.length > 0) {
+			logger.info('Migrating old Influx elements', {
+				widgets: oldWidgets.length,
+				containers: oldContainers.length
+			});
+
+			oldWidgets.forEach(el => el.remove());
+			oldContainers.forEach(el => el.remove());
+		}
+	}
+
 	toggleSortOrder() {
 		const newOrder = this.data.settings.sortingPrinciple === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST'
 		this.data.settings.sortingPrinciple = newOrder;
@@ -194,6 +215,38 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	/**
+	 * Compute a hash of all settings for cache invalidation
+	 */
+	private computeSettingsHash(): string {
+		const settings = this.data.settings;
+		const components = [
+			settings.sortingPrinciple,
+			settings.sortingAttribute,
+			settings.listLimit,
+			settings.showBehaviour,
+			settings.variant,
+			settings.entryHeaderVisible,
+			settings.influxAtTopOfPage,
+			settings.includeFrontmatterLinks,
+			JSON.stringify([...settings.exclusionPattern].sort()),
+			JSON.stringify([...settings.inclusionPattern].sort()),
+			JSON.stringify([...settings.collapsedPattern].sort()),
+			JSON.stringify([...settings.sourceInclusionPattern].sort()),
+			JSON.stringify([...settings.sourceExclusionPattern].sort()),
+		];
+
+		// Simple hash function
+		let hash = 0;
+		const str = components.join('|');
+		for (let i = 0; i < str.length; i++) {
+			const char = str.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash;
+		}
+		return hash.toString(36);
+	}
+
+	/**
 	 * Cleanup file hash for a specific file path.
 	 * Call this when files are deleted, renamed, or moved.
 	 */
@@ -216,6 +269,11 @@ export default class ObsidianInflux extends Plugin {
 		// Clean up all React roots on plugin unload
 		rootManager.unmountAll();
 		this.previewFileHashes.clear();
+
+		// Clean up window references to prevent memory leaks
+		delete (window as any).influxPlugin;
+		delete (window as any).influxDebug;
+		delete (window as any).testInfluxReadingView;
 	}
 
 	registerInfluxComponent(id: string, callback: ComponentCallback) {
@@ -313,7 +371,7 @@ export default class ObsidianInflux extends Plugin {
 			// Mark this file as being updated
 			this.updating.add(filePath)
 
-			return this.updateInfluxInPreview(leaf)
+			return this.updateInfluxInPreview(leaf, this.stylesheetForPreview)
 				.finally(() => {
 					// Always remove the lock, even if update fails
 					this.updating.delete(filePath)
@@ -323,7 +381,7 @@ export default class ObsidianInflux extends Plugin {
 		await Promise.all(updatePromises)
 	}
 
-	async updateInfluxInPreview(leaf: WorkspaceLeaf) {
+	async updateInfluxInPreview(leaf: WorkspaceLeaf, stylesheetOverride?: StyleSheetType) {
 		const influxLeaf = leaf as InfluxWorkspaceLeaf;
 		const container: HTMLDivElement = influxLeaf.containerEl
 
@@ -332,6 +390,9 @@ export default class ObsidianInflux extends Plugin {
 		if (!previewDiv) {
 			throw new Error('No preview found')
 		}
+
+		// Capture stylesheet at call time, not render time
+		const stylesheet = stylesheetOverride || this.stylesheetForPreview;
 
 		// Reuse existing api instance instead of creating new one (preserves cache)
 		const apiAdapter = this.api
@@ -344,8 +405,8 @@ export default class ObsidianInflux extends Plugin {
 		// Use a single query with descendant selector to avoid multiple DOM traversals
 		const existingContainer = previewDiv.querySelector('.influx-preview-wrapper > influx-preview-container') as HTMLElement
 
-		// Calculate a simple hash of the influx data to detect changes
-		const fileHash = `${path}-${this.data.settings.sortingPrinciple}-${this.data.settings.sortingAttribute}`
+		// Calculate a comprehensive hash of all settings for cache invalidation
+		const fileHash = `${path}-${this.computeSettingsHash()}`
 
 		// If we have an existing container with the same data, skip the update
 		if (existingContainer && this.previewFileHashes.get(path) === fileHash) {
@@ -413,7 +474,7 @@ export default class ObsidianInflux extends Plugin {
 		anchor.render(<InfluxReactComponent
 			influxFile={influxFile}
 			preview={true}
-			sheet={this.stylesheetForPreview}
+			sheet={stylesheet}
 		/>);
 	}
 
@@ -430,6 +491,9 @@ export default class ObsidianInflux extends Plugin {
 		}
 
 		logger.debug('[handlePreviewMode] Processing file:', { filePath });
+
+		// Capture stylesheet at call time, not render time
+		const stylesheet = this.stylesheetForPreview;
 
 		// Clean up ALL existing Influx preview wrappers in this container
 		// This prevents overlapping elements when switching modes
@@ -483,17 +547,21 @@ export default class ObsidianInflux extends Plugin {
 				element.appendChild(influxWrapper);
 			}
 
-			// Create and track the React root using rootManager
+			// Create and track of React root using rootManager
 			const anchor = createRoot(influxContainer);
 			rootManager.register(influxContainer, anchor, 'preview', filePath);
 			anchor.render(<InfluxReactComponent
 				influxFile={influxFile}
 				preview={true}
-				sheet={this.stylesheetForPreview}
+				sheet={stylesheet}
 			/>);
 		} catch (error) {
-			// Error logged but doesn't block rendering
+			// Log error with context for debugging
+			logger.error('Failed to render in preview mode', {
+				filePath: context.sourcePath,
+				error,
+				stack: error instanceof Error ? error.stack : undefined
+			});
 		}
 	}
-
 }

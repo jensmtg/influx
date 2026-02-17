@@ -1,4 +1,4 @@
-import { TFile, CachedMetadata } from 'obsidian';
+import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
 import ObsidianInflux from './main';
@@ -63,10 +63,17 @@ export default class InfluxFile {
         if (!this.backlinks || !this.backlinks.data) {
             return false
         }
+
+        // Normalize target path
+        const normalizedTarget = normalizePath(file.path).toLowerCase();
         const paths = this.backlinks.data instanceof Map
             ? Array.from(this.backlinks.data.keys())
-            : Object.keys(this.backlinks.data)
-        return paths.includes(file.path)
+            : Object.keys(this.backlinks.data);
+
+        // Normalize and compare paths
+        return paths.some(path =>
+            normalizePath(path).toLowerCase() === normalizedTarget
+        );
     }
 
     async makeInfluxList() {

@@ -4,6 +4,7 @@ import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
+import { logger } from '../utils/logger';
 
 
 export class StatefulDecorationSet {
@@ -82,7 +83,23 @@ export class StatefulDecorationSet {
 
 
     async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
+        // Plugin activity check - prevent updates during unload
+        const plugin = (window as any).influxPlugin;
+        if (!plugin || plugin.isUnloading) {
+            return;
+        }
+
         const decorations = await this.computeAsyncDecorations(state, show);
+
+        // Revalidate editor and state match
+        if (!this.editor?.state || this.editor.state !== state) {
+            return;
+        }
+
+        // Revalidate plugin instance still active
+        if ((window as any).influxPlugin !== plugin) {
+            return;
+        }
 
         // Check if editor is still valid before proceeding
         if (!this.editor || !this.editor.state) {
@@ -99,8 +116,9 @@ export class StatefulDecorationSet {
             if (decorations) {
                 try {
                     this.editor.dispatch({ effects: statefulDecorations.update.of(decorations) });
-                } catch {
-                    // Dispatch failed - editor is being destroyed, ignore
+                } catch (e) {
+                    // Debug logging for failed updates
+                    logger.debug('Decoration update failed - editor destroyed', { error: e });
                 }
             }
             return;
@@ -110,8 +128,9 @@ export class StatefulDecorationSet {
         if (decorations || hasExistingDecorations) {
             try {
                 this.editor.dispatch({ effects: statefulDecorations.update.of(decorations || Decoration.none) });
-            } catch {
-                // Dispatch failed - editor is being destroyed, ignore
+            } catch (e) {
+                // Debug logging for failed updates
+                logger.debug('Decoration update failed - editor destroyed', { error: e });
             }
         }
     }

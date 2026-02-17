@@ -3,7 +3,7 @@
  * Extracted from ApiAdapter to be easily testable
  */
 
-import { LinkCache } from 'obsidian';
+import { LinkCache, normalizePath } from 'obsidian';
 
 /**
  * Extracts and normalizes a link name for comparison
@@ -25,10 +25,12 @@ export function extractLinkName(link: LinkCache): string {
 /**
  * Compares a link name with a basename for matching
  * Extracted from ApiAdapter.compareLinkName()
+ * Normalizes both sides for case-insensitive comparison
  */
 export function compareLinkName(link: LinkCache, basename: string): boolean {
     const linkName = extractLinkName(link);
-    return linkName === basename.toLowerCase();
+    // Normalize both sides for case-insensitive comparison
+    return linkName.toLowerCase() === basename.toLowerCase();
 }
 
 /**

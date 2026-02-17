@@ -28,13 +28,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated type imports to use centralized type definitions
 - Removed dead code: delay show callback system, timer setup, and associated methods
 
-### Fixed
+### Added
+- React Error Boundary component to catch and handle component errors gracefully
+- Migration system for old Influx elements from previous plugin versions
 
-- Fixed memory leaks from dual React root management systems with unified lifecycle and cleanup
-- Fixed async operation cancellation issues causing missed or duplicate updates
-- Fixed stale closure problems in component callbacks by replacing string-keyed registry with Observable pattern
-- Fixed collapsed state collisions for files with same basename in different folders by using normalized paths
-- Fixed missing cleanup on plugin unload by coordinating all operation cancellations through UpdateCoordinator
+### Fixed
+- Memory leaks from window references not being cleaned up on plugin unload
+- Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
+- Silent error suppression with proper error logging throughout codebase
+- Stale stylesheet references by capturing at call time instead of render time
+- Cross-platform path comparison issues with normalizePath() and case-insensitive comparisons
+- Preview cache not invalidating on all setting changes by expanding hash computation
+- Race conditions in StatefulDecorationSet where updates dispatched to destroyed editors
+- Added multiple validation checkpoints to prevent operations on unloaded plugin or destroyed editors
 
 ## [2.3.1] - 2025-01-30
 

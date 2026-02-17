@@ -70,16 +70,25 @@ export class ApiAdapter extends Component {
             return this.backlinksCache.get(cacheKey)!;
         }
 
-        // @ts-expect-error - getBacklinksForFile is not officially typed in MetadataCache
-        const backlinks = this.app.metadataCache.getBacklinksForFile(file);
+        // Runtime check for getBacklinksForFile availability
+        let backlinks: BacklinksObject;
+        const metadataCache = this.app.metadataCache as any;
+
+        if (typeof metadataCache?.getBacklinksForFile === 'function') {
+            backlinks = metadataCache.getBacklinksForFile(file);
+        } else {
+            logger.warn('getBacklinksForFile not available, returning empty backlinks');
+            backlinks = { data: new Map() };
+        }
+
         const metadata = this.app.metadataCache.getFileCache(file);
-        
+
         // Process front matter links using the pure function pipeline
         if (metadata?.frontmatterLinks) {
             const settings = this.getSettings();
             processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
         }
-        
+
         this.backlinksCache.set(cacheKey, backlinks);
         return backlinks;
     }
@@ -101,8 +110,18 @@ export class ApiAdapter extends Component {
             return this.settingsCache;
         }
 
+        // Runtime check for plugin settings availability
         // @ts-expect-error - plugins.plugins is not officially typed in App
-        const settings = this.app.plugins?.plugins?.influx?.data?.settings ?? DEFAULT_SETTINGS;
+        const plugins = this.app.plugins as any;
+        let settings: ObsidianInfluxSettings;
+
+        if (plugins?.plugins?.influx?.data?.settings) {
+            settings = { ...DEFAULT_SETTINGS, ...plugins.plugins.influx.data.settings };
+        } else {
+            logger.warn('Plugin settings not found, using defaults');
+            settings = DEFAULT_SETTINGS as ObsidianInfluxSettings;
+        }
+
         // Ensure we have a complete settings object
         this.settingsCache = { ...DEFAULT_SETTINGS, ...settings } as ObsidianInfluxSettings;
         // Pre-compile all regex patterns to eliminate JIT overhead on critical path
