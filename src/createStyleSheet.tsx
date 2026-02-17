@@ -1,6 +1,6 @@
 import jss, { StyleSheet } from 'jss'
 import preset from 'jss-preset-default'
-import { ObsidianInfluxSettings } from "./main";
+import { ObsidianInfluxSettings } from "./types";
 import { ApiAdapter } from './apiAdapter';
 
 interface StyleProps {

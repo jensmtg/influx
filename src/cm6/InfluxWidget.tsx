@@ -4,15 +4,13 @@ import InfluxReactComponent from '../InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
+import { CONSTANTS } from '../constants';
 
 // Global WeakMap to track React roots for proper cleanup and reuse
 const reactRoots = new WeakMap<HTMLElement, Root>();
 
-// Use a unique custom element name to avoid conflicts with other plugins
-const INFLUX_ELEMENT_TAG = "obsidian-influx-element";
-
 try {
-    customElements.define(INFLUX_ELEMENT_TAG, class extends HTMLElement {
+    customElements.define(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY, class extends HTMLElement {
         disconnectedCallback() {
             this.dispatchEvent(new CustomEvent("disconnected"))
         }
@@ -53,7 +51,7 @@ export class InfluxWidget extends WidgetType {
     }
 
     toDOM(view: EditorView) {
-        const container = document.createElement(INFLUX_ELEMENT_TAG)
+        const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY)
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 

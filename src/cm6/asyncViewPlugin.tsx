@@ -2,6 +2,7 @@ import { EditorView, ViewUpdate, ViewPlugin } from "@codemirror/view";
 import { StatefulDecorationSet } from "./StatefulDecorationSet";
 import { statefulDecorations } from "./helpers";
 import { debounce } from "obsidian";
+import { CONSTANTS } from '../constants';
 
 
 const asyncViewPlugin = ViewPlugin.fromClass(
@@ -33,7 +34,7 @@ const asyncViewPlugin = ViewPlugin.fromClass(
 
 		debouncedShow = debounce((update: ViewUpdate) => {
 			this.showInflux(update.view);
-		}, 3000, true)
+		}, CONSTANTS.DEBOUNCE_DELAY_LONG_MS, true)
 
 
 		destroy() {

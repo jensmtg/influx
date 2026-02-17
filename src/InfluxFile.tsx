@@ -3,6 +3,7 @@ import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter
 import { InlinkingFile } from './InlinkingFile';
 import ObsidianInflux from './main';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from './utils/logger';
 
 
 export default class InfluxFile {
@@ -100,7 +101,7 @@ export default class InfluxFile {
                 await inlinkingFile.makeSummary(this);
                 inlinkingFilesNew.push(inlinkingFile);
             } catch (error) {
-                console.error(`[Influx] Failed to process file ${file.path}:`, error);
+                logger.error(`Failed to process file ${file.path}:`, { filePath: file.path, error });
                 // Continue processing other files
             }
         }))
@@ -108,7 +109,10 @@ export default class InfluxFile {
 
         // Warn user if some files failed to process
         if (inlinkingFilesNew.length < validFiles.length) {
-            console.warn(`[Influx] Only ${inlinkingFilesNew.length} of ${validFiles.length} files processed successfully`);
+            logger.warn(`Only ${inlinkingFilesNew.length} of ${validFiles.length} files processed successfully`, {
+                processed: inlinkingFilesNew.length,
+                total: validFiles.length
+            });
         }
     }
     async renderAllMarkdownBlocks() {

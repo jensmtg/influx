@@ -1,7 +1,8 @@
 import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, FrontmatterLinkCache } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
-import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
 import ObsidianInflux from './main';
+import { logger } from './utils/logger';
 import {
     processFrontmatterLinks,
     shouldIncludeFrontmatterLinks
@@ -138,7 +139,7 @@ export class ApiAdapter extends Component {
                 try {
                     this.regexCache.set(pattern, new RegExp(pattern));
                 } catch (err) {
-                    console.error('[Influx] Invalid regex pattern: ' + pattern);
+                    logger.error('Invalid regex pattern: ' + pattern, { pattern, error: err });
                     // Cache sentinel to prevent repeated error logging
                     this.regexCache.set(pattern, ApiAdapter.INVALID_REGEX_SENTINEL);
                 }
@@ -182,7 +183,7 @@ export class ApiAdapter extends Component {
                 }
                 return regex.test(path);
             } catch (err) {
-                console.error('[Influx] Invalid regex pattern: ' + pattern);
+                logger.error('Invalid regex pattern: ' + pattern, { pattern, error: err });
                 // Cache sentinel to prevent repeated error logging
                 this.regexCache.set(pattern, ApiAdapter.INVALID_REGEX_SENTINEL);
                 return false;

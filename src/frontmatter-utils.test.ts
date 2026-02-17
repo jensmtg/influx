@@ -2,7 +2,7 @@
 // These test the actual pure functions extracted from ApiAdapter
 
 import { FrontmatterLinkCache, LinkCache } from 'obsidian';
-import { ObsidianInfluxSettings } from './main';
+import { ObsidianInfluxSettings } from './types';
 import {
     validateFrontmatterProperties,
     shouldIncludeFrontmatterLinks,

@@ -8,6 +8,9 @@ import { createRoot, Root } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
 import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 import { EditorView } from '@codemirror/view';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS, ComponentCallback, Data } from './types';
+import { CONSTANTS } from './constants';
+import { logger } from './utils/logger';
 
 // Extend global Window interface for test function
 declare global {
@@ -28,79 +31,19 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 	containerEl: HTMLDivElement;
 };
 
-export interface ObsidianInfluxSettings {
-	liveUpdate: boolean;
-	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
-	sortingAttribute: 'ctime' | 'mtime' | 'FILENAME'; // created or modified.
-	showBehaviour: 'OPT_OUT' | 'OPT_IN';
-	exclusionPattern: string[];
-	inclusionPattern: string[];
-	collapsedPattern: string[];
-	sourceBehaviour: 'OPT_OUT' | 'OPT_IN';
-	sourceInclusionPattern: string[];
-	sourceExclusionPattern: string[];
-	listLimit: number;
-	variant: 'CENTER_ALIGNED' | 'ROWS';
-	fontSize: number;
-	entryHeaderVisible: boolean;
-	influxAtTopOfPage: boolean;
-	includeFrontmatterLinks: boolean;
-	frontmatterProperties: string[];
-}
 
-export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
-	liveUpdate: true,
-	sortingPrinciple: 'NEWEST_FIRST',
-	sortingAttribute: 'ctime',
-	showBehaviour: 'OPT_OUT',
-	exclusionPattern: [],
-	inclusionPattern: [],
-	collapsedPattern: [],
-	sourceBehaviour: 'OPT_OUT',
-	sourceInclusionPattern: [],
-	sourceExclusionPattern: [],
-	listLimit: 0,
-	variant: 'CENTER_ALIGNED',
-	fontSize: 13,
-	entryHeaderVisible: true,
-	influxAtTopOfPage: false,
-	includeFrontmatterLinks: false,
-	frontmatterProperties: [],
-};
-
-export type ComponentCallback = (op: string, stylesheet: StyleSheetType, file?: TFile) => void
-export interface Data {
-	settings: ObsidianInfluxSettings,
-}
-
-
-// Constants for magic numbers
-const DEBOUNCE_DELAY_MS = 100;
-const DELAYED_CALLBACK_TIMEOUT_MS = 2000;
-
-// Debug mode - set to true to enable verbose logging
-const DEBUG_MODE = false;
-
-function debugLog(...args: any[]) {
-	if (DEBUG_MODE) {
-		console.log('[Influx Debug]', ...args);
-	}
-}
-
-/**
- * Debug helper to inspect JSS stylesheets in the DOM
- */
+// Debug helper to inspect JSS stylesheets in the DOM
 function inspectStylesheets() {
 	const styleElements = document.querySelectorAll('style[data-jss]');
-	debugLog('=== JSS Stylesheets in DOM ===');
-	debugLog(`Total count: ${styleElements.length}`);
+	logger.debug('=== JSS Stylesheets in DOM ===');
+	logger.debug(`Total count: ${styleElements.length}`, { count: styleElements.length });
 
 	styleElements.forEach((el, index) => {
 		const content = el.textContent;
 		const influxRules = content?.match(/\.inlinked/g)?.length || 0;
-		debugLog(`[${index}] ${influxRules} influx rules, ${content?.length || 0} chars`);
+		logger.debug(`[${index}] ${influxRules} influx rules, ${content?.length || 0} chars`, { index, influxRules, contentLength: content?.length || 0 });
 		if (influxRules > 0) {
-			debugLog('  Sample:', content?.substring(0, 200));
+			logger.debug('  Sample:', { sample: content?.substring(0, 200) });
 		}
 	});
 
@@ -114,9 +57,10 @@ function inspectStylesheets() {
 			}
 		});
 	});
-	debugLog(`Unique influx class names in use: ${classNames.size}`);
-	Array.from(classNames).forEach(cls => debugLog('  -', cls));
+	logger.debug(`Unique influx class names in use: ${classNames.size}`, { count: classNames.size });
+	Array.from(classNames).forEach(cls => logger.debug('  -', { className: cls }));
 }
+
 
 export default class ObsidianInflux extends Plugin {
 
@@ -127,7 +71,6 @@ export default class ObsidianInflux extends Plugin {
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
-	delayedShowCallbacks: { editor: EditorView, callback: () => void, time: number }[] = [];
 	private updateDebouncers: { [key: string]: NodeJS.Timeout } = {};
 	// Track React roots for proper cleanup to prevent memory leaks
 	// Changed from WeakMap to Map to enable explicit cleanup and iteration
@@ -138,7 +81,7 @@ export default class ObsidianInflux extends Plugin {
 	private previewFileHashes: Map<string, string> = new Map();
 
 	async onload(): Promise<void> {
-		console.log(`Loading plugin: Influx v${this.manifest.version}`);
+		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
 
 		this.componentCallbacks = {}
 		this.api = new ApiAdapter(this.app)
@@ -172,16 +115,11 @@ export default class ObsidianInflux extends Plugin {
 			this.triggerUpdates('layout-change');
 		}));
 
-		// Use window.setInterval to avoid TypeScript type inference issues
-		const timerId = window.setInterval(this.tick.bind(this), 1000);
-		// Store interval ID for cleanup if needed
-		this.register(() => window.clearInterval(timerId));
-
 		// Make plugin instance globally accessible for CodeMirror extensions
 		(window as any).influxPlugin = this;
 
 		// Expose debug functions to browser console
-		if (DEBUG_MODE) {
+		if (CONSTANTS.DEBUG_MODE) {
 			(window as any).influxDebug = {
 				inspectStylesheets,
 				getReactRoots: () => ({
@@ -197,45 +135,13 @@ export default class ObsidianInflux extends Plugin {
 					preview: this.stylesheetForPreview?.attached
 				})
 			};
-			debugLog('Debug mode enabled. Use window.influxDebug to inspect.');
+			logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
 		}
 
 		// Add manual trigger for testing reading view
 		window.testInfluxReadingView = () => {
 			this.updateInfluxInAllPreviews();
 		};
-	}
-
-	public delayShowInflux(editor: EditorView, showCallback: () => void) {
-		// More efficient: filter and add in single operation
-		this.delayedShowCallbacks = this.delayedShowCallbacks.filter(cb => cb.editor !== editor);
-		this.delayedShowCallbacks.push({
-			editor: editor,
-			time: Date.now(),
-			callback: showCallback
-		});
-	}
-
-	private tick() {
-		const now = Date.now();
-		const readyCallbacks: Array<() => void> = [];
-		const remaining: Array<{ editor: EditorView; callback: () => void; time: number }> = [];
-
-		// Single pass: separate ready callbacks from remaining ones
-		for (const cb of this.delayedShowCallbacks) {
-			if (now > cb.time + DELAYED_CALLBACK_TIMEOUT_MS) {
-				readyCallbacks.push(cb.callback);
-			} else {
-				remaining.push(cb);
-			}
-		}
-
-		this.delayedShowCallbacks = remaining;
-
-		// Execute ready callbacks after updating state to avoid re-entry issues
-		for (const callback of readyCallbacks) {
-			callback();
-		}
 	}
 
 	async loadDataInitially() {
@@ -374,12 +280,12 @@ export default class ObsidianInflux extends Plugin {
 				if (shouldRegenerateStylesheet) {
 					// Detach old stylesheet before creating a new one to prevent duplicates
 					if (this.stylesheet) {
-						debugLog('[triggerUpdates] Detaching old stylesheet');
+						logger.debug('[triggerUpdates] Detaching old stylesheet');
 						this.stylesheet.detach();
 					}
-					debugLog('[triggerUpdates] Creating new stylesheet');
+					logger.debug('[triggerUpdates] Creating new stylesheet');
 					this.stylesheet = createStyleSheet(this.api)
-					debugLog('[triggerUpdates] Stylesheet attached, classes:', Object.keys(this.stylesheet.classes));
+					logger.debug('[triggerUpdates] Stylesheet attached, classes:', { classes: Object.keys(this.stylesheet.classes) });
 				}
 
 				if (op === 'modify') {
@@ -396,7 +302,7 @@ export default class ObsidianInflux extends Plugin {
 					}
 					this.updateInfluxInAllPreviews()
 				}
-				if (DEBUG_MODE) {
+				if (CONSTANTS.DEBUG_MODE) {
 					inspectStylesheets();
 				}
 			} finally {
@@ -404,7 +310,7 @@ export default class ObsidianInflux extends Plugin {
 				this.pendingUpdates.delete(updateKey);
 				delete this.updateDebouncers[updateKey]
 			}
-		}, DEBOUNCE_DELAY_MS)
+		}, CONSTANTS.DEBOUNCE_DELAY_MS)
 	}
 
 	async updateInfluxInAllPreviews() {
@@ -560,12 +466,12 @@ export default class ObsidianInflux extends Plugin {
 			return;
 		}
 
-		debugLog('[handlePreviewMode] Processing file:', filePath);
+		logger.debug('[handlePreviewMode] Processing file:', { filePath });
 
 		// Clean up ALL existing Influx preview wrappers in this container
 		// This prevents overlapping elements when switching modes
 		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
-		debugLog('[handlePreviewMode] Found existing wrappers:', existingInflux.length);
+		logger.debug('[handlePreviewMode] Found existing wrappers:', { count: existingInflux.length });
 		existingInflux.forEach(wrapper => {
 			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
 			if (container) {
@@ -581,7 +487,7 @@ export default class ObsidianInflux extends Plugin {
 		// Also clean up any orphaned influx-preview-container elements
 		// (e.g., from incomplete cleanups during mode switches)
 		const orphanedContainers = element.querySelectorAll('influx-preview-container');
-		debugLog('[handlePreviewMode] Found orphaned containers:', orphanedContainers.length);
+		logger.debug('[handlePreviewMode] Found orphaned containers:', { count: orphanedContainers.length });
 		orphanedContainers.forEach(container => {
 			const root = this.previewReactRoots.get(container as HTMLElement);
 			if (root) {

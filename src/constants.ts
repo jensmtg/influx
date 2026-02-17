@@ -1,0 +1,14 @@
+export const CONSTANTS = {
+	DEBOUNCE_DELAY_MS: 100,
+	DEBOUNCE_DELAY_LONG_MS: 3000,
+	DELAYED_CALLBACK_TIMEOUT_MS: 2000,
+	CLEANUP_TIMEOUT_MS: 5000,
+	DEBUG_MODE: false,
+	INFLUX_ELEMENT_TAG: 'influx-plugin-widget-v2',
+	INFLUX_ELEMENT_TAG_LEGACY: 'obsidian-influx-element',
+	INFLUX_CONTAINER_TAG: 'influx-preview-container-v2',
+	INFLUX_CONTAINER_TAG_LEGACY: 'influx-preview-container',
+	INFLUX_WRAPPER_CLASS: 'influx-preview-wrapper',
+	FRONTMATTER_KEY: 'influx-title',
+	CENTERED_WIDTH_PX: 160,
+} as const;

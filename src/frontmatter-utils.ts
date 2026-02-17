@@ -4,7 +4,8 @@
  */
 
 import { FrontmatterLinkCache, LinkCache } from 'obsidian';
-import { ObsidianInfluxSettings } from './main';
+import { ObsidianInfluxSettings } from './types';
+import { logger } from './utils/logger';
 
 /**
  * Validates and filters front matter property names
@@ -136,7 +137,7 @@ export function processFrontmatterLinks(
         
         return backlinks;
     } catch (error) {
-        console.error('Error in processFrontmatterLinks:', error);
+        logger.error('Error in processFrontmatterLinks:', { error });
         // Graceful fallback - don't break the entire backlinks process
         return backlinks;
     }

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - Unreleased
+
+### Added
+
+- Centralized type definitions in `src/types/settings.ts` and `src/types/index.ts`
+- New constants file (`src/constants.ts`) for all magic numbers and string literals
+- Logger utility (`src/utils/logger.ts`) with consistent formatting and debug mode support
+
+### Changed
+
+- Replaced all magic numbers with named constants across the codebase
+- Replaced all `console.*` calls with the new logger utility
+- Updated type imports to use centralized type definitions
+- Removed dead code: delay show callback system, timer setup, and associated methods
+
 ## [2.3.1] - 2025-01-30
 
 ### Added

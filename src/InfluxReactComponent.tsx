@@ -1,9 +1,10 @@
 import * as React from "react";
 import InfluxFile from './InfluxFile';
 import { ExtendedInlinkingFile } from './apiAdapter';
-import { ObsidianInfluxSettings } from "./main";
+import { ObsidianInfluxSettings } from "./types";
 import { TFile } from "obsidian";
 import { StyleSheetType } from "./createStyleSheet";
+import { CONSTANTS } from './constants';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
@@ -205,7 +206,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 								>
 									<div className="tree-item-self search-result-file-title"
-										style={centered ? { width: '160px', minWidth: '160px' } : {}}>
+										style={centered ? { width: `${CONSTANTS.CENTERED_WIDTH_PX}px`, minWidth: `${CONSTANTS.CENTERED_WIDTH_PX}px` } : {}}>
 
 
 										<div className="tree-item-icon collapse-icon"
