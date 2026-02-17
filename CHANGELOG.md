@@ -13,9 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update Coordinator (`src/utils/UpdateCoordinator.ts`) with AbortController-based cancellation and proper async operation scheduling
 - Observable Update System (`src/utils/Observable.ts`) with type-safe observer pattern for component updates
 - Collapsed State Manager (`src/utils/CollapsedStateManager.ts`) using path-based Set storage instead of basename-based arrays
+- React Error Boundary component to catch and handle component errors gracefully
+- Migration system for old Influx elements from previous plugin versions
 - Centralized type definitions in `src/types/settings.ts` and `src/types/index.ts`
 - New constants file (`src/constants.ts`) for all magic numbers and string literals
 - Logger utility (`src/utils/logger.ts`) with consistent formatting and debug mode support
+- Unit tests for Update Coordinator (`src/utils/UpdateCoordinator.test.ts`):
+  - Tests for debounce behavior, operation cancellation, and abort signal handling
+  - Tests for concurrent operations and error handling
+- Unit tests for Observable (`src/utils/Observable.test.ts`):
+  - Tests for subscribe/unsubscribe patterns and notification propagation
+  - Tests for re-entrancy prevention and error handling
 
 ### Changed
 
@@ -23,16 +31,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
 - Replaced string-keyed component callbacks registry with Observable pattern for type-safe updates
 - Replaced basename-based collapsed state tracking (`string[]`) with path-based normalized storage (`Set<string>`)
-- Replaced all magic numbers with named constants across the codebase
+- Replaced all magic numbers with named constants across codebase
 - Replaced all `console.*` calls with new logger utility
 - Updated type imports to use centralized type definitions
-- Removed dead code: delay show callback system, timer setup, and associated methods
+- Settings validation in `src/settings.tsx`:
+  - Changed all onblur handlers from async to synchronous for immediate user feedback
+  - Queue async save operations without blocking UI
+  - Handlers updated: exclusionPattern, inclusionPattern, sourceExclusionPattern, sourceInclusionPattern, collapsedPattern, frontmatterProperties
 
-### Added
-- React Error Boundary component to catch and handle component errors gracefully
-- Migration system for old Influx elements from previous plugin versions
+### Removed
+
+- Dead code: delay show callback system, timer setup, and associated methods
+- Dead code cleanup in `src/InfluxReactComponent.tsx`:
+- Unused export from `src/link-utils.ts`:
+  - Removed processTitleHTML function (was unused)
 
 ### Fixed
+
 - Memory leaks from window references not being cleaned up on plugin unload
 - Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
 - Silent error suppression with proper error logging throughout codebase
@@ -41,6 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preview cache not invalidating on all setting changes by expanding hash computation
 - Race conditions in StatefulDecorationSet where updates dispatched to destroyed editors
 - Added multiple validation checkpoints to prevent operations on unloaded plugin or destroyed editors
+- Sorting comparator flip logic: `NEWEST_FIRST` now correctly reverses order, `OLDEST_FIRST` preserves natural ascending order
+- Race condition in `triggerUpdates` where concurrent file updates would cancel each other's timeouts
+- Memory leak by cleaning up React roots when files are renamed or deleted (both `updateInfluxInPreview` and `handlePreviewMode`)
+- Stale React root reuse in InfluxWidget by using container as WeakMap key
+- Cascading failures in `Promise.all` by adding error handling for individual file processing with user warning
+- Invalid regex patterns causing repeated error logging by caching sentinel values
+- Undefined `titleLineNum` by using nullish coalescing for explicit initialization
+- Inefficient DOM query in `cleanupReactRoots` by using direct child selector
+- Missing cleanup in `asyncViewPlugin.destroy()` by cancelling debounced callback
+- Empty document check to use exact equality (`=== 0`) for clarity
 
 ## [2.3.1] - 2025-01-30
 

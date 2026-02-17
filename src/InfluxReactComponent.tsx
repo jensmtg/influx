@@ -89,22 +89,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					<div className="nav-header">
 
 						<div className="nav-buttons-container">
-							{/* <div className="clickable-icon nav-action-button" aria-label="Collapse results">
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-list">
-									<line x1="8" y1="6" x2="21" y2="6">
-									</line>
-									<line x1="8" y1="12" x2="21" y2="12">
-									</line>
-									<line x1="8" y1="18" x2="21" y2="18">
-									</line>
-									<line x1="3" y1="6" x2="3.01" y2="6">
-									</line>
-									<line x1="3" y1="12" x2="3.01" y2="12">
-									</line>
-									<line x1="3" y1="18" x2="3.01" y2="18">
-									</line>
-								</svg>
-							</div> */}
 							<div className="clickable-icon nav-action-button"
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
@@ -135,14 +119,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									</path>
 								</svg>
 							</div>
-							{/* <div className="clickable-icon nav-action-button" aria-label="Show search filter">
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-search">
-									<circle cx="11" cy="11" r="8">
-									</circle>
-									<line x1="21" y1="21" x2="16.65" y2="16.65">
-									</line>
-								</svg>
-							</div> */}
 						</div>
 
 					</div>
@@ -161,16 +137,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 						<div
 							onClick={() => toggleAll()}
-							className={`tree-item-self is-clickable 
-							${'' //	isOpen ? '' : 'is-collapsed'
-								}`}
-						// aria-label={isOpen ? "Click to collapse" : "Click to expand"}
+							className="tree-item-self is-clickable"
 						>
-
-							{/* <span className="tree-item-icon collapse-icon">
-							<svg viewBox="0 0 100 100" className="right-triangle" width="8" height="8">
-							<path fill="currentColor" stroke="currentColor" d="M94.9,20.8c-1.4-2.5-4.1-4.1-7.1-4.1H12.2c-3,0-5.7,1.6-7.1,4.1c-1.3,2.4-1.2,5.2,0.2,7.6L43.1,88c1.5,2.3,4,3.7,6.9,3.7 s5.4-1.4,6.9-3.7l37.8-59.6C96.1,26,96.2,23.2,94.9,20.8L94.9,20.8z">
-							</path></svg></span> */}
 
 							<div className="tree-item-inner" >
 								Linked mentions
@@ -229,9 +197,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 														{extended.inlinkingFile.file.basename}
 													</a>
 												</div>
-												{/* <div className="tree-item-flair-outer">
-													<span className="tree-item-flair">1</span>
-												</div> */}
 											</div>
 											<div className="search-result-file-matches"
 												style={inlinkedCollapsed ? { display: 'none' }

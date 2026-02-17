@@ -44,6 +44,7 @@
 		"@codemirror/view": "6.38.6",
 		"docsify-cli": "5.0.0-rc.3",
 		"jest": "^30.2.0",
+		"jss-preset-default": "^10.10.0",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"react-jss": "^10.10.0",

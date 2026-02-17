@@ -194,10 +194,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.exclusionPattern.join('\n'));
-                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                textArea.inputEl.onblur = (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.exclusionPattern = patterns.split('\n');
-                    await this.saveSettings()
+                    this.saveSettings().catch(err => {
+                        console.error('Failed to save settings', { error: err });
+                    });
                 };
             });
 
@@ -220,10 +222,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.inclusionPattern.join('\n'));
-                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                textArea.inputEl.onblur = (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.inclusionPattern = patterns.split('\n');
-                    await this.saveSettings()
+                    this.saveSettings().catch(err => {
+                        console.error('Failed to save settings', { error: err });
+                    });
                 };
             });
 
@@ -267,10 +271,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.sourceExclusionPattern.join('\n'));
-                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                textArea.inputEl.onblur = (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.sourceExclusionPattern = patterns.split('\n');
-                    await this.saveSettings()
+                    this.saveSettings().catch(err => {
+                        console.error('Failed to save settings', { error: err });
+                    });
                 };
             });
 
@@ -293,10 +299,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.sourceInclusionPattern.join('\n'));
-                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                textArea.inputEl.onblur = (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.sourceInclusionPattern = patterns.split('\n');
-                    await this.saveSettings()
+                    this.saveSettings().catch(err => {
+                        console.error('Failed to save settings', { error: err });
+                    });
                 };
             });
 
@@ -322,10 +330,12 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.collapsedPattern.join('\n'));
-                textArea.inputEl.onblur = async (e: FocusEvent) => {
+                textArea.inputEl.onblur = (e: FocusEvent) => {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.collapsedPattern = patterns.split('\n');
-                    await this.saveSettings()
+                    this.saveSettings().catch(err => {
+                        console.error('Failed to save settings', { error: err });
+                    });
                 };
             });
 
@@ -357,7 +367,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 text
                     .setPlaceholder('related, see_also, references')
                     .setValue(this.plugin.data.settings.frontmatterProperties.join(', '));
-                text.inputEl.onblur = async (e: FocusEvent) => {
+                text.inputEl.onblur = (e: FocusEvent) => {
                     const value = (e.target as HTMLInputElement).value;
                     const properties = value
                         .split(',')
@@ -403,7 +413,9 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         this.plugin.data.settings.frontmatterProperties = properties;
                     }
                     
-                    await this.saveSettings()
+                    this.saveSettings().catch(err => {
+                        console.error('Failed to save settings', { error: err });
+                    });
                 };
             });
 

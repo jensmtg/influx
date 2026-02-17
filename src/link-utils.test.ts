@@ -2,10 +2,9 @@
 // Tests the actual pure functions extracted from ApiAdapter
 
 import { LinkCache } from 'obsidian';
-import { 
+import {
     extractLinkName,
     compareLinkName,
-    processTitleHTML,
     filterLinksByBasename
 } from './link-utils';
 
@@ -148,74 +147,6 @@ describe('Link Utils', () => {
 
             // Assert
             expect(result).toBe(true);
-        });
-    });
-
-    describe('processTitleHTML', () => {
-        test('should remove paragraph tags', () => {
-            // Arrange
-            const html = '<p>Test Title</p>';
-
-            // Act
-            const result = processTitleHTML(html);
-
-            // Assert
-            expect(result).toBe('Test Title');
-        });
-
-        test('should remove leading underscore after p tag removal', () => {
-            // Arrange
-            const html = '<p>_Test Title</p>';
-
-            // Act
-            const result = processTitleHTML(html);
-
-            // Assert
-            expect(result).toBe('Test Title');
-        });
-
-        test('should handle multiple paragraph tags', () => {
-            // Arrange
-            const html = '<p>First</p><p>Second</p>';
-
-            // Act
-            const result = processTitleHTML(html);
-
-            // Assert
-            expect(result).toBe('FirstSecond');
-        });
-
-        test('should handle nested HTML', () => {
-            // Arrange
-            const html = '<p><strong>Bold Title</strong></p>';
-
-            // Act
-            const result = processTitleHTML(html);
-
-            // Assert
-            expect(result).toBe('<strong>Bold Title</strong>');
-        });
-
-        test('should handle empty string', () => {
-            // Arrange
-            const html = '';
-
-            // Act
-            const result = processTitleHTML(html);
-
-            // Assert
-            expect(result).toBe('');
-        });
-
-        test('should handle string without paragraph tags', () => {
-            // Arrange
-            const html = 'Plain Title';
-
-            // Act
-            const result = processTitleHTML(html);
-
-            // Assert
-            expect(result).toBe('Plain Title');
         });
     });
 

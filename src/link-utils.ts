@@ -34,16 +34,6 @@ export function compareLinkName(link: LinkCache, basename: string): boolean {
 }
 
 /**
- * Processes HTML content by removing paragraph tags and cleaning up underscores
- * Extracted from ApiAdapter.renderAllMarkdownBlocks()
- */
-export function processTitleHTML(html: string): string {
-    return html
-        .replace(/<\/?p[^>]*>/g, '')  // Remove <p>, </p> tags
-        .replace(/^_/, '');            // Remove leading underscore (now at start after p tag removal)
-}
-
-/**
  * Filters links that match a specific basename
  */
 export function filterLinksByBasename(links: LinkCache[], basename: string): LinkCache[] {
