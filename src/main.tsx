@@ -14,6 +14,8 @@ import { logger } from './utils/logger';
 import { rootManager } from './react/RootManager';
 import { updateCoordinator } from './utils/UpdateCoordinator';
 import { influxUpdates$ } from './utils/Observable';
+import { EventManager } from './managers/EventManager';
+import { PreviewManager } from './managers/PreviewManager';
 
 // Extend global Window interface for test function
 declare global {
@@ -35,7 +37,7 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 };
 
 
-// Debug helper to inspect JSS stylesheets in the DOM
+// Debug helper to inspect JSS stylesheets in DOM
 function inspectStylesheets() {
 	const styleElements = document.querySelectorAll('style[data-jss]');
 	logger.debug('=== JSS Stylesheets in DOM ===');
@@ -76,6 +78,9 @@ export default class ObsidianInflux extends Plugin {
 	// Track file hashes to avoid unnecessary re-renders
 	private previewFileHashes: Map<string, string> = new Map();
 
+	private eventManager: EventManager;
+	private previewManager: PreviewManager;
+
 	async onload(): Promise<void> {
 		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
 
@@ -92,27 +97,13 @@ export default class ObsidianInflux extends Plugin {
 
 		this.addSettingTab(new ObsidianInfluxSettingsTab(this.app, this));
 
-		// Register Markdown Post Processor for preview/reading mode
-		this.registerMarkdownPostProcessor(this.handlePreviewMode.bind(this));
+		this.eventManager = new EventManager(this);
+		this.eventManager.register();
 
-		this.registerEvent(this.app.vault.on('modify', (file: TAbstractFile) => { this.triggerUpdates('modify', file) }));
-		this.registerEvent(this.app.vault.on('rename', (file: TAbstractFile) => {
-			if (file instanceof TFile) {
-				this.cleanupFileHash(file.path);
-			}
-			this.triggerUpdates('rename', file);
-		}));
-		this.registerEvent(this.app.vault.on('delete', (file: TAbstractFile) => {
-			if (file instanceof TFile) {
-				this.cleanupFileHash(file.path);
-			}
-			this.triggerUpdates('delete', file);
-		}));
-		this.registerEvent(this.app.workspace.on('file-open', (file: TAbstractFile) => { this.triggerUpdates('file-open', file) }));
-		this.registerEvent(this.app.workspace.on('layout-change', () => {
-			this.cleanupReactRoots();
-			this.triggerUpdates('layout-change');
-		}));
+		this.previewManager = new PreviewManager(this, this.api, this.previewFileHashes);
+
+		// Register Markdown Post Processor for preview/reading mode
+		this.registerMarkdownPostProcessor(this.previewManager.handlePreviewMode.bind(this.previewManager));
 
 		// Make plugin instance globally accessible for CodeMirror extensions
 		(window as any).influxPlugin = this;
@@ -141,7 +132,7 @@ export default class ObsidianInflux extends Plugin {
 
 		// Add manual trigger for testing reading view
 		window.testInfluxReadingView = () => {
-			this.updateInfluxInAllPreviews();
+			this.previewManager.updateAllPreviews();
 		};
 	}
 
@@ -183,7 +174,7 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	/**
-	 * Cleanup React roots for containers that are no longer in the DOM or are in hidden elements.
+	 * Cleanup React roots for containers that are no longer in DOM or are in hidden elements.
 	 * This prevents memory leaks and overlapping elements when switching modes.
 	 */
 	private cleanupReactRoots(): void {
@@ -212,38 +203,6 @@ export default class ObsidianInflux extends Plugin {
 	private cleanupFileReactRoots(filePath: string): void {
 		// Use rootManager to unmount by file path
 		rootManager.unmountByFilePath(filePath);
-	}
-
-	/**
-	 * Compute a hash of all settings for cache invalidation
-	 */
-	private computeSettingsHash(): string {
-		const settings = this.data.settings;
-		const components = [
-			settings.sortingPrinciple,
-			settings.sortingAttribute,
-			settings.listLimit,
-			settings.showBehaviour,
-			settings.variant,
-			settings.entryHeaderVisible,
-			settings.influxAtTopOfPage,
-			settings.includeFrontmatterLinks,
-			JSON.stringify([...settings.exclusionPattern].sort()),
-			JSON.stringify([...settings.inclusionPattern].sort()),
-			JSON.stringify([...settings.collapsedPattern].sort()),
-			JSON.stringify([...settings.sourceInclusionPattern].sort()),
-			JSON.stringify([...settings.sourceExclusionPattern].sort()),
-		];
-
-		// Simple hash function
-		let hash = 0;
-		const str = components.join('|');
-		for (let i = 0; i < str.length; i++) {
-			const char = str.charCodeAt(i);
-			hash = ((hash << 5) - hash) + char;
-			hash = hash & hash;
-		}
-		return hash.toString(36);
 	}
 
 	/**
@@ -321,7 +280,7 @@ export default class ObsidianInflux extends Plugin {
 			});
 
 			if (!signal.aborted && op !== 'modify') {
-				await this.updateInfluxInAllPreviews()
+				await this.previewManager.updateAllPreviews();
 			}
 
 			if (!signal.aborted && CONSTANTS.DEBUG_MODE) {
@@ -330,238 +289,5 @@ export default class ObsidianInflux extends Plugin {
 		}).catch(e => {
 			// Error already logged by coordinator
 		});
-	}
-
-	async updateInfluxInAllPreviews() {
-		/**
-		 * ! This is best-effort feature to maintain a live-updated
-		 * ! influx footer in preview mode pages. It's buggy.
-		 */
-		const previewLeaves: WorkspaceLeaf[] = []
-
-		this.app.workspace.iterateRootLeaves(leaf => {
-			// Better preview mode detection - check multiple possible indicators
-			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			const leafType: string = influxLeaf.view?.currentMode?.type
-			const viewMode: string = influxLeaf.view?.mode
-
-			// Use classList.contains() instead of querySelector() for better performance
-			// classList.contains() is O(1) and doesn't trigger layout recalculation
-			const hasPreviewClass = influxLeaf.containerEl?.classList.contains('markdown-preview-view')
-
-			if (leafType === 'preview' || viewMode === 'preview' || hasPreviewClass) {
-				previewLeaves.push(leaf)
-			}
-		})
-
-		// Track per-file updates to prevent concurrent updates to the same file
-		// while allowing multiple different files to update simultaneously
-		const updatePromises = previewLeaves.map(leaf => {
-			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			const filePath = influxLeaf.view?.file?.path
-			if (!filePath) {
-				return Promise.resolve()
-			}
-
-			// Skip if this file is already being updated
-			if (this.updating.has(filePath)) {
-				return Promise.resolve()
-			}
-
-			// Mark this file as being updated
-			this.updating.add(filePath)
-
-			return this.updateInfluxInPreview(leaf, this.stylesheetForPreview)
-				.finally(() => {
-					// Always remove the lock, even if update fails
-					this.updating.delete(filePath)
-				})
-		})
-
-		await Promise.all(updatePromises)
-	}
-
-	async updateInfluxInPreview(leaf: WorkspaceLeaf, stylesheetOverride?: StyleSheetType) {
-		const influxLeaf = leaf as InfluxWorkspaceLeaf;
-		const container: HTMLDivElement = influxLeaf.containerEl
-
-		const previewDiv = container.querySelector(".markdown-preview-view");
-
-		if (!previewDiv) {
-			throw new Error('No preview found')
-		}
-
-		// Capture stylesheet at call time, not render time
-		const stylesheet = stylesheetOverride || this.stylesheetForPreview;
-
-		// Reuse existing api instance instead of creating new one (preserves cache)
-		const apiAdapter = this.api
-		const path = influxLeaf.view?.file?.path
-		if (!path) {
-			throw new Error('No file path found')
-		}
-
-		// Check if we already have an Influx container for this file
-		// Use a single query with descendant selector to avoid multiple DOM traversals
-		const existingContainer = previewDiv.querySelector('.influx-preview-wrapper > influx-preview-container') as HTMLElement
-
-		// Calculate a comprehensive hash of all settings for cache invalidation
-		const fileHash = `${path}-${this.computeSettingsHash()}`
-
-		// If we have an existing container with the same data, skip the update
-		if (existingContainer && this.previewFileHashes.get(path) === fileHash) {
-			return
-		}
-
-		const influxFile = await InfluxFile.create(path, apiAdapter, this)
-		await influxFile.makeInfluxList()
-		await influxFile.renderAllMarkdownBlocks()
-
-		// Update the hash
-		this.previewFileHashes.set(path, fileHash)
-
-		let anchor: Root;
-
-		if (existingContainer) {
-			// Reuse existing container and root
-			const info = rootManager.get(existingContainer);
-			if (info) {
-				anchor = info.root;
-			} else {
-				// Shouldn't happen, but create a new root if needed
-				anchor = createRoot(existingContainer);
-				rootManager.register(existingContainer, anchor, 'preview', path);
-			}
-		} else {
-			// Clean up any old containers and their parent wrappers
-			const oldContainers = previewDiv.querySelectorAll("influx-preview-container")
-			oldContainers.forEach(el => {
-				const oldContainer = el as HTMLElement
-				rootManager.unmount(oldContainer)
-				// Remove the entire wrapper, not just the container
-				const wrapper = oldContainer.closest('.influx-preview-wrapper');
-				wrapper?.remove();
-			})
-
-			// Also clean up any orphaned wrappers (without containers)
-			const orphanedWrappers = previewDiv.querySelectorAll('.influx-preview-wrapper');
-			orphanedWrappers.forEach(wrapper => {
-				wrapper.remove();
-			});
-
-			// Create new wrapper and container
-			const influxWrapper = document.createElement("div");
-			influxWrapper.className = "influx-preview-wrapper";
-
-			const influxContainer = document.createElement("influx-preview-container");
-			influxContainer.id = influxFile.uuid;
-			influxWrapper.appendChild(influxContainer);
-
-			// Position based on influxAtTopOfPage setting
-			const settings = this.data.settings;
-			if (settings.influxAtTopOfPage) {
-				previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
-			} else {
-				previewDiv.appendChild(influxWrapper);
-			}
-
-			// Create and track the React root using rootManager
-			anchor = createRoot(influxContainer);
-			rootManager.register(influxContainer, anchor, 'preview', path);
-		}
-
-		// Render or update the React component
-		anchor.render(<InfluxReactComponent
-			influxFile={influxFile}
-			preview={true}
-			sheet={stylesheet}
-		/>);
-	}
-
-	async handlePreviewMode(element: HTMLElement, context: any) {
-		// Only process if this is a markdown preview element
-		if (!element.classList.contains('markdown-preview-view')) {
-			return;
-		}
-
-		// Get the file path from context
-		const filePath = context.sourcePath;
-		if (!filePath) {
-			return;
-		}
-
-		logger.debug('[handlePreviewMode] Processing file:', { filePath });
-
-		// Capture stylesheet at call time, not render time
-		const stylesheet = this.stylesheetForPreview;
-
-		// Clean up ALL existing Influx preview wrappers in this container
-		// This prevents overlapping elements when switching modes
-		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
-		logger.debug('[handlePreviewMode] Found existing wrappers:', { count: existingInflux.length });
-		existingInflux.forEach(wrapper => {
-			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
-			if (container) {
-				rootManager.unmount(container);
-			}
-			wrapper.remove();
-		});
-
-		// Also clean up any orphaned influx-preview-container elements
-		// (e.g., from incomplete cleanups during mode switches)
-		const orphanedContainers = element.querySelectorAll('influx-preview-container');
-		logger.debug('[handlePreviewMode] Found orphaned containers:', { count: orphanedContainers.length });
-		orphanedContainers.forEach(container => {
-			const containerElement = container as HTMLElement;
-			rootManager.unmount(containerElement);
-			containerElement.remove();
-		});
-
-		try {
-			const apiAdapter = new ApiAdapter(this.app);
-			const influxFile = await InfluxFile.create(filePath, apiAdapter, this);
-			await influxFile.makeInfluxList();
-			await influxFile.renderAllMarkdownBlocks();
-
-			// Check if we should show Influx for this file
-			if (!influxFile.show) {
-				return;
-			}
-
-			// Create the Influx wrapper
-			const influxWrapper = document.createElement("div");
-			influxWrapper.className = "influx-preview-wrapper";
-
-			const influxContainer = document.createElement("influx-preview-container");
-			influxContainer.id = influxFile.uuid;
-			influxWrapper.appendChild(influxContainer);
-
-			// Position based on influxAtTopOfPage setting
-			// When true (checkbox OFF), show at top; when false (checkbox ON), show at bottom
-			const settings = this.data.settings;
-			if (settings.influxAtTopOfPage) {
-				// Insert at the beginning (top of content)
-				element.insertBefore(influxWrapper, element.firstChild);
-			} else {
-				// Append to the end (bottom of content)
-				element.appendChild(influxWrapper);
-			}
-
-			// Create and track of React root using rootManager
-			const anchor = createRoot(influxContainer);
-			rootManager.register(influxContainer, anchor, 'preview', filePath);
-			anchor.render(<InfluxReactComponent
-				influxFile={influxFile}
-				preview={true}
-				sheet={stylesheet}
-			/>);
-		} catch (error) {
-			// Log error with context for debugging
-			logger.error('Failed to render in preview mode', {
-				filePath: context.sourcePath,
-				error,
-				stack: error instanceof Error ? error.stack : undefined
-			});
-		}
 	}
 }

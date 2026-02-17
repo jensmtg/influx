@@ -31,13 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
 - Replaced string-keyed component callbacks registry with Observable pattern for type-safe updates
 - Replaced basename-based collapsed state tracking (`string[]`) with path-based normalized storage (`Set<string>`)
-- Replaced all magic numbers with named constants across codebase
-- Replaced all `console.*` calls with new logger utility
-- Updated type imports to use centralized type definitions
-- Settings validation in `src/settings.tsx`:
-  - Changed all onblur handlers from async to synchronous for immediate user feedback
-  - Queue async save operations without blocking UI
-  - Handlers updated: exclusionPattern, inclusionPattern, sourceExclusionPattern, sourceInclusionPattern, collapsedPattern, frontmatterProperties
+ - Replaced all magic numbers with named constants across codebase
+ - Replaced all `console.*` calls with new logger utility
+ - Updated type imports to use centralized type definitions
+ - Extracted event handling logic into `src/managers/EventManager.ts` for better code organization
+ - Extracted preview mode logic into `src/managers/PreviewManager.tsx` for better separation of concerns
+ - Reduced `main.tsx` size through manager extraction
+ - Settings validation in `src/settings.tsx`:
+   - Changed all onblur handlers from async to synchronous for immediate user feedback
+   - Queue async save operations without blocking UI
+   - Handlers updated: exclusionPattern, inclusionPattern, sourceExclusionPattern, sourceInclusionPattern, collapsedPattern, frontmatterProperties
 
 ### Removed
 
