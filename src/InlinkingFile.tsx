@@ -26,12 +26,16 @@ export class InlinkingFile {
     }
 
     public async makeSummary(contextFile: InfluxFile) {
-
         this.contextFile = contextFile
         this.content = await this.api.readFile(this.file)
 
+        if (!this.meta) {
+            this.summary = ''
+            return
+        }
+
         const struct = new StructuredText(this.content)
-        const links = (this.meta && this.meta.links)
+        const links = this.meta.links
             ? this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
             : []
         const lineNumbersOfLinks = links

@@ -51,11 +51,12 @@ export class PreviewManager {
 				return Promise.resolve();
 			}
 
-			if (this.plugin.updating.has(filePath)) {
+			const now = Date.now();
+			const lastUpdate = this.plugin.updating.get(filePath);
+			if (lastUpdate && now - lastUpdate < 1000) {
 				return Promise.resolve();
 			}
-
-			this.plugin.updating.add(filePath);
+			this.plugin.updating.set(filePath, now);
 
 			return this.updatePreview(leaf, this.plugin.stylesheetForPreview)
 				.finally(() => {

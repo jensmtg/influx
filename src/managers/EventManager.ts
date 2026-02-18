@@ -24,11 +24,15 @@ export class EventManager {
 	}
 
 	private handleModify(file: TAbstractFile): void {
+		if (file instanceof TFile) {
+			this.plugin.api.invalidateFileCache(file.path);
+		}
 		this.plugin.triggerUpdates('modify', file);
 	}
 
 	private handleRename(file: TAbstractFile): void {
 		if (file instanceof TFile) {
+			this.plugin.api.invalidateFileCache(file.path);
 			this.plugin.cleanupFileHash(file.path);
 		}
 		this.plugin.triggerUpdates('rename', file);
@@ -36,6 +40,7 @@ export class EventManager {
 
 	private handleDelete(file: TAbstractFile): void {
 		if (file instanceof TFile) {
+			this.plugin.api.invalidateFileCache(file.path);
 			this.plugin.cleanupFileHash(file.path);
 		}
 		this.plugin.triggerUpdates('delete', file);

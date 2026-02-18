@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Memory leak in Observable - `isNotifying` flag now reset on error using try/finally
+- Stale cache data in ApiAdapter - per-file cache invalidation on modify/rename/delete events
+- Race condition in PreviewManager - atomic timestamp-based update tracking with 1s debounce
+- Null reference risk in InlinkingFile - early return guard when metadata is unavailable
 - Memory leaks from window references not being cleaned up on plugin unload
 - Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
 - Silent error suppression with proper error logging throughout codebase

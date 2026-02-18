@@ -19,29 +19,30 @@ export class Observable<T> {
 
 	async notify(data: T): Promise<void> {
 		if (this.isNotifying) {
-			// Prevent re-entrancy
 			return;
 		}
 
 		this.isNotifying = true;
+		try {
+			const promises: Promise<void>[] = [];
 
-		const promises: Promise<void>[] = [];
-
-		for (const [id, observer] of this.observers) {
-			try {
-				const result = observer(data);
-				if (result instanceof Promise) {
-					promises.push(result.catch(e => {
-						logger.error('Observer failed', { id, error: e });
-					}));
+			for (const [id, observer] of this.observers) {
+				try {
+					const result = observer(data);
+					if (result instanceof Promise) {
+						promises.push(result.catch(e => {
+							logger.error('Observer failed', { id, error: e });
+						}));
+					}
+				} catch (e) {
+					logger.error('Observer failed synchronously', { id, error: e });
 				}
-			} catch (e) {
-				logger.error('Observer failed synchronously', { id, error: e });
 			}
-		}
 
-		await Promise.all(promises);
-		this.isNotifying = false;
+			await Promise.all(promises);
+		} finally {
+			this.isNotifying = false;
+		}
 	}
 
 	unsubscribeAll(): void {

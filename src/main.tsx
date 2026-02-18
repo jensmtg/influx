@@ -70,7 +70,7 @@ function inspectStylesheets() {
 export default class ObsidianInflux extends Plugin {
 
 	componentCallbacks: { [key: string]: ComponentCallback };
-	updating: Set<string> = new Set();
+	updating: Map<string, number> = new Map();
 	stylesheet: StyleSheetType;
 	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
