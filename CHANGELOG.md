@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Consolidated CSS management - replaced JSS with vanilla CSS
+- CSS management - replaced JSS with vanilla CSS, migrated to single `styles.css`
 - Removed JSS dependencies: `jss`, `jss-preset-default`, `react-jss`, `@types/jss`
 - Replaced dual React root systems (Map in main.tsx, WeakMap in InfluxWidget.tsx) with unified RootManager
 - Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
@@ -80,10 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance in EventManager - early return in `handleModify()` when liveUpdate is disabled
 - Error handling in PreviewManager - replaced throws with `logger.warn()` for missing preview and path
 - Grammar in settings description - "changes in a note is" to "changes in a note are"
-- Headers nested inside list items breaking to new line - set `display: inline-block` for `li > h1-h6` selectors
-
-### Changed
-
+- HTML content - stripped `<h1-h6>` tags from rendered markdown
+- React structure - removed unnecessary empty div wrapper that was interfering with flex layout
+- CSS layout - simplified margins, added `.has-bare-heading` styling for list item headings
 - Removed redundant double-spread of DEFAULT_SETTINGS in ApiAdapter.getSettings()
 - Fixed test helper in frontmatter-utils.test.ts to use actual DEFAULT_SETTINGS instead of incomplete mock
 - Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
@@ -91,6 +90,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stale stylesheet references by capturing at call time instead of render time
 - Cross-platform path comparison issues with normalizePath() and case-insensitive comparisons
 - Preview cache not invalidating on all setting changes by expanding hash computation
+- Race conditions in StatefulDecorationSet where updates dispatched to destroyed editors
+- Added multiple validation checkpoints to prevent operations on unloaded plugin or destroyed editors
+- Sorting comparator flip logic: `NEWEST_FIRST` now correctly reverses order, `OLDEST_FIRST` preserves natural ascending order
+- Race condition in `triggerUpdates` where concurrent file updates would cancel each other's timeouts
+- Memory leak by cleaning up React roots when files are renamed or deleted (both `updateInfluxInPreview` and `handlePreviewMode`)
+- Stale React root reuse in InfluxWidget by using container as WeakMap key
+- Cascading failures in `Promise.all` by adding error handling for individual file processing with user warning
+- Invalid regex patterns causing repeated error logging by caching sentinel values
+- Undefined `titleLineNum` by using nullish coalescing for explicit initialization
+- Inefficient DOM query in `cleanupReactRoots` by using direct child selector
+- Missing cleanup in `asyncViewPlugin.destroy()` by cancelling debounced callback
+- Empty document check to use exact equality (`=== 0`) for clarity
+- Editing mode not displaying Influx widget due to strict state equality check blocking decoration updates
+- Settings access in `ApiAdapter.getSettings()` - changed from broken `app.plugins.plugins.influx.data.settings` path to direct `plugin.data.settings` access
+- Initialization order in `onload()` - moved `loadDataInitially()` before stylesheet creation to ensure settings are available
+- PreviewManager creating duplicate ApiAdapter instances - now reuses `plugin.api` for consistency and caching benefits
 - Race conditions in StatefulDecorationSet where updates dispatched to destroyed editors
 - Added multiple validation checkpoints to prevent operations on unloaded plugin or destroyed editors
 - Sorting comparator flip logic: `NEWEST_FIRST` now correctly reverses order, `OLDEST_FIRST` preserves natural ascending order
