@@ -233,10 +233,22 @@ export class ApiAdapter extends Component {
                     this.renderMarkdown(inlinkingFile.summary),
                 ])
 
-                // Optimize string processing: remove p tags, then clean up any remaining underscores
+                // Optimize string processing: remove p and heading tags, then clean up any remaining underscores
                 const titleInnerHTML = titleAsMd.innerHTML
-                    .replace(/<\/?p[^>]*>/g, '')  // Remove <p>, </p> tags
-                    .replace(/^_/, '')            // Remove leading underscore (now at start after p tag removal)
+                    .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
+                    .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
+                    .replace(/^_/, '')            // Remove leading underscore (now at start after tag removal)
+                    .trim()                    // Remove leading/trailing whitespace
+ 
+                // Also clean summary HTML to remove unwanted p and heading tags
+                summaryAsMd.innerHTML = summaryAsMd.innerHTML
+                    .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
+                    .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
+                    .replace(/\n(Heading \d+|H\d+)\n/g, '$1')  // Remove newlines around bare heading text
+                    .replace(/\n<(?:p|h[1-6])/gi, '<$1')  // Remove newlines before <p> and <h1-h6> tags
+                    .replace(/(?:<\/(?:p|h[1-6])>\n)/gi, '$1>')  // Remove newlines after </p> and </h1-h6> tags
+                    .replace(/(>)(\n+)(<)/gi, '$1$3')  // Remove newlines between tags
+                    .trim()                    // Remove leading/trailing whitespace
 
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,

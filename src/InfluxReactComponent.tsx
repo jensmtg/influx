@@ -202,17 +202,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												style={inlinkedCollapsed ? { display: 'none' }
 													: centered ? { flexGrow: 1 } : {}
 												}>
-													<div className="">
 
 														<div className="influx-entries" >
 															{entryHeader}
-															<div
-																dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
-																className={`influx-entry ${preview ? 'is-preview' : ''}`}
-															/>
+																<div
+																	dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
+																	className={`influx-entry ${preview ? 'is-preview' : ''}`}
+																/>
 														</div>
 													</div>
-											</div>
 
 
 										</div>

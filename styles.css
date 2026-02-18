@@ -65,26 +65,32 @@ body.is-readable-line-width .influx-preview-wrapper {
 
 .influx-entry {
     --checkbox-size: var(--influx-font-size, 13px);
-    padding-bottom: var(--influx-line-height, 19.5px) !important;
+    /* padding-bottom: var(--influx-line-height, 19.5px) !important; */
 
     & input[type=checkbox] {
         margin-top: calc(-1 * var(--influx-line-height, 19.5px));
     }
 
-    & li, & h1, & ul, & input, & blockquote, & p, & .callout, & .callout-title, & ol {
-        margin-block-end: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+    & ul {
+        margin-top: 0;
+        padding-inline-start: 20px;
     }
 
-    & li:nth-child(1) {
-        margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+    & li h1, & li h2, & li h3, & li h4, & li h5, & li h6 {
+        display: inline-block;
     }
+}
+
+    /* & li:nth-child(1) {
+        margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+    } */
 
     & li h1, & li h2, & li h3, & li h4, & li h5, & li h6 {
         display: inline-block;
     }
 
     & ul {
-        margin-top: 0;
+        /* margin-top: 0; */
         padding-inline-start: 20px;
     }
 
