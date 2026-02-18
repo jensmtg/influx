@@ -123,16 +123,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					</div>
 
-
-					<div className="search-input-container" style={{ display: "none" }}>
-						<input type="search" spellCheck="false" placeholder="Type to start search...">
-
-						</input>
-						<div className="search-input-clear-button" aria-label="Clear search" style={{ display: "none" }}>
-						</div>
-					</div>
-
-
 					<div className="backlink-pane">
 
 						<div
