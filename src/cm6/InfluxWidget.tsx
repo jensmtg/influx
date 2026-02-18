@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { CONSTANTS } from '../constants';
 import { rootManager } from '../react/RootManager';
+import type ObsidianInflux from '../main';
 
 try {
     customElements.define(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY, class extends HTMLElement {
@@ -23,6 +24,7 @@ catch (e) {
 interface InfluxWidgetSpec {
     influxFile: InfluxFile;
     show: boolean;
+    plugin: ObsidianInflux;
     side?: number;
 }
 
@@ -30,11 +32,13 @@ interface InfluxWidgetSpec {
 export class InfluxWidget extends WidgetType {
     protected influxFile
     protected show
+    protected plugin
 
-    constructor({ influxFile, show }: InfluxWidgetSpec) {
+    constructor({ influxFile, show, plugin }: InfluxWidgetSpec) {
         super()
         this.influxFile = influxFile
         this.show = show
+        this.plugin = plugin
 
     }
 
@@ -70,7 +74,7 @@ export class InfluxWidget extends WidgetType {
                 key={this.influxFile.file?.path || 'influx'}
                 influxFile={this.influxFile}
                 preview={false}
-                sheet={this.influxFile.influx.stylesheet}
+                plugin={this.plugin}
             />);
         }
         else {

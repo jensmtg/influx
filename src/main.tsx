@@ -6,7 +6,6 @@ import InfluxReactComponent from './InfluxReactComponent';
 import * as React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
-import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 import { EditorView } from '@codemirror/view';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from './types';
 import { CONSTANTS } from './constants';
@@ -16,8 +15,6 @@ import { updateCoordinator } from './utils/UpdateCoordinator';
 import { influxUpdates$ } from './utils/Observable';
 import { EventManager } from './managers/EventManager';
 import { PreviewManager } from './managers/PreviewManager';
-import jss from 'jss';
-import preset from 'jss-preset-default';
 
 // Extend global Window interface for test function
 declare global {
@@ -39,41 +36,9 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 };
 
 
-// Debug helper to inspect JSS stylesheets in DOM
-function inspectStylesheets() {
-	const styleElements = document.querySelectorAll('style[data-jss]');
-	logger.debug('=== JSS Stylesheets in DOM ===');
-	logger.debug(`Total count: ${styleElements.length}`, { count: styleElements.length });
-
-	styleElements.forEach((el, index) => {
-		const content = el.textContent;
-		const influxRules = content?.match(/\.inlinked/g)?.length || 0;
-		logger.debug(`[${index}] ${influxRules} influx rules, ${content?.length || 0} chars`, { index, influxRules, contentLength: content?.length || 0 });
-		if (influxRules > 0) {
-			logger.debug('  Sample:', { sample: content?.substring(0, 200) });
-		}
-	});
-
-	// Count unique class names
-	const allElements = document.querySelectorAll('[class*="inlinked"]');
-	const classNames = new Set<string>();
-	allElements.forEach(el => {
-		el.classList.forEach(cls => {
-			if (cls.includes('inlinked')) {
-				classNames.add(cls);
-			}
-		});
-	});
-	logger.debug(`Unique influx class names in use: ${classNames.size}`, { count: classNames.size });
-	Array.from(classNames).forEach(cls => logger.debug('  -', { className: cls }));
-}
-
-
 export default class ObsidianInflux extends Plugin {
 
 	updating: Map<string, number> = new Map();
-	stylesheet: StyleSheetType;
-	stylesheetForPreview: StyleSheetType;
 	api: ApiAdapter;
 	data: Data;
 	// Track file hashes to avoid unnecessary re-renders
@@ -85,14 +50,10 @@ export default class ObsidianInflux extends Plugin {
 	async onload(): Promise<void> {
 		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
 
-		jss.setup(preset());
-
 		this.migrateOldElements();
 
 		this.api = new ApiAdapter(this.app, this);
 		this.data = await this.loadDataInitially();
-		this.stylesheet = createStyleSheet(this.api);
-		this.stylesheetForPreview = createStyleSheet(this.api, true);
 
 		// CRITICAL: Set window plugin reference BEFORE registering editor extension
 		// This prevents race condition where CodeMirror extension initializes
@@ -114,7 +75,6 @@ export default class ObsidianInflux extends Plugin {
 		// Expose debug functions to browser console
 		if (CONSTANTS.DEBUG_MODE) {
 			(window as any).influxDebug = {
-				inspectStylesheets,
 				getReactRoots: () => ({
 					size: rootManager.size,
 					entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
@@ -124,10 +84,6 @@ export default class ObsidianInflux extends Plugin {
 						type: info.type,
 						filePath: info.filePath
 					}))
-				}),
-				getStylesheets: () => ({
-					main: this.stylesheet?.attached,
-					preview: this.stylesheetForPreview?.attached
 				})
 			};
 			logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
@@ -221,13 +177,6 @@ export default class ObsidianInflux extends Plugin {
 		// Cancel all pending update operations
 		updateCoordinator.unload();
 
-		// Detach stylesheets to prevent DOM leaks
-		if (this.stylesheet) {
-			this.stylesheet.detach();
-		}
-		if (this.stylesheetForPreview) {
-			this.stylesheetForPreview.detach();
-		}
 		// Clean up all React roots on plugin unload
 		rootManager.unmountAll();
 		this.previewFileHashes.clear();
@@ -245,37 +194,14 @@ export default class ObsidianInflux extends Plugin {
 		updateCoordinator.schedule(id, op, file?.path, async (signal) => {
 			if (signal.aborted) return;
 
-			// Only regenerate stylesheets when settings change, not on every update
-			// This prevents JSS from creating duplicate class names like .inlinkedEntries-0-0-35
-			const shouldRegenerateStylesheet = op === 'save-settings';
-			if (shouldRegenerateStylesheet) {
-				if (signal.aborted) return;
-
-				// Detach old stylesheet before creating a new one to prevent duplicates
-				if (this.stylesheet) {
-					logger.debug('[triggerUpdates] Detaching old stylesheet');
-					this.stylesheet.detach();
-				}
-				logger.debug('[triggerUpdates] Creating new stylesheet');
-				this.stylesheet = createStyleSheet(this.api)
-				logger.debug('[triggerUpdates] Stylesheet attached, classes:', { classes: Object.keys(this.stylesheet.classes) });
-			}
-
-			if (signal.aborted) return;
-
 			// Notify components via observable
 			await influxUpdates$.notify({
 				op,
-				stylesheet: this.stylesheet,
 				file: file instanceof TFile ? file : undefined
 			});
 
 			if (!signal.aborted && op !== 'modify') {
 				await this.previewManager.updateAllPreviews();
-			}
-
-			if (!signal.aborted && CONSTANTS.DEBUG_MODE) {
-				inspectStylesheets();
 			}
 		}).catch(e => {
 			// Error already logged by coordinator

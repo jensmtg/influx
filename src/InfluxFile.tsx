@@ -1,7 +1,6 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
-import ObsidianInflux from './main';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from './utils/logger';
 
@@ -9,7 +8,6 @@ import { logger } from './utils/logger';
 export default class InfluxFile {
     uuid: string;
     api: ApiAdapter;
-    influx: ObsidianInflux;
     file: TFile;
     meta: CachedMetadata;
     backlinks: BacklinksObject;
@@ -23,16 +21,15 @@ export default class InfluxFile {
      * Async factory method to create and initialize an InfluxFile.
      * This prevents blocking operations in the constructor.
      */
-    static async create(path: string, apiAdapter: ApiAdapter, influx: ObsidianInflux): Promise<InfluxFile> {
-        const influxFile = new InfluxFile(path, apiAdapter, influx);
+    static async create(path: string, apiAdapter: ApiAdapter): Promise<InfluxFile> {
+        const influxFile = new InfluxFile(path, apiAdapter);
         await influxFile.initialize();
         return influxFile;
     }
 
-    private constructor(path: string, apiAdapter: ApiAdapter, influx: ObsidianInflux) {
+    private constructor(path: string, apiAdapter: ApiAdapter) {
         this.uuid = uuidv4()
         this.api = apiAdapter
-        this.influx = influx
         this.file = this.api.getFileByPath(path)
         // Initialize with default values
         this.show = false

@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Consolidated CSS management - replaced JSS with vanilla CSS
+- Removed JSS dependencies: `jss`, `jss-preset-default`, `react-jss`, `@types/jss`
 - Replaced dual React root systems (Map in main.tsx, WeakMap in InfluxWidget.tsx) with unified RootManager
 - Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
 - Replaced string-keyed component callbacks registry with Observable pattern for type-safe updates
@@ -46,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- JSS stylesheet creation system (`src/createStyleSheet.tsx`)
 - Dead code: delay show callback system, timer setup, and associated methods
 - Dead code cleanup in `src/InfluxReactComponent.tsx`:
 - Unused export from `src/link-utils.ts`:
@@ -104,6 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings access in `ApiAdapter.getSettings()` - changed from broken `app.plugins.plugins.influx.data.settings` path to direct `plugin.data.settings` access
 - Initialization order in `onload()` - moved `loadDataInitially()` before stylesheet creation to ensure settings are available
 - PreviewManager creating duplicate ApiAdapter instances - now reuses `plugin.api` for consistency and caching benefits
+- CSS management complexity - consolidated all JSS styles into `styles.css`
 
 ## [2.3.1] - 2025-01-30
 

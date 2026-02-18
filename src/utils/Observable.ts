@@ -1,5 +1,4 @@
 import { logger } from './logger';
-import { StyleSheetType } from '../createStyleSheet';
 import { TFile } from 'obsidian';
 
 export type Observer<T> = (data: T) => void | Promise<void>;
@@ -61,9 +60,9 @@ export class Observable<T> {
 // Typed update events
 export interface InfluxUpdateEvent {
 	op: string;
-	stylesheet: StyleSheetType;
 	file?: TFile;
 }
 
 // Singleton observables
 export const influxUpdates$ = new Observable<InfluxUpdateEvent>();
+

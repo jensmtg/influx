@@ -30,13 +30,13 @@ export class StatefulDecorationSet {
         // Reuse plugin's api instance instead of creating new one (preserves cache)
         const apiAdapter = plugin.api
 
-        const influxFile = await InfluxFile.create(file.path, apiAdapter, plugin)
+        const influxFile = await InfluxFile.create(file.path, apiAdapter)
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 
         const decorations: Range<Decoration>[] = []
         if (show && influxFile.show) {
-            const settings = influxFile.influx.data.settings;
+            const settings = plugin.data.settings;
 
             // Determine anchor position based on influxAtTopOfPage setting
             let anchorPosition: number;
@@ -53,7 +53,7 @@ export class StatefulDecorationSet {
                 side = -1; // Before the position (places it at the end of the content)
             }
 
-            decorations.push(influxDecoration({ influxFile, show: influxFile.show, side }).range(anchorPosition))
+            decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin, side }).range(anchorPosition))
         }
 
         return Decoration.set(decorations, true);

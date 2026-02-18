@@ -23,3 +23,145 @@ body.is-readable-line-width .influx-preview-wrapper {
     0% { opacity: 0; }
     100% { opacity: 1; }
 }
+
+/* Influx Component Styles */
+.influx-component {
+    margin-top: 3em;
+}
+
+.influx-entries {
+    font-size: var(--influx-font-size, 13px);
+    line-height: var(--influx-line-height, 19.5px);
+    width: var(--file-line-width, 100%);
+    max-width: 100%;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    padding-left: 1rem;
+
+    & h1 {
+        margin-top: 0;
+        margin-bottom: 0;
+        font-size: var(--influx-font-size, 13px);
+        line-height: var(--influx-line-height, 19.5px);
+    }
+
+    & h2 {
+        margin-top: 0;
+        margin-bottom: 0;
+        font-size: var(--influx-font-size, 13px);
+        line-height: var(--influx-line-height, 19.5px);
+    }
+
+    & h3 {
+        font-size: var(--influx-font-size, 13px);
+        line-height: var(--influx-line-height, 19.5px);
+    }
+
+    & mark {
+        background-color: var(--text-highlight-bg);
+    }
+}
+
+.influx-entry {
+    --checkbox-size: var(--influx-font-size, 13px);
+    padding-bottom: var(--influx-line-height, 19.5px) !important;
+
+    & input[type=checkbox] {
+        margin-top: calc(-1 * var(--influx-line-height, 19.5px));
+    }
+
+    & li, & h1, & ul, & input, & blockquote, & p, & .callout, & .callout-title, & ol {
+        margin-block-end: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+    }
+
+    & li:nth-child(1) {
+        margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+    }
+
+    & li h1, & li h2, & li h3, & li h4, & li h5, & li h6 {
+        display: inline-block;
+    }
+
+    & ul {
+        margin-top: 0;
+        padding-inline-start: 20px;
+    }
+
+    & p {
+        padding-inline-start: 0;
+        margin-block-start: auto;
+    }
+
+    & li p {
+        margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+    }
+
+    & blockquote {
+        border-left: var(--blockquote-border-thickness) solid;
+        border-left-color: var(--blockquote-border-color);
+        margin-block-start: 0;
+        padding-inline-start: calc(var(--influx-line-height, 19.5px) / 2);
+        margin-inline-start: 0;
+        margin-inline-end: 0;
+
+        & p {
+            margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
+        }
+    }
+
+    & .callout {
+        margin-top: 6px !important;
+        margin-left: 1em !important;
+        margin-right: 1em !important;
+        padding-top: var(--size-4-1);
+        padding-bottom: var(--size-4-1);
+        padding-right: var(--size-4-1);
+        padding-left: var(--size-4-2);
+    }
+
+    &> .callout {
+        margin-left: 0px !important;
+    }
+
+    & .callout-icon {
+        width: 0;
+    }
+
+    & span[data-callout-title] {
+        background-color: rgba(var(--callout-color), 0.1);
+        border-radius: 4px;
+        padding-left: 3px;
+        padding-right: 3px;
+        padding-top: 1px;
+        padding-bottom: 1px;
+        border-left-width: 3px;
+        border-top-left-radius: 2px;
+        border-bottom-left-radius: 2px;
+
+        & span[data-callout-title-text] {
+            color: rgba(var(--callout-color), 0.9);
+        }
+    }
+
+    & a[class=tag] {
+        vertical-align: unset !important;
+    }
+}
+
+/* Preview mode overrides */
+.influx-entry.is-preview {
+    padding-bottom: 0 !important;
+
+    & li, & h1, & ul, & input, & blockquote, & p, & .callout, & .callout-title, & ol, & p, & ul {
+        margin-block-end: 0 !important;
+    }
+
+    & li:nth-child(1) {
+        margin-block-start: 0 !important;
+    }
+
+    & li p, & blockquote p {
+        margin-block-start: 0 !important;
+    }
+}

@@ -6,7 +6,6 @@ import { logger } from '../utils/logger';
 import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../InfluxReactComponent';
 import { createRoot, Root } from 'react-dom/client';
-import { StyleSheetType } from '../createStyleSheet';
 import * as React from 'react';
 import type ObsidianInflux from '../main';
 
@@ -57,7 +56,7 @@ export class PreviewManager {
 			}
 			this.plugin.updating.set(filePath, now);
 
-			return this.updatePreview(leaf, this.plugin.stylesheetForPreview)
+			return this.updatePreview(leaf)
 				.finally(() => {
 					this.plugin.updating.delete(filePath);
 				});
@@ -66,7 +65,7 @@ export class PreviewManager {
 		await Promise.all(updatePromises);
 	}
 
-	async updatePreview(leaf: WorkspaceLeaf, stylesheetOverride?: StyleSheetType): Promise<void> {
+	async updatePreview(leaf: WorkspaceLeaf): Promise<void> {
 		const influxLeaf = leaf as InfluxWorkspaceLeaf;
 		const container: HTMLDivElement = influxLeaf.containerEl;
 
@@ -76,8 +75,6 @@ export class PreviewManager {
 			logger.warn('No preview found for leaf');
 			return;
 		}
-
-		const stylesheet = stylesheetOverride || this.plugin.stylesheetForPreview;
 
 		const apiAdapter = this.plugin.api;
 		const path = influxLeaf.view?.file?.path;
@@ -96,7 +93,7 @@ export class PreviewManager {
 			return;
 		}
 
-		const influxFile = await InfluxFile.create(path, apiAdapter, this.plugin);
+		const influxFile = await InfluxFile.create(path, apiAdapter);
 		await influxFile.makeInfluxList();
 		await influxFile.renderAllMarkdownBlocks();
 
@@ -145,7 +142,7 @@ export class PreviewManager {
 		}
 
 		anchor.render(
-			<InfluxReactComponent influxFile={influxFile} preview={true} sheet={stylesheet} />
+			<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
 		);
 	}
 
@@ -160,8 +157,6 @@ export class PreviewManager {
 		}
 
 		logger.debug('[handlePreviewMode] Processing file:', { filePath });
-
-		const stylesheet = this.plugin.stylesheetForPreview;
 
 		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
 		logger.debug('[handlePreviewMode] Found existing wrappers:', { count: existingInflux.length });
@@ -183,7 +178,7 @@ export class PreviewManager {
 
 		try {
 			// Use plugin's apiAdapter to preserve cache and ensure settings are available
-			const influxFile = await InfluxFile.create(filePath, this.plugin.api, this.plugin);
+			const influxFile = await InfluxFile.create(filePath, this.plugin.api);
 			await influxFile.makeInfluxList();
 			await influxFile.renderAllMarkdownBlocks();
 
@@ -208,7 +203,7 @@ export class PreviewManager {
 			const anchor = createRoot(influxContainer);
 			rootManager.register(influxContainer, anchor, 'preview', filePath);
 			anchor.render(
-				<InfluxReactComponent influxFile={influxFile} preview={true} sheet={stylesheet} />
+				<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
 			);
 		} catch (error) {
 			logger.error('Failed to render in preview mode', {

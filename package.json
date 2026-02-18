@@ -24,7 +24,6 @@
 		"@babel/core": "^7.28.6",
 		"@babel/preset-env": "^7.28.6",
 		"@types/jest": "^30.0.0",
-		"@types/jss": "^9.5.8",
 		"@types/node": "^25.0.10",
 		"@types/react": "^19.2.9",
 		"@types/react-dom": "^19.2.3",
@@ -44,10 +43,8 @@
 		"@codemirror/view": "6.38.6",
 		"docsify-cli": "5.0.0-rc.3",
 		"jest": "^30.2.0",
-		"jss-preset-default": "^10.10.0",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
-		"react-jss": "^10.10.0",
 		"ts-jest": "^29.4.6",
 		"uuid": "^13.0.0"
 	}

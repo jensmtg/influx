@@ -3,25 +3,24 @@ import InfluxFile from './InfluxFile';
 import { ExtendedInlinkingFile } from './apiAdapter';
 import { ObsidianInfluxSettings } from "./types";
 import { TFile } from "obsidian";
-import { StyleSheetType } from "./createStyleSheet";
 import { CONSTANTS } from './constants';
 import { influxUpdates$, InfluxUpdateEvent } from './utils/Observable';
 import { CollapsedStateManager } from './utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './components/InfluxErrorBoundary';
+import type ObsidianInflux from './main';
 
 
-interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
+interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
 
 	const {
 		influxFile,
 		preview = false,
-		sheet,
+		plugin,
 	} = props
 
 	const [components, setComponents] = React.useState(influxFile.components)
-	const [stylesheet, setStyleSheet] = React.useState(sheet)
 	const [collapsedManager] = React.useState(() =>
 		new CollapsedStateManager(
 			influxFile.collapsed ? components.map(c => c.inlinkingFile.file.path) : []
@@ -58,7 +57,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 				return
 			}
 
-			setStyleSheet(event.stylesheet)
 			await current.makeInfluxList()
 			if (abortController.signal.aborted) return
 			setComponents(await current.renderAllMarkdownBlocks())
@@ -72,27 +70,30 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		}
 	}, [influxFile.uuid])
 
-	const classes = stylesheet.classes
-
 	// const length = influxFile?.inlinkingFiles.length || 0
 	const shownLength = influxFile?.components.length || 0
 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
 
 	const centered = settings.variant !== 'ROWS'
+	const fontSize = settings.fontSize || 13
+	const lineHeight = fontSize * 1.5
 
 	if (!influxFile.show || shownLength === 0) {
 		return null
 	}
-	
+
 	return (
 		<InfluxErrorBoundary>
 			<React.Fragment>
 
-				<div className={`embedded-backlinks ${classes.influxComponent}`}
-				style={{
-					animation: 'fadeIn .6s'
-				}}
+				<div
+					className="embedded-backlinks influx-component"
+					style={{
+						animation: 'fadeIn .6s',
+						'--influx-font-size': `${fontSize}px`,
+						'--influx-line-height': `${lineHeight}px`
+					} as React.CSSProperties}
 				>
 
 					<div className="nav-header">
@@ -113,7 +114,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							</div>
 							<div className="clickable-icon nav-action-button"
 								aria-label="Change sort order"
-								onClick={() => influxFile.influx.toggleSortOrder()}
+								onClick={() => plugin.toggleSortOrder()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-sort-asc">
 									<path d="M11 5h4">
@@ -201,16 +202,16 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												style={inlinkedCollapsed ? { display: 'none' }
 													: centered ? { flexGrow: 1 } : {}
 												}>
-												<div className="">
+													<div className="">
 
-													<div className={classes.inlinkedEntries} >
-														{entryHeader}
-														<div
+														<div className="influx-entries" >
+															{entryHeader}
+															<div
 																dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
-																className={classes.inlinkedEntry}
+																className={`influx-entry ${preview ? 'is-preview' : ''}`}
 															/>
+														</div>
 													</div>
-												</div>
 											</div>
 
 
@@ -230,10 +231,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 				</div>
 
-
-				<style
-					dangerouslySetInnerHTML={{ __html: stylesheet.toString() }}
-				/>
 
 			</React.Fragment>
 		</InfluxErrorBoundary>
