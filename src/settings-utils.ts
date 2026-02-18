@@ -5,6 +5,8 @@
 
 import { LinkCache } from 'obsidian';
 
+export { compareLinkName } from './link-utils';
+
 export interface ValidationResult {
     valid: string[];
     invalid: string[];
@@ -173,24 +175,6 @@ export function createFileComparator(
         if (aTime > bTime) return 1 * flip;
         return 0;
     };
-}
-
-/**
- * Compares a link's name with a basename for matching.
- * Extracts link name (removes extension, references) and compares case-insensitively.
- *
- * @param link - LinkCache object to compare
- * @param basename - Basename to match against
- * @returns true if link name matches basename (case-insensitive)
- */
-export function compareLinkName(link: LinkCache, basename: string): boolean {
-    // Extract filename from path (handles multi-folder paths)
-    const filenameOnly = link.link.split("/").slice(-1)[0];
-
-    // Strip block references, heading references, and .md extension
-    const linkname = filenameOnly.split(/[#^]/)[0].split(".md")[0];
-
-    return linkname.toLowerCase() === basename.toLowerCase();
 }
 
 /**

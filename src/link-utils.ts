@@ -29,8 +29,7 @@ export function extractLinkName(link: LinkCache): string {
  */
 export function compareLinkName(link: LinkCache, basename: string): boolean {
     const linkName = extractLinkName(link);
-    // Normalize both sides for case-insensitive comparison
-    return linkName.toLowerCase() === basename.toLowerCase();
+    return linkName === basename.toLowerCase();
 }
 
 /**

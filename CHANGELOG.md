@@ -61,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type safety: Replaced `any` types with proper imports using `import type` in EventManager and PreviewManager
 - Access modifiers: Made `cleanupFileHash`, `cleanupReactRoots`, and `previewFileHashes` accessible to manager classes
 - Performance: JSS setup now called once at plugin load instead of on every stylesheet creation
+- Code quality: Removed duplicate `compareLinkName` function - now re-exported from link-utils.ts
+- Code quality: `renderAllMarkdownBlocks` now explicitly returns empty array when `show` is false
 - Memory leaks from window references not being cleaned up on plugin unload
 - Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
 - Silent error suppression with proper error logging throughout codebase

@@ -122,18 +122,13 @@ export default class InfluxFile {
             });
         }
     }
-    async renderAllMarkdownBlocks() {
-
-        // Avoid rendering if no-show
+    async renderAllMarkdownBlocks(): Promise<ExtendedInlinkingFile[]> {
         if (!this.show) {
-            return
+            return [];
         }
 
         const components = await this.api.renderAllMarkdownBlocks(this.inlinkingFiles)
         this.components = components
         return components
     }
-
-
 }
-
