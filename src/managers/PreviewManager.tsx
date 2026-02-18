@@ -1,13 +1,14 @@
-import { WorkspaceLeaf, View, TFile, Plugin } from 'obsidian';
+import { WorkspaceLeaf, View, TFile, MarkdownPostProcessorContext } from 'obsidian';
 import { ApiAdapter } from '../apiAdapter';
 import { ObsidianInfluxSettings } from '../types';
 import { rootManager } from '../react/RootManager';
 import { logger } from '../utils/logger';
 import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../InfluxReactComponent';
-import { createRoot } from 'react-dom/client';
+import { createRoot, Root } from 'react-dom/client';
 import { StyleSheetType } from '../createStyleSheet';
 import * as React from 'react';
+import type ObsidianInflux from '../main';
 
 type InfluxView = View & {
 	file?: TFile;
@@ -20,11 +21,9 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 	containerEl: HTMLDivElement;
 };
 
-type ObsidianInfluxPlugin = any;
-
 export class PreviewManager {
 	constructor(
-		private plugin: ObsidianInfluxPlugin,
+		private plugin: ObsidianInflux,
 		private apiAdapter: ApiAdapter,
 		private previewFileHashes: Map<string, string>
 	) {}
@@ -101,7 +100,7 @@ export class PreviewManager {
 
 		this.plugin.previewFileHashes.set(path, fileHash);
 
-		let anchor: any;
+		let anchor: Root | undefined;
 
 		if (existingContainer) {
 			const info = rootManager.get(existingContainer);
@@ -148,7 +147,7 @@ export class PreviewManager {
 		);
 	}
 
-	async handlePreviewMode(element: HTMLElement, context: any): Promise<void> {
+	async handlePreviewMode(element: HTMLElement, context: MarkdownPostProcessorContext): Promise<void> {
 		if (!element.classList.contains('markdown-preview-view')) {
 			return;
 		}

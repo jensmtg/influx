@@ -118,7 +118,7 @@ export class ApiAdapter extends Component {
             settings = { ...DEFAULT_SETTINGS, ...this.plugin.data.settings };
         } else {
             logger.warn('Plugin settings not found, using defaults');
-            settings = DEFAULT_SETTINGS as ObsidianInfluxSettings;
+            settings = DEFAULT_SETTINGS;
         }
 
         // Ensure we have a complete settings object

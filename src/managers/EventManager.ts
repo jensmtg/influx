@@ -1,9 +1,8 @@
-import { Plugin, TAbstractFile, TFile } from 'obsidian';
-
-type ObsidianInfluxPlugin = any;
+import { TAbstractFile, TFile } from 'obsidian';
+import type ObsidianInflux from '../main';
 
 export class EventManager {
-	constructor(private plugin: ObsidianInfluxPlugin) {}
+	constructor(private plugin: ObsidianInflux) {}
 
 	register(): void {
 		this.plugin.registerEvent(

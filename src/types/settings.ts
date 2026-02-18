@@ -21,7 +21,7 @@ export interface ObsidianInfluxSettings {
 	frontmatterProperties: string[];
 }
 
-export const DEFAULT_SETTINGS: Partial<ObsidianInfluxSettings> = {
+export const DEFAULT_SETTINGS: ObsidianInfluxSettings = {
 	liveUpdate: true,
 	sortingPrinciple: 'NEWEST_FIRST',
 	sortingAttribute: 'ctime',

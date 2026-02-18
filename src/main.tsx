@@ -76,7 +76,7 @@ export default class ObsidianInflux extends Plugin {
 	api: ApiAdapter;
 	data: Data;
 	// Track file hashes to avoid unnecessary re-renders
-	private previewFileHashes: Map<string, string> = new Map();
+	previewFileHashes: Map<string, string> = new Map();
 
 	private eventManager: EventManager;
 	private previewManager: PreviewManager;
@@ -179,7 +179,7 @@ export default class ObsidianInflux extends Plugin {
 	 * Cleanup React roots for containers that are no longer in DOM or are in hidden elements.
 	 * This prevents memory leaks and overlapping elements when switching modes.
 	 */
-	private cleanupReactRoots(): void {
+	cleanupReactRoots(): void {
 		// Clean up stale roots using rootManager
 		rootManager.cleanupStale();
 
@@ -211,7 +211,7 @@ export default class ObsidianInflux extends Plugin {
 	 * Cleanup file hash for a specific file path.
 	 * Call this when files are deleted, renamed, or moved.
 	 */
-	private cleanupFileHash(filePath: string): void {
+	cleanupFileHash(filePath: string): void {
 		this.previewFileHashes.delete(filePath);
 		this.cleanupFileReactRoots(filePath);
 	}
