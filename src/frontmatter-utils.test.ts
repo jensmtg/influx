@@ -2,7 +2,7 @@
 // These test the actual pure functions extracted from ApiAdapter
 
 import { FrontmatterLinkCache, LinkCache } from 'obsidian';
-import { ObsidianInfluxSettings } from './types';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from './types';
 import {
     validateFrontmatterProperties,
     shouldIncludeFrontmatterLinks,
@@ -26,19 +26,11 @@ const createTestBacklinks = (data: Map<string, LinkCache[]> | Record<string, Lin
     return { data };
 };
 
-const createTestSettings = (settings: Partial<ObsidianInfluxSettings> = {}): ObsidianInfluxSettings => {
+const createTestSettings = (overrides: Partial<ObsidianInfluxSettings> = {}): ObsidianInfluxSettings => {
     return {
-        liveUpdate: true,
-        sortingPrinciple: "NEWEST_FIRST",
-        sortingAttribute: "ctime",
-        showBehaviour: "OPT_OUT",
-        exclusionPattern: [],
-        includePaths: [],
-        excludePaths: [],
-        includeFrontmatterLinks: false,
-        frontmatterProperties: [],
-        ...settings
-    } as ObsidianInfluxSettings;
+        ...DEFAULT_SETTINGS,
+        ...overrides
+    };
 };
 
 describe('Frontmatter Utils', () => {

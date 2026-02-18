@@ -75,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Removed redundant double-spread of DEFAULT_SETTINGS in ApiAdapter.getSettings()
+- Fixed test helper in frontmatter-utils.test.ts to use actual DEFAULT_SETTINGS instead of incomplete mock
 - Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
 - Silent error suppression with proper error logging throughout codebase
 - Stale stylesheet references by capturing at call time instead of render time
