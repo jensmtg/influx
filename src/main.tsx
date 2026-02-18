@@ -8,7 +8,7 @@ import { createRoot, Root } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
 import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 import { EditorView } from '@codemirror/view';
-import { ObsidianInfluxSettings, DEFAULT_SETTINGS, ComponentCallback, Data } from './types';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from './types';
 import { CONSTANTS } from './constants';
 import { logger } from './utils/logger';
 import { rootManager } from './react/RootManager';
@@ -71,7 +71,6 @@ function inspectStylesheets() {
 
 export default class ObsidianInflux extends Plugin {
 
-	componentCallbacks: { [key: string]: ComponentCallback };
 	updating: Map<string, number> = new Map();
 	stylesheet: StyleSheetType;
 	stylesheetForPreview: StyleSheetType;
@@ -90,7 +89,6 @@ export default class ObsidianInflux extends Plugin {
 
 		this.migrateOldElements();
 
-		this.componentCallbacks = {};
 		this.api = new ApiAdapter(this.app, this);
 		this.data = await this.loadDataInitially();
 		this.stylesheet = createStyleSheet(this.api);
@@ -238,18 +236,6 @@ export default class ObsidianInflux extends Plugin {
 		delete (window as any).influxPlugin;
 		delete (window as any).influxDebug;
 		delete (window as any).testInfluxReadingView;
-	}
-
-	registerInfluxComponent(id: string, callback: ComponentCallback) {
-		if (!(id in this.componentCallbacks)) {
-			this.componentCallbacks[id] = callback
-		}
-	}
-
-	deregisterInfluxComponent(id: string) {
-		if (id in this.componentCallbacks) {
-			delete this.componentCallbacks[id]
-		}
 	}
 
 	triggerUpdates(op: string, file?: TAbstractFile) {

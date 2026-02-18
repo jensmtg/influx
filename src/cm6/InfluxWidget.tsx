@@ -84,18 +84,11 @@ export class InfluxWidget extends WidgetType {
 
             // Unmount React root to prevent memory leaks
             rootManager.unmount(container);
-            // Deregister the influx component
-            this.unmount(this.influxFile);
         };
 
         container.addEventListener("disconnected", disconnectedHandler)
 
         return container
-    }
-
-
-    unmount(influxFile: InfluxFile) {
-        this.influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
     }
 }
 

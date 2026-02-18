@@ -121,8 +121,7 @@ export class ApiAdapter extends Component {
             settings = DEFAULT_SETTINGS;
         }
 
-        // Ensure we have a complete settings object
-        this.settingsCache = { ...DEFAULT_SETTINGS, ...settings } as ObsidianInfluxSettings;
+        this.settingsCache = settings;
         // Pre-compile all regex patterns to eliminate JIT overhead on critical path
         this.preCompileRegexPatterns(this.settingsCache);
         return this.settingsCache;

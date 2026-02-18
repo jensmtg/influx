@@ -39,7 +39,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const toggleAll = () => {
 		const allPaths = components.map(c => c.inlinkingFile.file.path)
-		collapsedManager.toggleAll(allPaths)
+		const nowAllCollapsed = collapsedManager.toggleAll(allPaths)
+		setToggleAllToOpen(nowAllCollapsed)
 	}
 
 	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)

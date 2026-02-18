@@ -13,9 +13,7 @@ export class InlinkingFile {
     content: string;
     title: string;
     titleLineNum: number;
-    nodeLookup: { [key: string]: number[] }; // find node by lineNum
     contextFile: InfluxFile;
-    contextSummaries: string[]
     isLinkInTitle: boolean;
     summary: string;
 

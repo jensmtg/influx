@@ -1,5 +1,6 @@
 import ObsidianInflux from './main';
 import { App, PluginSettingTab, Setting } from "obsidian";
+import { logger } from './utils/logger';
 
 export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
@@ -198,7 +199,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.exclusionPattern = patterns.split('\n');
                     this.saveSettings().catch(err => {
-                        console.error('Failed to save settings', { error: err });
+                        logger.error('Failed to save settings', { error: err });
                     });
                 };
             });
@@ -226,7 +227,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.inclusionPattern = patterns.split('\n');
                     this.saveSettings().catch(err => {
-                        console.error('Failed to save settings', { error: err });
+                        logger.error('Failed to save settings', { error: err });
                     });
                 };
             });
@@ -275,7 +276,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.sourceExclusionPattern = patterns.split('\n');
                     this.saveSettings().catch(err => {
-                        console.error('Failed to save settings', { error: err });
+                        logger.error('Failed to save settings', { error: err });
                     });
                 };
             });
@@ -303,7 +304,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.sourceInclusionPattern = patterns.split('\n');
                     this.saveSettings().catch(err => {
-                        console.error('Failed to save settings', { error: err });
+                        logger.error('Failed to save settings', { error: err });
                     });
                 };
             });
@@ -334,7 +335,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     const patterns = (e.target as HTMLInputElement).value;
                     this.plugin.data.settings.collapsedPattern = patterns.split('\n');
                     this.saveSettings().catch(err => {
-                        console.error('Failed to save settings', { error: err });
+                        logger.error('Failed to save settings', { error: err });
                     });
                 };
             });
@@ -414,7 +415,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     }
                     
                     this.saveSettings().catch(err => {
-                        console.error('Failed to save settings', { error: err });
+                        logger.error('Failed to save settings', { error: err });
                     });
                 };
             });

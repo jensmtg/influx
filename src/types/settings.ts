@@ -1,6 +1,3 @@
-import { TFile } from 'obsidian';
-import { StyleSheetType } from '../createStyleSheet';
-
 export interface ObsidianInfluxSettings {
 	liveUpdate: boolean;
 	sortingPrinciple: 'NEWEST_FIRST' | 'OLDEST_FIRST';
@@ -40,8 +37,6 @@ export const DEFAULT_SETTINGS: ObsidianInfluxSettings = {
 	includeFrontmatterLinks: false,
 	frontmatterProperties: [],
 };
-
-export type ComponentCallback = (op: string, stylesheet: StyleSheetType, file?: TFile) => void;
 
 export interface Data {
 	settings: ObsidianInfluxSettings;
