@@ -103,6 +103,12 @@ body.is-readable-line-width .influx-preview-wrapper {
         margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
     }
 
+    & li.has-bare-heading {
+        font-weight: var(--font-semibold, var(--font-bold, 600));
+        /* margin-block-end: var(--spacing-m, 12px); */
+        /* font-size: var(--font-ui-medium, var(--font-text-size)); */
+    }
+
     & blockquote {
         border-left: var(--blockquote-border-thickness) solid;
         border-left-color: var(--blockquote-border-color);

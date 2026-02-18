@@ -244,7 +244,7 @@ export class ApiAdapter extends Component {
                 summaryAsMd.innerHTML = summaryAsMd.innerHTML
                     .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
                     .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
-                    .replace(/\n(Heading \d+|H\d+)\n/g, '$1')  // Remove newlines around bare heading text
+                    .replace(/\n(Heading \d+|H\d+)\n/g, '\n<li class="has-bare-heading">$1</li>\n')  // Mark bare heading list items with class
                     .replace(/\n<(?:p|h[1-6])/gi, '<$1')  // Remove newlines before <p> and <h1-h6> tags
                     .replace(/(?:<\/(?:p|h[1-6])>\n)/gi, '$1>')  // Remove newlines after </p> and </h1-h6> tags
                     .replace(/(>)(\n+)(<)/gi, '$1$3')  // Remove newlines between tags
