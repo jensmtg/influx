@@ -77,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance in EventManager - early return in `handleModify()` when liveUpdate is disabled
 - Error handling in PreviewManager - replaced throws with `logger.warn()` for missing preview and path
 - Grammar in settings description - "changes in a note is" to "changes in a note are"
+- Headers nested inside list items breaking to new line - set `display: inline-block` for `li > h1-h6` selectors
 
 ### Changed
 

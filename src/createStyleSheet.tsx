@@ -92,11 +92,15 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                         marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
                     },
 
-                    '& li:nth-child(1)': {
-                        marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
-                    },
+					'& li:nth-child(1)': {
+						marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+					},
 
-                    '& ul': {
+					'& li h1, & li h2, & li h3, & li h4, & li h5, & li h6': {
+						display: 'inline-block',
+					},
+
+					'& ul': {
                         marginTop: `${0}px`,
                         paddingInlineStart: `${20}px`,
                         marginBlockEnd: props.preview ? `0px !important` : '',
