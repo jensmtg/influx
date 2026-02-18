@@ -44,21 +44,29 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
 
+	const influxFileRef = React.useRef(influxFile)
+	influxFileRef.current = influxFile
+
 	React.useEffect(() => {
+		const abortController = new AbortController()
 
 		const handleUpdate = async (event: InfluxUpdateEvent) => {
-			if (event.op === 'modify' && !influxFile.shouldUpdate(event.file)) {
+			const current = influxFileRef.current
+			if (abortController.signal.aborted) return
+			if (event.op === 'modify' && !current.shouldUpdate(event.file)) {
 				return
 			}
 
 			setStyleSheet(event.stylesheet)
-			await influxFile.makeInfluxList()
-			setComponents(await influxFile.renderAllMarkdownBlocks())
+			await current.makeInfluxList()
+			if (abortController.signal.aborted) return
+			setComponents(await current.renderAllMarkdownBlocks())
 		}
 
 		const unsubscribe = influxUpdates$.subscribe(influxFile.uuid, handleUpdate)
 
 		return () => {
+			abortController.abort()
 			unsubscribe()
 		}
 	}, [influxFile.uuid])

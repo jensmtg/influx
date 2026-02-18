@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code quality: Removed duplicate `compareLinkName` function - now re-exported from link-utils.ts
 - Code quality: `renderAllMarkdownBlocks` now explicitly returns empty array when `show` is false
 - Dead code: Removed hidden non-functional search input from InfluxReactComponent
+- React: useEffect now uses ref pattern to access current influxFile without stale closures
+- React: Added AbortController to prevent state updates on unmounted components during async operations
 - Memory leaks from window references not being cleaned up on plugin unload
 - Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
 - Silent error suppression with proper error logging throughout codebase
