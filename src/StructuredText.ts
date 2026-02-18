@@ -128,15 +128,15 @@ export class StructuredText {
 
 
             let stripped = ''
-            let type: NodeType
+            let type: NodeType = NodeType.Other
             let indent = 0
             const debug: any = {}
-            let isQuotedBullet: boolean;
-            let isFirstOfMode: boolean;
-            let ordinal: number;
-            let tr: null | { cols: number, isDivider: boolean };
-            let cols: number;
-            let headerId: string
+            let isQuotedBullet: boolean = false
+            let isFirstOfMode: boolean = false
+            let ordinal: number | undefined
+            let tr: null | { cols: number, isDivider: boolean } = null
+            let cols: number = 0
+            let headerId: string = ''
 
 
             if (i === 0 && line.substring(0, 3) === FRONTMATTER_SIGN) {

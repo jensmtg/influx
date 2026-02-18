@@ -59,6 +59,9 @@ export default class InfluxFile {
 
     // is the file that triggers update part of the current files inlinked files?
     shouldUpdate(file: TFile) {
+        if (!this.file) {
+            return false;
+        }
         this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
         if (!this.backlinks || !this.backlinks.data) {
             return false
@@ -77,6 +80,10 @@ export default class InfluxFile {
     }
 
     async makeInfluxList() {
+        if (!this.file) {
+            this.inlinkingFiles = [];
+            return;
+        }
         this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
         const inlinkingFilesNew: InlinkingFile[] = []
         if (!this.backlinks || !this.backlinks.data) {

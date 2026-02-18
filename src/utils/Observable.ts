@@ -24,25 +24,29 @@ export class Observable<T> {
 
 		this.isNotifying = true;
 		try {
-			const promises: Promise<void>[] = [];
-
-			for (const [id, observer] of this.observers) {
-				try {
-					const result = observer(data);
-					if (result instanceof Promise) {
-						promises.push(result.catch(e => {
-							logger.error('Observer failed', { id, error: e });
-						}));
-					}
-				} catch (e) {
-					logger.error('Observer failed synchronously', { id, error: e });
-				}
-			}
-
-			await Promise.all(promises);
+			await this.notifyObservers(data);
 		} finally {
 			this.isNotifying = false;
 		}
+	}
+
+	private async notifyObservers(data: T): Promise<void> {
+		const promises: Promise<void>[] = [];
+
+		for (const [id, observer] of this.observers) {
+			try {
+				const result = observer(data);
+				if (result instanceof Promise) {
+					promises.push(result.catch(e => {
+						logger.error('Observer failed', { id, error: e });
+					}));
+				}
+			} catch (e) {
+				logger.error('Observer failed synchronously', { id, error: e });
+			}
+		}
+
+		await Promise.all(promises);
 	}
 
 	unsubscribeAll(): void {

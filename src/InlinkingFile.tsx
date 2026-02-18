@@ -2,8 +2,7 @@ import { TFile, CachedMetadata } from 'obsidian';
 import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
 import { StructuredText } from './StructuredText';
-
-const FRONTMATTER_KEY = 'influx-title' // Unexposed feature to show frontmatter value as title for clipping.
+import { CONSTANTS } from './constants';
 
 
 export class InlinkingFile {
@@ -12,7 +11,7 @@ export class InlinkingFile {
     meta: CachedMetadata;
     content: string;
     title: string;
-    titleLineNum: number;
+    titleLineNum: number | undefined;
     contextFile: InfluxFile;
     isLinkInTitle: boolean;
     summary: string;
@@ -54,7 +53,7 @@ export class InlinkingFile {
     }
 
     setTitle() {
-        const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[FRONTMATTER_KEY] : null
+        const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && CONSTANTS.FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[CONSTANTS.FRONTMATTER_KEY] : null
         const titleByFirstHeader = this.meta.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
         // Explicitly set to undefined if no position data available

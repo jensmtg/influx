@@ -71,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - React: Fixed toggle all button aria-label to correctly update after clicking
 - Consistency: Settings tab now uses logger utility instead of console.error
 - Memory leaks from window references not being cleaned up on plugin unload
+- Null reference risks in InfluxFile - added early return guards when file is unavailable in `shouldUpdate()` and `makeInfluxList()`
+- Type safety in InlinkingFile - `titleLineNum` now typed as `number | undefined` instead of `number`
+- Type safety in StructuredText - initialized all local variables to fix TypeScript implicit any errors
+- Performance in EventManager - early return in `handleModify()` when liveUpdate is disabled
+- Error handling in PreviewManager - replaced throws with `logger.warn()` for missing preview and path
+- Grammar in settings description - "changes in a note is" to "changes in a note are"
 
 ### Changed
 

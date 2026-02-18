@@ -73,7 +73,8 @@ export class PreviewManager {
 		const previewDiv = container.querySelector('.markdown-preview-view');
 
 		if (!previewDiv) {
-			throw new Error('No preview found');
+			logger.warn('No preview found for leaf');
+			return;
 		}
 
 		const stylesheet = stylesheetOverride || this.plugin.stylesheetForPreview;
@@ -81,7 +82,8 @@ export class PreviewManager {
 		const apiAdapter = this.plugin.api;
 		const path = influxLeaf.view?.file?.path;
 		if (!path) {
-			throw new Error('No file path found');
+			logger.warn('No file path found for preview');
+			return;
 		}
 
 		const existingContainer = previewDiv.querySelector(

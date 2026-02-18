@@ -23,6 +23,9 @@ export class EventManager {
 	}
 
 	private handleModify(file: TAbstractFile): void {
+		if (!this.plugin.data.settings.liveUpdate) {
+			return;
+		}
 		if (file instanceof TFile) {
 			this.plugin.api.invalidateFileCache(file.path);
 		}
