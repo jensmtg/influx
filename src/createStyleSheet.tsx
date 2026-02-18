@@ -1,5 +1,4 @@
 import jss, { StyleSheet } from 'jss'
-import preset from 'jss-preset-default'
 import { ObsidianInfluxSettings } from "./types";
 import { ApiAdapter } from './apiAdapter';
 
@@ -37,9 +36,6 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
         largeLineHeight: sizing + sizing / 2, // sizing + 4,
         preview: preview,
     }
-
-
-    jss.setup(preset())
 
     const sheet = jss
         .createStyleSheet(

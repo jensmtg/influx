@@ -16,6 +16,8 @@ import { updateCoordinator } from './utils/UpdateCoordinator';
 import { influxUpdates$ } from './utils/Observable';
 import { EventManager } from './managers/EventManager';
 import { PreviewManager } from './managers/PreviewManager';
+import jss from 'jss';
+import preset from 'jss-preset-default';
 
 // Extend global Window interface for test function
 declare global {
@@ -84,7 +86,8 @@ export default class ObsidianInflux extends Plugin {
 	async onload(): Promise<void> {
 		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
 
-		// Migrate old Influx elements from previous plugin versions
+		jss.setup(preset());
+
 		this.migrateOldElements();
 
 		this.componentCallbacks = {};
