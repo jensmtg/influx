@@ -122,14 +122,19 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	toggleSortOrder() {
-		const newOrder = this.data.settings.sortingPrinciple === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST'
+		const oldOrder = this.data.settings.sortingPrinciple;
+		const newOrder = oldOrder === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST';
+		logger.debug('Toggle sort order', { oldOrder, newOrder });
 		this.data.settings.sortingPrinciple = newOrder;
-		this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder })
+		this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder });
 	}
 
 	async saveSettingsByParams(settings: ObsidianInfluxSettings) {
+		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
 		await this.saveData({ ...this.data, settings: settings });
-		this.triggerUpdates('save-settings')
+		this.api.invalidateSettingsCache();
+		this.triggerUpdates('save-settings');
+		logger.debug('Settings saved and cache invalidated');
 	}
 
 	/**

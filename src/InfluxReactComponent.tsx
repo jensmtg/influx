@@ -8,6 +8,7 @@ import { influxUpdates$, InfluxUpdateEvent } from './utils/Observable';
 import { CollapsedStateManager } from './utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './components/InfluxErrorBoundary';
 import type ObsidianInflux from './main';
+import { logger } from './utils/logger';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
@@ -51,6 +52,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		const abortController = new AbortController()
 
 		const handleUpdate = async (event: InfluxUpdateEvent) => {
+			logger.debug('React component received update', { op: event.op, file: event.file?.path });
 			const current = influxFileRef.current
 			if (abortController.signal.aborted) return
 			if (event.op === 'modify' && !current.shouldUpdate(event.file)) {
@@ -59,7 +61,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 			await current.makeInfluxList()
 			if (abortController.signal.aborted) return
-			setComponents(await current.renderAllMarkdownBlocks())
+			const newComponents = await current.renderAllMarkdownBlocks();
+			logger.debug('Setting new components', { count: newComponents.length });
+			setComponents(newComponents);
 		}
 
 		const unsubscribe = influxUpdates$.subscribe(influxFile.uuid, handleUpdate)

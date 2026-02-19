@@ -109,9 +109,11 @@ export class ApiAdapter extends Component {
     getSettings(): ObsidianInfluxSettings {
         // Return cached settings to reduce property access overhead
         if (this.settingsCache) {
+            logger.debug('Returning cached settings', { sortingPrinciple: this.settingsCache.sortingPrinciple });
             return this.settingsCache;
         }
 
+        logger.debug('Cache miss, loading settings');
         // Access settings directly from plugin instance
         let settings: ObsidianInfluxSettings;
         if (this.plugin?.data?.settings) {
@@ -217,6 +219,10 @@ export class ApiAdapter extends Component {
     /** A sort function to order notes correctly, based on settings. */
     makeComparisonFn(): (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1 {
         const settings = this.getSettings();
+        logger.debug('Creating comparison function', {
+            attribute: settings.sortingAttribute,
+            principle: settings.sortingPrinciple
+        });
         // Use extracted pure function for file comparison
         return createInlinkingFileComparator(settings) as (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1;
     }
