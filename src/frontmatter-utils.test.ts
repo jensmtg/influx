@@ -409,14 +409,14 @@ describe('Frontmatter Utils', () => {
             expect((result.data as Record<string, LinkCache[]>)?.['File A']?.[0].position.start.line).toBe(5);
         });
 
-        test('should filter out links with undefined position when frontmatter link exists', () => {
+        test('should delete source from Map when all links are filtered out (undefined position)', () => {
             // Arrange
             const backlinks = createTestBacklinks(new Map([
                 ['File A', [
                     { link: 'File A' } as LinkCache // Undefined position
                 ]]
             ]));
-            
+
             // Mock metadata with frontmatter link
             mockGetMetadata.mockReturnValue({
                 frontmatterLinks: [
@@ -427,8 +427,9 @@ describe('Frontmatter Utils', () => {
             // Act
             const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
 
-            // Assert
-            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(0);
+            // Assert - key should be deleted entirely when all links filtered
+            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toBeUndefined();
+            expect((result.data as Map<string, LinkCache[]>)?.size).toBe(0);
         });
 
         test('should not filter links from body even at line 0-2 when not in frontmatter', () => {
