@@ -1,7 +1,7 @@
 // Unit tests for front matter utility functions
 // These test the actual pure functions extracted from ApiAdapter
 
-import { FrontmatterLinkCache, LinkCache } from 'obsidian';
+import { FrontmatterLinkCache, LinkCache, CachedMetadata } from 'obsidian';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from './types';
 import {
     validateFrontmatterProperties,
@@ -9,7 +9,8 @@ import {
     convertFrontmatterLinkToLinkCache,
     filterFrontmatterLinks,
     mergeConvertedLinksIntoBacklinks,
-    processFrontmatterLinks
+    processFrontmatterLinks,
+    filterFrontmatterLinksFromBacklinks
 } from './frontmatter-utils';
 
 // Helper functions for creating test data
@@ -354,6 +355,132 @@ describe('Frontmatter Utils', () => {
                 const result = processFrontmatterLinks(backlinks, null as any, settings);
                 expect(result).toBe(backlinks); // Should return unchanged
             }).not.toThrow();
+        });
+    });
+
+    describe('filterFrontmatterLinksFromBacklinks', () => {
+        const mockGetMetadata = jest.fn().mockReturnValue(null);
+
+        test('should filter out frontmatter links from Map backlinks', () => {
+            // Arrange
+            const backlinks = createTestBacklinks(new Map([
+                ['File A', [
+                    { link: 'File A', position: { start: { line: 5, col: 0, offset: 100 }, end: { line: 5, col: 10, offset: 110 } } } as LinkCache,
+                    { link: 'File A', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 10, offset: 10 } } } as LinkCache
+                ]]
+            ]));
+            
+            // Mock metadata with frontmatter link
+            mockGetMetadata.mockReturnValue({
+                frontmatterLinks: [
+                    { link: 'File A', key: 'related', displayText: 'File A' } as FrontmatterLinkCache
+                ]
+            } as CachedMetadata);
+
+            // Act
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
+
+            // Assert
+            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(1);
+            expect((result.data as Map<string, LinkCache[]>)?.get('File A')?.[0].position.start.line).toBe(5);
+        });
+
+        test('should filter out frontmatter links from Object backlinks', () => {
+            // Arrange
+            const backlinks = createTestBacklinks({
+                'File A': [
+                    { link: 'File A', position: { start: { line: 5, col: 0, offset: 100 }, end: { line: 5, col: 10, offset: 110 } } } as LinkCache,
+                    { link: 'File A', position: { start: { line: 1, col: 0, offset: 50 }, end: { line: 1, col: 10, offset: 60 } } } as LinkCache
+                ]
+            } as { [key: string]: LinkCache[] });
+            
+            // Mock metadata with frontmatter link
+            mockGetMetadata.mockReturnValue({
+                frontmatterLinks: [
+                    { link: 'File A', key: 'related', displayText: 'File A' } as FrontmatterLinkCache
+                ]
+            } as CachedMetadata);
+
+            // Act
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
+
+            // Assert
+            expect((result.data as Record<string, LinkCache[]>)?.['File A']).toHaveLength(1);
+            expect((result.data as Record<string, LinkCache[]>)?.['File A']?.[0].position.start.line).toBe(5);
+        });
+
+        test('should filter out links with undefined position when frontmatter link exists', () => {
+            // Arrange
+            const backlinks = createTestBacklinks(new Map([
+                ['File A', [
+                    { link: 'File A' } as LinkCache // Undefined position
+                ]]
+            ]));
+            
+            // Mock metadata with frontmatter link
+            mockGetMetadata.mockReturnValue({
+                frontmatterLinks: [
+                    { link: 'File A', key: 'related', displayText: 'File A' } as FrontmatterLinkCache
+                ]
+            } as CachedMetadata);
+
+            // Act
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
+
+            // Assert
+            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(0);
+        });
+
+        test('should not filter links from body even at line 0-2 when not in frontmatter', () => {
+            // Arrange
+            const backlinks = createTestBacklinks(new Map([
+                ['File A', [
+                    { link: 'File A', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 10, offset: 10 } } } as LinkCache
+                ]]
+            ]));
+            
+            // Mock metadata without frontmatter links
+            mockGetMetadata.mockReturnValue({
+                frontmatterLinks: []
+            } as CachedMetadata);
+
+            // Act
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
+
+            // Assert
+            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(1);
+        });
+
+        test('should handle missing metadata gracefully', () => {
+            // Arrange
+            const backlinks = createTestBacklinks(new Map([
+                ['File A', [
+                    { link: 'File A', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 10, offset: 10 } } } as LinkCache
+                ]]
+            ]));
+            
+            // Mock returns null
+            mockGetMetadata.mockReturnValue(null);
+
+            // Act
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
+
+            // Assert - link should not be filtered when metadata is unavailable
+            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(1);
+        });
+
+        test('should handle null/undefined backlinks gracefully', () => {
+            // Act & Assert
+            expect(() => filterFrontmatterLinksFromBacklinks(null as any, 'File A', mockGetMetadata)).not.toThrow();
+            expect(() => filterFrontmatterLinksFromBacklinks(undefined as any, 'File A', mockGetMetadata)).not.toThrow();
+        });
+
+        test('should handle backlinks without data property', () => {
+            // Arrange
+            const backlinks = {} as any;
+
+            // Act & Assert - Should not throw
+            expect(() => filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata)).not.toThrow();
         });
     });
 });

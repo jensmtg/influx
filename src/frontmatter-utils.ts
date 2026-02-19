@@ -3,9 +3,10 @@
  * These functions are extracted from ApiAdapter to be easily testable
  */
 
-import { FrontmatterLinkCache, LinkCache } from 'obsidian';
+import { FrontmatterLinkCache, LinkCache, CachedMetadata } from 'obsidian';
 import { ObsidianInfluxSettings } from './types';
 import { logger } from './utils/logger';
+import { compareLinkName } from './link-utils';
 
 /**
  * Validates and filters front matter property names
@@ -99,6 +100,229 @@ export function mergeConvertedLinksIntoBacklinks(
             backlinks.data[linkCache.link].push(linkCache);
         }
     }
+}
+
+/**
+ * Checks if a specific link in a source file's backlinks came from frontmatter
+ * @param sourcePath - Path to the source file
+ * @param targetBasename - Basename of the target file (the file being linked to)
+ * @param linkPosition - Position of the link to check
+ * @param getMetadataFn - Function to get metadata for a file
+ * @returns true if the link is from frontmatter, false otherwise
+ */
+function isLinkFromFrontmatter(
+    sourcePath: string,
+    targetBasename: string,
+    linkPosition: { start: { line: number, col: number, offset: number }, end: { line: number, col: number, offset: number } },
+    getMetadataFn: (path: string) => CachedMetadata | null
+): boolean {
+    const metadata = getMetadataFn(sourcePath);
+    
+    logger.debug('isLinkFromFrontmatter checking', {
+        sourcePath,
+        targetBasename,
+        linkPosition,
+        hasMetadata: !!metadata,
+        hasFrontmatterLinks: !!(metadata?.frontmatterLinks),
+        frontmatterLinksCount: metadata?.frontmatterLinks?.length || 0,
+        frontmatterLinks: metadata?.frontmatterLinks?.map(fml => ({ link: fml.link, key: fml.key }))
+    });
+
+    if (!metadata?.frontmatterLinks || !Array.isArray(metadata.frontmatterLinks)) {
+        return false;
+    }
+
+    // Check if any frontmatter link matches the target
+    for (const fmLink of metadata.frontmatterLinks) {
+        // Create a minimal LinkCache-like object for comparison
+        // FrontmatterLinkCache has 'link' property, which is all we need for compareLinkName
+        const tempLinkCache = { link: fmLink.link } as LinkCache;
+        
+        logger.debug('Checking frontmatter link against target', {
+            fmLinkLink: fmLink.link,
+            fmLinkKey: fmLink.key,
+            targetBasename,
+            linkPositionStartLine: linkPosition?.start?.line,
+            isMatch: compareLinkName(tempLinkCache, targetBasename)
+        });
+        
+        // Use compareLinkName for robust link matching (handles paths, extensions, case-insensitivity)
+        if (compareLinkName(tempLinkCache, targetBasename)) {
+            // If position is undefined, assume it's from frontmatter (conservative filtering)
+            if (linkPosition?.start?.line === undefined) {
+                logger.debug('MATCH: Link identified as frontmatter link (undefined position)', {
+                    sourcePath,
+                    targetBasename,
+                    linkPosition,
+                    fmLinkMatched: fmLink.link
+                });
+                return true;
+            }
+            
+            // If position is defined and near start of file (lines 0-2), it's frontmatter
+            if (linkPosition.start.line >= 0 && linkPosition.start.line <= 2) {
+                logger.debug('MATCH: Link identified as frontmatter link (position 0-2)', {
+                    sourcePath,
+                    targetBasename,
+                    linkPosition,
+                    fmLinkMatched: fmLink.link
+                });
+                return true;
+            }
+        }
+    }
+
+    logger.debug('NO MATCH: No frontmatter link matched', {
+        sourcePath,
+        targetBasename,
+        linkPosition
+    });
+    return false;
+}
+
+/**
+ * Removes front matter links from backlinks by checking source file metadata
+ * This correctly identifies frontmatter links even when Obsidian's getBacklinksForFile
+ * includes them with their real positions (not sentinel -1 values)
+ */
+export function filterFrontmatterLinksFromBacklinks(
+    backlinks: { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> },
+    targetBasename: string,
+    getMetadataFn: (path: string) => CachedMetadata | null
+): { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> } {
+    logger.debug('filterFrontmatterLinksFromBacklinks called', {
+        targetBasename,
+        hasBacklinks: !!backlinks,
+        hasData: !!backlinks?.data,
+        dataType: backlinks?.data instanceof Map ? 'Map' : 'Object'
+    });
+
+    if (!backlinks?.data) {
+        return backlinks;
+    }
+
+    let linksRemoved = 0;
+    let totalOriginalLinks = 0;
+
+    if (backlinks.data instanceof Map) {
+        const dataMap = backlinks.data as Map<string, LinkCache[]>;
+        const initialSize = dataMap.size;
+        logger.debug('Processing Map backlinks', {
+            entryCount: initialSize
+        });
+        for (const [sourcePath, links] of dataMap.entries()) {
+            logger.debug('Processing source file links', {
+                sourcePath,
+                linkCount: links.length,
+                linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
+            });
+            const originalCount = links.length;
+            const filtered = links.filter((link: LinkCache) => {
+                const shouldFilterOut = isLinkFromFrontmatter(sourcePath, targetBasename, link.position, getMetadataFn);
+                logger.debug('Filter decision for individual link', {
+                    sourcePath,
+                    linkName: link.link,
+                    linkPosition: link.position,
+                    shouldFilterOut
+                });
+                return !shouldFilterOut;
+            });
+            
+            logger.debug('Filter result for source', {
+                sourcePath,
+                originalCount,
+                filteredCount: filtered.length,
+                willUpdate: filtered.length !== originalCount
+            });
+            
+            if (filtered.length !== originalCount) {
+                if (filtered.length === 0) {
+                    // All links were filtered out - DELETE the key entirely
+                    dataMap.delete(sourcePath);
+                    logger.debug('Deleted source from Map (all links filtered)', {
+                        sourcePath,
+                        originalCount,
+                        filteredCount: filtered.length,
+                        removed: originalCount - filtered.length
+                    });
+                } else {
+                    // Some links remain - UPDATE the key with filtered array
+                    dataMap.set(sourcePath, filtered);
+                    logger.debug('Updated Map with filtered links', {
+                        sourcePath,
+                        originalCount,
+                        filteredCount: filtered.length,
+                        removed: originalCount - filtered.length
+                    });
+                }
+                linksRemoved += originalCount - filtered.length;
+            }
+        }
+    } else {
+        const dataRecord = backlinks.data as Record<string, LinkCache[]>;
+        const initialEntries = Object.keys(dataRecord).length;
+        logger.debug('Processing Object backlinks', {
+            entryCount: initialEntries
+        });
+        for (const sourcePath in dataRecord) {
+            const links = dataRecord[sourcePath];
+            logger.debug('Processing source file links', {
+                sourcePath,
+                linkCount: links.length,
+                linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
+            });
+            const originalCount = links.length;
+            totalOriginalLinks += originalCount;
+            const filtered = links.filter((link: LinkCache) => {
+                const shouldFilterOut = isLinkFromFrontmatter(sourcePath, targetBasename, link.position, getMetadataFn);
+                logger.debug('Filter decision for individual link', {
+                    sourcePath,
+                    linkName: link.link,
+                    linkPosition: link.position,
+                    shouldFilterOut
+                });
+                return !shouldFilterOut;
+            });
+            if (filtered.length !== originalCount) {
+                if (filtered.length === 0) {
+                    // All links were filtered out - DELETE the key entirely
+                    delete dataRecord[sourcePath];
+                    logger.debug('Deleted source from Object (all links filtered)', {
+                        sourcePath,
+                        originalCount,
+                        filteredCount: filtered.length,
+                        removed: originalCount - filtered.length
+                    });
+                } else {
+                    // Some links remain - UPDATE the key with filtered array
+                    dataRecord[sourcePath] = filtered;
+                    logger.debug('Updated Object with filtered links', {
+                        sourcePath,
+                        originalCount,
+                        filteredCount: filtered.length,
+                        removed: originalCount - filtered.length
+                    });
+                }
+                linksRemoved += originalCount - filtered.length;
+            }
+        }
+    }
+    
+    // Calculate final size based on data structure type
+    const finalSize = backlinks.data instanceof Map 
+        ? (backlinks.data as Map<string, LinkCache[]>).size 
+        : Object.keys(backlinks.data as Record<string, LinkCache[]>).length;
+    
+    const initialSize = totalOriginalLinks;
+    
+    logger.debug(`FilterFrontmatterLinksFromBacklinks complete: Removed ${linksRemoved} front matter links`, {
+        targetBasename,
+        initialSize,
+        finalSize,
+        sizeChange: initialSize - finalSize
+    });
+
+    return backlinks;
 }
 
 /**

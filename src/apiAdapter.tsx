@@ -5,7 +5,8 @@ import ObsidianInflux from './main';
 import { logger } from './utils/logger';
 import {
     processFrontmatterLinks,
-    shouldIncludeFrontmatterLinks
+    shouldIncludeFrontmatterLinks,
+    filterFrontmatterLinksFromBacklinks
 } from './frontmatter-utils';
 import {
     compareLinkName,
@@ -72,26 +73,70 @@ export class ApiAdapter extends Component {
             return this.backlinksCache.get(cacheKey)!;
         }
 
+        // Get settings early to check frontmatter link preference
+        const settings = this.getSettings();
+
+        logger.debug('getBacklinks called', {
+            filePath: file.path,
+            basename: file.basename,
+            includeFrontmatterLinks: settings.includeFrontmatterLinks
+        });
+
         // Runtime check for getBacklinksForFile availability
         let backlinks: BacklinksObject;
         const metadataCache = this.app.metadataCache as any;
 
         if (typeof metadataCache?.getBacklinksForFile === 'function') {
             backlinks = metadataCache.getBacklinksForFile(file);
+            
+            // Log what we got back from Obsidian
+            logger.debug('Obsidian getBacklinksForFile result', {
+                filePath: file.path,
+                backlinksType: backlinks?.data instanceof Map ? 'Map' : 'Object',
+                entryCount: backlinks?.data instanceof Map ? backlinks.data.size : Object.keys(backlinks?.data || {}).length,
+                sampleEntries: backlinks?.data ? (
+                    backlinks.data instanceof Map 
+                        ? Array.from(backlinks.data.entries()).slice(0, 2).map(([path, links]) => ({
+                            path,
+                            linkCount: links.length,
+                            linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
+                        }))
+                        : Object.entries(backlinks.data).slice(0, 2).map(([path, links]) => ({
+                            path,
+                            linkCount: links.length,
+                            linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
+                        }))
+                ) : 'no data'
+            });
         } else {
             logger.warn('getBacklinksForFile not available, returning empty backlinks');
             backlinks = { data: new Map() };
         }
 
+        // Filter out frontmatter links if disabled
+        if (!settings.includeFrontmatterLinks) {
+            logger.debug('=== FRONTMATTER LINKS DISABLED - About to filter ===', { filePath: file.path });
+            filterFrontmatterLinksFromBacklinks(
+                backlinks,
+                file.basename,
+                (path: string) => this.getMetadata(this.getFileByPath(path)!)
+            );
+            
+            // Log result after filtering
+            logger.debug('=== AFTER FILTERING ===', {
+                filePath: file.path,
+                entryCount: backlinks?.data instanceof Map ? backlinks.data.size : Object.keys(backlinks?.data || {}).length
+            });
+        }
+
         const metadata = this.app.metadataCache.getFileCache(file);
 
-        // Process front matter links using the pure function pipeline
-        if (metadata?.frontmatterLinks && Array.isArray(metadata.frontmatterLinks)) {
+        // Process front matter links using the pure function pipeline (only if enabled)
+        if (metadata?.frontmatterLinks && Array.isArray(metadata.frontmatterLinks) && settings.includeFrontmatterLinks) {
             logger.debug('Processing frontmatter links', { 
                 count: metadata.frontmatterLinks.length,
                 filePath: file.path 
             });
-            const settings = this.getSettings();
             processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
         }
 
