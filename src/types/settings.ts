@@ -16,6 +16,7 @@ export interface ObsidianInfluxSettings {
 	influxAtTopOfPage: boolean;
 	includeFrontmatterLinks: boolean;
 	frontmatterProperties: string[];
+	requireInfluxFrontmatterKey: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianInfluxSettings = {
@@ -36,6 +37,7 @@ export const DEFAULT_SETTINGS: ObsidianInfluxSettings = {
 	influxAtTopOfPage: false,
 	includeFrontmatterLinks: false,
 	frontmatterProperties: [],
+	requireInfluxFrontmatterKey: false,
 };
 
 export interface Data {

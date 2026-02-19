@@ -3,7 +3,7 @@
  * Extracted from settings.tsx and apiAdapter.tsx for testability
  */
 
-import { LinkCache } from 'obsidian';
+import { LinkCache, CachedMetadata } from 'obsidian';
 
 export { compareLinkName } from './link-utils';
 
@@ -24,6 +24,21 @@ export interface FilterSettings {
     sourceInclusionPattern: string[];
     sourceExclusionPattern: string[];
     collapsedPattern: string[];
+    requireInfluxFrontmatterKey?: boolean;
+}
+
+/**
+ * Checks if a file has the 'influx' frontmatter key set to true.
+ *
+ * @param metadata - CachedMetadata for the file
+ * @returns true if 'influx: true' is present in frontmatter, false otherwise
+ */
+export function hasInfluxFrontmatterKey(metadata: CachedMetadata | null | undefined): boolean {
+    if (!metadata?.frontmatter) {
+        return false;
+    }
+    const influxValue = metadata.frontmatter.influx;
+    return influxValue === true;
 }
 
 /**
@@ -195,18 +210,20 @@ export function createInlinkingFileComparator(settings: {
  * Determines if Influx should be shown for a file based on show behaviour and pattern matching.
  * Supports dependency injection for custom pattern matching functions (e.g., with caching).
  *
- * @param filePath - Path of the file to check
+ * @param filePath - Path of file to check
  * @param settings - Filter settings containing show behaviour and patterns
  * @param patternMatcher - Optional custom pattern matching function (defaults to patternMatches)
+ * @param metadata - Optional file metadata to check for frontmatter key
  * @returns true if Influx should be shown, false otherwise
  */
 export function shouldShowInfluxWithMatcher(
     filePath: string,
     settings: FilterSettings,
-    patternMatcher?: (path: string, patterns: string[]) => boolean
+    patternMatcher?: (path: string, patterns: string[]) => boolean,
+    metadata?: CachedMetadata | null | undefined
 ): boolean {
     const matcher = patternMatcher || patternMatches;
-    return shouldShowInfluxWithMatcherImpl(filePath, settings, matcher);
+    return shouldShowInfluxWithMatcherImpl(filePath, settings, matcher, metadata);
 }
 
 /**
@@ -215,8 +232,14 @@ export function shouldShowInfluxWithMatcher(
 function shouldShowInfluxWithMatcherImpl(
     filePath: string,
     settings: FilterSettings,
-    patternMatcher: (path: string, patterns: string[]) => boolean
+    patternMatcher: (path: string, patterns: string[]) => boolean,
+    metadata?: CachedMetadata | null | undefined
 ): boolean {
+    // If frontmatter key is required, check that first (supersedes pattern matching)
+    if (settings.requireInfluxFrontmatterKey === true) {
+        return hasInfluxFrontmatterKey(metadata);
+    }
+
     const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern;
     const matched = patternMatcher(filePath, patterns);
 

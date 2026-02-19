@@ -158,6 +158,17 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
         containerEl.createEl('h2', { text: 'Target notes – in which pages should Influx be visible?' });
 
+        new Setting(containerEl)
+            .setName("Require frontmatter key")
+            .setDesc("Only show Influx on pages that have 'influx: true' in their frontmatter. When enabled, this setting overrides the pattern matching settings below.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.data.settings.requireInfluxFrontmatterKey)
+                    .onChange(async (value) => {
+                        this.plugin.data.settings.requireInfluxFrontmatterKey = value;
+                        await this.saveSettings()
+                    });
+            })
 
         new Setting(containerEl)
             .setName("Default behaviour")

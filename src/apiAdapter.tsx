@@ -226,8 +226,9 @@ export class ApiAdapter extends Component {
     /** For a given file, should Influx component be shown on it's page? */
     getShowStatus(file: TFile): boolean {
         const settings = this.getSettings();
+        const metadata = this.getMetadata(file);
         // Use extracted pure function with our cached pattern matcher
-        return shouldShowInfluxWithMatcher(file.path, settings as FilterSettings, this.patternMatchingFn);
+        return shouldShowInfluxWithMatcher(file.path, settings as FilterSettings, this.patternMatchingFn, metadata);
     }
     isIncludableSource(path: string): boolean {
         const settings = this.getSettings();
