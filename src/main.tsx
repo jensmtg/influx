@@ -129,6 +129,13 @@ export default class ObsidianInflux extends Plugin {
 		this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder });
 	}
 
+	toggleFrontmatterLinks() {
+		const newValue = !this.data.settings.includeFrontmatterLinks;
+		logger.debug('Toggle frontmatter links', { newValue });
+		this.data.settings.includeFrontmatterLinks = newValue;
+		this.saveSettingsByParams({ ...this.data.settings, "includeFrontmatterLinks": newValue });
+	}
+
 	async saveSettingsByParams(settings: ObsidianInfluxSettings) {
 		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
 		await this.saveData({ ...this.data, settings: settings });
