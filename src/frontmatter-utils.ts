@@ -111,30 +111,54 @@ export function processFrontmatterLinks(
     settings: ObsidianInfluxSettings
 ): { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> } {
     try {
+        logger.debug('processFrontmatterLinks started', {
+            includeFrontmatterLinks: settings.includeFrontmatterLinks,
+            frontmatterProperties: settings.frontmatterProperties,
+            frontmatterLinksCount: frontmatterLinks.length
+        });
+
         // Validate inputs
         if (!backlinks || !Array.isArray(frontmatterLinks)) {
+            logger.debug('Skipping frontmatter processing - invalid inputs', {
+                hasBacklinks: !!backlinks,
+                isArray: Array.isArray(frontmatterLinks)
+            });
             return backlinks;
         }
 
         // Check if front matter processing is enabled
         if (!shouldIncludeFrontmatterLinks(settings)) {
+            logger.debug('Skipping frontmatter processing - disabled in settings');
             return backlinks;
         }
 
         // Get and validate properties
         const validProperties = validateFrontmatterProperties(settings.frontmatterProperties);
-        
+        logger.debug('Validated frontmatter properties', { 
+            original: settings.frontmatterProperties,
+            valid: validProperties 
+        });
+
         // Filter links by properties
         const filteredLinks = filterFrontmatterLinks(frontmatterLinks, validProperties);
-        
+        logger.debug('Filtered frontmatter links', {
+            originalCount: frontmatterLinks.length,
+            filteredCount: filteredLinks.length
+        });
+
         // Convert to LinkCache format
         const convertedLinks = filteredLinks
             .map(link => convertFrontmatterLinkToLinkCache(link))
             .filter((link): link is LinkCache => link !== null);
-        
+
+        logger.debug('Converted frontmatter links', {
+            convertedCount: convertedLinks.length
+        });
+
         // Merge into backlinks
         mergeConvertedLinksIntoBacklinks(backlinks, convertedLinks);
-        
+
+        logger.debug('Frontmatter links merged successfully');
         return backlinks;
     } catch (error) {
         logger.error('Error in processFrontmatterLinks:', { error });

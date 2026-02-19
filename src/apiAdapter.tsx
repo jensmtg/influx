@@ -86,7 +86,11 @@ export class ApiAdapter extends Component {
         const metadata = this.app.metadataCache.getFileCache(file);
 
         // Process front matter links using the pure function pipeline
-        if (metadata?.frontmatterLinks) {
+        if (metadata?.frontmatterLinks && Array.isArray(metadata.frontmatterLinks)) {
+            logger.debug('Processing frontmatter links', { 
+                count: metadata.frontmatterLinks.length,
+                filePath: file.path 
+            });
             const settings = this.getSettings();
             processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
         }
@@ -243,18 +247,32 @@ export class ApiAdapter extends Component {
                 const titleInnerHTML = titleAsMd.innerHTML
                     .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
                     .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
+                    .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines from outline-style headings with space
                     .replace(/^_/, '')            // Remove leading underscore (now at start after tag removal)
                     .trim()                    // Remove leading/trailing whitespace
+
+                logger.debug('Processed title HTML', {
+                    original: titleAsMd.innerHTML,
+                    cleaned: titleInnerHTML
+                });
+
  
                 // Also clean summary HTML to remove unwanted p and heading tags
                 summaryAsMd.innerHTML = summaryAsMd.innerHTML
                     .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
                     .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
+                    .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines from outline-style headings with space
                     .replace(/\n(Heading \d+|H\d+)\n/g, '\n<li class="has-bare-heading">$1</li>\n')  // Mark bare heading list items with class
                     .replace(/\n<(?:p|h[1-6])/gi, '<$1')  // Remove newlines before <p> and <h1-h6> tags
                     .replace(/(?:<\/(?:p|h[1-6])>\n)/gi, '$1>')  // Remove newlines after </p> and </h1-h6> tags
                     .replace(/(>)(\n+)(<)/gi, '$1$3')  // Remove newlines between tags
                     .trim()                    // Remove leading/trailing whitespace
+
+                logger.debug('Processed summary HTML', {
+                    original: summaryAsMd.innerHTML,
+                    cleaned: summaryAsMd.innerHTML
+                });
+
 
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
