@@ -1,10 +1,11 @@
 // Unit tests for settings utility functions
 // Tests the actual pure functions extracted from settings.tsx and apiAdapter.tsx
 
-import { LinkCache } from 'obsidian';
+import { LinkCache, CachedMetadata } from 'obsidian';
 import {
     validateYamlPropertyNames,
     isValidYamlPropertyName,
+    hasInfluxFrontmatterKey,
     shouldShowInflux,
     isIncludableSource,
     shouldCollapseInflux,
@@ -234,6 +235,90 @@ describe('Settings Utils', () => {
             expect(isValidYamlPropertyName(123 as any)).toBe(false);
             expect(isValidYamlPropertyName({} as any)).toBe(false);
             expect(isValidYamlPropertyName([] as any)).toBe(false);
+        });
+    });
+
+    describe('hasInfluxFrontmatterKey', () => {
+        test('should return true when influx is true', () => {
+            // Arrange
+            const metadata = { frontmatter: { influx: true } } as CachedMetadata;
+
+            // Act
+            const result = hasInfluxFrontmatterKey(metadata);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return true when influx is "true" string', () => {
+            // Arrange
+            const metadata = { frontmatter: { influx: 'true' } } as CachedMetadata;
+
+            // Act
+            const result = hasInfluxFrontmatterKey(metadata);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should return false when influx is false', () => {
+            // Arrange
+            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
+
+            // Act
+            const result = hasInfluxFrontmatterKey(metadata);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false when influx is "false" string', () => {
+            // Arrange
+            const metadata = { frontmatter: { influx: 'false' } } as CachedMetadata;
+
+            // Act
+            const result = hasInfluxFrontmatterKey(metadata);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false when influx key is not present', () => {
+            // Arrange
+            const metadata = { frontmatter: { otherKey: true } } as CachedMetadata;
+
+            // Act
+            const result = hasInfluxFrontmatterKey(metadata);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false when frontmatter is null', () => {
+            // Arrange
+            const metadata = { frontmatter: null } as CachedMetadata;
+
+            // Act
+            const result = hasInfluxFrontmatterKey(metadata);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false when metadata is null', () => {
+            // Act
+            const result = hasInfluxFrontmatterKey(null);
+
+            // Assert
+            expect(result).toBe(false);
+        });
+
+        test('should return false when metadata is undefined', () => {
+            // Act
+            const result = hasInfluxFrontmatterKey(undefined);
+
+            // Assert
+            expect(result).toBe(false);
         });
     });
 
@@ -730,6 +815,96 @@ describe('Settings Utils', () => {
 
             // Assert
             expect(result).toBe(true); // OPT_OUT shows when not matched
+        });
+
+        test('should show when requireInfluxFrontmatterKey is true and influx: true in metadata', () => {
+            // Arrange
+            const metadata = { frontmatter: { influx: true } } as CachedMetadata;
+            const settings = createTestSettings({
+                requireInfluxFrontmatterKey: true
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, metadata);
+
+            // Assert - Should show because influx key is true
+            expect(result).toBe(true);
+        });
+
+        test('should hide when requireInfluxFrontmatterKey is true and influx is missing', () => {
+            // Arrange
+            const metadata = { frontmatter: { otherKey: true } } as CachedMetadata;
+            const settings = createTestSettings({
+                requireInfluxFrontmatterKey: true
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, metadata);
+
+            // Assert - Should hide because influx key is not present
+            expect(result).toBe(false);
+        });
+
+        test('should hide when requireInfluxFrontmatterKey is true and influx is false', () => {
+            // Arrange
+            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
+            const settings = createTestSettings({
+                requireInfluxFrontmatterKey: true
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, metadata);
+
+            // Assert - Should hide because influx key is false
+            expect(result).toBe(false);
+        });
+
+        test('should hide when requireInfluxFrontmatterKey is true and metadata is null', () => {
+            // Arrange
+            const settings = createTestSettings({
+                requireInfluxFrontmatterKey: true
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, null);
+
+            // Assert - Should hide because metadata is null
+            expect(result).toBe(false);
+        });
+
+        test('should use pattern matching when requireInfluxFrontmatterKey is false', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(false); // Pattern doesn't match
+            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
+            const settings = createTestSettings({
+                requireInfluxFrontmatterKey: false,
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher, metadata);
+
+            // Assert - Should use pattern matching (show because pattern doesn't match) even though influx is false
+            expect(mockMatcher).toHaveBeenCalledWith('/Notes/Test.md', ['/Journal/']);
+            expect(result).toBe(true);
+        });
+
+        test('should use pattern matching when requireInfluxFrontmatterKey is not set', () => {
+            // Arrange
+            const mockMatcher = jest.fn().mockReturnValue(false); // Pattern doesn't match
+            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
+            const settings = createTestSettings({
+                showBehaviour: 'OPT_OUT',
+                exclusionPattern: ['/Journal/']
+            });
+
+            // Act
+            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher, metadata);
+
+            // Assert - Should use pattern matching (show because pattern doesn't match) even though influx is false
+            expect(mockMatcher).toHaveBeenCalledWith('/Notes/Test.md', ['/Journal/']);
+            expect(result).toBe(true);
         });
     });
 

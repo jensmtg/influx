@@ -28,17 +28,17 @@ export interface FilterSettings {
 }
 
 /**
- * Checks if a file has the 'influx' frontmatter key set to true.
+ * Checks if a file has 'influx' frontmatter key set to true.
  *
- * @param metadata - CachedMetadata for the file
- * @returns true if 'influx: true' is present in frontmatter, false otherwise
+ * @param metadata - CachedMetadata for file
+ * @returns true if 'influx: true' is present in frontmatter (as boolean or string), false otherwise
  */
 export function hasInfluxFrontmatterKey(metadata: CachedMetadata | null | undefined): boolean {
     if (!metadata?.frontmatter) {
         return false;
     }
     const influxValue = metadata.frontmatter.influx;
-    return influxValue === true;
+    return influxValue === true || influxValue === 'true';
 }
 
 /**
