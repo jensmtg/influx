@@ -28,12 +28,15 @@
 		"@types/node": "^25.0.10",
 		"@types/react": "^19.2.9",
 		"@types/react-dom": "^19.2.3",
-		"@typescript-eslint/eslint-plugin": "^8.53.1",
-		"@typescript-eslint/parser": "^8.53.1",
+		"@typescript-eslint/eslint-plugin": "^8.56.0",
+		"@typescript-eslint/parser": "^8.56.0",
 		"babel-jest": "^30.2.0",
 		"builtin-modules": "^5.0.0",
 		"esbuild": "0.27.2",
+		"eslint": "^10.0.0",
+		"jest": "^30.2.0",
 		"obsidian": "latest",
+		"ts-jest": "^29.4.6",
 		"tslib": "2.8.1",
 		"typescript": "5.9.3"
 	},
@@ -43,10 +46,13 @@
 		"@codemirror/state": "6.5.0",
 		"@codemirror/view": "6.38.6",
 		"docsify-cli": "5.0.0-rc.3",
-		"jest": "^30.2.0",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
-		"ts-jest": "^29.4.6",
 		"uuid": "^13.0.0"
+	},
+	"overrides": {
+		"minimatch": "^10.2.1",
+		"ajv": "^8.18.0",
+		"glob": "^10.3.10"
 	}
 }
