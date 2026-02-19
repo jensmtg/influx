@@ -238,6 +238,10 @@ export class ApiAdapter extends Component {
     /** For a given file, should Influx component be shown as collapsed on it's page? */
     getCollapsedStatus(file: TFile): boolean {
         const settings = this.getSettings();
+        // Global setting takes precedence over pattern matching
+        if (settings.collapseAllByDefault) {
+            return true;
+        }
         // Use extracted pure function with our cached pattern matcher
         return shouldCollapseInfluxWithMatcher(file.path, settings as FilterSettings, this.patternMatchingFn);
     }

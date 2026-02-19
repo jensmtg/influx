@@ -321,8 +321,19 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             });
 
 
-
         containerEl.createEl('h2', { text: 'In which pages should Influx be collapsed by default?' });
+
+        new Setting(containerEl)
+            .setName("Collapse all by default")
+            .setDesc("Automatically collapse all backlink entries when opening a note. When enabled, this overrides the regex pattern settings below.")
+            .addToggle(toggle => {
+                toggle
+                    .setValue(this.plugin.data.settings.collapseAllByDefault)
+                    .onChange(async (value) => {
+                        this.plugin.data.settings.collapseAllByDefault = value;
+                        await this.saveSettings();
+                    });
+            })
 
         const collapseFragment = document.createDocumentFragment();
         collapseFragment.append('RegExp patterns for pathnames of notes where the list of backlinked clippings in the Influx component should be collapsed by default. ')

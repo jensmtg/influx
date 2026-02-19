@@ -215,20 +215,21 @@ export class PreviewManager {
 		}
 	}
 
-	private computeSettingsHash(): string {
-		const settings = this.plugin.data.settings;
-		logger.debug('Computing settings hash', {
-			settings: {
-				sortingPrinciple: settings.sortingPrinciple,
-				sortingAttribute: settings.sortingAttribute,
-				sourceBehaviour: settings.sourceBehaviour,
-				includeFrontmatterLinks: settings.includeFrontmatterLinks,
-				frontmatterProperties: settings.frontmatterProperties,
-				fontSize: settings.fontSize
-			}
-		});
-		const hashString = computeSettingsHash(settings);
-		logger.debug('Settings hash computed', { hash: hashString });
-		return hashString;
-	}
+    private computeSettingsHash(): string {
+        const settings = this.plugin.data.settings;
+        logger.debug('Computing settings hash', {
+            settings: {
+                sortingPrinciple: settings.sortingPrinciple,
+                sortingAttribute: settings.sortingAttribute,
+                sourceBehaviour: settings.sourceBehaviour,
+                includeFrontmatterLinks: settings.includeFrontmatterLinks,
+                frontmatterProperties: settings.frontmatterProperties,
+                fontSize: settings.fontSize,
+                collapseAllByDefault: settings.collapseAllByDefault
+            }
+        });
+        const hashString = computeSettingsHash(settings);
+        logger.debug('Settings hash computed', { hash: hashString });
+        return hashString;
+    }
 }
