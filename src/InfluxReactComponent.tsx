@@ -9,6 +9,7 @@ import { CollapsedStateManager } from './utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './components/InfluxErrorBoundary';
 import type ObsidianInflux from './main';
 import { logger } from './utils/logger';
+import { debounce } from './utils/debounce';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
@@ -28,6 +29,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		)
 	)
 	const [, forceUpdate] = React.useReducer(x => x + 1, 0)
+	const [searchQuery, setSearchQuery] = React.useState('')
+	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false)
+	const [isSearchFocused, setIsSearchFocused] = React.useState(false)
 
 	React.useEffect(() => {
 		return collapsedManager.subscribe(forceUpdate)
@@ -47,6 +51,45 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const influxFileRef = React.useRef(influxFile)
 	influxFileRef.current = influxFile
+
+	const filteredComponents = React.useMemo(() => {
+		if (!searchQuery.trim()) return components;
+
+		const query = searchQuery.toLowerCase().trim();
+		return components.filter((item: ExtendedInlinkingFile) => {
+			const basenameMatch = item.inlinkingFile.file.basename.toLowerCase().includes(query);
+
+			const titleText = item.titleInnerHTML.replace(/<[^>]*>/g, '').toLowerCase();
+			const titleMatch = titleText.includes(query);
+
+			const contentText = item.inner.innerHTML.replace(/<[^>]*>/g, '').toLowerCase();
+			const contentMatch = contentText.includes(query);
+
+			return basenameMatch || titleMatch || contentMatch;
+		});
+	}, [components, searchQuery]);
+
+	const handleSearchChange = debounce((value: string) => {
+		setSearchQuery(value);
+	}, 150);
+
+	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Escape') {
+			setSearchQuery('');
+			setIsSearchExpanded(false);
+		}
+	};
+
+	const toggleSearch = () => {
+		setIsSearchExpanded(!isSearchExpanded);
+		if (!isSearchExpanded) {
+			setIsSearchFocused(true);
+			setTimeout(() => {
+				const searchInput = document.querySelector('.influx-search-input') as HTMLInputElement;
+				searchInput?.focus();
+			}, 100);
+		}
+	};
 
 	React.useEffect(() => {
 		const abortController = new AbortController()
@@ -103,6 +146,42 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					<div className="nav-header">
 
 						<div className="nav-buttons-container">
+							<div className="clickable-icon nav-action-button"
+								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
+								onClick={toggleSearch}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-search">
+									<circle cx="11" cy="11" r="8"></circle>
+									<path d="m21 21-4.3-4.3"></path>
+								</svg>
+							</div>
+							{isSearchExpanded && (
+								<div className={`search-input-wrapper ${isSearchFocused ? 'is-focused' : ''}`}>
+									<input
+										type="text"
+										className="influx-search-input"
+										placeholder="Search backlinks..."
+										value={searchQuery}
+										onChange={(e) => handleSearchChange(e.target.value)}
+										onFocus={() => setIsSearchFocused(true)}
+										onBlur={() => setIsSearchFocused(false)}
+										onKeyDown={handleSearchKeyDown}
+										aria-label="Search backlinks"
+									/>
+									{searchQuery && (
+										<button
+											className="search-clear-btn"
+											onClick={() => setSearchQuery('')}
+											aria-label="Clear search"
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-x">
+												<line x1="18" y1="6" x2="6" y2="18"></line>
+												<line x1="6" y1="6" x2="18" y2="18"></line>
+											</svg>
+										</button>
+									)}
+								</div>
+							)}
 							<div className="clickable-icon nav-action-button"
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
@@ -169,7 +248,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 
 							<div className="tree-item-flair-outer">
-								<span className="tree-item-flair">{components.length}</span>
+								<span className="tree-item-flair">
+									{searchQuery ? `${filteredComponents.length} of ${components.length}` : components.length}
+								</span>
 							</div>
 						</div>
 
@@ -178,7 +259,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 							<div className="search-results-children" >
 
-								{components.map((extended: ExtendedInlinkingFile) => {
+								{filteredComponents.map((extended: ExtendedInlinkingFile) => {
 
 									const inlinkedCollapsed = collapsedManager.isCollapsed(extended.inlinkingFile.file.path)
 
@@ -241,6 +322,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 									)
 								})}
+
+								{filteredComponents.length === 0 && searchQuery && (
+									<div className="no-search-results">
+										No matching backlinks found
+									</div>
+								)}
 
 
 							</div>
