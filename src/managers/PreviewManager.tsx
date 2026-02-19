@@ -8,6 +8,7 @@ import InfluxReactComponent from '../InfluxReactComponent';
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import type ObsidianInflux from '../main';
+import { computeSettingsHash } from '../settings-hash-utils';
 
 type InfluxView = View & {
 	file?: TFile;
@@ -216,29 +217,18 @@ export class PreviewManager {
 
 	private computeSettingsHash(): string {
 		const settings = this.plugin.data.settings;
-		const components = [
-			settings.sortingPrinciple,
-			settings.sortingAttribute,
-			settings.listLimit,
-			settings.showBehaviour,
-			settings.variant,
-			settings.entryHeaderVisible,
-			settings.influxAtTopOfPage,
-			settings.includeFrontmatterLinks,
-			JSON.stringify([...settings.exclusionPattern].sort()),
-			JSON.stringify([...settings.inclusionPattern].sort()),
-			JSON.stringify([...settings.collapsedPattern].sort()),
-			JSON.stringify([...settings.sourceInclusionPattern].sort()),
-			JSON.stringify([...settings.sourceExclusionPattern].sort()),
-		];
-
-		let hash = 0;
-		const str = components.join('|');
-		for (let i = 0; i < str.length; i++) {
-			const char = str.charCodeAt(i);
-			hash = (hash << 5) - hash + char;
-			hash = hash & hash;
-		}
-		return hash.toString(36);
+		logger.debug('Computing settings hash', {
+			settings: {
+				sortingPrinciple: settings.sortingPrinciple,
+				sortingAttribute: settings.sortingAttribute,
+				sourceBehaviour: settings.sourceBehaviour,
+				includeFrontmatterLinks: settings.includeFrontmatterLinks,
+				frontmatterProperties: settings.frontmatterProperties,
+				fontSize: settings.fontSize
+			}
+		});
+		const hashString = computeSettingsHash(settings);
+		logger.debug('Settings hash computed', { hash: hashString });
+		return hashString;
 	}
 }

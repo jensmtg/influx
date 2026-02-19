@@ -111,13 +111,7 @@ export function processFrontmatterLinks(
     settings: ObsidianInfluxSettings
 ): { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> } {
     try {
-        logger.debug('processFrontmatterLinks started', {
-            includeFrontmatterLinks: settings.includeFrontmatterLinks,
-            frontmatterProperties: settings.frontmatterProperties,
-            frontmatterLinksCount: frontmatterLinks.length
-        });
-
-        // Validate inputs
+        // Validate inputs first before accessing properties
         if (!backlinks || !Array.isArray(frontmatterLinks)) {
             logger.debug('Skipping frontmatter processing - invalid inputs', {
                 hasBacklinks: !!backlinks,
@@ -125,6 +119,12 @@ export function processFrontmatterLinks(
             });
             return backlinks;
         }
+
+        logger.debug('processFrontmatterLinks started', {
+            includeFrontmatterLinks: settings.includeFrontmatterLinks,
+            frontmatterProperties: settings.frontmatterProperties,
+            frontmatterLinksCount: frontmatterLinks.length
+        });
 
         // Check if front matter processing is enabled
         if (!shouldIncludeFrontmatterLinks(settings)) {
@@ -134,9 +134,9 @@ export function processFrontmatterLinks(
 
         // Get and validate properties
         const validProperties = validateFrontmatterProperties(settings.frontmatterProperties);
-        logger.debug('Validated frontmatter properties', { 
+        logger.debug('Validated frontmatter properties', {
             original: settings.frontmatterProperties,
-            valid: validProperties 
+            valid: validProperties
         });
 
         // Filter links by properties
