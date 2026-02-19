@@ -77,6 +77,11 @@ export class PreviewManager {
 			return;
 		}
 
+		const settings = this.plugin.data.settings;
+		if (settings.showInfluxInSidebar) {
+			return;
+		}
+
 		const apiAdapter = this.plugin.api;
 		const path = influxLeaf.view?.file?.path;
 		if (!path) {
@@ -154,6 +159,11 @@ export class PreviewManager {
 
 		const filePath = context.sourcePath;
 		if (!filePath) {
+			return;
+		}
+
+		const settings = this.plugin.data.settings;
+		if (settings.showInfluxInSidebar) {
 			return;
 		}
 

@@ -9,6 +9,7 @@ export const CONSTANTS = {
 	INFLUX_CONTAINER_TAG: 'influx-preview-container-v2',
 	INFLUX_CONTAINER_TAG_LEGACY: 'influx-preview-container',
 	INFLUX_WRAPPER_CLASS: 'influx-preview-wrapper',
+	VIEW_TYPE_SIDEBAR: 'influx-sidebar-view',
 	FRONTMATTER_KEY: 'influx-title',
 	CENTERED_WIDTH_PX: 160,
 } as const;

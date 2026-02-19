@@ -15,6 +15,7 @@ import { updateCoordinator } from './utils/UpdateCoordinator';
 import { influxUpdates$ } from './utils/Observable';
 import { EventManager } from './managers/EventManager';
 import { PreviewManager } from './managers/PreviewManager';
+import { InfluxSidebarView } from './views/InfluxSidebarView';
 
 // Extend global Window interface for test function
 declare global {
@@ -71,6 +72,26 @@ export default class ObsidianInflux extends Plugin {
 
 		// Register Markdown Post Processor for preview/reading mode
 		this.registerMarkdownPostProcessor(this.previewManager.handlePreviewMode.bind(this.previewManager));
+
+		// Register sidebar view
+		this.registerView(CONSTANTS.VIEW_TYPE_SIDEBAR, (leaf) => new InfluxSidebarView(leaf, this));
+
+		// Add ribbon icon to open sidebar
+		this.addRibbonIcon('links-coming-in', 'Open Influx sidebar', () => {
+			this.openSidebar();
+		});
+
+		// Add command to open sidebar
+		this.addCommand({
+			id: 'open-influx-sidebar',
+			name: 'Open Influx sidebar',
+			callback: () => this.openSidebar()
+		});
+
+		// Open sidebar if mode is enabled
+		if (this.data.settings.showInfluxInSidebar) {
+			this.openSidebar();
+		}
 
 		// Expose debug functions to browser console
 		if (CONSTANTS.DEBUG_MODE) {
@@ -148,6 +169,16 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Cycle list limit', { oldLimit: currentLimit, newLimit });
 		this.data.settings.listLimit = newLimit;
 		this.saveSettingsByParams({ ...this.data.settings, "listLimit": newLimit });
+	}
+
+	openSidebar() {
+		this.app.workspace.ensureSideLeaf(CONSTANTS.VIEW_TYPE_SIDEBAR, 'right', { active: true });
+	}
+
+	closeSidebar() {
+		this.app.workspace.getLeavesOfType(CONSTANTS.VIEW_TYPE_SIDEBAR).forEach(leaf => {
+			leaf.detach();
+		});
 	}
 
 	async saveSettingsByParams(settings: ObsidianInfluxSettings) {

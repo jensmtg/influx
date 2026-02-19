@@ -18,6 +18,7 @@ export interface ObsidianInfluxSettings {
 	frontmatterProperties: string[];
 	requireInfluxFrontmatterKey: boolean;
 	collapseAllByDefault: boolean;
+	showInfluxInSidebar: boolean;
 }
 
 export const DEFAULT_SETTINGS: ObsidianInfluxSettings = {
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: ObsidianInfluxSettings = {
 	frontmatterProperties: [],
 	requireInfluxFrontmatterKey: false,
 	collapseAllByDefault: false,
+	showInfluxInSidebar: false,
 };
 
 export interface Data {

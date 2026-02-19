@@ -27,6 +27,9 @@ export function computeSettingsHash(settings: ObsidianInfluxSettings): string {
         JSON.stringify([...settings.collapsedPattern].sort()),
         JSON.stringify([...settings.sourceInclusionPattern].sort()),
         JSON.stringify([...settings.sourceExclusionPattern].sort()),
+        settings.requireInfluxFrontmatterKey,
+        settings.collapseAllByDefault,
+        settings.showInfluxInSidebar,
     ];
 
     const str = components.join('|');

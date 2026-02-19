@@ -27,6 +27,12 @@ export class StatefulDecorationSet {
             return null;
         }
 
+        // Skip inline rendering when sidebar mode is enabled
+        const settings = plugin.data.settings;
+        if (settings.showInfluxInSidebar) {
+            return null;
+        }
+
         // Reuse plugin's api instance instead of creating new one (preserves cache)
         const apiAdapter = plugin.api
 
@@ -36,7 +42,6 @@ export class StatefulDecorationSet {
 
         const decorations: Range<Decoration>[] = []
         if (show && influxFile.show) {
-            const settings = plugin.data.settings;
 
             // Determine anchor position based on influxAtTopOfPage setting
             let anchorPosition: number;

@@ -24,6 +24,30 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
         containerEl.empty();
 
+        containerEl.createEl('h2', { text: 'Display Mode' });
+
+        new Setting(containerEl)
+            .setName("Influx display location")
+            .setDesc("Choose where Influx backlinks should be displayed.")
+            .addDropdown(dropdown => {
+                dropdown
+                    .addOption('inline', 'Inline - embedded in documents')
+                    .addOption('sidebar', 'Sidebar - right sidebar panel')
+                    .setValue(this.plugin.data.settings.showInfluxInSidebar ? 'sidebar' : 'inline')
+                    .onChange(async (value) => {
+                        const showInSidebar = value === 'sidebar';
+                        this.plugin.data.settings.showInfluxInSidebar = showInSidebar;
+                        await this.saveSettings();
+
+                        if (showInSidebar) {
+                            this.plugin.openSidebar();
+                        } else {
+                            this.plugin.closeSidebar();
+                        }
+
+                        this.plugin.triggerUpdates('save-settings');
+                    });
+            });
 
         containerEl.createEl('h2', { text: 'General Settings' });
 

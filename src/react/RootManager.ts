@@ -1,7 +1,7 @@
 import { Root } from 'react-dom/client';
 import { logger } from '../utils/logger';
 
-export type RootType = 'preview' | 'editor';
+export type RootType = 'preview' | 'editor' | 'sidebar';
 
 export interface RootInfo {
 	root: Root;
