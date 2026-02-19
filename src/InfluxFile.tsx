@@ -15,6 +15,7 @@ export default class InfluxFile {
     components: ExtendedInlinkingFile[];
     show: boolean;
     collapsed: boolean;
+    totalEntryCount: number;
 
 
     /**
@@ -38,6 +39,7 @@ export default class InfluxFile {
         this.backlinks = null
         this.inlinkingFiles = []
         this.components = []
+        this.totalEntryCount = 0
     }
 
     /**
@@ -117,6 +119,7 @@ export default class InfluxFile {
             }
         }))
         this.inlinkingFiles = inlinkingFilesNew
+        this.totalEntryCount = inlinkingFilesNew.length
 
         // Warn user if some files failed to process
         if (inlinkingFilesNew.length < validFiles.length) {

@@ -183,6 +183,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								</div>
 							)}
 							<div className="clickable-icon nav-action-button"
+								aria-label="Cycle list limit"
+								onClick={() => plugin.cycleListLimit()}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-list">
+									<line x1="8" y1="6" x2="21" y2="6"></line>
+									<line x1="8" y1="12" x2="21" y2="12"></line>
+									<line x1="8" y1="18" x2="21" y2="18"></line>
+									<line x1="3" y1="6" x2="3.01" y2="6"></line>
+									<line x1="3" y1="12" x2="3.01" y2="12"></line>
+									<line x1="3" y1="18" x2="3.01" y2="18"></line>
+								</svg>
+							</div>
+							<div className="clickable-icon nav-action-button"
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
@@ -249,7 +262,22 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 							<div className="tree-item-flair-outer">
 								<span className="tree-item-flair">
-									{searchQuery ? `${filteredComponents.length} of ${components.length}` : components.length}
+									{(() => {
+										const totalEntryCount = influxFile.totalEntryCount ?? 0;
+										const listLimit = settings.listLimit || 0;
+										const hasListLimit = listLimit > 0 && totalEntryCount > listLimit;
+										const hasSearch = searchQuery.length > 0;
+
+										if (hasSearch && hasListLimit) {
+											return `${filteredComponents.length} of ${totalEntryCount}`;
+										} else if (hasListLimit) {
+											return `${components.length} of ${totalEntryCount}`;
+										} else if (hasSearch) {
+											return `${filteredComponents.length} of ${components.length}`;
+										} else {
+											return totalEntryCount.toString();
+										}
+									})()}
 								</span>
 							</div>
 						</div>

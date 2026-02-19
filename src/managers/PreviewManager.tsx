@@ -225,7 +225,8 @@ export class PreviewManager {
                 includeFrontmatterLinks: settings.includeFrontmatterLinks,
                 frontmatterProperties: settings.frontmatterProperties,
                 fontSize: settings.fontSize,
-                collapseAllByDefault: settings.collapseAllByDefault
+                collapseAllByDefault: settings.collapseAllByDefault,
+                listLimit: settings.listLimit
             }
         });
         const hashString = computeSettingsHash(settings);

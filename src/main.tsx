@@ -136,6 +136,20 @@ export default class ObsidianInflux extends Plugin {
 		this.saveSettingsByParams({ ...this.data.settings, "includeFrontmatterLinks": newValue });
 	}
 
+	cycleListLimit() {
+		const currentLimit = this.data.settings.listLimit;
+		const limits = [0, 5, 10, 15, 25, 50];
+
+		// Find current index, move to next, wrap around
+		const currentIndex = limits.indexOf(currentLimit);
+		const nextIndex = (currentIndex + 1) % limits.length;
+		const newLimit = limits[nextIndex];
+
+		logger.debug('Cycle list limit', { oldLimit: currentLimit, newLimit });
+		this.data.settings.listLimit = newLimit;
+		this.saveSettingsByParams({ ...this.data.settings, "listLimit": newLimit });
+	}
+
 	async saveSettingsByParams(settings: ObsidianInfluxSettings) {
 		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
 		await this.saveData({ ...this.data, settings: settings });
