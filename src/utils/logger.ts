@@ -1,7 +1,9 @@
 import { CONSTANTS } from '../constants';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export interface LogContext { [key: string]: any; }
+export interface LogContext {
+	[key: string]: string | number | boolean | unknown;
+}
 
 class Logger {
 	private prefix = '[Influx]';

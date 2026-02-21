@@ -6,6 +6,7 @@ import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
 import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
 import { ApiAdapter } from '../apiAdapter';
+import type ObsidianInflux from '../main';
 
 
 export class StatefulDecorationSet {
@@ -62,7 +63,7 @@ export class StatefulDecorationSet {
                 side = -1; // Before the position (places it at the end of the content)
             }
 
-            decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin: plugin as any, side }).range(anchorPosition))
+			decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin: plugin as unknown as ObsidianInflux, side }).range(anchorPosition))
         }
 
         return Decoration.set(decorations, true);

@@ -4,13 +4,15 @@
  */
 
 import { logger } from './logger';
+import type { BacklinksObject } from '../apiAdapter';
+import type { ObsidianInfluxSettings } from '../types/settings';
 
 /**
  * Minimal interface for plugin type validation
  * Avoids circular dependency with actual ObsidianInflux class
  */
 export interface MinimalPluginInterface {
-	data: { settings: any };
+	data: { settings: ObsidianInfluxSettings };
 	api: { invalidateSettingsCache: () => void };
 	app: { metadataCache: unknown };
 	isUnloading?: boolean;
@@ -22,7 +24,7 @@ export interface MinimalPluginInterface {
 interface InfluxWindow extends Window {
 	influxPlugin?: MinimalPluginInterface;
 	influxDebug?: {
-		getReactRoots: () => any;
+		getReactRoots: () => unknown;
 	};
 	testInfluxReadingView?: () => void;
 }
@@ -60,7 +62,7 @@ export function isPluginUnloading(): boolean {
 	}
 
 	// Check for isUnloading property (added by plugin.onunload)
-	return 'isUnloading' in plugin && (plugin as any).isUnloading === true;
+	return 'isUnloading' in plugin && plugin.isUnloading === true;
 }
 
 /**
@@ -114,7 +116,7 @@ export function hasBacklinksForFile(metadataCache: unknown): boolean {
 	}
 
 	return 'getBacklinksForFile' in metadataCache &&
-		typeof (metadataCache as any).getBacklinksForFile === 'function';
+		typeof (metadataCache as { getBacklinksForFile?: unknown }).getBacklinksForFile === 'function';
 }
 
 /**
@@ -129,14 +131,14 @@ export function getMetadataCacheSafely(app: { metadataCache: unknown }): unknown
  */
 export function getBacklinksForFileSafely(
 	metadataCache: unknown,
-	file: any
-): any {
+	file: unknown
+): BacklinksObject | null {
 	if (!hasBacklinksForFile(metadataCache)) {
 		return null;
 	}
 
 	try {
-		return (metadataCache as any).getBacklinksForFile(file);
+		return (metadataCache as { getBacklinksForFile: (file: unknown) => BacklinksObject }).getBacklinksForFile(file);
 	} catch (error) {
 		// Log error but don't throw - fall back to null
 		logger.warn('Failed to call getBacklinksForFile', { error });

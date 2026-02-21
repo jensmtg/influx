@@ -1,6 +1,7 @@
 import { CachedMetadata, TFile } from 'obsidian';
 import { ObsidianInfluxSettings } from '../types/settings';
 import { logger } from '../utils/logger';
+import type { BacklinksObject } from '../apiAdapter';
 
 /**
  * Centralized cache management for Influx plugin
@@ -13,7 +14,7 @@ export interface FileCacheEntry {
 }
 
 export interface BacklinksCacheEntry {
-	backlinks: any;
+	backlinks: BacklinksObject;
 	timestamp: number;
 }
 
@@ -25,6 +26,32 @@ export interface SettingsCacheEntry {
 export interface RegexCacheEntry {
 	regex: RegExp | null;
 	timestamp: number;
+}
+
+/**
+ * Debug information structure
+ */
+export interface CacheDebugInfo {
+	fileCache: {
+		size: number;
+		entries: Array<{ path: string; age: number }>;
+	};
+	backlinksCache: {
+		size: number;
+		entries: Array<{ path: string; age: number }>;
+	};
+	settingsCache: {
+		cached: boolean;
+		age: number;
+	};
+	regexCache: {
+		size: number;
+		invalid: string[];
+	};
+	previewFileHashes: {
+		size: number;
+	};
+	settingsHash?: string;
 }
 
 export class InfluxCacheManager {
@@ -101,7 +128,7 @@ export class InfluxCacheManager {
 	/**
 	 * Backlinks cache methods
 	 */
-	getBacklinks(path: string): any | null {
+	getBacklinks(path: string): BacklinksObject | null {
 		const entry = this.backlinksCache.get(path);
 		if (!entry) return null;
 
@@ -116,7 +143,7 @@ export class InfluxCacheManager {
 		return entry.backlinks;
 	}
 
-	setBacklinks(path: string, backlinks: any): void {
+	setBacklinks(path: string, backlinks: BacklinksObject): void {
 		this.backlinksCache.set(path, {
 			backlinks,
 			timestamp: Date.now()
@@ -232,7 +259,7 @@ export class InfluxCacheManager {
 	/**
 	 * Get debug information
 	 */
-	getDebugInfo(): any {
+	getDebugInfo(): CacheDebugInfo {
 		return {
 			fileCache: {
 				size: this.fileCache.size,
