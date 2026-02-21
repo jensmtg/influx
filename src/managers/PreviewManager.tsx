@@ -99,6 +99,9 @@ export class PreviewManager {
 			return;
 		}
 
+		// Clean up any existing root for this file path first
+		rootManager.unmountByFilePath(path);
+
 		const influxFile = await InfluxFile.create(path, apiAdapter);
 		await influxFile.makeInfluxList();
 		await influxFile.renderAllMarkdownBlocks();
@@ -108,20 +111,21 @@ export class PreviewManager {
 		let anchor: Root | undefined;
 
 		if (existingContainer) {
+			// Reuse existing container
 			const info = rootManager.get(existingContainer);
 			if (info) {
 				anchor = info.root;
 			} else {
+				// Container exists but no tracked root - create new one
 				anchor = createRoot(existingContainer);
 				rootManager.register(existingContainer, anchor, 'preview', path);
 			}
 		} else {
+			// Clean up any orphaned containers and wrappers
 			const oldContainers = previewDiv.querySelectorAll('influx-preview-container');
 			oldContainers.forEach((el) => {
 				const oldContainer = el as HTMLElement;
 				rootManager.unmount(oldContainer);
-				const wrapper = oldContainer.closest('.influx-preview-wrapper');
-				wrapper?.remove();
 			});
 
 			const orphanedWrappers = previewDiv.querySelectorAll('.influx-preview-wrapper');
@@ -129,6 +133,7 @@ export class PreviewManager {
 				wrapper.remove();
 			});
 
+			// Create new container
 			const influxWrapper = document.createElement('div');
 			influxWrapper.className = 'influx-preview-wrapper';
 
@@ -169,15 +174,14 @@ export class PreviewManager {
 
 		logger.debug('[handlePreviewMode] Processing file:', { filePath });
 
+		// Clean up any existing React root for this file path first
+		// This is more reliable than DOM querying as it uses rootManager's tracking
+		rootManager.unmountByFilePath(filePath);
+
+		// Also clean up any orphaned DOM elements (defense-in-depth)
 		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
 		logger.debug('[handlePreviewMode] Found existing wrappers:', { count: existingInflux.length });
-		existingInflux.forEach((wrapper) => {
-			const container = wrapper.querySelector('influx-preview-container') as HTMLElement;
-			if (container) {
-				rootManager.unmount(container);
-			}
-			wrapper.remove();
-		});
+		existingInflux.forEach((wrapper) => wrapper.remove());
 
 		const orphanedContainers = element.querySelectorAll('influx-preview-container');
 		logger.debug('[handlePreviewMode] Found orphaned containers:', { count: orphanedContainers.length });

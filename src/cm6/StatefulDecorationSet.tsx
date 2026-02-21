@@ -87,23 +87,34 @@ export class StatefulDecorationSet {
 
 
     async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
-        // Plugin activity check - prevent updates during unload
+        // Capture plugin reference and check at the START to prevent race conditions
         const plugin = (window as any).influxPlugin;
         if (!plugin || plugin.isUnloading) {
+            return;
+        }
+
+        // Store the editor reference and check immediately
+        if (!this.editor) {
             return;
         }
 
         // Compute decorations using the state at call time
         const decorations = await this.computeAsyncDecorations(state, show);
 
-        // Check if editor is still valid before proceeding
-        // Use current editor state, not the original state (which may have changed)
+        // Early exit if plugin or editor was destroyed during async computation
+        // This prevents updating a destroyed editor
         if (!this.editor || !this.editor.state) {
             return;
         }
 
-        // Revalidate plugin instance still active
+        // Revalidate plugin instance still active (after async operation)
         if ((window as any).influxPlugin !== plugin) {
+            return;
+        }
+
+        // Check if plugin is now unloading (after async operation)
+        const currentPlugin = (window as any).influxPlugin;
+        if (!currentPlugin || currentPlugin.isUnloading) {
             return;
         }
 

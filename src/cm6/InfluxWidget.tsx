@@ -33,6 +33,7 @@ export class InfluxWidget extends WidgetType {
     protected influxFile
     protected show
     protected plugin
+    private disconnectedHandler: (() => void) | null = null
 
     constructor({ influxFile, show, plugin }: InfluxWidgetSpec) {
         super()
@@ -40,6 +41,13 @@ export class InfluxWidget extends WidgetType {
         this.show = show
         this.plugin = plugin
 
+    }
+
+    destroy(): void {
+        if (this.disconnectedHandler) {
+            this.disconnectedHandler();
+            this.disconnectedHandler = null;
+        }
     }
 
     eq(influxWidget: WidgetType) {
@@ -82,15 +90,13 @@ export class InfluxWidget extends WidgetType {
         }
 
         // Cleanup when element is disconnected from DOM
-        const disconnectedHandler = () => {
-            // Remove event listener to prevent memory leaks
-            container.removeEventListener("disconnected", disconnectedHandler);
-
+        // Store handler for proper cleanup in destroy()
+        this.disconnectedHandler = () => {
             // Unmount React root to prevent memory leaks
             rootManager.unmount(container);
         };
 
-        container.addEventListener("disconnected", disconnectedHandler)
+        container.addEventListener("disconnected", this.disconnectedHandler)
 
         return container
     }

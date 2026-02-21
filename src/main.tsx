@@ -148,6 +148,7 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Toggle sort order', { oldOrder, newOrder });
 		this.data.settings.sortingPrinciple = newOrder;
 		this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder });
+		this.triggerUpdates('save-settings');
 	}
 
 	toggleFrontmatterLinks() {
@@ -155,6 +156,7 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Toggle frontmatter links', { newValue });
 		this.data.settings.includeFrontmatterLinks = newValue;
 		this.saveSettingsByParams({ ...this.data.settings, "includeFrontmatterLinks": newValue });
+		this.triggerUpdates('save-settings');
 	}
 
 	cycleListLimit() {
@@ -169,6 +171,7 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Cycle list limit', { oldLimit: currentLimit, newLimit });
 		this.data.settings.listLimit = newLimit;
 		this.saveSettingsByParams({ ...this.data.settings, "listLimit": newLimit });
+		this.triggerUpdates('save-settings');
 	}
 
 	openSidebar() {
@@ -185,7 +188,8 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
 		await this.saveData({ ...this.data, settings: settings });
 		this.api.invalidateSettingsCache();
-		this.triggerUpdates('save-settings');
+		// Don't call triggerUpdates here - let the calling code decide if an update is needed
+		// This prevents duplicate update triggers when called from settings.tsx
 		logger.debug('Settings saved and cache invalidated');
 	}
 
