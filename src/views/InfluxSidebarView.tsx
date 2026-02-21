@@ -132,6 +132,11 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
+			if (!this.influxFile.show) {
+				this.root?.render(null);
+				return;
+			}
+
 			await this.influxFile.makeInfluxList();
 
 			// Check again before continuing
@@ -186,6 +191,13 @@ export class InfluxSidebarView extends ItemView {
 		const updateId = this.currentUpdateId;
 
 		try {
+			const shouldShow = this.plugin.api.getShowStatus(this.currentFile);
+			this.influxFile.show = shouldShow;
+			if (!shouldShow) {
+				this.root?.render(null);
+				return;
+			}
+
 			this.plugin.api.invalidateFileCache(this.currentFile.path);
 			await this.influxFile.makeInfluxList();
 

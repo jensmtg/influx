@@ -6,6 +6,11 @@ const TIMING = {
 	CLEANUP_TIMEOUT_MS: 5000,
 } as const;
 
+const PERFORMANCE = {
+	SUMMARY_BUILD_CONCURRENCY: 6,
+	MARKDOWN_RENDER_CONCURRENCY: 4,
+} as const;
+
 // DOM element and class names for Influx plugin
 const DOM = {
 	INFLUX_ELEMENT_TAG: 'influx-plugin-widget-v2',
@@ -25,6 +30,7 @@ const FEATURES = {
 
 export const CONSTANTS = {
 	...TIMING,
+	...PERFORMANCE,
 	...DOM,
 	...FEATURES,
 } as const;

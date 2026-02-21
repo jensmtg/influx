@@ -105,10 +105,15 @@ export class PreviewManager {
             return;
         }
 
-        // Clean up any existing root for this file path first
-        rootManager.unmountByFilePath(path);
+		// Clean up any existing root for this file path first
+		rootManager.unmountByFilePath(path);
 
 		const influxFile = await InfluxFile.create(path, apiAdapter);
+		if (!influxFile.show) {
+			this.cleanupPreviewContainers(previewDiv);
+			return;
+		}
+
         await influxFile.makeInfluxList();
         await influxFile.renderAllMarkdownBlocks();
 
@@ -128,16 +133,7 @@ export class PreviewManager {
 			}
 		} else {
 			// Clean up any orphaned containers and wrappers
-			const oldContainers = previewDiv.querySelectorAll('influx-preview-container');
-			oldContainers.forEach((el) => {
-				const oldContainer = el as HTMLElement;
-				rootManager.unmount(oldContainer);
-			});
-
-			const orphanedWrappers = previewDiv.querySelectorAll('.influx-preview-wrapper');
-			orphanedWrappers.forEach((wrapper) => {
-				wrapper.remove();
-			});
+			this.cleanupPreviewContainers(previewDiv);
 
 			// Create new container
 			const influxWrapper = document.createElement('div');
@@ -185,27 +181,17 @@ export class PreviewManager {
 		rootManager.unmountByFilePath(filePath);
 
 		// Also clean up any orphaned DOM elements (defense-in-depth)
-		const existingInflux = element.querySelectorAll('.influx-preview-wrapper');
-		logger.debug('[handlePreviewMode] Found existing wrappers:', { count: existingInflux.length });
-		existingInflux.forEach((wrapper) => wrapper.remove());
-
-		const orphanedContainers = element.querySelectorAll('influx-preview-container');
-		logger.debug('[handlePreviewMode] Found orphaned containers:', { count: orphanedContainers.length });
-		orphanedContainers.forEach((container) => {
-			const containerElement = container as HTMLElement;
-			rootManager.unmount(containerElement);
-			containerElement.remove();
-		});
+		this.cleanupPreviewContainers(element, true);
 
 		try {
 			// Use plugin's apiAdapter to preserve cache and ensure settings are available
 			const influxFile = await InfluxFile.create(filePath, this.plugin.api);
-			await influxFile.makeInfluxList();
-			await influxFile.renderAllMarkdownBlocks();
-
 			if (!influxFile.show) {
 				return;
 			}
+
+			await influxFile.makeInfluxList();
+			await influxFile.renderAllMarkdownBlocks();
 
 			const influxWrapper = document.createElement('div');
 			influxWrapper.className = 'influx-preview-wrapper';
@@ -233,6 +219,24 @@ export class PreviewManager {
 				stack: error instanceof Error ? error.stack : undefined,
 			});
 		}
+	}
+
+	private cleanupPreviewContainers(container: Element, logCounts = false): void {
+		const wrappers = container.querySelectorAll('.influx-preview-wrapper');
+		const innerContainers = container.querySelectorAll('influx-preview-container');
+
+		if (logCounts) {
+			logger.debug('[handlePreviewMode] Found existing wrappers:', { count: wrappers.length });
+			logger.debug('[handlePreviewMode] Found orphaned containers:', { count: innerContainers.length });
+		}
+
+		innerContainers.forEach((node) => {
+			const htmlNode = node as HTMLElement;
+			rootManager.unmount(htmlNode);
+			htmlNode.remove();
+		});
+
+		wrappers.forEach((wrapper) => wrapper.remove());
 	}
 
     private computeSettingsHash(): string {

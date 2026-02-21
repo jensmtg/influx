@@ -32,18 +32,32 @@ function stripHtmlToLowerText(html: string): string {
 	return html.replace(/<[^>]*>/g, '').toLowerCase();
 }
 
-function filterComponentsBySearch(components: ExtendedInlinkingFile[], searchQuery: string): ExtendedInlinkingFile[] {
+type IndexedSearchComponent = {
+	component: ExtendedInlinkingFile;
+	searchText: string;
+};
+
+function buildSearchIndex(components: ExtendedInlinkingFile[]): IndexedSearchComponent[] {
+	return components.map((item) => {
+		const basename = item.inlinkingFile.file?.basename.toLowerCase() ?? '';
+		const titleText = stripHtmlToLowerText(item.titleInnerHTML);
+		const contentText = stripHtmlToLowerText(item.inner.innerHTML);
+		return {
+			component: item,
+			searchText: `${basename} ${titleText} ${contentText}`,
+		};
+	});
+}
+
+function filterComponentsBySearch(indexedComponents: IndexedSearchComponent[], searchQuery: string): ExtendedInlinkingFile[] {
 	const normalizedQuery = searchQuery.toLowerCase().trim();
 	if (!normalizedQuery) {
-		return components;
+		return indexedComponents.map((item) => item.component);
 	}
 
-	return components.filter((item) => {
-		const basenameMatch = item.inlinkingFile.file?.basename.toLowerCase().includes(normalizedQuery) ?? false;
-		const titleMatch = stripHtmlToLowerText(item.titleInnerHTML).includes(normalizedQuery);
-		const contentMatch = stripHtmlToLowerText(item.inner.innerHTML).includes(normalizedQuery);
-		return basenameMatch || titleMatch || contentMatch;
-	});
+	return indexedComponents
+		.filter((item) => item.searchText.includes(normalizedQuery))
+		.map((item) => item.component);
 }
 
 function getLinkedMentionsCountLabel(params: {
@@ -116,9 +130,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const influxFileRef = React.useRef(influxFile);
 	influxFileRef.current = influxFile;
 
+	const indexedComponents = React.useMemo(
+		() => buildSearchIndex(components),
+		[components]
+	);
+
 	const filteredComponents = React.useMemo(
-		() => filterComponentsBySearch(components, searchQuery),
-		[components, searchQuery]
+		() => filterComponentsBySearch(indexedComponents, searchQuery),
+		[indexedComponents, searchQuery]
 	);
 
 	const debouncedSetSearchQuery = React.useMemo(

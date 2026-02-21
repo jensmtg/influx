@@ -21,6 +21,7 @@ export class StatefulDecorationSet {
 
     async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
         if (!state.field(editorViewField)) return null; // If not yet loaded.
+        if (!show) return Decoration.none;
 
         const { file } = state.field(editorViewField);
         if (!file) return null; // If no file is loaded
@@ -42,29 +43,31 @@ export class StatefulDecorationSet {
         const apiAdapter = plugin.api as ApiAdapter
 
         const influxFile = await InfluxFile.create(file.path, apiAdapter)
+        if (!influxFile.show) {
+            return Decoration.none;
+        }
+
         await influxFile.makeInfluxList()
         await influxFile.renderAllMarkdownBlocks()
 
         const decorations: Range<Decoration>[] = []
-        if (show && influxFile.show) {
 
-            // Determine anchor position based on influxAtTopOfPage setting
-            let anchorPosition: number;
-            let side: number;
+        // Determine anchor position based on influxAtTopOfPage setting
+        let anchorPosition: number;
+        let side: number;
 
-            if (settings.influxAtTopOfPage) {
-                // Show at top of page (before content)
-                // Try to find position after frontmatter (if exists)
-                anchorPosition = this.findPositionAfterFrontmatter(state);
-                side = 1; // After the position (places it at the start of the content)
-            } else {
-                // Show at bottom of page (after all content)
-                anchorPosition = state.doc.length;
-                side = -1; // Before the position (places it at the end of the content)
-            }
-
-			decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin: plugin as unknown as ObsidianInflux, side }).range(anchorPosition))
+        if (settings.influxAtTopOfPage) {
+            // Show at top of page (before content)
+            // Try to find position after frontmatter (if exists)
+            anchorPosition = this.findPositionAfterFrontmatter(state);
+            side = 1; // After the position (places it at the start of the content)
+        } else {
+            // Show at bottom of page (after all content)
+            anchorPosition = state.doc.length;
+            side = -1; // Before the position (places it at the end of the content)
         }
+
+		decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin: plugin as unknown as ObsidianInflux, side }).range(anchorPosition))
 
         return Decoration.set(decorations, true);
 

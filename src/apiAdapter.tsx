@@ -16,6 +16,8 @@ import {
     type FilterSettings
 } from './settings-utils';
 import { cacheManager } from './state/CacheManager';
+import { mapWithConcurrency } from './utils/concurrency';
+import { CONSTANTS } from './constants';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -273,14 +275,15 @@ export class ApiAdapter extends Component {
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const comparator = this.makeComparisonFn()
-        let components: ExtendedInlinkingFile[] = []
+        const sortedFiles = [...inlinkingsFiles].sort(comparator);
+        const limitedFiles = sortedFiles.slice(0, settings.listLimit || sortedFiles.length);
 
-        try {
-            components = await Promise.all(inlinkingsFiles
-                .sort(comparator)
-                .slice(0, settings.listLimit || inlinkingsFiles.length)
-                .map(async (inlinkingFile) => {
-                    // Parallelize the two renderMarkdown calls to avoid sequential blocking
+        const rendered = await mapWithConcurrency(
+            limitedFiles,
+            CONSTANTS.MARKDOWN_RENDER_CONCURRENCY,
+            async (inlinkingFile): Promise<ExtendedInlinkingFile | null> => {
+                try {
+                    // Render title and summary together per file; global concurrency is capped above.
                     const [titleAsMd, summaryAsMd] = await Promise.all([
                         this.renderMarkdown(`_${inlinkingFile.title}`),
                         this.renderMarkdown(inlinkingFile.summary),
@@ -323,15 +326,14 @@ export class ApiAdapter extends Component {
                     inner: summaryAsMd,
                 }
                 return extended
-            }))
-        } catch (error) {
-            logger.error('Failed to render markdown blocks', { error })
-            // Return partially rendered components if some failed
-            // This prevents complete failure if one file has issues
-            return components
-        }
+                } catch (error) {
+                    logger.error('Failed to render markdown block', { filePath: inlinkingFile.file?.path, error });
+                    return null;
+                }
+            }
+        );
 
-        return components
+        return rendered.filter((component): component is ExtendedInlinkingFile => component !== null);
     }
     /** comparison fn for filter in function to make contextual summaries,
      * to find relevant links.

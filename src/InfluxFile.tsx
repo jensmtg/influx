@@ -2,6 +2,10 @@ import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
 import { logger } from './utils/logger';
+import { createFileComparator } from './settings-utils';
+import { mapWithConcurrency } from './utils/concurrency';
+import { CONSTANTS } from './constants';
+import { DEFAULT_SETTINGS } from './types';
 
 
 export default class InfluxFile {
@@ -93,51 +97,67 @@ export default class InfluxFile {
         this.ensureInitialized();
         if (!this.file) {
             this.inlinkingFiles = [];
+            this.totalEntryCount = 0;
             return;
         }
         this.backlinks = this.api.getBacklinks(this.file)
-        const inlinkingFilesNew: InlinkingFile[] = []
         if (!this.backlinks || !this.backlinks.data) {
-            this.inlinkingFiles = inlinkingFilesNew
+            this.inlinkingFiles = []
+            this.totalEntryCount = 0;
             return
         }
-        const validPaths: string[] = []
+
+        const settings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
+            ? this.api.getSettings()
+            : DEFAULT_SETTINGS;
+        const fileComparator = createFileComparator(settings.sortingAttribute, settings.sortingPrinciple);
+        const listLimit = settings.listLimit || 0;
+
+        const validFiles: TFile[] = []
         // Unify iteration pattern for both Map and Object backlinks data
         const entries = this.backlinks.data instanceof Map
             ? this.backlinks.data.entries()
             : Object.entries(this.backlinks.data);
 
         for (const [pathAsKey] of entries) {
-            if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
-                validPaths.push(pathAsKey);
+            if (pathAsKey === this.file.path || !this.api.isIncludableSource(pathAsKey)) {
+                continue;
             }
-        }
-        // Single pass: get files and filter nulls in one operation
-        const validFiles: TFile[] = []
-        for (const pathAsKey of validPaths) {
             const file = this.api.getFileByPath(pathAsKey)
             if (file !== null) {
                 validFiles.push(file)
             }
         }
-        await Promise.all(validFiles.map(async (file: TFile) => {
-            try {
-                const inlinkingFile = new InlinkingFile(file, this.api);
-                await inlinkingFile.makeSummary(this);
-                inlinkingFilesNew.push(inlinkingFile);
-            } catch (error) {
-                logger.error(`Failed to process file ${file.path}:`, { filePath: file.path, error });
-                // Continue processing other files
+
+        this.totalEntryCount = validFiles.length;
+
+        const sortedFiles = [...validFiles].sort((a, b) => fileComparator({ file: a }, { file: b }));
+        const filesToProcess = listLimit > 0 ? sortedFiles.slice(0, listLimit) : sortedFiles;
+
+        const processed = await mapWithConcurrency(
+            filesToProcess,
+            CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
+            async (file: TFile): Promise<InlinkingFile | null> => {
+                try {
+                    const inlinkingFile = new InlinkingFile(file, this.api);
+                    await inlinkingFile.makeSummary(this);
+                    return inlinkingFile;
+                } catch (error) {
+                    logger.error(`Failed to process file ${file.path}:`, { filePath: file.path, error });
+                    return null;
+                }
             }
-        }))
+        );
+
+        const inlinkingFilesNew = processed.filter((item): item is InlinkingFile => item !== null);
         this.inlinkingFiles = inlinkingFilesNew
-        this.totalEntryCount = inlinkingFilesNew.length
 
         // Warn user if some files failed to process
-        if (inlinkingFilesNew.length < validFiles.length) {
-            logger.warn(`Only ${inlinkingFilesNew.length} of ${validFiles.length} files processed successfully`, {
+        if (inlinkingFilesNew.length < filesToProcess.length) {
+            logger.warn(`Only ${inlinkingFilesNew.length} of ${filesToProcess.length} files processed successfully`, {
                 processed: inlinkingFilesNew.length,
-                total: validFiles.length
+                totalAttempted: filesToProcess.length,
+                totalCandidates: validFiles.length
             });
         }
     }
