@@ -4,11 +4,12 @@ import { ObsidianInfluxSettings } from '../types';
 import { rootManager } from '../react/RootManager';
 import { logger } from '../utils/logger';
 import InfluxFile from '../InfluxFile';
-import InfluxReactComponent from '../InfluxReactComponent';
+import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import type ObsidianInflux from '../main';
 import { computeSettingsHash } from '../settings-hash-utils';
+import { cacheManager } from '../state/CacheManager';
 
 type InfluxView = View & {
 	file?: TFile;
@@ -22,21 +23,10 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 };
 
 export class PreviewManager {
-	private cachedSettingsHash: string | null = null;
-
 	constructor(
 		private plugin: ObsidianInflux,
-		private apiAdapter: ApiAdapter,
-		private previewFileHashes: Map<string, string>
+		private apiAdapter: ApiAdapter
 	) {}
-
-	/**
-	 * Invalidate the cached settings hash
-	 * Call this when settings change
-	 */
-	invalidateSettingsHash(): void {
-		this.cachedSettingsHash = null;
-	}
 
 	async updateAllPreviews(): Promise<void> {
 		const previewLeaves: WorkspaceLeaf[] = [];
@@ -87,36 +77,36 @@ export class PreviewManager {
 			return;
 		}
 
-		const settings = this.plugin.data.settings;
-		if (settings.showInfluxInSidebar) {
-			return;
-		}
+        const settings = this.plugin.data.settings;
+        if (settings.showInfluxInSidebar) {
+            return;
+        }
 
-		const apiAdapter = this.plugin.api;
-		const path = influxLeaf.view?.file?.path;
-		if (!path) {
-			logger.warn('No file path found for preview');
-			return;
-		}
+        const apiAdapter = this.plugin.api;
+        const path = influxLeaf.view?.file?.path;
+        if (!path) {
+            logger.warn('No file path found for preview');
+            return;
+        }
 
-		const existingContainer = previewDiv.querySelector(
-			'.influx-preview-wrapper > influx-preview-container'
-		) as HTMLElement;
+        const existingContainer = previewDiv.querySelector(
+            '.influx-preview-wrapper > influx-preview-container'
+        ) as HTMLElement;
 
-		const fileHash = `${path}-${this.computeSettingsHash()}`;
+        const fileHash = `${path}-${this.computeSettingsHash()}`;
 
-		if (existingContainer && this.plugin.previewFileHashes.get(path) === fileHash) {
-			return;
-		}
+        if (existingContainer && cacheManager.getPreviewFileHash(path) === fileHash) {
+            return;
+        }
 
-		// Clean up any existing root for this file path first
-		rootManager.unmountByFilePath(path);
+        // Clean up any existing root for this file path first
+        rootManager.unmountByFilePath(path);
 
 		const influxFile = await InfluxFile.create(path, apiAdapter);
-		await influxFile.makeInfluxList();
-		await influxFile.renderAllMarkdownBlocks();
+        await influxFile.makeInfluxList();
+        await influxFile.renderAllMarkdownBlocks();
 
-		this.plugin.previewFileHashes.set(path, fileHash);
+        cacheManager.setPreviewFileHash(path, fileHash);
 
 		let anchor: Root | undefined;
 
@@ -241,8 +231,9 @@ export class PreviewManager {
 
     private computeSettingsHash(): string {
         // Return cached hash if available
-        if (this.cachedSettingsHash) {
-            return this.cachedSettingsHash;
+        const cached = cacheManager.getSettingsHash();
+        if (cached) {
+            return cached;
         }
 
         const settings = this.plugin.data.settings;
@@ -259,7 +250,7 @@ export class PreviewManager {
             }
         });
         const hashString = computeSettingsHash(settings);
-        this.cachedSettingsHash = hashString;
+        cacheManager.setSettingsHash(hashString);
         logger.debug('Settings hash computed', { hash: hashString });
         return hashString;
     }

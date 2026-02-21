@@ -16,6 +16,7 @@ import {
     shouldCollapseInfluxWithMatcher,
     type FilterSettings
 } from './settings-utils';
+import { cacheManager } from './state/CacheManager';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -27,15 +28,6 @@ export type ExtendedInlinkingFile = {
 export class ApiAdapter extends Component {
     app: App;
     private plugin: ObsidianInflux;
-    // File operation caching to reduce I/O overhead
-    private fileCache: Map<string, TFile> = new Map();
-    private backlinksCache: Map<string, BacklinksObject> = new Map();
-    private settingsCache: ObsidianInfluxSettings | null = null;
-    // Cache compiled regex patterns to avoid recompilation on every pattern match
-    // Use null as a sentinel value for invalid regex patterns
-    private regexCache: Map<string, RegExp | null> = new Map();
-    // Sentinel value to mark invalid regex patterns
-    private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
 
     constructor(app: App, plugin: ObsidianInflux) {
         super();
@@ -49,13 +41,14 @@ export class ApiAdapter extends Component {
      */
     getFileByPath(path: string): TFile | null {
         // Check cache first to reduce I/O
-        if (this.fileCache.has(path)) {
-            return this.fileCache.get(path)!;
+        const cached = cacheManager.getFile(path);
+        if (cached) {
+            return cached;
         }
 
         const file = this.app.vault.getAbstractFileByPath(path);
         if (file instanceof TFile) {
-            this.fileCache.set(path, file);
+            cacheManager.setFile(path, file);
             return file;
         }
         return null;
@@ -69,8 +62,9 @@ export class ApiAdapter extends Component {
     getBacklinks(file: TFile): BacklinksObject {
         // Check cache first to reduce I/O
         const cacheKey = file.path;
-        if (this.backlinksCache.has(cacheKey)) {
-            return this.backlinksCache.get(cacheKey)!;
+        const cached = cacheManager.getBacklinks(cacheKey);
+        if (cached) {
+            return cached;
         }
 
         // Get settings early to check frontmatter link preference
@@ -143,7 +137,7 @@ export class ApiAdapter extends Component {
             processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
         }
 
-        this.backlinksCache.set(cacheKey, backlinks);
+        cacheManager.setBacklinks(cacheKey, backlinks);
         return backlinks;
     }
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
@@ -160,9 +154,10 @@ export class ApiAdapter extends Component {
     }
     getSettings(): ObsidianInfluxSettings {
         // Return cached settings to reduce property access overhead
-        if (this.settingsCache) {
-            logger.debug('Returning cached settings', { sortingPrinciple: this.settingsCache.sortingPrinciple });
-            return this.settingsCache;
+        const cached = cacheManager.getSettings();
+        if (cached) {
+            logger.debug('Returning cached settings', { sortingPrinciple: cached.sortingPrinciple });
+            return cached;
         }
 
         logger.debug('Cache miss, loading settings');
@@ -175,28 +170,22 @@ export class ApiAdapter extends Component {
             settings = DEFAULT_SETTINGS;
         }
 
-        this.settingsCache = settings;
+        cacheManager.setSettings(settings);
         // Pre-compile all regex patterns to eliminate JIT overhead on critical path
-        this.preCompileRegexPatterns(this.settingsCache);
-        return this.settingsCache;
+        this.preCompileRegexPatterns(settings);
+        return settings;
     }
     /** Clear all caches - call when settings change or files are modified */
     clearCache(): void {
-        this.fileCache.clear();
-        this.backlinksCache.clear();
-        this.settingsCache = null;
-        this.regexCache.clear();
+        cacheManager.clearAll();
     }
     /** Invalidate settings cache - call when settings are changed via UI */
     invalidateSettingsCache(): void {
-        this.settingsCache = null;
-        this.regexCache.clear(); // Clear regex cache so new patterns are compiled
-        this.backlinksCache.clear(); // Clear backlinks cache as frontmatter processing depends on settings
+        cacheManager.invalidateSettingsCache();
     }
     /** Invalidate cache for a specific file - call when file is modified/renamed/deleted */
     invalidateFileCache(path: string): void {
-        this.fileCache.delete(path);
-        this.backlinksCache.delete(path);
+        cacheManager.invalidateFile(path);
     }
     /** Pre-compile all regex patterns from settings to eliminate JIT overhead on critical path */
     preCompileRegexPatterns(settings: Partial<ObsidianInfluxSettings>): void {
@@ -211,13 +200,13 @@ export class ApiAdapter extends Component {
 
         // Pre-compile all patterns to populate the cache
         for (const pattern of allPatterns) {
-            if (pattern && pattern.length > 0 && !this.regexCache.has(pattern)) {
+            if (pattern && pattern.length > 0 && !cacheManager.getRegex(pattern)) {
                 try {
-                    this.regexCache.set(pattern, new RegExp(pattern));
+                    cacheManager.setRegex(pattern, new RegExp(pattern));
                 } catch (err) {
                     logger.error('Invalid regex pattern: ' + pattern, { pattern, error: err });
                     // Cache sentinel to prevent repeated error logging
-                    this.regexCache.set(pattern, ApiAdapter.INVALID_REGEX_SENTINEL);
+                    cacheManager.setInvalidRegex(pattern);
                 }
             }
         }
@@ -253,20 +242,16 @@ export class ApiAdapter extends Component {
         const pathMatchesRegex = (pattern: string): boolean => {
             try {
                 // Use cached regex if available, otherwise compile and cache it
-                let regex = this.regexCache.get(pattern);
-                // Check if this is a known invalid pattern
-                if (regex === ApiAdapter.INVALID_REGEX_SENTINEL) {
-                    return false;
-                }
+                let regex = cacheManager.getRegex(pattern);
                 if (!regex) {
                     regex = new RegExp(pattern);
-                    this.regexCache.set(pattern, regex);
+                    cacheManager.setRegex(pattern, regex);
                 }
                 return regex.test(path);
             } catch (err) {
                 logger.error('Invalid regex pattern: ' + pattern, { pattern, error: err });
                 // Cache sentinel to prevent repeated error logging
-                this.regexCache.set(pattern, ApiAdapter.INVALID_REGEX_SENTINEL);
+                cacheManager.setInvalidRegex(pattern);
                 return false;
             }
         };

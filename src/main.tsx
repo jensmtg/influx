@@ -2,7 +2,7 @@ import { Plugin, TAbstractFile, TFile, WorkspaceLeaf, View } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from './settings';
 import { asyncDecoBuilderExt } from './cm6/asyncViewPlugin';
 import InfluxFile from './InfluxFile';
-import InfluxReactComponent from './InfluxReactComponent';
+import InfluxReactComponent from './components/ui/InfluxReactComponent';
 import * as React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
@@ -17,6 +17,7 @@ import { EventManager } from './managers/EventManager';
 import { PreviewManager } from './managers/PreviewManager';
 import { InfluxSidebarView } from './views/InfluxSidebarView';
 import { cleanupWindowGlobals, isDebugMode } from './utils/typeGuard';
+import { cacheManager } from './state/CacheManager';
 
 // Type definitions for Obsidian internal properties
 type InfluxView = View & {
@@ -36,8 +37,6 @@ export default class ObsidianInflux extends Plugin {
 	updating: Map<string, number> = new Map();
 	api: ApiAdapter;
 	data: Data;
-	// Track file hashes to avoid unnecessary re-renders
-	previewFileHashes: Map<string, string> = new Map();
 
 	private eventManager: EventManager;
 	private previewManager: PreviewManager;
@@ -66,7 +65,7 @@ export default class ObsidianInflux extends Plugin {
 		this.eventManager = new EventManager(this);
 		this.eventManager.register();
 
-		this.previewManager = new PreviewManager(this, this.api, this.previewFileHashes);
+		this.previewManager = new PreviewManager(this, this.api);
 
 		// Register Markdown Post Processor for preview/reading mode
 		this.registerMarkdownPostProcessor(this.previewManager.handlePreviewMode.bind(this.previewManager));
@@ -188,8 +187,6 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
 		await this.saveData({ ...this.data, settings: settings });
 		this.api.invalidateSettingsCache();
-		// Invalidate preview manager's settings hash cache
-		this.previewManager.invalidateSettingsHash();
 		// Don't call triggerUpdates here - let the calling code decide if an update is needed
 		// This prevents duplicate update triggers when called from settings.tsx
 		logger.debug('Settings saved and cache invalidated');
@@ -232,7 +229,7 @@ export default class ObsidianInflux extends Plugin {
 	 * Call this when files are deleted, renamed, or moved.
 	 */
 	cleanupFileHash(filePath: string): void {
-		this.previewFileHashes.delete(filePath);
+		cacheManager.invalidatePreviewFileHash(filePath);
 		this.cleanupFileReactRoots(filePath);
 	}
 
@@ -245,8 +242,10 @@ export default class ObsidianInflux extends Plugin {
 
 		// Clean up all React roots on plugin unload
 		rootManager.unmountAll();
-		this.previewFileHashes.clear();
 		this.updating.clear();
+
+		// Clean up cache
+		cacheManager.clearAll();
 
 		// Clean up window references to prevent memory leaks
 		cleanupWindowGlobals();

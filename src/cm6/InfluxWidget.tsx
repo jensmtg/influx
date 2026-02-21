@@ -1,6 +1,6 @@
 import { Decoration, WidgetType, EditorView } from "@codemirror/view";
 import InfluxFile from '../InfluxFile';
-import InfluxReactComponent from '../InfluxReactComponent';
+import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";

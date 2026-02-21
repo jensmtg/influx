@@ -1,15 +1,15 @@
 import * as React from "react";
-import InfluxFile from './InfluxFile';
-import { ExtendedInlinkingFile } from './apiAdapter';
-import { ObsidianInfluxSettings } from "./types";
+import InfluxFile from '../../InfluxFile';
+import { ExtendedInlinkingFile } from '../../apiAdapter';
+import { ObsidianInfluxSettings } from "../../types";
 import { TFile } from "obsidian";
-import { CONSTANTS } from './constants';
-import { influxUpdates$, InfluxUpdateEvent } from './utils/Observable';
-import { CollapsedStateManager } from './utils/CollapsedStateManager';
-import { InfluxErrorBoundary } from './components/InfluxErrorBoundary';
-import type ObsidianInflux from './main';
-import { logger } from './utils/logger';
-import { debounce } from './utils/debounce';
+import { CONSTANTS } from '../../constants';
+import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
+import { CollapsedStateManager } from '../hooks/CollapsedStateManager';
+import { InfluxErrorBoundary } from './InfluxErrorBoundary';
+import type ObsidianInflux from '../../main';
+import { logger } from '../../utils/logger';
+import { debounce } from '../hooks/debounce';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
@@ -25,7 +25,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [collapsedManager] = React.useState(() => {
 		const initialCollapsed = influxFile.collapsed && influxFile.components.length > 0
-			? influxFile.components.map(c => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined)
+			? influxFile.components.map((c: ExtendedInlinkingFile) => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined)
 			: [];
 		return new CollapsedStateManager(initialCollapsed);
 	})
@@ -45,7 +45,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const toggleAll = () => {
 		const allPaths = components
-			.map(c => c.inlinkingFile.file?.path)
+			.map((c: ExtendedInlinkingFile) => c.inlinkingFile.file?.path)
 			.filter((path): path is string => path !== undefined);
 		const nowAllCollapsed = collapsedManager.toggleAll(allPaths)
 		setToggleAllToOpen(nowAllCollapsed)

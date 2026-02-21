@@ -2,7 +2,7 @@ import { ItemView, TFile, WorkspaceLeaf, Editor, MarkdownView, MarkdownFileInfo 
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import InfluxFile from '../InfluxFile';
-import InfluxReactComponent from '../InfluxReactComponent';
+import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import type ObsidianInflux from '../main';
 import { logger } from '../utils/logger';
 import { CONSTANTS } from '../constants';
