@@ -1,12 +1,12 @@
 // Unit tests for UpdateCoordinator
 // Tests the update coordination and debouncing system
 
-import { UpdateCoordinator } from './UpdateCoordinator';
+import { UpdateCoordinator } from '../../src/utils/UpdateCoordinator';
 
 jest.useFakeTimers();
 
 // Mock logger to avoid console output
-jest.mock('../utils/logger', () => ({
+jest.mock('../../src/utils/logger', () => ({
 	logger: {
 		debug: jest.fn(),
 		info: jest.fn(),
@@ -286,7 +286,7 @@ describe('UpdateCoordinator', () => {
 			const executor = jest.fn().mockImplementation(async () => {
 				throw new Error('Executor error');
 			});
-			const { logger } = require('../utils/logger');
+			const { logger } = require('../../src/utils/logger');
 
 			// Act
 			const promise = coordinator.schedule('test-id', 'modify', '/test/path', executor);
@@ -310,7 +310,7 @@ describe('UpdateCoordinator', () => {
 			// Arrange
 			const executor = jest.fn().mockRejectedValue(new Error('AbortError'));
 			executor.mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
-			const { logger } = require('../utils/logger');
+			const { logger } = require('../../src/utils/logger');
 
 			// Act
 			const promise = coordinator.schedule('test-id', 'modify', '/test/path', executor);

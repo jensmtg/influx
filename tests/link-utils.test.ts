@@ -6,7 +6,7 @@ import {
     extractLinkName,
     compareLinkName,
     filterLinksByBasename
-} from './link-utils';
+} from '../src/link-utils';
 
 // Helper function to create mock LinkCache
 const createTestLink = (link: string): LinkCache => ({

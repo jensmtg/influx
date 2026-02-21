@@ -3,8 +3,8 @@
  * Tests the pure function extracted from PreviewManager for testability
  */
 
-import { computeSettingsHash } from './settings-hash-utils';
-import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from './types';
+import { computeSettingsHash } from '../src/settings-hash-utils';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from '../src/types';
 
 describe('computeSettingsHash', () => {
     const createSettings = (overrides: Partial<ObsidianInfluxSettings> = {}): ObsidianInfluxSettings => {

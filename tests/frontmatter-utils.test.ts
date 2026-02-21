@@ -2,7 +2,7 @@
 // These test the actual pure functions extracted from ApiAdapter
 
 import { FrontmatterLinkCache, LinkCache, CachedMetadata } from 'obsidian';
-import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from './types';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from '../src/types';
 import {
     validateFrontmatterProperties,
     shouldIncludeFrontmatterLinks,
@@ -11,7 +11,7 @@ import {
     mergeConvertedLinksIntoBacklinks,
     processFrontmatterLinks,
     filterFrontmatterLinksFromBacklinks
-} from './frontmatter-utils';
+} from '../src/frontmatter-utils';
 
 // Helper functions for creating test data
 const createTestFrontmatterLink = (key: string, link: string, displayText?: string): FrontmatterLinkCache => {

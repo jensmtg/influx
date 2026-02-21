@@ -1,10 +1,10 @@
 // Unit tests for Observable
 // Tests the observable pattern implementation
 
-import { Observable, Observer } from './Observable';
+import { Observable, Observer } from '../../src/utils/Observable';
 
 // Mock logger to avoid console output
-jest.mock('../utils/logger', () => ({
+jest.mock('../../src/utils/logger', () => ({
 	logger: {
 		debug: jest.fn(),
 		info: jest.fn(),
@@ -168,7 +168,7 @@ describe('Observable', () => {
 			// Arrange
 			const observer1 = jest.fn().mockRejectedValue(new Error('Observer error'));
 			const observer2 = jest.fn();
-			const { logger } = require('../utils/logger');
+			const { logger } = require('../../src/utils/logger');
 			observable.subscribe('test-id-1', observer1);
 			observable.subscribe('test-id-2', observer2);
 
@@ -315,7 +315,7 @@ describe('Observable', () => {
 				throw new Error('Sync error');
 			});
 			const observer2 = jest.fn();
-			const { logger } = require('../utils/logger');
+			const { logger } = require('../../src/utils/logger');
 			observable.subscribe('test-id-1', observer1);
 			observable.subscribe('test-id-2', observer2);
 
@@ -336,7 +336,7 @@ describe('Observable', () => {
 			// Arrange
 			const observer1 = jest.fn().mockRejectedValue(new Error('Async error'));
 			const observer2 = jest.fn();
-			const { logger } = require('../utils/logger');
+			const { logger } = require('../../src/utils/logger');
 			observable.subscribe('test-id-1', observer1);
 			observable.subscribe('test-id-2', observer2);
 

@@ -17,7 +17,7 @@ import {
     shouldCollapseInfluxWithMatcher,
     createInlinkingFileComparator,
     type FilterSettings
-} from './settings-utils';
+} from '../src/settings-utils';
 
 // Helper function to create test settings
 const createTestSettings = (overrides: Partial<FilterSettings> = {}): FilterSettings => ({
