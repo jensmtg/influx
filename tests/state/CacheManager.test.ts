@@ -1,10 +1,20 @@
 /**
  * Unit tests for InfluxCacheManager
- * Tests the cache management system with TTL, invalidation, and thread safety
+ * Tests cache management system with TTL, invalidation, and thread safety
  */
 
 import { InfluxCacheManager, CacheDebugInfo } from '../../src/state/CacheManager';
 import { mockTFile, mockCachedMetadata, mockLinkCache } from '../mocks';
+
+// Mock logger to suppress console output during tests
+jest.mock('../../src/utils/logger', () => ({
+	logger: {
+		debug: jest.fn(),
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+	}
+}));
 
 describe('InfluxCacheManager', () => {
 	let cacheManager: InfluxCacheManager;
