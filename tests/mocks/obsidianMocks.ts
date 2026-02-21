@@ -24,7 +24,8 @@ export const mockApp = {
  * Mock TFile object - uses the mocked TFile from obsidian package
  */
 export const mockTFile = (path: string, basename: string) => {
-	return new TFile(path, basename);
+	const MockedTFile = TFile as unknown as new (mockPath: string, mockBasename: string) => TFile;
+	return new MockedTFile(path, basename);
 };
 
 /**

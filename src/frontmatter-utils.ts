@@ -8,6 +8,9 @@ import { ObsidianInfluxSettings } from './types';
 import { logger } from './utils/logger';
 import { compareLinkName } from './link-utils';
 
+type BacklinksData = Map<string, LinkCache[]> | Record<string, LinkCache[]>;
+type BacklinksContainer = { data: BacklinksData };
+
 /**
  * Validates and filters front matter property names
  * Extracted from ApiAdapter.getValidProperties()
@@ -77,7 +80,7 @@ export function filterFrontmatterLinks(
  * Extracted from ApiAdapter.mergeFrontmatterLinks() merging logic
  */
 export function mergeConvertedLinksIntoBacklinks(
-    backlinks: { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> }, 
+    backlinks: BacklinksContainer,
     convertedLinks: LinkCache[]
 ): void {
     if (!backlinks?.data || !Array.isArray(convertedLinks)) {
@@ -113,7 +116,7 @@ export function mergeConvertedLinksIntoBacklinks(
 function isLinkFromFrontmatter(
     sourcePath: string,
     targetBasename: string,
-    linkPosition: { start: { line: number, col: number, offset: number }, end: { line: number, col: number, offset: number } },
+    linkPosition: LinkCache['position'],
     getMetadataFn: (path: string) => CachedMetadata | null
 ): boolean {
     const metadata = getMetadataFn(sourcePath);
@@ -180,16 +183,62 @@ function isLinkFromFrontmatter(
     return false;
 }
 
+function countTotalLinks(data: BacklinksData): number {
+    if (data instanceof Map) {
+        return Array.from(data.values()).reduce((sum, links) => sum + links.length, 0);
+    }
+    return Object.values(data).reduce((sum, links) => sum + links.length, 0);
+}
+
+function filterLinksForSource(
+    sourcePath: string,
+    links: LinkCache[],
+    targetBasename: string,
+    getMetadataFn: (path: string) => CachedMetadata | null
+): { filtered: LinkCache[]; originalCount: number; removedCount: number } {
+    logger.debug('Processing source file links', {
+        sourcePath,
+        linkCount: links.length,
+        linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
+    });
+
+    const originalCount = links.length;
+    const filtered = links.filter((link: LinkCache) => {
+        const shouldFilterOut = isLinkFromFrontmatter(sourcePath, targetBasename, link.position, getMetadataFn);
+        logger.debug('Filter decision for individual link', {
+            sourcePath,
+            linkName: link.link,
+            linkPosition: link.position,
+            shouldFilterOut
+        });
+        return !shouldFilterOut;
+    });
+    const removedCount = originalCount - filtered.length;
+
+    logger.debug('Filter result for source', {
+        sourcePath,
+        originalCount,
+        filteredCount: filtered.length,
+        willUpdate: removedCount > 0
+    });
+
+    return {
+        filtered,
+        originalCount,
+        removedCount,
+    };
+}
+
 /**
  * Removes front matter links from backlinks by checking source file metadata
  * This correctly identifies frontmatter links even when Obsidian's getBacklinksForFile
  * includes them with their real positions (not sentinel -1 values)
  */
 export function filterFrontmatterLinksFromBacklinks(
-    backlinks: { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> },
+    backlinks: BacklinksContainer,
     targetBasename: string,
     getMetadataFn: (path: string) => CachedMetadata | null
-): { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> } {
+): BacklinksContainer {
     logger.debug('filterFrontmatterLinksFromBacklinks called', {
         targetBasename,
         hasBacklinks: !!backlinks,
@@ -201,41 +250,28 @@ export function filterFrontmatterLinksFromBacklinks(
         return backlinks;
     }
 
+    const initialSourceCount = backlinks.data instanceof Map
+        ? backlinks.data.size
+        : Object.keys(backlinks.data).length;
+    const initialLinkCount = countTotalLinks(backlinks.data);
+
     let linksRemoved = 0;
-    let totalOriginalLinks = 0;
 
     if (backlinks.data instanceof Map) {
-        const dataMap = backlinks.data as Map<string, LinkCache[]>;
-        const initialSize = dataMap.size;
+        const dataMap = backlinks.data;
         logger.debug('Processing Map backlinks', {
-            entryCount: initialSize
+            entryCount: dataMap.size
         });
+
         for (const [sourcePath, links] of dataMap.entries()) {
-            logger.debug('Processing source file links', {
+            const { filtered, originalCount, removedCount } = filterLinksForSource(
                 sourcePath,
-                linkCount: links.length,
-                linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
-            });
-            const originalCount = links.length;
-            const filtered = links.filter((link: LinkCache) => {
-                const shouldFilterOut = isLinkFromFrontmatter(sourcePath, targetBasename, link.position, getMetadataFn);
-                logger.debug('Filter decision for individual link', {
-                    sourcePath,
-                    linkName: link.link,
-                    linkPosition: link.position,
-                    shouldFilterOut
-                });
-                return !shouldFilterOut;
-            });
-            
-            logger.debug('Filter result for source', {
-                sourcePath,
-                originalCount,
-                filteredCount: filtered.length,
-                willUpdate: filtered.length !== originalCount
-            });
-            
-            if (filtered.length !== originalCount) {
+                links,
+                targetBasename,
+                getMetadataFn
+            );
+
+            if (removedCount > 0) {
                 if (filtered.length === 0) {
                     // All links were filtered out - DELETE the key entirely
                     dataMap.delete(sourcePath);
@@ -243,7 +279,7 @@ export function filterFrontmatterLinksFromBacklinks(
                         sourcePath,
                         originalCount,
                         filteredCount: filtered.length,
-                        removed: originalCount - filtered.length
+                        removed: removedCount
                     });
                 } else {
                     // Some links remain - UPDATE the key with filtered array
@@ -252,38 +288,28 @@ export function filterFrontmatterLinksFromBacklinks(
                         sourcePath,
                         originalCount,
                         filteredCount: filtered.length,
-                        removed: originalCount - filtered.length
+                        removed: removedCount
                     });
                 }
-                linksRemoved += originalCount - filtered.length;
+                linksRemoved += removedCount;
             }
         }
     } else {
-        const dataRecord = backlinks.data as Record<string, LinkCache[]>;
-        const initialEntries = Object.keys(dataRecord).length;
+        const dataRecord = backlinks.data;
         logger.debug('Processing Object backlinks', {
-            entryCount: initialEntries
+            entryCount: Object.keys(dataRecord).length
         });
+
         for (const sourcePath in dataRecord) {
             const links = dataRecord[sourcePath];
-            logger.debug('Processing source file links', {
+            const { filtered, originalCount, removedCount } = filterLinksForSource(
                 sourcePath,
-                linkCount: links.length,
-                linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
-            });
-            const originalCount = links.length;
-            totalOriginalLinks += originalCount;
-            const filtered = links.filter((link: LinkCache) => {
-                const shouldFilterOut = isLinkFromFrontmatter(sourcePath, targetBasename, link.position, getMetadataFn);
-                logger.debug('Filter decision for individual link', {
-                    sourcePath,
-                    linkName: link.link,
-                    linkPosition: link.position,
-                    shouldFilterOut
-                });
-                return !shouldFilterOut;
-            });
-            if (filtered.length !== originalCount) {
+                links,
+                targetBasename,
+                getMetadataFn
+            );
+
+            if (removedCount > 0) {
                 if (filtered.length === 0) {
                     // All links were filtered out - DELETE the key entirely
                     delete dataRecord[sourcePath];
@@ -291,7 +317,7 @@ export function filterFrontmatterLinksFromBacklinks(
                         sourcePath,
                         originalCount,
                         filteredCount: filtered.length,
-                        removed: originalCount - filtered.length
+                        removed: removedCount
                     });
                 } else {
                     // Some links remain - UPDATE the key with filtered array
@@ -300,26 +326,26 @@ export function filterFrontmatterLinksFromBacklinks(
                         sourcePath,
                         originalCount,
                         filteredCount: filtered.length,
-                        removed: originalCount - filtered.length
+                        removed: removedCount
                     });
                 }
-                linksRemoved += originalCount - filtered.length;
+                linksRemoved += removedCount;
             }
         }
     }
-    
-    // Calculate final size based on data structure type
-    const finalSize = backlinks.data instanceof Map 
-        ? (backlinks.data as Map<string, LinkCache[]>).size 
-        : Object.keys(backlinks.data as Record<string, LinkCache[]>).length;
-    
-    const initialSize = totalOriginalLinks;
-    
+
+    const finalSourceCount = backlinks.data instanceof Map
+        ? backlinks.data.size
+        : Object.keys(backlinks.data).length;
+    const finalLinkCount = countTotalLinks(backlinks.data);
+
     logger.debug(`FilterFrontmatterLinksFromBacklinks complete: Removed ${linksRemoved} front matter links`, {
         targetBasename,
-        initialSize,
-        finalSize,
-        sizeChange: initialSize - finalSize
+        initialSourceCount,
+        finalSourceCount,
+        initialLinkCount,
+        finalLinkCount,
+        linksRemoved,
     });
 
     return backlinks;
@@ -330,10 +356,10 @@ export function filterFrontmatterLinksFromBacklinks(
  * Combines all the pure functions for end-to-end processing
  */
 export function processFrontmatterLinks(
-    backlinks: { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> },
+    backlinks: BacklinksContainer,
     frontmatterLinks: FrontmatterLinkCache[],
     settings: ObsidianInfluxSettings
-): { data: Map<string, LinkCache[]> | Record<string, LinkCache[]> } {
+): BacklinksContainer {
     try {
         // Validate inputs first before accessing properties
         if (!backlinks || !Array.isArray(frontmatterLinks)) {

@@ -89,6 +89,18 @@ export function isValidYamlPropertyName(property: string): boolean {
     return yamlPropertyRegex.test(property);
 }
 
+function evaluatePatternBehavior(
+    filePath: string,
+    behavior: ShowBehaviour,
+    optInPatterns: string[],
+    optOutPatterns: string[],
+    matcher: (path: string, patterns: string[]) => boolean
+): boolean {
+    const patterns = behavior === 'OPT_IN' ? optInPatterns : optOutPatterns;
+    const matched = matcher(filePath, patterns);
+    return behavior === 'OPT_IN' ? matched : !matched;
+}
+
 /**
  * Determines if Influx should be shown for a file based on show behaviour and pattern matching.
  *
@@ -97,14 +109,13 @@ export function isValidYamlPropertyName(property: string): boolean {
  * @returns true if Influx should be shown, false otherwise
  */
 export function shouldShowInflux(filePath: string, settings: FilterSettings): boolean {
-    const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern;
-    const matched = patternMatches(filePath, patterns);
-
-    if (settings.showBehaviour === 'OPT_IN') {
-        return matched; // Show only if pattern matches
-    } else {
-        return !matched; // Show unless pattern matches
-    }
+    return evaluatePatternBehavior(
+        filePath,
+        settings.showBehaviour,
+        settings.inclusionPattern,
+        settings.exclusionPattern,
+        patternMatches
+    );
 }
 
 /**
@@ -115,14 +126,13 @@ export function shouldShowInflux(filePath: string, settings: FilterSettings): bo
  * @returns true if file should be included, false otherwise
  */
 export function isIncludableSource(filePath: string, settings: FilterSettings): boolean {
-    const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern;
-    const matched = patternMatches(filePath, patterns);
-
-    if (settings.sourceBehaviour === 'OPT_IN') {
-        return matched; // Include only if pattern matches
-    } else {
-        return !matched; // Include unless pattern matches
-    }
+    return evaluatePatternBehavior(
+        filePath,
+        settings.sourceBehaviour,
+        settings.sourceInclusionPattern,
+        settings.sourceExclusionPattern,
+        patternMatches
+    );
 }
 
 /**
@@ -223,31 +233,17 @@ export function shouldShowInfluxWithMatcher(
     metadata?: CachedMetadata | null | undefined
 ): boolean {
     const matcher = patternMatcher || patternMatches;
-    return shouldShowInfluxWithMatcherImpl(filePath, settings, matcher, metadata);
-}
-
-/**
- * Internal implementation that uses a specific pattern matcher.
- */
-function shouldShowInfluxWithMatcherImpl(
-    filePath: string,
-    settings: FilterSettings,
-    patternMatcher: (path: string, patterns: string[]) => boolean,
-    metadata?: CachedMetadata | null | undefined
-): boolean {
     // If frontmatter key is required, check that first (supersedes pattern matching)
     if (settings.requireInfluxFrontmatterKey === true) {
         return hasInfluxFrontmatterKey(metadata);
     }
-
-    const patterns = settings.showBehaviour === 'OPT_IN' ? settings.inclusionPattern : settings.exclusionPattern;
-    const matched = patternMatcher(filePath, patterns);
-
-    if (settings.showBehaviour === 'OPT_IN') {
-        return matched; // Show only if pattern matches
-    } else {
-        return !matched; // Show unless pattern matches
-    }
+    return evaluatePatternBehavior(
+        filePath,
+        settings.showBehaviour,
+        settings.inclusionPattern,
+        settings.exclusionPattern,
+        matcher
+    );
 }
 
 /**
@@ -265,25 +261,13 @@ export function isIncludableSourceWithMatcher(
     patternMatcher?: (path: string, patterns: string[]) => boolean
 ): boolean {
     const matcher = patternMatcher || patternMatches;
-    return isIncludableSourceWithMatcherImpl(filePath, settings, matcher);
-}
-
-/**
- * Internal implementation that uses a specific pattern matcher.
- */
-function isIncludableSourceWithMatcherImpl(
-    filePath: string,
-    settings: FilterSettings,
-    patternMatcher: (path: string, patterns: string[]) => boolean
-): boolean {
-    const patterns = settings.sourceBehaviour === 'OPT_IN' ? settings.sourceInclusionPattern : settings.sourceExclusionPattern;
-    const matched = patternMatcher(filePath, patterns);
-
-    if (settings.sourceBehaviour === 'OPT_IN') {
-        return matched; // Include only if pattern matches
-    } else {
-        return !matched; // Include unless pattern matches
-    }
+    return evaluatePatternBehavior(
+        filePath,
+        settings.sourceBehaviour,
+        settings.sourceInclusionPattern,
+        settings.sourceExclusionPattern,
+        matcher
+    );
 }
 
 /**

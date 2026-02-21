@@ -12,8 +12,6 @@ export interface UpdateOperation {
 
 export class UpdateCoordinator {
 	private operations = new Map<string, UpdateOperation>();
-	private queuedOperations = new Map<string, () => Promise<void>>();
-	private isProcessing = false;
 	private unloading = false;
 
 	/**
@@ -96,7 +94,6 @@ export class UpdateCoordinator {
 			logger.debug('Cancelled operation during cleanup', { id, op: operation.op });
 		}
 		this.operations.clear();
-		this.queuedOperations.clear();
 	}
 
 	/**
