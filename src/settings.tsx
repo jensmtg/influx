@@ -1,6 +1,7 @@
 import ObsidianInflux from './main';
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import { logger } from './utils/logger';
+import { validateYamlPropertyNames } from './settings-utils';
 
 export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
@@ -230,13 +231,14 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.exclusionPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
-                    const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.data.settings.exclusionPattern = patterns.split('\n');
-                    this.saveSettings().catch(err => {
-                        logger.error('Failed to save settings', { error: err });
-                    });
-                };
+                    textArea.inputEl.onblur = (e: FocusEvent) => {
+                        const patterns = (e.target as HTMLInputElement).value;
+                        this.plugin.data.settings.exclusionPattern = patterns.split('\n');
+                        this.saveSettings().catch(err => {
+                            logger.error('Failed to save settings', { error: err });
+                            new Notice('Failed to save settings. Check console for details.');
+                        });
+                    };
             });
 
 
@@ -258,13 +260,14 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.inclusionPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
-                    const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.data.settings.inclusionPattern = patterns.split('\n');
-                    this.saveSettings().catch(err => {
-                        logger.error('Failed to save settings', { error: err });
-                    });
-                };
+                    textArea.inputEl.onblur = (e: FocusEvent) => {
+                        const patterns = (e.target as HTMLInputElement).value;
+                        this.plugin.data.settings.inclusionPattern = patterns.split('\n');
+                        this.saveSettings().catch(err => {
+                            logger.error('Failed to save settings', { error: err });
+                            new Notice('Failed to save settings. Check console for details.');
+                        });
+                    };
             });
 
 
@@ -307,13 +310,14 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.sourceExclusionPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
-                    const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.data.settings.sourceExclusionPattern = patterns.split('\n');
-                    this.saveSettings().catch(err => {
-                        logger.error('Failed to save settings', { error: err });
-                    });
-                };
+                    textArea.inputEl.onblur = (e: FocusEvent) => {
+                        const patterns = (e.target as HTMLInputElement).value;
+                        this.plugin.data.settings.sourceExclusionPattern = patterns.split('\n');
+                        this.saveSettings().catch(err => {
+                            logger.error('Failed to save settings', { error: err });
+                            new Notice('Failed to save settings. Check console for details.');
+                        });
+                    };
             });
 
 
@@ -335,13 +339,14 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.sourceInclusionPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
-                    const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.data.settings.sourceInclusionPattern = patterns.split('\n');
-                    this.saveSettings().catch(err => {
-                        logger.error('Failed to save settings', { error: err });
-                    });
-                };
+                    textArea.inputEl.onblur = (e: FocusEvent) => {
+                        const patterns = (e.target as HTMLInputElement).value;
+                        this.plugin.data.settings.sourceInclusionPattern = patterns.split('\n');
+                        this.saveSettings().catch(err => {
+                            logger.error('Failed to save settings', { error: err });
+                            new Notice('Failed to save settings. Check console for details.');
+                        });
+                    };
             });
 
 
@@ -377,13 +382,14 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                 textArea
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.collapsedPattern.join('\n'));
-                textArea.inputEl.onblur = (e: FocusEvent) => {
-                    const patterns = (e.target as HTMLInputElement).value;
-                    this.plugin.data.settings.collapsedPattern = patterns.split('\n');
-                    this.saveSettings().catch(err => {
-                        logger.error('Failed to save settings', { error: err });
-                    });
-                };
+                    textArea.inputEl.onblur = (e: FocusEvent) => {
+                        const patterns = (e.target as HTMLInputElement).value;
+                        this.plugin.data.settings.collapsedPattern = patterns.split('\n');
+                        this.saveSettings().catch(err => {
+                            logger.error('Failed to save settings', { error: err });
+                            new Notice('Failed to save settings. Check console for details.');
+                        });
+                    };
             });
 
 
@@ -420,19 +426,18 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         .split(',')
                         .map(prop => prop.trim())
                         .filter(prop => prop.length > 0);
-                    
-                    // Validate YAML property names
-                    const yamlPropertyRegex = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
-                    const invalidProperties = properties.filter(prop => !yamlPropertyRegex.test(prop));
-                    
-                    // Find the setting container
+
+                    // Validate YAML property names using utility function
+                    const validationResult = validateYamlPropertyNames(properties);
+
+                    // Find setting container
                     const settingContainer = text.inputEl.closest('.setting-item');
-                    
-                    if (invalidProperties.length > 0) {
+
+                    if (validationResult.invalid.length > 0) {
                         // Show warning for invalid properties
                         text.inputEl.addClass('is-invalid');
-                        const warningMsg = `Invalid property names: ${invalidProperties.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, underscores, and hyphens.`;
-                        
+                        const warningMsg = `Invalid property names: ${validationResult.invalid.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, underscores, and hyphens.`;
+
                         // Create or update warning element
                         let warningEl = settingContainer?.querySelector('.frontmatter-warning');
                         if (!warningEl && settingContainer) {
@@ -446,10 +451,8 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         if (warningEl) {
                             warningEl.textContent = warningMsg;
                         }
-                        
-                        // Filter out invalid properties
-                        const validProperties = properties.filter(prop => yamlPropertyRegex.test(prop));
-                        this.plugin.data.settings.frontmatterProperties = validProperties;
+
+                        this.plugin.data.settings.frontmatterProperties = validationResult.valid;
                     } else {
                         // Remove warning if all properties are valid
                         text.inputEl.removeClass('is-invalid');
@@ -459,9 +462,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         }
                         this.plugin.data.settings.frontmatterProperties = properties;
                     }
-                    
+
                     this.saveSettings().catch(err => {
                         logger.error('Failed to save settings', { error: err });
+                        new Notice('Failed to save settings. Check console for details.');
                     });
                 };
             });

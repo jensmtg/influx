@@ -53,7 +53,11 @@ export default class ObsidianInflux extends Plugin {
 		// CRITICAL: Set window plugin reference BEFORE registering editor extension
 		// This prevents race condition where CodeMirror extension initializes
 		// and tries to access window.influxPlugin before it's set
-		(window as any).influxPlugin = this;
+		if (!(window as any).influxPlugin) {
+			(window as any).influxPlugin = this;
+		} else {
+			logger.warn('window.influxPlugin already set - skipping assignment');
+		}
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
 
@@ -184,6 +188,8 @@ export default class ObsidianInflux extends Plugin {
 		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
 		await this.saveData({ ...this.data, settings: settings });
 		this.api.invalidateSettingsCache();
+		// Invalidate preview manager's settings hash cache
+		this.previewManager.invalidateSettingsHash();
 		// Don't call triggerUpdates here - let the calling code decide if an update is needed
 		// This prevents duplicate update triggers when called from settings.tsx
 		logger.debug('Settings saved and cache invalidated');

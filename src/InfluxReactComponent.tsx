@@ -23,11 +23,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	} = props
 
 	const [components, setComponents] = React.useState(influxFile.components)
-	const [collapsedManager] = React.useState(() =>
-		new CollapsedStateManager(
-			influxFile.collapsed ? components.map(c => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined) : []
-		)
-	)
+	const [collapsedManager] = React.useState(() => {
+		const initialCollapsed = influxFile.collapsed && influxFile.components.length > 0
+			? influxFile.components.map(c => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined)
+			: [];
+		return new CollapsedStateManager(initialCollapsed);
+	})
 	const [, forceUpdate] = React.useReducer(x => x + 1, 0)
 	const [searchQuery, setSearchQuery] = React.useState('')
 	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false)
@@ -72,9 +73,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		});
 	}, [components, searchQuery]);
 
-	const handleSearchChange = debounce((value: string) => {
-		setSearchQuery(value);
-	}, 150);
+	const handleSearchChange = React.useCallback(
+		debounce((value: string) => {
+			setSearchQuery(value);
+		}, 400),
+		[]
+	);
 
 	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Escape') {

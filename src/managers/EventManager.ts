@@ -26,9 +26,11 @@ export class EventManager {
 		if (!this.plugin.data.settings.liveUpdate) {
 			return;
 		}
-		if (file instanceof TFile) {
-			this.plugin.api.invalidateFileCache(file.path);
+		// Only process files, skip folders
+		if (!(file instanceof TFile)) {
+			return;
 		}
+		this.plugin.api.invalidateFileCache(file.path);
 		this.plugin.triggerUpdates('modify', file);
 	}
 
@@ -49,6 +51,10 @@ export class EventManager {
 	}
 
 	private handleFileOpen(file: TAbstractFile): void {
+		// Only trigger updates for files that exist and are not folders
+		if (!file || !(file instanceof TFile)) {
+			return;
+		}
 		this.plugin.triggerUpdates('file-open', file);
 	}
 

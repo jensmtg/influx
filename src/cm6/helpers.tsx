@@ -7,34 +7,20 @@ import { StateField, StateEffect, StateEffectType } from "@codemirror/state";
 function defineStatefulDecoration(): {
     update: StateEffectType<DecorationSet>;
     field: StateField<DecorationSet>;
-    request: StateEffectType<{ show: boolean }>;
 } {
     const update = StateEffect.define<DecorationSet>();
-    const request = StateEffect.define<{ show: boolean }>();
     const field = StateField.define<DecorationSet>({
         create(): DecorationSet {
             return Decoration.none;
         },
         update(deco, tr): DecorationSet {
-            // First apply any update effects (synchronous)
-            let newDeco = tr.effects.reduce((deco, effect) => {
+            return tr.effects.reduce((deco, effect) => {
                 return effect.is(update) ? effect.value : deco
             }, deco.map(tr.changes));
-
-            // Check for request effects that indicate async update is needed
-            for (const effect of tr.effects) {
-                if (effect.is(request)) {
-                    // Store the request in a transaction annotation so the ViewPlugin can see it
-                    // This allows the ViewPlugin to compute decorations asynchronously
-                    // and then dispatch with an update effect
-                }
-            }
-
-            return newDeco;
         },
         provide: field => EditorView.decorations.from(field),
     });
-    return { update, field, request };
+    return { update, field };
 }
 
 

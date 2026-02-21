@@ -10,7 +10,8 @@ import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
 export class StatefulDecorationSet {
     editor: EditorView;
     decoCache: { [cls: string]: Decoration } = Object.create(null);
-    pendingUpdate: { show: boolean } | null = null;
+    pendingUpdate: { show: boolean; updateId: number } | null = null;
+    private updateId: number = 0;
 
     constructor(editor: EditorView) {
         this.editor = editor;
@@ -105,7 +106,8 @@ export class StatefulDecorationSet {
         }
 
         // Store pending request for cancellation
-        this.pendingUpdate = { show };
+        const currentUpdateId = ++this.updateId;
+        this.pendingUpdate = { show, updateId: currentUpdateId };
 
         // Compute decorations using the state at call time
         const decorations = await this.computeAsyncDecorations(state, show);
@@ -118,7 +120,7 @@ export class StatefulDecorationSet {
         }
 
         // Check if this update is still the most recent request
-        if (this.pendingUpdate?.show !== show) {
+        if (this.pendingUpdate?.show !== show || this.pendingUpdate?.updateId !== currentUpdateId) {
             this.pendingUpdate = null;
             return;
         }

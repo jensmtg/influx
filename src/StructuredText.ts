@@ -363,7 +363,7 @@ export class StructuredText {
         }
 
         if (this.children[parentToBeId] && this.children[parentToBeId].includes(childToBeId)) {
-            throw new Error('Parent-child relationship allready exists.')
+            throw new Error('Parent-child relationship already exists.')
         }
 
         // Remove child from original parents children index

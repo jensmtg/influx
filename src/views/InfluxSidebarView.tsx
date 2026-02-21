@@ -75,11 +75,9 @@ export class InfluxSidebarView extends ItemView {
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', (leaf) => {
 				const view = leaf?.view;
-				if (view instanceof MarkdownView && view.file) {
-					const file = view.file;
-					if (file !== this.currentFile) {
-						this.updateView(file);
-					}
+				const file = (view as MarkdownView)?.file;
+				if (file && file !== this.currentFile) {
+					this.updateView(file);
 				}
 			})
 		);

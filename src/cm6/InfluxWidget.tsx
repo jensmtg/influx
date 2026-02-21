@@ -76,11 +76,6 @@ export class InfluxWidget extends WidgetType {
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 
-        // Clean up old listener from previous container if it exists
-        if (this.currentContainer && this.disconnectedHandler) {
-            this.currentContainer.removeEventListener("disconnected", this.disconnectedHandler);
-        }
-
         // Use unified root manager to get or create React root
         const existingInfo = rootManager.get(container);
         let root = existingInfo?.root;
@@ -107,13 +102,20 @@ export class InfluxWidget extends WidgetType {
 
         // Cleanup when element is disconnected from DOM
         // Store handler for proper cleanup in destroy()
-        this.disconnectedHandler = () => {
-            // Unmount React root to prevent memory leaks
+        const disconnectedHandler = () => {
             rootManager.unmount(container);
         };
 
-        container.addEventListener("disconnected", this.disconnectedHandler)
-        this.currentContainer = container
+        container.addEventListener("disconnected", disconnectedHandler)
+
+        // Update references after new container is set up
+        // Clean up old listener from previous container if it exists
+        if (this.currentContainer && this.disconnectedHandler) {
+            this.currentContainer.removeEventListener("disconnected", this.disconnectedHandler);
+        }
+
+        this.disconnectedHandler = disconnectedHandler;
+        this.currentContainer = container;
 
         return container
     }

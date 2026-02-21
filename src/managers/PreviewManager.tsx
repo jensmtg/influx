@@ -22,11 +22,21 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 };
 
 export class PreviewManager {
+	private cachedSettingsHash: string | null = null;
+
 	constructor(
 		private plugin: ObsidianInflux,
 		private apiAdapter: ApiAdapter,
 		private previewFileHashes: Map<string, string>
 	) {}
+
+	/**
+	 * Invalidate the cached settings hash
+	 * Call this when settings change
+	 */
+	invalidateSettingsHash(): void {
+		this.cachedSettingsHash = null;
+	}
 
 	async updateAllPreviews(): Promise<void> {
 		const previewLeaves: WorkspaceLeaf[] = [];
@@ -34,7 +44,7 @@ export class PreviewManager {
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
 			const leafType: string = influxLeaf.view?.currentMode?.type;
-			const viewMode: string = influxLeaf.view?.mode;
+			const viewMode = influxLeaf.view?.mode;
 
 			const hasPreviewClass = influxLeaf.containerEl?.classList.contains('markdown-preview-view');
 
@@ -230,6 +240,11 @@ export class PreviewManager {
 	}
 
     private computeSettingsHash(): string {
+        // Return cached hash if available
+        if (this.cachedSettingsHash) {
+            return this.cachedSettingsHash;
+        }
+
         const settings = this.plugin.data.settings;
         logger.debug('Computing settings hash', {
             settings: {
@@ -244,6 +259,7 @@ export class PreviewManager {
             }
         });
         const hashString = computeSettingsHash(settings);
+        this.cachedSettingsHash = hashString;
         logger.debug('Settings hash computed', { hash: hashString });
         return hashString;
     }
