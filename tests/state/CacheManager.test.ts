@@ -131,6 +131,32 @@ describe('InfluxCacheManager', () => {
 			expect(cacheManager.getFile('test.md')).toBeNull();
 			expect(cacheManager.getBacklinks('test.md')).toBeNull();
 		});
+
+		test('should invalidate dependent backlink caches when a source file changes', () => {
+			cacheManager.setBacklinks('target-a.md', {
+				data: new Map([
+					['source.md', []],
+					['other.md', []]
+				])
+			} as any);
+			cacheManager.setBacklinks('target-b.md', {
+				data: {
+					'source.md': [],
+					'another.md': []
+				}
+			} as any);
+			cacheManager.setBacklinks('unrelated.md', {
+				data: new Map([
+					['different-source.md', []]
+				])
+			} as any);
+
+			cacheManager.invalidateFile('source.md');
+
+			expect(cacheManager.getBacklinks('target-a.md')).toBeNull();
+			expect(cacheManager.getBacklinks('target-b.md')).toBeNull();
+			expect(cacheManager.getBacklinks('unrelated.md')).not.toBeNull();
+		});
 	});
 
 	describe('Debug Info', () => {

@@ -14,6 +14,8 @@ interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, 
 
 const SEARCH_DEBOUNCE_MS = 400;
 const SEARCH_FOCUS_DELAY_MS = 100;
+const INITIAL_VISIBLE_COMPONENTS = 80;
+const VISIBLE_COMPONENTS_CHUNK = 50;
 
 function collectComponentPaths(components: ExtendedInlinkingFile[]): string[] {
 	return components
@@ -106,6 +108,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
 	const [isSearchFocused, setIsSearchFocused] = React.useState(false);
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
+	const searchResultsContainerRef = React.useRef<HTMLDivElement>(null);
+	const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
 	const updateSeqRef = React.useRef(0);
 
 	React.useEffect(() => {
@@ -139,6 +143,44 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		() => filterComponentsBySearch(indexedComponents, searchQuery),
 		[indexedComponents, searchQuery]
 	);
+	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS);
+	const visibleComponents = React.useMemo(
+		() => filteredComponents.slice(0, visibleCount),
+		[filteredComponents, visibleCount]
+	);
+	const hasMoreVisible = visibleCount < filteredComponents.length;
+
+	const loadMoreComponents = React.useCallback(() => {
+		setVisibleCount((count) => Math.min(count + VISIBLE_COMPONENTS_CHUNK, filteredComponents.length));
+	}, [filteredComponents.length]);
+
+	React.useEffect(() => {
+		setVisibleCount(Math.min(INITIAL_VISIBLE_COMPONENTS, filteredComponents.length));
+	}, [filteredComponents]);
+
+	React.useEffect(() => {
+		if (!hasMoreVisible || typeof IntersectionObserver === 'undefined') {
+			return;
+		}
+		const trigger = loadMoreTriggerRef.current;
+		if (!trigger) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((entry) => entry.isIntersecting)) {
+					loadMoreComponents();
+				}
+			},
+			{
+				root: searchResultsContainerRef.current,
+				rootMargin: '200px',
+			}
+		);
+		observer.observe(trigger);
+		return () => observer.disconnect();
+	}, [hasMoreVisible, loadMoreComponents, visibleCount]);
 
 	const debouncedSetSearchQuery = React.useMemo(
 		() => debounce((value: string) => {
@@ -371,12 +413,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							</div>
 						</div>
 
-						<div className="search-result-container">
+						<div className="search-result-container" ref={searchResultsContainerRef}>
 
 
 							<div className="search-results-children" >
 
-								{filteredComponents.map((extended: ExtendedInlinkingFile) => {
+								{visibleComponents.map((extended: ExtendedInlinkingFile) => {
 									const filePath = extended.inlinkingFile.file?.path;
 									const fileBasename = extended.inlinkingFile.file?.basename ?? 'unknown';
 
@@ -450,6 +492,20 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<div className="no-search-results">
 										No matching backlinks found
 									</div>
+								)}
+
+								{hasMoreVisible && (
+									<React.Fragment>
+										<div ref={loadMoreTriggerRef} style={{ height: 1 }} />
+										{typeof IntersectionObserver === 'undefined' && (
+											<button
+												className="tree-item-self is-clickable"
+												onClick={loadMoreComponents}
+											>
+												Load more backlinks
+											</button>
+										)}
+									</React.Fragment>
 								)}
 
 

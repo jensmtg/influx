@@ -101,6 +101,20 @@ describe('EventManager', () => {
 			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('test.md');
 			expect(mockPlugin.triggerUpdates).toHaveBeenCalledWith('rename', file);
 		});
+
+		test('should invalidate old and new paths when old path is provided', () => {
+			// Arrange
+			const file = mockTFile('new.md', 'new');
+
+			// Act
+			(eventManager as any).handleRename(file, 'old.md');
+
+			// Assert
+			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith('old.md');
+			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
+			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('old.md');
+			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('new.md');
+		});
 	});
 
 	describe('handleDelete', () => {

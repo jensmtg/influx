@@ -38,8 +38,12 @@ export class EventManager {
 		this.plugin.triggerUpdates('modify', file);
 	}
 
-	private handleRename(file: TAbstractFile): void {
+	private handleRename(file: TAbstractFile, oldPath?: string): void {
 		if (file instanceof TFile) {
+			if (oldPath && oldPath !== file.path) {
+				this.plugin.api.invalidateFileCache(oldPath);
+				this.plugin.cleanupFileHash(oldPath);
+			}
 			this.plugin.api.invalidateFileCache(file.path);
 			this.plugin.cleanupFileHash(file.path);
 		}

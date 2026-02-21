@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import { TFile, normalizePath } from 'obsidian';
 import { ObsidianInfluxSettings } from '../types/settings';
 import { logger } from '../utils/logger';
 import type { BacklinksObject } from '../apiAdapter';
@@ -48,6 +48,10 @@ export interface CacheDebugInfo {
 		size: number;
 		invalid: string[];
 	};
+	backlinksDependencyIndex: {
+		sources: number;
+		targets: number;
+	};
 	previewFileHashes: {
 		size: number;
 	};
@@ -62,6 +66,10 @@ export class InfluxCacheManager {
 
 	// Backlinks results by file path
 	private backlinksCache = new Map<string, BacklinksCacheEntry>();
+	// Source path (normalized) -> cached backlink target paths that depend on it
+	private backlinksTargetsBySource = new Map<string, Set<string>>();
+	// Cached backlink target path -> normalized source paths it currently depends on
+	private backlinksSourcesByTarget = new Map<string, Set<string>>();
 
 	// Settings cache
 	private settingsCache: SettingsCacheEntry | null = null;
@@ -114,9 +122,24 @@ export class InfluxCacheManager {
 	}
 
 	invalidateFile(path: string): void {
+		const normalizedPath = this.normalizePathKey(path);
+		const dependentTargets = Array.from(this.backlinksTargetsBySource.get(normalizedPath) ?? []);
+
 		this.fileCache.delete(path);
 		this.backlinksCache.delete(path);
 		this.previewFileHashes.delete(path);
+		this.removeDependencyEntriesForTarget(path);
+		this.backlinksTargetsBySource.delete(normalizedPath);
+
+		for (const targetPath of dependentTargets) {
+			if (targetPath === path) {
+				continue;
+			}
+			this.backlinksCache.delete(targetPath);
+			this.previewFileHashes.delete(targetPath);
+			this.removeDependencyEntriesForTarget(targetPath);
+		}
+
 		logger.debug('File cache invalidated', { path });
 	}
 
@@ -144,15 +167,37 @@ export class InfluxCacheManager {
 	}
 
 	setBacklinks(path: string, backlinks: BacklinksObject): void {
+		this.removeDependencyEntriesForTarget(path);
+
 		this.backlinksCache.set(path, {
 			backlinks,
 			timestamp: Date.now()
 		});
+
+		const normalizedTarget = this.normalizePathKey(path);
+		const sourcePaths = this.extractBacklinksSourcePaths(backlinks);
+		const normalizedSources = new Set<string>();
+
+		for (const sourcePath of sourcePaths) {
+			const normalizedSource = this.normalizePathKey(sourcePath);
+			if (normalizedSource === normalizedTarget) {
+				continue;
+			}
+			normalizedSources.add(normalizedSource);
+			(this.backlinksTargetsBySource.get(normalizedSource) ?? this.createAndSet(this.backlinksTargetsBySource, normalizedSource)).add(path);
+		}
+
+		if (normalizedSources.size > 0) {
+			this.backlinksSourcesByTarget.set(path, normalizedSources);
+		}
+
 		logger.debug('Backlinks cached', { path });
 	}
 
 	clearBacklinksCache(): void {
 		this.backlinksCache.clear();
+		this.backlinksTargetsBySource.clear();
+		this.backlinksSourcesByTarget.clear();
 		logger.info('Backlinks cache cleared');
 	}
 
@@ -249,6 +294,8 @@ export class InfluxCacheManager {
 	clearAll(): void {
 		this.fileCache.clear();
 		this.backlinksCache.clear();
+		this.backlinksTargetsBySource.clear();
+		this.backlinksSourcesByTarget.clear();
 		this.settingsCache = null;
 		this.regexCache.clear();
 		this.previewFileHashes.clear();
@@ -285,10 +332,53 @@ export class InfluxCacheManager {
 					.filter(([_, entry]) => entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL)
 					.map(([pattern]) => pattern)
 			},
+			backlinksDependencyIndex: {
+				sources: this.backlinksTargetsBySource.size,
+				targets: this.backlinksSourcesByTarget.size
+			},
 			previewFileHashes: {
 				size: this.previewFileHashes.size
 			}
 		};
+	}
+
+	private normalizePathKey(path: string): string {
+		return normalizePath(path).toLowerCase();
+	}
+
+	private extractBacklinksSourcePaths(backlinks: BacklinksObject): string[] {
+		if (!backlinks?.data) {
+			return [];
+		}
+		return backlinks.data instanceof Map
+			? Array.from(backlinks.data.keys())
+			: Object.keys(backlinks.data);
+	}
+
+	private removeDependencyEntriesForTarget(targetPath: string): void {
+		const sources = this.backlinksSourcesByTarget.get(targetPath);
+		if (!sources) {
+			return;
+		}
+
+		for (const sourcePath of sources) {
+			const targets = this.backlinksTargetsBySource.get(sourcePath);
+			if (!targets) {
+				continue;
+			}
+			targets.delete(targetPath);
+			if (targets.size === 0) {
+				this.backlinksTargetsBySource.delete(sourcePath);
+			}
+		}
+
+		this.backlinksSourcesByTarget.delete(targetPath);
+	}
+
+	private createAndSet<K, V>(map: Map<K, Set<V>>, key: K): Set<V> {
+		const value = new Set<V>();
+		map.set(key, value);
+		return value;
 	}
 }
 
