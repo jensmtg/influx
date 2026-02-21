@@ -3,7 +3,7 @@
  * Provides minimal Obsidian app functionality for testing
  */
 
-import type { TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 
 export const mockApp = {
 	vault: {
@@ -24,8 +24,7 @@ export const mockApp = {
  * Mock TFile object - uses the mocked TFile from obsidian package
  */
 export const mockTFile = (path: string, basename: string) => {
-	const file = new MockTFile(path, basename);
-	return file as unknown as TFile;
+	return new TFile(path, basename);
 };
 
 /**

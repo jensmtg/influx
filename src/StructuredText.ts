@@ -1,74 +1,32 @@
+import { buildAncestorsAndDescendantsIndexes, buildRoots } from './utils/structured-text-graph';
+import { parseText } from './utils/structured-text-parser';
 import {
-    lastNonEmptyElement,
-    ifOrderedListItemReturnOrdinal,
-    parseMarkdownTableRow,
-    isProperBullet,
-    calculateLeadingIndent,
-    generateNodeId
-} from './structured-text-utils';
-
-const FRONTMATTER_SIGN = '---'
-const BULLET_SIGN = '* '
-const DASH_SIGN = '- '
-const QUOTE_SIGN = '>'
-const CALLOUT_HEADER_SIGN = '[!'
-const OUTPUT_INDENT_SPACES = 2
-const OUTPUT_INDENT = ' '
-const OUTPUT_INDENT_STEP = OUTPUT_INDENT.repeat(OUTPUT_INDENT_SPACES)
-const OUTPUT_ORDINAL_SIGN = '. '
-const OUTPUT_QUOTE = '> '
-const OUTPUT_BULLET = '* '
-
-// Constants for padding and indentation
-const NODE_ID_PAD_LENGTH = 4
-const TABLE_INDENT_INITIAL = 0
-const TABLE_INDENT_SUBSEQUENT = 2
-
-
-export type NodeId = string;
-export type ExplicitIncludes = boolean[]
-
-export enum ModeType {
-    List = 'LIST',
-    CallOut = 'CALLOUT',
-    Frontmatter = 'FRONTMATTER',
-    Quote = 'QUOTE',
-    Table = 'TABLE',
-    Other = 'OTHER',
-    None = 'NONE',
-}
-
-export enum NodeType {
-    ListUnordered = 'LIST_UNORDERED',
-    ListOrdered = 'LIST_ORDERED',
-    CallOutHeader = 'CALLOUT_HEADER',
-    TableHeader = 'TABLE_HEADER',
-    TableDivider = 'TABLE_DIVIDER',
-    TableRow = 'TABLE_ROW',
-    Quote = 'QUOTE',
-    Other = 'OTHER',
-}
-
-export interface NodeInternal {
-    raw: string;
-    trimmed: string;
-    type: NodeType;
-    mode: ModeType;
-    stripped: string;
-    calloutLevel?: number;
-    isQuotedBullet?: boolean;
-    isFirstOfMode?: boolean;
-    ordinal?: number;
-    cols?: number;
-    headerId?: string;
-}
-
-export type InternalsIndex = { [key: NodeId]: NodeInternal }
-export type ChildrenIndex = { [key: NodeId]: NodeId[] }
-export type ParentsIndex = { [key: NodeId]: NodeId }
-export type DescendantsIndex = { [key: NodeId]: NodeId[] }
-export type AncestorsIndex = { [key: NodeId]: NodeId[] }
-export type RootsIndex = { [key: NodeId]: Record<string, unknown> }
+    stringify as stringifyStructuredText,
+    stringifyBranchesOfNodesWithLinks
+} from './utils/structured-text-stringify';
+import type {
+    AncestorsIndex,
+    ChildrenIndex,
+    DescendantsIndex,
+    ExplicitIncludes,
+    InternalsIndex,
+    NodeId,
+    ParentsIndex,
+    RootsIndex,
+    StructuredTextState
+} from './types/structured-text';
+export { ModeType, NodeType } from './types/structured-text';
+export type {
+    ExplicitIncludes,
+    NodeId,
+    NodeInternal,
+    InternalsIndex,
+    ChildrenIndex,
+    ParentsIndex,
+    DescendantsIndex,
+    AncestorsIndex,
+    RootsIndex
+} from './types/structured-text';
 
 export class StructuredText {
 
@@ -82,7 +40,7 @@ export class StructuredText {
 
 
     constructor(raw: string) {
-        const { internals, children, parents, roots } = this.parseText(raw)
+        const { internals, children, parents, roots } = parseText(raw)
         this.raw = raw
         this.internals = internals
         this.children = children
@@ -92,266 +50,24 @@ export class StructuredText {
         this.buildAncestorsAndDescendantsIndexes()
     }
 
-    private parseText(text: string): { internals: InternalsIndex, children: ChildrenIndex, parents: ParentsIndex, roots: RootsIndex } {
-
-        const lines = text.split('\n');
-        const internals: InternalsIndex = {}
-        const children: ChildrenIndex = {}
-        const parents: ParentsIndex = {}
-        const roots: RootsIndex = {}
-        let stack: NodeId[] = []
-        let mode: ModeType = ModeType.None
-        let calloutLevel = 0
-        let frontmatterDone = false
-
-
-        for (let i = 0; i < lines.length; i++) {
-
-            const line = lines[i]
-            const leadingIndent = calculateLeadingIndent(line);
-            const trimmed = line.slice(leadingIndent);
-            const id: NodeId = generateNodeId(i)
-            const isProperBulletVal = isProperBullet(trimmed)
-
-
-            let stripped = ''
-            let type: NodeType = NodeType.Other
-            let indent = 0
-            let isQuotedBullet: boolean = false
-            let isFirstOfMode: boolean = false
-            let ordinal: number | undefined
-            let tr: null | { cols: number, isDivider: boolean }
-            let cols: number = 0
-            let headerId: string = ''
-
-
-            if (i === 0 && trimmed === FRONTMATTER_SIGN) {
-                mode = ModeType.Frontmatter
-            }
-
-            else if (mode === ModeType.Frontmatter && !frontmatterDone) {
-                if (trimmed === FRONTMATTER_SIGN) {
-                    frontmatterDone = true
-                }
-            }
-
-
-            else if (isProperBulletVal) {
-                if (mode !== ModeType.List) {
-                    mode = ModeType.List
-                    isFirstOfMode = true
-                    stack = []
-                }
-                type = NodeType.ListUnordered
-                stripped = trimmed.slice(2)
-                indent = leadingIndent
-            }
-
-            else if (trimmed === '') {
-                mode = ModeType.None
-                stack = []
-            }
-
-            else if (trimmed.substring(0, 1) === QUOTE_SIGN) {
-
-                let i = 0
-                let quoteLevel = 0
-                let quoteLevelPos = 0
-
-                for (; trimmed[i] === '>';) {
-                    quoteLevel++
-                    quoteLevelPos = i
-                    const trim = trimmed.slice(i + 1)
-                    const advance = trim.search(/\S|$/)
-                    i = i + advance + 1
-                }
-
-                const strippedAfterLastQuote = trimmed.slice(quoteLevelPos + 1)
-                const strippedBeforeNextChar = trimmed.slice(i)
-
-                stripped = strippedBeforeNextChar
-
-                const indentFromQuoteLevel = strippedAfterLastQuote.search(/\S|$/);
-                isQuotedBullet = [DASH_SIGN, BULLET_SIGN].includes(strippedBeforeNextChar.substring(0, 2))
-
-                if (strippedBeforeNextChar.substring(0, 2) === CALLOUT_HEADER_SIGN) {
-                    if (mode !== ModeType.CallOut) {
-                        mode = ModeType.CallOut
-                        isFirstOfMode = true
-                        stack = []
-                    }
-                    type = NodeType.CallOutHeader
-                    calloutLevel = quoteLevel
-                    indent = quoteLevel - 1
-                }
-
-                else if (mode === ModeType.CallOut) {
-                    type = NodeType.Quote
-                    mode = ModeType.CallOut
-
-                    indent = isQuotedBullet ? quoteLevel + indentFromQuoteLevel : quoteLevel
-
-                    // indent = quoteLevel
-                }
-
-                else {
-                    if (mode !== ModeType.Quote) {
-                        mode = ModeType.Quote
-                        isFirstOfMode = true
-                    }
-                    type = NodeType.Quote
-                    indent = quoteLevel - 1
-                }
-
-            }
-
-
-
-            else {
-                if (mode === ModeType.CallOut && trimmed.substring(0, 1) !== QUOTE_SIGN) {
-                    mode = ModeType.Other
-                    isFirstOfMode = true
-                    calloutLevel = 0
-                    stack = []
-                }
-
-                ordinal = ifOrderedListItemReturnOrdinal(trimmed)
-                tr = parseMarkdownTableRow(trimmed)
-
-                if (ordinal) {
-                    if (mode !== ModeType.List) {
-                        mode = ModeType.List
-                        isFirstOfMode = true
-                        stack = []
-                    }
-                    type = NodeType.ListOrdered
-                    stripped = trimmed.slice(String(ordinal).length + 2)
-                    indent = leadingIndent
-                }
-
-                else if (tr) {
-                    if (mode !== ModeType.Table) {
-                        mode = ModeType.Table
-                        isFirstOfMode = true
-                        stack = []
-                        type = NodeType.TableHeader
-                    }
-                else if (tr.isDivider) {
-                    type = NodeType.TableDivider
-                    headerId = `${i - 1}`.padStart(NODE_ID_PAD_LENGTH, '0')
-                }
-                else {
-                    type = NodeType.TableRow
-                }
-                cols = tr.cols
-                stripped = trimmed
-                indent = isFirstOfMode ? TABLE_INDENT_INITIAL : TABLE_INDENT_SUBSEQUENT
-                }
-
-                else {
-                    type = NodeType.Other
-                    stripped = trimmed
-                    if (mode === ModeType.CallOut) {
-                        indent = calloutLevel
-                    }
-                    else if (mode !== ModeType.Other) {
-                        mode = ModeType.Other
-                        isFirstOfMode = true
-
-                    }
-                }
-
-
-            }
-
-            internals[id] = {
-                raw: line,
-                trimmed: trimmed,
-                stripped: stripped,
-                type: type,
-                mode: mode,
-                calloutLevel,
-                isQuotedBullet,
-                isFirstOfMode,
-                ordinal,
-                cols,
-                headerId,
-            };
-
-            if (indent >= stack.length - 1) {
-                stack[indent] = id
-            }
-            else {
-                stack = stack.slice(0, indent + 1)
-                stack[indent] = id
-            }
-
-            const parentId = lastNonEmptyElement(stack, 1)
-            if (parentId) {
-                (children[parentId] ||= []).push(id);
-                parents[id] = parentId;
-            }
-
-            if (indent === 0) {
-                roots[id] = {};
-            }
-
-
-        }
-
-        return {
-            children,
-            internals,
-            parents,
-            roots,
-        }
-
-    }
-
     private buildAncestorsAndDescendantsIndexes(): void {
-
-        this.descendants = {}
-        this.ancestors = {}
-
-        // ### Ancestors iteration
-        // Optimize: Cache Object.keys() to avoid O(n²) complexity
-        const nodeIds = Object.keys(this.internals);
-
-        for (const id of nodeIds) {
-            const parentId = this.parents[id]
-
-            if (!parentId) {
-                this.ancestors[id] = []
-            }
-            else {
-                this.ancestors[id] = this.ancestors[id] || []
-                this.ancestors[parentId] = this.ancestors[parentId] || []
-                this.ancestors[id] = [...this.ancestors[id], parentId, ...this.ancestors[parentId]]
-            }
-
-        }
-
-        // ### Descendants iteration
-        // Optimize: Use cached nodeIds from above
-        for (const id of nodeIds) {
-            this.descendants[id] = this.descendants[id] || []
-            const ancestorsOfId = this.ancestors[id];
-
-            ancestorsOfId.forEach(ancestorId => {
-                (this.descendants[ancestorId] ||= []).push(id);
-            })
-
-        }
-
+        const { ancestors, descendants } = buildAncestorsAndDescendantsIndexes(this.internals, this.parents)
+        this.ancestors = ancestors
+        this.descendants = descendants
     }
 
     private rebuildRoots(): void {
-        this.roots = {}
-        Object.keys(this.internals).forEach(id => {
-            if (!this.parents[id]) {
-                this.roots[id] = {}
-            }
-        })
+        this.roots = buildRoots(this.internals, this.parents)
+    }
+
+    private getState(): StructuredTextState {
+        return {
+            internals: this.internals,
+            children: this.children,
+            ancestors: this.ancestors,
+            descendants: this.descendants,
+            roots: this.roots,
+        }
     }
 
     public reparentNode = (childToBeId: NodeId, parentToBeId: NodeId): void => {
@@ -382,129 +98,11 @@ export class StructuredText {
     }
 
     public stringify = (explIncludes?: ExplicitIncludes): string => {
-
-        let str = ''
-
-        const depthFirstStringify = (id: string, level: number) => {
-            const internals = this.internals[id]
-            const include = !explIncludes || explIncludes[Number(id)]
-
-
-            if (internals && include) {
-
-                if (explIncludes && internals.isFirstOfMode) {
-                    str += '\n'
-                }
-
-                if (internals.mode === ModeType.Frontmatter) {
-                    // pass
-                }
-
-                else if (internals.mode === ModeType.List) {
-                    this.ancestors[id].forEach(_id => {
-                        const anc = this.internals[_id]
-                        if (anc.ordinal) {
-                            str += OUTPUT_INDENT.repeat(String(anc.ordinal).length + OUTPUT_ORDINAL_SIGN.length)
-                        }
-                        else {
-                            str += OUTPUT_INDENT_STEP
-                        }
-                    })
-                   
-                    if (internals.type === NodeType.ListOrdered) {
-                        str += internals.ordinal
-                        str += OUTPUT_ORDINAL_SIGN
-                    }
-                    else {
-                        str += OUTPUT_BULLET
-                    }
-
-                    str += internals.stripped
-                    str += '\n'
-                }
-
-                else if (internals.mode === ModeType.CallOut) {
-
-                    if (internals.type === NodeType.CallOutHeader) {
-                        str += OUTPUT_QUOTE
-                    }
-
-                    if (internals.isQuotedBullet) {
-                        str += OUTPUT_QUOTE.repeat(internals.calloutLevel)
-                        str += OUTPUT_INDENT_STEP.repeat(level - internals.calloutLevel)
-                        str += internals.stripped
-                        str += '\n'
-                    }
-                    else {
-                        str += OUTPUT_QUOTE.repeat(level)
-                        str += internals.stripped
-                        str += '\n'
-                    }
-
-
-                }
-
-                else if (internals.type === NodeType.Quote) {
-                    str += OUTPUT_QUOTE.repeat(level + 1)
-                    str += internals.stripped
-                    str += '\n'
-                }
-
-                else if (internals.mode === ModeType.Table) {
-                    str += internals.stripped
-                    str += '\n'
-                }
-
-                else {
-                    str += internals.stripped
-                    str += '\n'
-                }
-
-
-                this.children[id]?.forEach(childId => depthFirstStringify(childId, level + 1))
-
-            }
-
-            else if (internals) {
-
-                // Some includes are implicit, like table divider rows.
-
-                if (internals.type === NodeType.TableDivider) {
-                    if (explIncludes[Number(internals.headerId)]) {
-                        str += internals.stripped
-                        str += '\n'
-                    }
-                }
-
-            }
-
-        }
-
-        Object.keys(this.roots).forEach(id => {
-            depthFirstStringify(id, 0)
-        })
-
-        return str
-
+        return stringifyStructuredText(this.getState(), explIncludes)
     }
 
     public stringifyBranchesOfNodesWithLinks = (lineNumbers: number[]) => {
-
-        // Use array as map to reduce iterations
-        const explIncludes: ExplicitIncludes = []
-
-        lineNumbers.forEach(lineNumber => {
-
-            const id: NodeId = `${lineNumber}`.padStart(NODE_ID_PAD_LENGTH, '0')
-
-            explIncludes[lineNumber] = true
-            this.ancestors[id]?.forEach(_id => { explIncludes[Number(_id)] = true })
-            this.descendants[id]?.forEach(_id => { explIncludes[Number(_id)] = true })
-
-
-        })
-
-        return this.stringify(explIncludes)
+        return stringifyBranchesOfNodesWithLinks(this.getState(), lineNumbers)
     }
 
 }
