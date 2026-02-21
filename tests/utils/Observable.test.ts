@@ -145,7 +145,7 @@ describe('Observable', () => {
 
 		test('should wait for all promises', async () => {
 			// Arrange
-			let order: string[] = [];
+			const order: string[] = [];
 			const observer1 = jest.fn().mockImplementation(async () => {
 				order.push('observer1-start');
 				await new Promise(resolve => setTimeout(resolve, 10));
@@ -285,7 +285,7 @@ describe('Observable', () => {
 
 		test('should handle notify during notify', async () => {
 			// Arrange
-			let callOrder: string[] = [];
+			const callOrder: string[] = [];
 			const observer1 = jest.fn().mockImplementation(async () => {
 				callOrder.push('observer1');
 				await new Promise(resolve => setTimeout(resolve, 10));

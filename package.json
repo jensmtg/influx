@@ -10,6 +10,7 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test": "jest",
 		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
 		"serve": "docsify serve docs"
 	},
 	"keywords": [
