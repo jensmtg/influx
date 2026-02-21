@@ -50,13 +50,14 @@ export function parseMarkdownTableRow(row: string): { cols: number; isDivider: b
 
     let cols = 0;
     let isDivider = true;
+    const dividerCellRegex = /^:?-{3,}:?$/;
 
     const cells = match[0]
         .slice(1, match[0].length - 1)
         .split('|');
 
     cells.forEach(cell => {
-        if (cell.trim() !== '---') {
+        if (!dividerCellRegex.test(cell.trim())) {
             isDivider = false;
         }
         cols += 1;

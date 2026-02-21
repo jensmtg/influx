@@ -34,7 +34,7 @@ export class RootManager {
 		}
 
 		// Unmount any existing root for this container
-		this.unregister(container);
+		this.unmount(container);
 
 		const info: RootInfo = {
 			root,
@@ -51,7 +51,7 @@ export class RootManager {
 			// Unmount any existing root for this file path
 			const existing = this.filePathIndex.get(filePath);
 			if (existing && existing !== container) {
-				this.unregister(existing);
+				this.unmount(existing);
 			}
 			this.filePathIndex.set(filePath, container);
 		}
@@ -66,15 +66,6 @@ export class RootManager {
 	unregister(container: HTMLElement): void {
 		const info = this.roots.get(container);
 		if (info) {
-			// IMPORTANT: Always unmount the React root before removing from tracking
-			// to prevent memory leaks from mounted but untracked roots
-			try {
-				info.root.unmount();
-				logger.debug('Root unmounted during unregister', { type: info.type, filePath: info.filePath });
-			} catch (e) {
-				logger.error('Failed to unmount root during unregister', { error: e });
-			}
-			
 			if (info.filePath) {
 				this.filePathIndex.delete(info.filePath);
 			}
@@ -134,22 +125,12 @@ export class RootManager {
 	 */
 	cleanupStale(): number {
 		let cleaned = 0;
-		const toRemove: HTMLElement[] = [];
 
 		for (const [container, info] of this.roots) {
 			if (!document.body.contains(container)) {
-				try {
-					info.root.unmount();
-					cleaned++;
-				} catch (e) {
-					logger.error('Failed to unmount stale root', { error: e });
-				}
-				toRemove.push(container);
+				this.unmount(container);
+				cleaned++;
 			}
-		}
-
-		for (const container of toRemove) {
-			this.unregister(container);
 		}
 
 		if (cleaned > 0) {

@@ -22,6 +22,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	} = props
 
 	const [components, setComponents] = React.useState(influxFile.components)
+	const [inputValue, setInputValue] = React.useState('')
 	const [collapsedManager] = React.useState(() => {
 		const initialCollapsed = influxFile.collapsed && influxFile.components.length > 0
 			? influxFile.components.map((c: ExtendedInlinkingFile) => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined)
@@ -33,6 +34,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false)
 	const [isSearchFocused, setIsSearchFocused] = React.useState(false)
 	const searchInputRef = React.useRef<HTMLInputElement>(null)
+	const updateSeqRef = React.useRef(0)
+
+	React.useEffect(() => {
+		setComponents(influxFile.components)
+	}, [influxFile.components])
 
 	React.useEffect(() => {
 		return collapsedManager.subscribe(forceUpdate)
@@ -73,17 +79,31 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		});
 	}, [components, searchQuery]);
 
-	const handleSearchChange = React.useCallback(
-		debounce((value: string) => {
+	const debouncedSetSearchQuery = React.useMemo(
+		() => debounce((value: string) => {
 			setSearchQuery(value);
 		}, 400),
 		[]
 	);
 
+	React.useEffect(() => {
+		return () => {
+			debouncedSetSearchQuery.cancel();
+		};
+	}, [debouncedSetSearchQuery]);
+
+	const handleSearchChange = (value: string) => {
+		setInputValue(value);
+		debouncedSetSearchQuery(value);
+	};
+
 	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Escape') {
+			debouncedSetSearchQuery.cancel();
+			setInputValue('');
 			setSearchQuery('');
 			setIsSearchExpanded(false);
+			setIsSearchFocused(false);
 		}
 	};
 
@@ -94,6 +114,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			setTimeout(() => {
 				searchInputRef.current?.focus();
 			}, 100);
+		} else {
+			setIsSearchFocused(false);
 		}
 	};
 
@@ -101,6 +123,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		const abortController = new AbortController()
 
 		const handleUpdate = async (event: InfluxUpdateEvent) => {
+			const seq = ++updateSeqRef.current;
 			logger.debug('React component received update', { op: event.op, file: event.file?.path });
 			const current = influxFileRef.current
 			if (abortController.signal.aborted) return
@@ -111,6 +134,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			await current.makeInfluxList()
 			if (abortController.signal.aborted) return
 			const newComponents = await current.renderAllMarkdownBlocks();
+			if (abortController.signal.aborted || seq !== updateSeqRef.current) return
 			logger.debug('Setting new components', { count: newComponents.length });
 			setComponents(newComponents);
 		}
@@ -124,7 +148,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}, [influxFile.uuid])
 
 	// const length = influxFile?.inlinkingFiles.length || 0
-	const shownLength = influxFile?.components.length || 0
+	const shownLength = components.length || 0
 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
 
@@ -168,7 +192,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										type="text"
 										className="influx-search-input"
 										placeholder="Search backlinks..."
-										value={searchQuery}
+										value={inputValue}
 										onChange={(e) => handleSearchChange(e.target.value)}
 										onFocus={() => setIsSearchFocused(true)}
 										onBlur={() => setIsSearchFocused(false)}
@@ -178,7 +202,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									{searchQuery && (
 										<button
 											className="search-clear-btn"
-											onClick={() => setSearchQuery('')}
+											onClick={() => {
+												debouncedSetSearchQuery.cancel();
+												setInputValue('');
+												setSearchQuery('');
+											}}
 											aria-label="Clear search"
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-x">
@@ -315,7 +343,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 									return (
 
-										<div key={fileBasename}
+										<div key={filePath}
 											className={`tree-item search-result ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
 											style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 										>

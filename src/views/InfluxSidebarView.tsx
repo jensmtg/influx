@@ -122,6 +122,7 @@ export class InfluxSidebarView extends ItemView {
 		const updateId = ++this.currentUpdateId;
 
 		this.currentFile = file;
+		this.componentKey = file.path;
 
 		try {
 			this.influxFile = await InfluxFile.create(file.path, this.plugin.api);
@@ -146,7 +147,6 @@ export class InfluxSidebarView extends ItemView {
 			}
 
 			if (this.root) {
-				this.componentKey = `${file.path}-${Date.now()}`;
 				this.root.render(
 					<InfluxReactComponent
 						key={this.componentKey}
@@ -200,7 +200,6 @@ export class InfluxSidebarView extends ItemView {
 			}
 
 			if (this.root) {
-				this.componentKey = `${this.currentFile.path}-${Date.now()}`;
 				this.root.render(
 					<InfluxReactComponent
 						key={this.componentKey}
@@ -243,4 +242,3 @@ export class InfluxSidebarView extends ItemView {
 		}
 	}
 }
-

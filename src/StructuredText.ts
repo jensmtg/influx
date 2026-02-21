@@ -144,12 +144,12 @@ export class StructuredText {
             let headerId: string = ''
 
 
-            if (i === 0 && line.substring(0, 3) === FRONTMATTER_SIGN) {
+            if (i === 0 && trimmed === FRONTMATTER_SIGN) {
                 mode = ModeType.Frontmatter
             }
 
             else if (mode === ModeType.Frontmatter && !frontmatterDone) {
-                if (line.substring(0, 3) === FRONTMATTER_SIGN) {
+                if (trimmed === FRONTMATTER_SIGN) {
                     frontmatterDone = true
                 }
             }
@@ -227,6 +227,12 @@ export class StructuredText {
 
 
             else {
+                if (mode === ModeType.CallOut && trimmed.substring(0, 1) !== QUOTE_SIGN) {
+                    mode = ModeType.Other
+                    isFirstOfMode = true
+                    calloutLevel = 0
+                    stack = []
+                }
 
                 ordinal = ifOrderedListItemReturnOrdinal(trimmed)
                 tr = parseMarkdownTableRow(trimmed)
@@ -361,6 +367,15 @@ export class StructuredText {
 
     }
 
+    private rebuildRoots(): void {
+        this.roots = {}
+        Object.keys(this.internals).forEach(id => {
+            if (!this.parents[id]) {
+                this.roots[id] = {}
+            }
+        })
+    }
+
     public reparentNode = (childToBeId: NodeId, parentToBeId: NodeId): void => {
 
         if (!(childToBeId in this.internals && parentToBeId in this.internals)) {
@@ -384,6 +399,7 @@ export class StructuredText {
         this.parents[childToBeId] = parentToBeId;
 
         this.buildAncestorsAndDescendantsIndexes()
+        this.rebuildRoots()
 
     }
 
