@@ -46,7 +46,6 @@ export enum NodeType {
     TableDivider = 'TABLE_DIVIDER',
     TableRow = 'TABLE_ROW',
     Quote = 'QUOTE',
-    Blank = 'BLANK',
     Other = 'OTHER',
 }
 
@@ -62,7 +61,6 @@ export interface NodeInternal {
     ordinal?: number;
     cols?: number;
     headerId?: string;
-    debug: Record<string, unknown>;
 }
 
 export type InternalsIndex = { [key: NodeId]: NodeInternal }
@@ -72,16 +70,12 @@ export type DescendantsIndex = { [key: NodeId]: NodeId[] }
 export type AncestorsIndex = { [key: NodeId]: NodeId[] }
 export type RootsIndex = { [key: NodeId]: Record<string, unknown> }
 
-export type TypeIndex = { [key in NodeType]: NodeId[] }
-
-
 export class StructuredText {
 
     raw: string;
     internals: InternalsIndex;
     children: ChildrenIndex;
     parents: ParentsIndex;
-    types: TypeIndex;
     descendants: DescendantsIndex = {}
     ancestors: AncestorsIndex = {}
     roots: RootsIndex = {}
@@ -105,18 +99,6 @@ export class StructuredText {
         const children: ChildrenIndex = {}
         const parents: ParentsIndex = {}
         const roots: RootsIndex = {}
-        const types: TypeIndex = {
-            [NodeType.ListUnordered]: [],
-            [NodeType.ListOrdered]: [],
-            [NodeType.CallOutHeader]: [],
-            [NodeType.Other]: [],
-            [NodeType.TableHeader]: [],
-            [NodeType.TableDivider]: [],
-            [NodeType.TableRow]: [],
-            [NodeType.Quote]: [],
-            [NodeType.Blank]: [],
-        }
-
         let stack: NodeId[] = []
         let mode: ModeType = ModeType.None
         let calloutLevel = 0
@@ -135,7 +117,6 @@ export class StructuredText {
             let stripped = ''
             let type: NodeType = NodeType.Other
             let indent = 0
-            const debug: Record<string, unknown> = {}
             let isQuotedBullet: boolean = false
             let isFirstOfMode: boolean = false
             let ordinal: number | undefined
@@ -289,7 +270,6 @@ export class StructuredText {
                 stripped: stripped,
                 type: type,
                 mode: mode,
-                debug: debug,
                 calloutLevel,
                 isQuotedBullet,
                 isFirstOfMode,
@@ -297,8 +277,6 @@ export class StructuredText {
                 cols,
                 headerId,
             };
-
-            (types[type] ||= []).push(id);
 
             if (indent >= stack.length - 1) {
                 stack[indent] = id
