@@ -16,13 +16,7 @@ import { influxUpdates$ } from './utils/Observable';
 import { EventManager } from './managers/EventManager';
 import { PreviewManager } from './managers/PreviewManager';
 import { InfluxSidebarView } from './views/InfluxSidebarView';
-
-// Extend global Window interface for test function
-declare global {
-	interface Window {
-		testInfluxReadingView?: () => void;
-	}
-}
+import { cleanupWindowGlobals, isDebugMode } from './utils/typeGuard';
 
 // Type definitions for Obsidian internal properties
 type InfluxView = View & {
@@ -93,8 +87,8 @@ export default class ObsidianInflux extends Plugin {
 			this.openSidebar();
 		}
 
-		// Expose debug functions to browser console
-		if (CONSTANTS.DEBUG_MODE) {
+		// Expose debug functions to browser console (only when debug mode is enabled)
+		if (isDebugMode()) {
 			(window as any).influxDebug = {
 				getReactRoots: () => ({
 					size: rootManager.size,
@@ -110,10 +104,12 @@ export default class ObsidianInflux extends Plugin {
 			logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
 		}
 
-		// Add manual trigger for testing reading view
-		window.testInfluxReadingView = () => {
-			this.previewManager.updateAllPreviews();
-		};
+		// Add manual trigger for testing reading view (only in debug mode)
+		if (isDebugMode()) {
+			(window as any).testInfluxReadingView = () => {
+				this.previewManager.updateAllPreviews();
+			};
+		}
 	}
 
 	async loadDataInitially() {
@@ -238,14 +234,16 @@ export default class ObsidianInflux extends Plugin {
 		// Cancel all pending update operations
 		updateCoordinator.unload();
 
+		// Mark plugin as unloading (for type guards)
+		(this as any).isUnloading = true;
+
 		// Clean up all React roots on plugin unload
 		rootManager.unmountAll();
 		this.previewFileHashes.clear();
+		this.updating.clear();
 
 		// Clean up window references to prevent memory leaks
-		delete (window as any).influxPlugin;
-		delete (window as any).influxDebug;
-		delete (window as any).testInfluxReadingView;
+		cleanupWindowGlobals();
 	}
 
 	triggerUpdates(op: string, file?: TAbstractFile) {

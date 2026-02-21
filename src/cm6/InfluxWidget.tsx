@@ -32,8 +32,9 @@ interface InfluxWidgetSpec {
 export class InfluxWidget extends WidgetType {
     protected influxFile
     protected show
-    protected plugin
+    protected plugin: ObsidianInflux
     private disconnectedHandler: (() => void) | null = null
+    private currentContainer: HTMLElement | null = null
 
     constructor({ influxFile, show, plugin }: InfluxWidgetSpec) {
         super()
@@ -44,10 +45,14 @@ export class InfluxWidget extends WidgetType {
     }
 
     destroy(): void {
+        if (this.currentContainer && this.disconnectedHandler) {
+            this.currentContainer.removeEventListener("disconnected", this.disconnectedHandler);
+        }
         if (this.disconnectedHandler) {
             this.disconnectedHandler();
             this.disconnectedHandler = null;
         }
+        this.currentContainer = null;
     }
 
     eq(influxWidget: WidgetType) {
@@ -60,10 +65,21 @@ export class InfluxWidget extends WidgetType {
                this.influxFile?.file?.path === influxWidget.influxFile?.file?.path;
     }
 
+    ignoreEvent(event: Event): boolean {
+        // Let CodeMirror handle all events within the widget
+        // This allows proper event handling for React components inside the widget
+        return true;
+    }
+
     toDOM(view: EditorView) {
         const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG)
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
+
+        // Clean up old listener from previous container if it exists
+        if (this.currentContainer && this.disconnectedHandler) {
+            this.currentContainer.removeEventListener("disconnected", this.disconnectedHandler);
+        }
 
         // Use unified root manager to get or create React root
         const existingInfo = rootManager.get(container);
@@ -97,6 +113,7 @@ export class InfluxWidget extends WidgetType {
         };
 
         container.addEventListener("disconnected", this.disconnectedHandler)
+        this.currentContainer = container
 
         return container
     }

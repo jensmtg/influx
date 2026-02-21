@@ -119,7 +119,10 @@ export class ApiAdapter extends Component {
             filterFrontmatterLinksFromBacklinks(
                 backlinks,
                 file.basename,
-                (path: string) => this.getMetadata(this.getFileByPath(path)!)
+                (path: string) => {
+                    const tFile = this.getFileByPath(path);
+                    return tFile ? this.getMetadata(tFile) : null;
+                }
             );
             
             // Log result after filtering
@@ -283,15 +286,18 @@ export class ApiAdapter extends Component {
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const comparator = this.makeComparisonFn()
-        const components = await Promise.all(inlinkingsFiles
-            .sort(comparator)
-            .slice(0, settings.listLimit || inlinkingsFiles.length)
-            .map(async (inlinkingFile) => {
-                // Parallelize the two renderMarkdown calls to avoid sequential blocking
-                const [titleAsMd, summaryAsMd] = await Promise.all([
-                    this.renderMarkdown(`_${inlinkingFile.title}`),
-                    this.renderMarkdown(inlinkingFile.summary),
-                ])
+        let components: ExtendedInlinkingFile[] = []
+
+        try {
+            components = await Promise.all(inlinkingsFiles
+                .sort(comparator)
+                .slice(0, settings.listLimit || inlinkingsFiles.length)
+                .map(async (inlinkingFile) => {
+                    // Parallelize the two renderMarkdown calls to avoid sequential blocking
+                    const [titleAsMd, summaryAsMd] = await Promise.all([
+                        this.renderMarkdown(`_${inlinkingFile.title}`),
+                        this.renderMarkdown(inlinkingFile.summary),
+                    ])
 
                 // Optimize string processing: remove p and heading tags, then clean up any remaining underscores
                 const titleInnerHTML = titleAsMd.innerHTML
@@ -331,6 +337,13 @@ export class ApiAdapter extends Component {
                 }
                 return extended
             }))
+        } catch (error) {
+            logger.error('Failed to render markdown blocks', { error })
+            // Return partially rendered components if some failed
+            // This prevents complete failure if one file has issues
+            return components
+        }
+
         return components
     }
     /** comparison fn for filter in function to make contextual summaries,

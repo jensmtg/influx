@@ -61,10 +61,20 @@ export class RootManager {
 
 	/**
 	 * Unregister a root without unmounting (useful for transfers)
+	 * Note: This should only be called internally. Use unmount() for cleanup.
 	 */
 	unregister(container: HTMLElement): void {
 		const info = this.roots.get(container);
 		if (info) {
+			// IMPORTANT: Always unmount the React root before removing from tracking
+			// to prevent memory leaks from mounted but untracked roots
+			try {
+				info.root.unmount();
+				logger.debug('Root unmounted during unregister', { type: info.type, filePath: info.filePath });
+			} catch (e) {
+				logger.error('Failed to unmount root during unregister', { error: e });
+			}
+			
 			if (info.filePath) {
 				this.filePathIndex.delete(info.filePath);
 			}

@@ -25,13 +25,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [collapsedManager] = React.useState(() =>
 		new CollapsedStateManager(
-			influxFile.collapsed ? components.map(c => c.inlinkingFile.file.path) : []
+			influxFile.collapsed ? components.map(c => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined) : []
 		)
 	)
 	const [, forceUpdate] = React.useReducer(x => x + 1, 0)
 	const [searchQuery, setSearchQuery] = React.useState('')
 	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false)
 	const [isSearchFocused, setIsSearchFocused] = React.useState(false)
+	const searchInputRef = React.useRef<HTMLInputElement>(null)
 
 	React.useEffect(() => {
 		return collapsedManager.subscribe(forceUpdate)
@@ -42,7 +43,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}
 
 	const toggleAll = () => {
-		const allPaths = components.map(c => c.inlinkingFile.file.path)
+		const allPaths = components
+			.map(c => c.inlinkingFile.file?.path)
+			.filter((path): path is string => path !== undefined);
 		const nowAllCollapsed = collapsedManager.toggleAll(allPaths)
 		setToggleAllToOpen(nowAllCollapsed)
 	}
@@ -57,7 +60,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 		const query = searchQuery.toLowerCase().trim();
 		return components.filter((item: ExtendedInlinkingFile) => {
-			const basenameMatch = item.inlinkingFile.file.basename.toLowerCase().includes(query);
+			const basenameMatch = item.inlinkingFile.file?.basename.toLowerCase().includes(query) ?? false;
 
 			const titleText = item.titleInnerHTML.replace(/<[^>]*>/g, '').toLowerCase();
 			const titleMatch = titleText.includes(query);
@@ -85,8 +88,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		if (!isSearchExpanded) {
 			setIsSearchFocused(true);
 			setTimeout(() => {
-				const searchInput = document.querySelector('.influx-search-input') as HTMLInputElement;
-				searchInput?.focus();
+				searchInputRef.current?.focus();
 			}, 100);
 		}
 	};
@@ -158,6 +160,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							{isSearchExpanded && (
 								<div className={`search-input-wrapper ${isSearchFocused ? 'is-focused' : ''}`}>
 									<input
+										ref={searchInputRef}
 										type="text"
 										className="influx-search-input"
 										placeholder="Search backlinks..."
@@ -288,8 +291,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							<div className="search-results-children" >
 
 								{filteredComponents.map((extended: ExtendedInlinkingFile) => {
+									const filePath = extended.inlinkingFile.file?.path;
+									const fileBasename = extended.inlinkingFile.file?.basename ?? 'unknown';
 
-									const inlinkedCollapsed = collapsedManager.isCollapsed(extended.inlinkingFile.file.path)
+									if (!filePath) {
+										return null;
+									}
+
+									const inlinkedCollapsed = collapsedManager.isCollapsed(filePath)
 
 									const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 										<h2>
@@ -302,7 +311,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 									return (
 
-										<div key={extended.inlinkingFile.file.basename}
+										<div key={fileBasename}
 											className={`tree-item search-result ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
 											style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 										>
@@ -318,17 +327,17 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 													</svg>
 												</div>
 
-												<div className="tree-item-inner">
-													<a
-														data-href={extended.inlinkingFile.file.basename}
-														href={extended.inlinkingFile.file.basename}
-														className="internal-link"
-														target="_blank"
-														rel="noopener"
-													>
-														{extended.inlinkingFile.file.basename}
-													</a>
-												</div>
+											<div className="tree-item-inner">
+												<a
+													data-href={fileBasename}
+													href={fileBasename}
+													className="internal-link"
+													target="_blank"
+													rel="noopener"
+												>
+													{fileBasename}
+												</a>
+											</div>
 											</div>
 											<div className="search-result-file-matches"
 												style={inlinkedCollapsed ? { display: 'none' }

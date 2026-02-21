@@ -325,10 +325,10 @@ export class StructuredText {
         this.ancestors = {}
 
         // ### Ancestors iteration
+        // Optimize: Cache Object.keys() to avoid O(n²) complexity
+        const nodeIds = Object.keys(this.internals);
 
-        for (let i = 0; i < Object.keys(this.internals).length; i++) {
-            const id = Object.keys(this.internals)[i]
-
+        for (const id of nodeIds) {
             const parentId = this.parents[id]
 
             if (!parentId) {
@@ -343,10 +343,8 @@ export class StructuredText {
         }
 
         // ### Descendants iteration
-
-        for (let i = 0; i < Object.keys(this.internals).length; i++) {
-            const id = Object.keys(this.internals)[i]
-
+        // Optimize: Use cached nodeIds from above
+        for (const id of nodeIds) {
             this.descendants[id] = this.descendants[id] || []
             const ancestorsOfId = this.ancestors[id];
 
@@ -355,6 +353,7 @@ export class StructuredText {
             })
 
         }
+
     }
 
     public reparentNode = (childToBeId: NodeId, parentToBeId: NodeId): void => {

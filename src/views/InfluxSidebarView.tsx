@@ -13,6 +13,8 @@ export class InfluxSidebarView extends ItemView {
 	private root: Root | null = null;
 	private plugin: ObsidianInflux;
 	private componentKey: string = 'initial';
+	private currentUpdateId: number = 0;
+	private abortController: AbortController | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ObsidianInflux) {
 		super(leaf);
@@ -49,6 +51,12 @@ export class InfluxSidebarView extends ItemView {
 
 	async onClose(): Promise<void> {
 		logger.info('InfluxSidebarView closed');
+
+		// Cancel any pending updates
+		if (this.abortController) {
+			this.abortController.abort();
+			this.abortController = null;
+		}
 
 		if (this.root) {
 			try {
@@ -105,12 +113,39 @@ export class InfluxSidebarView extends ItemView {
 
 		logger.debug('Updating Influx sidebar view', { filePath: file.path });
 
+		// Cancel any previous ongoing update
+		if (this.abortController) {
+			this.abortController.abort();
+		}
+
+		// Create new abort controller for this update
+		this.abortController = new AbortController();
+		const signal = this.abortController.signal;
+		const updateId = ++this.currentUpdateId;
+
 		this.currentFile = file;
 
 		try {
 			this.influxFile = await InfluxFile.create(file.path, this.plugin.api);
+
+			// Check if this update is still current
+			if (signal.aborted || updateId !== this.currentUpdateId) {
+				return;
+			}
+
 			await this.influxFile.makeInfluxList();
+
+			// Check again before continuing
+			if (signal.aborted || updateId !== this.currentUpdateId) {
+				return;
+			}
+
 			await this.influxFile.renderAllMarkdownBlocks();
+
+			// Final check before rendering
+			if (signal.aborted || updateId !== this.currentUpdateId) {
+				return;
+			}
 
 			if (this.root) {
 				this.componentKey = `${file.path}-${Date.now()}`;
@@ -124,7 +159,23 @@ export class InfluxSidebarView extends ItemView {
 				);
 			}
 		} catch (error) {
+			// Don't log errors if this operation was aborted
+			if (signal.aborted) {
+				return;
+			}
 			logger.error('Failed to update sidebar view', { filePath: file.path, error });
+			// Provide user feedback in UI
+			if (this.root) {
+				this.root.render(
+					<div style={{
+						padding: '1rem',
+						color: 'var(--text-error)',
+						textAlign: 'center'
+					}}>
+						Failed to load Influx. Check console for details.
+					</div>
+				);
+			}
 		}
 	}
 
@@ -133,10 +184,22 @@ export class InfluxSidebarView extends ItemView {
 			return;
 		}
 
+		const signal = this.abortController?.signal;
+		const updateId = this.currentUpdateId;
+
 		try {
 			this.plugin.api.invalidateFileCache(this.currentFile.path);
 			await this.influxFile.makeInfluxList();
+
+			if (signal?.aborted || updateId !== this.currentUpdateId) {
+				return;
+			}
+
 			await this.influxFile.renderAllMarkdownBlocks();
+
+			if (signal?.aborted || updateId !== this.currentUpdateId) {
+				return;
+			}
 
 			if (this.root) {
 				this.componentKey = `${this.currentFile.path}-${Date.now()}`;
@@ -150,7 +213,36 @@ export class InfluxSidebarView extends ItemView {
 				);
 			}
 		} catch (error) {
+			if (signal?.aborted) {
+				return;
+			}
 			logger.error('Failed to handle editor change', { filePath: this.currentFile.path, error });
+			// Provide user feedback in UI - temporarily show error message
+			if (this.root && this.influxFile) {
+				const currentComponent = (
+					<InfluxReactComponent
+						key={this.componentKey}
+						influxFile={this.influxFile}
+						preview={true}
+						plugin={this.plugin}
+					/>
+				);
+				this.root.render(
+					<div>
+						<div style={{
+							padding: '0.5rem',
+							color: 'var(--text-warning)',
+							fontSize: '0.9em',
+							background: 'var(--background-modifier-hover)',
+							borderBottom: '1px solid var(--background-modifier-border)'
+						}}>
+							Failed to update Influx. Retrying...
+						</div>
+						{currentComponent}
+					</div>
+				);
+			}
 		}
 	}
 }
+

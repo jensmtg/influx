@@ -4,11 +4,13 @@ import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
+import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
 
 
 export class StatefulDecorationSet {
     editor: EditorView;
     decoCache: { [cls: string]: Decoration } = Object.create(null);
+    pendingUpdate: { show: boolean } | null = null;
 
     constructor(editor: EditorView) {
         this.editor = editor;
@@ -20,8 +22,8 @@ export class StatefulDecorationSet {
         const { file } = state.field(editorViewField);
         if (!file) return null; // If no file is loaded
 
-        // Access plugin through global window reference since app.plugins doesn't work in CodeMirror context
-        const plugin = (window as any).influxPlugin
+        // Use type-safe plugin access
+        const plugin = getPlugin();
 
         if (!plugin) {
             return null;
@@ -34,7 +36,7 @@ export class StatefulDecorationSet {
         }
 
         // Reuse plugin's api instance instead of creating new one (preserves cache)
-        const apiAdapter = plugin.api
+        const apiAdapter = plugin.api as any
 
         const influxFile = await InfluxFile.create(file.path, apiAdapter)
         await influxFile.makeInfluxList()
@@ -58,7 +60,7 @@ export class StatefulDecorationSet {
                 side = -1; // Before the position (places it at the end of the content)
             }
 
-            decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin, side }).range(anchorPosition))
+            decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin: plugin as any, side }).range(anchorPosition))
         }
 
         return Decoration.set(decorations, true);
@@ -85,18 +87,25 @@ export class StatefulDecorationSet {
         return 0;
     }
 
-
+    /**
+     * Update decorations asynchronously and dispatch via proper CM6 transaction system
+     * This method computes decorations and then dispatches with an update effect
+     * to ensure the update happens within CM6's transaction cycle
+     */
     async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
         // Capture plugin reference and check at the START to prevent race conditions
-        const plugin = (window as any).influxPlugin;
-        if (!plugin || plugin.isUnloading) {
+        const plugin = getPlugin();
+        if (!plugin || isPluginUnloading()) {
             return;
         }
 
-        // Store the editor reference and check immediately
+        // Store editor reference and check immediately
         if (!this.editor) {
             return;
         }
+
+        // Store pending request for cancellation
+        this.pendingUpdate = { show };
 
         // Compute decorations using the state at call time
         const decorations = await this.computeAsyncDecorations(state, show);
@@ -104,37 +113,50 @@ export class StatefulDecorationSet {
         // Early exit if plugin or editor was destroyed during async computation
         // This prevents updating a destroyed editor
         if (!this.editor || !this.editor.state) {
+            this.pendingUpdate = null;
+            return;
+        }
+
+        // Check if this update is still the most recent request
+        if (this.pendingUpdate?.show !== show) {
+            this.pendingUpdate = null;
             return;
         }
 
         // Revalidate plugin instance still active (after async operation)
-        if ((window as any).influxPlugin !== plugin) {
+        const currentPlugin = getPlugin();
+        if (currentPlugin !== plugin) {
+            this.pendingUpdate = null;
             return;
         }
 
         // Check if plugin is now unloading (after async operation)
-        const currentPlugin = (window as any).influxPlugin;
-        if (!currentPlugin || currentPlugin.isUnloading) {
+        if (isPluginUnloading()) {
+            this.pendingUpdate = null;
             return;
         }
 
-        // Safely check if we need to update decorations
-        let hasExistingDecorations = false;
-        try {
-            hasExistingDecorations = this.editor.state.field(statefulDecorations.field).size > 0;
-        } catch {
-            // Field is not present in state - try to apply decorations anyway
-            // This handles the case where the field hasn't been initialized yet
-            hasExistingDecorations = false;
-        }
-
-        // Update decorations if we have new ones or need to clear existing ones
-        if (decorations || hasExistingDecorations) {
+        // Update decorations using proper CM6 StateEffect
+        // This ensures the update happens within the transaction system
+        if (this.editor.state.field(statefulDecorations.field, false)) {
             try {
-                this.editor.dispatch({ effects: statefulDecorations.update.of(decorations || Decoration.none) });
-            } catch {
+                this.editor.dispatch({
+                    effects: [statefulDecorations.update.of(decorations || Decoration.none)]
+                });
+            } catch (e) {
                 // Silently ignore errors from destroyed editors
+                // (e.g., editor was unmounted during async computation)
             }
         }
+
+        this.pendingUpdate = null;
+    }
+
+    /**
+     * Cancel any pending async decoration updates
+     * Call this when you know the editor state will change soon
+     */
+    cancelPendingUpdates(): void {
+        this.pendingUpdate = null;
     }
 }
