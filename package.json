@@ -2,12 +2,14 @@
 	"name": "influx",
 	"version": "3.0.0",
 	"description": "Transform your Obsidian backlinks from simple links into rich, contextual excerpts. See the actual content surrounding each link, turning your note connections into genuine insights.",
+	"type": "module",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test": "jest",
+		"lint": "eslint .",
 		"serve": "docsify serve docs"
 	},
 	"keywords": [
@@ -23,21 +25,25 @@
 	"devDependencies": {
 		"@codemirror/state": "6.5.0",
 		"@codemirror/view": "6.38.6",
+		"@eslint/js": "^10.0.1",
 		"@types/jest": "^30.0.0",
 		"@types/node": "^25.0.10",
-		"@types/react-dom": "^19.2.3",
 		"@types/react": "^19.2.9",
+		"@types/react-dom": "^19.2.3",
 		"@typescript-eslint/eslint-plugin": "^8.56.0",
 		"@typescript-eslint/parser": "^8.56.0",
 		"builtin-modules": "^5.0.0",
 		"docsify-cli": "5.0.0-rc.3",
 		"esbuild": "0.27.3",
 		"eslint": "^10.0.0",
+		"eslint-plugin-jest": "^29.15.0",
+		"globals": "^17.3.0",
 		"jest": "^30.2.0",
 		"obsidian": "latest",
 		"ts-jest": "^29.4.6",
 		"tslib": "2.8.1",
-		"typescript": "5.9.3"
+		"typescript": "5.9.3",
+		"typescript-eslint": "^8.56.0"
 	},
 	"dependencies": {
 		"react": "^19.2.3",
@@ -45,7 +51,7 @@
 	},
 	"overrides": {
 		"minimatch": "^10.2.1",
-		"ajv": "^8.18.0",
+		"ajv": "^6.12.6",
 		"glob": "^10.3.10"
 	}
 }

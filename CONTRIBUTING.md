@@ -10,6 +10,7 @@ npm install
 
 - **Dev mode**: `npm run dev` (esbuild watch)
 - **Build**: `npm run build`
+- **Lint**: `npm run lint`
 - **Test**: `npm test`
 - **Docs**: `npm run serve`
 
