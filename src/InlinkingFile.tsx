@@ -32,6 +32,7 @@ export class InlinkingFile {
         }
 
         const struct = new StructuredText(this.content)
+        // Extract only links that reference the context file
         const links = this.meta.links
             ? this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
             : []
@@ -42,21 +43,21 @@ export class InlinkingFile {
         this.setTitle()
         this.isLinkInTitle = this.titleLineNum !== undefined && lineNumbersOfLinks.includes(this.titleLineNum)
 
+        // If link is in title, show entire content; otherwise show only relevant branches
         if (this.isLinkInTitle) {
             this.summary = struct.stringify()
         }
         else {
             this.summary = struct.stringifyBranchesOfNodesWithLinks(lineNumbersOfLinks)
-            // console.log('this.summary', this.summary)
         }
 
     }
 
     setTitle() {
+        // Priority: frontmatter attribute > first heading > empty string
         const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && CONSTANTS.FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[CONSTANTS.FRONTMATTER_KEY] : null
         const titleByFirstHeader = this.meta.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
-        // Explicitly set to undefined if no position data available
         this.titleLineNum = titleByFirstHeader?.position?.start.line ?? undefined;
     }
 

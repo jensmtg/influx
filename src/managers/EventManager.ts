@@ -1,6 +1,10 @@
 import { TAbstractFile, TFile } from 'obsidian';
 import type ObsidianInflux from '../main';
 
+/**
+ * Manages Obsidian event registration for file modifications, renames, deletions,
+ * and workspace layout changes. Triggers plugin updates when relevant events occur.
+ */
 export class EventManager {
 	constructor(private plugin: ObsidianInflux) {}
 

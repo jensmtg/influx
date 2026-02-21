@@ -22,6 +22,10 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 	containerEl: HTMLDivElement;
 };
 
+/**
+ * Manages Influx plugin rendering in preview mode. Handles container creation,
+ * React root management, and cache invalidation.
+ */
 export class PreviewManager {
 	constructor(
 		private plugin: ObsidianInflux,

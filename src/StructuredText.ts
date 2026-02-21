@@ -5,7 +5,7 @@ import {
     isProperBullet,
     calculateLeadingIndent,
     generateNodeId
-} from './structuredtext-utils';
+} from './structured-text-utils';
 
 const FRONTMATTER_SIGN = '---'
 const BULLET_SIGN = '* '

@@ -11,7 +11,7 @@ import {
     padToNodeId,
     stripBulletMarker,
     stripOrdinalMarker
-} from './structuredtext-utils';
+} from './structured-text-utils';
 
 describe('StructuredText Utils', () => {
 

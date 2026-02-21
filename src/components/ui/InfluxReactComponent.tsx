@@ -5,11 +5,11 @@ import { ObsidianInfluxSettings } from "../../types";
 import { TFile } from "obsidian";
 import { CONSTANTS } from '../../constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
-import { CollapsedStateManager } from '../hooks/CollapsedStateManager';
+import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './InfluxErrorBoundary';
 import type ObsidianInflux from '../../main';
 import { logger } from '../../utils/logger';
-import { debounce } from '../hooks/debounce';
+import { debounce } from '../../utils/debounce';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
@@ -60,6 +60,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		if (!searchQuery.trim()) return components;
 
 		const query = searchQuery.toLowerCase().trim();
+		// Filter by matching search query against basename, title, or content
 		return components.filter((item: ExtendedInlinkingFile) => {
 			const basenameMatch = item.inlinkingFile.file?.basename.toLowerCase().includes(query) ?? false;
 

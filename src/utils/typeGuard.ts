@@ -3,6 +3,8 @@
  * Replaces unsafe 'as any' casts with proper runtime validation
  */
 
+import { logger } from './logger';
+
 /**
  * Minimal interface for plugin type validation
  * Avoids circular dependency with actual ObsidianInflux class
@@ -137,7 +139,7 @@ export function getBacklinksForFileSafely(
 		return (metadataCache as any).getBacklinksForFile(file);
 	} catch (error) {
 		// Log error but don't throw - fall back to null
-		console.warn('[Influx] Failed to call getBacklinksForFile', { error });
+		logger.warn('Failed to call getBacklinksForFile', { error });
 		return null;
 	}
 }

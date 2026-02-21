@@ -56,23 +56,21 @@ export default class InfluxFile {
         this.collapsed = this.api.getCollapsedStatus(this.file)
     }
 
-    // is the file that triggers update part of the current files inlinked files?
     shouldUpdate(file: TFile) {
         if (!this.file) {
             return false;
         }
-        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
+        this.backlinks = this.api.getBacklinks(this.file)
         if (!this.backlinks || !this.backlinks.data) {
             return false
         }
 
-        // Normalize target path
+        // Normalize paths to handle case-insensitive comparison
         const normalizedTarget = normalizePath(file.path).toLowerCase();
         const paths = this.backlinks.data instanceof Map
             ? Array.from(this.backlinks.data.keys())
             : Object.keys(this.backlinks.data);
 
-        // Normalize and compare paths
         return paths.some(path =>
             normalizePath(path).toLowerCase() === normalizedTarget
         );
@@ -83,7 +81,7 @@ export default class InfluxFile {
             this.inlinkingFiles = [];
             return;
         }
-        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
+        this.backlinks = this.api.getBacklinks(this.file)
         const inlinkingFilesNew: InlinkingFile[] = []
         if (!this.backlinks || !this.backlinks.data) {
             this.inlinkingFiles = inlinkingFilesNew
