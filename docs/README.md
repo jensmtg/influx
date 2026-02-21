@@ -187,6 +187,8 @@ For large vaults or optimal performance:
 
 Found a bug or have a feature request? Please [open an issue](https://github.com/jensmtg/influx/issues) on GitHub.
 
+See [CONTRIBUTING](CONTRIBUTING.md) for more information.
+
 ## Project Maintainers
 
 **Current Maintainer**: [@semanticdata](https://github.com/semanticdata) (Miguel Pimentel)
