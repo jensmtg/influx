@@ -126,7 +126,7 @@ export class RootManager {
 	cleanupStale(): number {
 		let cleaned = 0;
 
-		for (const [container, info] of this.roots) {
+		for (const [container] of this.roots) {
 			if (!document.body.contains(container)) {
 				this.unmount(container);
 				cleaned++;
