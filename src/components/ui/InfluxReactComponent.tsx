@@ -1,7 +1,7 @@
-import * as React from "react";
+import * as React from 'react';
 import InfluxFile from '../../InfluxFile';
 import { ExtendedInlinkingFile } from '../../apiAdapter';
-import { ObsidianInfluxSettings } from "../../types";
+import { ObsidianInfluxSettings } from '../../types';
 import { CONSTANTS } from '../../constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
 import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
@@ -10,8 +10,69 @@ import type ObsidianInflux from '../../main';
 import { logger } from '../../utils/logger';
 import { debounce } from '../../utils/debounce';
 
-
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
+
+const SEARCH_DEBOUNCE_MS = 400;
+const SEARCH_FOCUS_DELAY_MS = 100;
+
+function collectComponentPaths(components: ExtendedInlinkingFile[]): string[] {
+	return components
+		.map((component) => component.inlinkingFile.file?.path)
+		.filter((path): path is string => path !== undefined);
+}
+
+function collectInitialCollapsedPaths(influxFile: InfluxFile): string[] {
+	if (!influxFile.collapsed || influxFile.components.length === 0) {
+		return [];
+	}
+	return collectComponentPaths(influxFile.components);
+}
+
+function stripHtmlToLowerText(html: string): string {
+	return html.replace(/<[^>]*>/g, '').toLowerCase();
+}
+
+function filterComponentsBySearch(components: ExtendedInlinkingFile[], searchQuery: string): ExtendedInlinkingFile[] {
+	const normalizedQuery = searchQuery.toLowerCase().trim();
+	if (!normalizedQuery) {
+		return components;
+	}
+
+	return components.filter((item) => {
+		const basenameMatch = item.inlinkingFile.file?.basename.toLowerCase().includes(normalizedQuery) ?? false;
+		const titleMatch = stripHtmlToLowerText(item.titleInnerHTML).includes(normalizedQuery);
+		const contentMatch = stripHtmlToLowerText(item.inner.innerHTML).includes(normalizedQuery);
+		return basenameMatch || titleMatch || contentMatch;
+	});
+}
+
+function getLinkedMentionsCountLabel(params: {
+	totalEntryCount: number;
+	listLimit: number;
+	renderedCount: number;
+	filteredCount: number;
+	hasSearch: boolean;
+}): string {
+	const {
+		totalEntryCount,
+		listLimit,
+		renderedCount,
+		filteredCount,
+		hasSearch,
+	} = params;
+	const hasListLimit = listLimit > 0 && totalEntryCount > listLimit;
+
+	if (hasSearch && hasListLimit) {
+		return `${filteredCount} of ${totalEntryCount}`;
+	}
+	if (hasListLimit) {
+		return `${renderedCount} of ${totalEntryCount}`;
+	}
+	if (hasSearch) {
+		return `${filteredCount} of ${renderedCount}`;
+	}
+	return totalEntryCount.toString();
+}
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
 
@@ -19,70 +80,51 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		influxFile,
 		preview = false,
 		plugin,
-	} = props
+	} = props;
 
-	const [components, setComponents] = React.useState(influxFile.components)
-	const [inputValue, setInputValue] = React.useState('')
+	const [components, setComponents] = React.useState(influxFile.components);
+	const [inputValue, setInputValue] = React.useState('');
 	const [collapsedManager] = React.useState(() => {
-		const initialCollapsed = influxFile.collapsed && influxFile.components.length > 0
-			? influxFile.components.map((c: ExtendedInlinkingFile) => c.inlinkingFile.file?.path).filter((p): p is string => p !== undefined)
-			: [];
-		return new CollapsedStateManager(initialCollapsed);
-	})
-	const [, forceUpdate] = React.useReducer(x => x + 1, 0)
-	const [searchQuery, setSearchQuery] = React.useState('')
-	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false)
-	const [isSearchFocused, setIsSearchFocused] = React.useState(false)
-	const searchInputRef = React.useRef<HTMLInputElement>(null)
-	const updateSeqRef = React.useRef(0)
+		return new CollapsedStateManager(collectInitialCollapsedPaths(influxFile));
+	});
+	const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
+	const [searchQuery, setSearchQuery] = React.useState('');
+	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
+	const [isSearchFocused, setIsSearchFocused] = React.useState(false);
+	const searchInputRef = React.useRef<HTMLInputElement>(null);
+	const updateSeqRef = React.useRef(0);
 
 	React.useEffect(() => {
-		setComponents(influxFile.components)
-	}, [influxFile.components])
+		setComponents(influxFile.components);
+	}, [influxFile.components]);
 
 	React.useEffect(() => {
-		return collapsedManager.subscribe(forceUpdate)
-	}, [collapsedManager])
+		return collapsedManager.subscribe(forceUpdate);
+	}, [collapsedManager]);
 
 	const doToggle = (path: string) => {
-		collapsedManager.toggle(path)
-	}
+		collapsedManager.toggle(path);
+	};
 
 	const toggleAll = () => {
-		const allPaths = components
-			.map((c: ExtendedInlinkingFile) => c.inlinkingFile.file?.path)
-			.filter((path): path is string => path !== undefined);
-		const nowAllCollapsed = collapsedManager.toggleAll(allPaths)
-		setToggleAllToOpen(nowAllCollapsed)
-	}
+		const nowAllCollapsed = collapsedManager.toggleAll(collectComponentPaths(components));
+		setToggleAllToOpen(nowAllCollapsed);
+	};
 
-	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
+	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed);
 
-	const influxFileRef = React.useRef(influxFile)
-	influxFileRef.current = influxFile
+	const influxFileRef = React.useRef(influxFile);
+	influxFileRef.current = influxFile;
 
-	const filteredComponents = React.useMemo(() => {
-		if (!searchQuery.trim()) return components;
-
-		const query = searchQuery.toLowerCase().trim();
-		// Filter by matching search query against basename, title, or content
-		return components.filter((item: ExtendedInlinkingFile) => {
-			const basenameMatch = item.inlinkingFile.file?.basename.toLowerCase().includes(query) ?? false;
-
-			const titleText = item.titleInnerHTML.replace(/<[^>]*>/g, '').toLowerCase();
-			const titleMatch = titleText.includes(query);
-
-			const contentText = item.inner.innerHTML.replace(/<[^>]*>/g, '').toLowerCase();
-			const contentMatch = contentText.includes(query);
-
-			return basenameMatch || titleMatch || contentMatch;
-		});
-	}, [components, searchQuery]);
+	const filteredComponents = React.useMemo(
+		() => filterComponentsBySearch(components, searchQuery),
+		[components, searchQuery]
+	);
 
 	const debouncedSetSearchQuery = React.useMemo(
 		() => debounce((value: string) => {
 			setSearchQuery(value);
-		}, 400),
+		}, SEARCH_DEBOUNCE_MS),
 		[]
 	);
 
@@ -97,13 +139,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		debouncedSetSearchQuery(value);
 	};
 
-	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === 'Escape') {
-			debouncedSetSearchQuery.cancel();
-			setInputValue('');
-			setSearchQuery('');
+	const resetSearch = (closePanel: boolean) => {
+		debouncedSetSearchQuery.cancel();
+		setInputValue('');
+		setSearchQuery('');
+		if (closePanel) {
 			setIsSearchExpanded(false);
 			setIsSearchFocused(false);
+		}
+	};
+
+	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === 'Escape') {
+			resetSearch(true);
 		}
 	};
 
@@ -113,51 +161,57 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			setIsSearchFocused(true);
 			setTimeout(() => {
 				searchInputRef.current?.focus();
-			}, 100);
+			}, SEARCH_FOCUS_DELAY_MS);
 		} else {
 			setIsSearchFocused(false);
 		}
 	};
 
 	React.useEffect(() => {
-		const abortController = new AbortController()
+		const abortController = new AbortController();
 
 		const handleUpdate = async (event: InfluxUpdateEvent) => {
 			const seq = ++updateSeqRef.current;
 			logger.debug('React component received update', { op: event.op, file: event.file?.path });
-			const current = influxFileRef.current
-			if (abortController.signal.aborted) return
+			const current = influxFileRef.current;
+			if (abortController.signal.aborted) return;
 			if (event.op === 'modify' && !current.shouldUpdate(event.file)) {
-				return
+				return;
 			}
 
-			await current.makeInfluxList()
-			if (abortController.signal.aborted) return
+			await current.makeInfluxList();
+			if (abortController.signal.aborted) return;
 			const newComponents = await current.renderAllMarkdownBlocks();
-			if (abortController.signal.aborted || seq !== updateSeqRef.current) return
+			if (abortController.signal.aborted || seq !== updateSeqRef.current) return;
 			logger.debug('Setting new components', { count: newComponents.length });
 			setComponents(newComponents);
-		}
+		};
 
-		const unsubscribe = influxUpdates$.subscribe(influxFile.uuid, handleUpdate)
+		const unsubscribe = influxUpdates$.subscribe(influxFile.uuid, handleUpdate);
 
 		return () => {
-			abortController.abort()
-			unsubscribe()
-		}
-	}, [influxFile.uuid])
+			abortController.abort();
+			unsubscribe();
+		};
+	}, [influxFile.uuid]);
 
-	// const length = influxFile?.inlinkingFiles.length || 0
-	const shownLength = components.length || 0
+	const shownLength = components.length || 0;
 
-	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
+	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
 
-	const centered = settings.variant !== 'ROWS'
-	const fontSize = settings.fontSize || 13
-	const lineHeight = fontSize * 1.5
+	const centered = settings.variant !== 'ROWS';
+	const fontSize = settings.fontSize || 13;
+	const lineHeight = fontSize * 1.5;
+	const mentionsCountLabel = getLinkedMentionsCountLabel({
+		totalEntryCount: influxFile.totalEntryCount ?? 0,
+		listLimit: settings.listLimit || 0,
+		renderedCount: components.length,
+		filteredCount: filteredComponents.length,
+		hasSearch: searchQuery.length > 0,
+	});
 
 	if (!influxFile.show || shownLength === 0) {
-		return null
+		return null;
 	}
 
 	return (
@@ -202,11 +256,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									{searchQuery && (
 										<button
 											className="search-clear-btn"
-											onClick={() => {
-												debouncedSetSearchQuery.cancel();
-												setInputValue('');
-												setSearchQuery('');
-											}}
+											onClick={() => resetSearch(false)}
 											aria-label="Clear search"
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-x">
@@ -297,22 +347,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 							<div className="tree-item-flair-outer">
 								<span className="tree-item-flair">
-									{(() => {
-										const totalEntryCount = influxFile.totalEntryCount ?? 0;
-										const listLimit = settings.listLimit || 0;
-										const hasListLimit = listLimit > 0 && totalEntryCount > listLimit;
-										const hasSearch = searchQuery.length > 0;
-
-										if (hasSearch && hasListLimit) {
-											return `${filteredComponents.length} of ${totalEntryCount}`;
-										} else if (hasListLimit) {
-											return `${components.length} of ${totalEntryCount}`;
-										} else if (hasSearch) {
-											return `${filteredComponents.length} of ${components.length}`;
-										} else {
-											return totalEntryCount.toString();
-										}
-									})()}
+									{mentionsCountLabel}
 								</span>
 							</div>
 						</div>
@@ -330,7 +365,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										return null;
 									}
 
-									const inlinkedCollapsed = collapsedManager.isCollapsed(filePath)
+									const inlinkedCollapsed = collapsedManager.isCollapsed(filePath);
 
 									const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 										<h2>
@@ -338,7 +373,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}
 											/>
 										</h2>
-									) : null
+									) : null;
 
 
 									return (
@@ -389,7 +424,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										</div>
 
 
-									)
+									);
 								})}
 
 								{filteredComponents.length === 0 && searchQuery && (

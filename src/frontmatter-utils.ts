@@ -11,6 +11,20 @@ import { compareLinkName } from './link-utils';
 type BacklinksData = Map<string, LinkCache[]> | Record<string, LinkCache[]>;
 type BacklinksContainer = { data: BacklinksData };
 
+function appendLinkToBacklinks(data: BacklinksData, linkCache: LinkCache): void {
+    if (data instanceof Map) {
+        const existing = data.get(linkCache.link);
+        if (existing) {
+            existing.push(linkCache);
+            return;
+        }
+        data.set(linkCache.link, [linkCache]);
+        return;
+    }
+
+    (data[linkCache.link] ||= []).push(linkCache);
+}
+
 /**
  * Validates and filters front matter property names
  * Extracted from ApiAdapter.getValidProperties()
@@ -89,19 +103,7 @@ export function mergeConvertedLinksIntoBacklinks(
 
     for (const linkCache of convertedLinks) {
         if (!linkCache?.link) continue;
-        
-        // Add to backlinks structure
-        if (backlinks.data instanceof Map) {
-            if (!backlinks.data.has(linkCache.link)) {
-                backlinks.data.set(linkCache.link, []);
-            }
-            backlinks.data.get(linkCache.link)!.push(linkCache);
-        } else {
-            if (!backlinks.data[linkCache.link]) {
-                backlinks.data[linkCache.link] = [];
-            }
-            backlinks.data[linkCache.link].push(linkCache);
-        }
+        appendLinkToBacklinks(backlinks.data, linkCache);
     }
 }
 
