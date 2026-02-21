@@ -19,21 +19,41 @@ export const mockApp = {
 } as any;
 
 /**
- * Mock TFile object
+ * Mock TFile object - uses the mocked TFile from obsidian package
  */
-export const mockTFile = (path: string, basename: string) => ({
-	path,
-	basename,
-	extension: path.split('.').pop(),
-	name: basename,
-	vault: {} as any,
-	parent: {} as any,
-	stat: {
-		mtime: Date.now(),
-		ctime: Date.now(),
-		size: 0,
-	},
-}) as any;
+export const mockTFile = (path: string, basename: string) => {
+	const { TFile } = require('obsidian');
+	const file = new TFile(path, basename);
+	return file as any;
+};
+
+/**
+ * Mock TFile class (for reference, but not used directly)
+ */
+export class MockTFile {
+	constructor(
+		public path: string,
+		public basename: string
+	) {
+		this.path = path;
+		this.basename = basename;
+		this.extension = path.split('.').pop();
+		this.name = basename;
+		this.vault = {} as any;
+		this.parent = {} as any;
+		this.stat = {
+			mtime: Date.now(),
+			ctime: Date.now(),
+			size: 0,
+		};
+	}
+
+	extension: string;
+	name: string;
+	vault: any;
+	parent: any;
+	stat: { mtime: number; ctime: number; size: number };
+}
 
 /**
  * Mock CachedMetadata
