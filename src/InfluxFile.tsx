@@ -16,6 +16,7 @@ export default class InfluxFile {
     show: boolean;
     collapsed: boolean;
     totalEntryCount: number;
+    private initialized: boolean = false;
 
 
     /**
@@ -43,20 +44,33 @@ export default class InfluxFile {
     }
 
     /**
-     * Initialize the InfluxFile with metadata, backlinks, and show status.
-     * This is called by the factory method to avoid blocking in the constructor.
+     * Initialize InfluxFile with metadata, backlinks, and show status.
+     * This is called by factory method to avoid blocking in the constructor.
      */
     private async initialize(): Promise<void> {
         if (!this.file) {
+            this.initialized = true;
             return;
         }
         this.meta = this.api.getMetadata(this.file)
         this.backlinks = this.api.getBacklinks(this.file)
         this.show = this.api.getShowStatus(this.file)
         this.collapsed = this.api.getCollapsedStatus(this.file)
+        this.initialized = true;
+    }
+
+    /**
+     * Ensure InfluxFile is properly initialized before use.
+     * This prevents race conditions when methods are called before async initialization completes.
+     */
+    private ensureInitialized(): void {
+        if (!this.initialized) {
+            throw new Error('InfluxFile must be created using the async create() factory method');
+        }
     }
 
     shouldUpdate(file: TFile) {
+        this.ensureInitialized();
         if (!this.file) {
             return false;
         }
@@ -77,6 +91,7 @@ export default class InfluxFile {
     }
 
     async makeInfluxList() {
+        this.ensureInitialized();
         if (!this.file) {
             this.inlinkingFiles = [];
             return;
@@ -128,6 +143,7 @@ export default class InfluxFile {
         }
     }
     async renderAllMarkdownBlocks(): Promise<ExtendedInlinkingFile[]> {
+        this.ensureInitialized();
         if (!this.show) {
             return [];
         }

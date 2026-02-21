@@ -35,6 +35,7 @@ export class InfluxWidget extends WidgetType {
     protected plugin: ObsidianInflux
     private disconnectedHandler: (() => void) | null = null
     private currentContainer: HTMLElement | null = null
+    private currentDOMContainer: HTMLElement | null = null
 
     constructor({ influxFile, show, plugin }: InfluxWidgetSpec) {
         super()
@@ -45,14 +46,16 @@ export class InfluxWidget extends WidgetType {
     }
 
     destroy(): void {
-        if (this.currentContainer && this.disconnectedHandler) {
-            this.currentContainer.removeEventListener("disconnected", this.disconnectedHandler);
+        // Clean up event listener from the container we actually added it to
+        if (this.currentDOMContainer && this.disconnectedHandler) {
+            this.currentDOMContainer.removeEventListener("disconnected", this.disconnectedHandler);
         }
         if (this.disconnectedHandler) {
             this.disconnectedHandler();
             this.disconnectedHandler = null;
         }
         this.currentContainer = null;
+        this.currentDOMContainer = null;
     }
 
     eq(influxWidget: WidgetType) {
@@ -108,13 +111,14 @@ export class InfluxWidget extends WidgetType {
 
         container.addEventListener("disconnected", disconnectedHandler)
 
-        // Update references after new container is set up
         // Clean up old listener from previous container if it exists
-        if (this.currentContainer && this.disconnectedHandler) {
-            this.currentContainer.removeEventListener("disconnected", this.disconnectedHandler);
+        // Prevents memory leak when toDOM() is called multiple times
+        if (this.currentDOMContainer && this.disconnectedHandler) {
+            this.currentDOMContainer.removeEventListener("disconnected", this.disconnectedHandler);
         }
 
         this.disconnectedHandler = disconnectedHandler;
+        this.currentDOMContainer = container;
         this.currentContainer = container;
 
         return container

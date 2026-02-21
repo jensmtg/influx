@@ -19,6 +19,11 @@ const OUTPUT_ORDINAL_SIGN = '. '
 const OUTPUT_QUOTE = '> '
 const OUTPUT_BULLET = '* '
 
+// Constants for padding and indentation
+const NODE_ID_PAD_LENGTH = 4
+const TABLE_INDENT_INITIAL = 0
+const TABLE_INDENT_SUBSEQUENT = 2
+
 
 export type NodeId = string;
 export type ExplicitIncludes = boolean[]
@@ -244,16 +249,16 @@ export class StructuredText {
                         stack = []
                         type = NodeType.TableHeader
                     }
-                    else if (tr.isDivider) {
-                        type = NodeType.TableDivider
-                        headerId = `${i - 1}`.padStart(4, '0')
-                    }
-                    else {
-                        type = NodeType.TableRow
-                    }
-                    cols = tr.cols
-                    stripped = trimmed
-                    indent = isFirstOfMode ? 0 : 2
+                else if (tr.isDivider) {
+                    type = NodeType.TableDivider
+                    headerId = `${i - 1}`.padStart(NODE_ID_PAD_LENGTH, '0')
+                }
+                else {
+                    type = NodeType.TableRow
+                }
+                cols = tr.cols
+                stripped = trimmed
+                indent = isFirstOfMode ? TABLE_INDENT_INITIAL : TABLE_INDENT_SUBSEQUENT
                 }
 
                 else {
@@ -402,8 +407,6 @@ export class StructuredText {
                 }
 
                 else if (internals.mode === ModeType.List) {
-                    // str += OUTPUT_INDENT_STEP.repeat(level)
-
                     this.ancestors[id].forEach(_id => {
                         const anc = this.internals[_id]
                         if (anc.ordinal) {
@@ -473,7 +476,6 @@ export class StructuredText {
                 // Some includes are implicit, like table divider rows.
 
                 if (internals.type === NodeType.TableDivider) {
-                    // const headerId: NodeId = `${Number(internals.id)}`.padStart(4, '0')
                     if (explIncludes[Number(internals.headerId)]) {
                         str += internals.stripped
                         str += '\n'
@@ -499,11 +501,11 @@ export class StructuredText {
 
         lineNumbers.forEach(lineNumber => {
 
-            const id: NodeId = `${lineNumber}`.padStart(4, '0')
+            const id: NodeId = `${lineNumber}`.padStart(NODE_ID_PAD_LENGTH, '0')
 
             explIncludes[lineNumber] = true
-            this.ancestors[id].forEach(_id => { explIncludes[Number(_id)] = true })
-            this.descendants[id].forEach(_id => { explIncludes[Number(_id)] = true })
+            this.ancestors[id]?.forEach(_id => { explIncludes[Number(_id)] = true })
+            this.descendants[id]?.forEach(_id => { explIncludes[Number(_id)] = true })
 
 
         })

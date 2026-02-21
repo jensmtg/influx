@@ -62,6 +62,9 @@ export class PreviewManager {
 			this.plugin.updating.set(filePath, now);
 
 			return this.updatePreview(leaf)
+				.catch((error) => {
+					logger.error('Failed to update preview', { filePath, error });
+				})
 				.finally(() => {
 					this.plugin.updating.delete(filePath);
 				});

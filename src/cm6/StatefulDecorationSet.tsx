@@ -5,6 +5,7 @@ import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
 import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
+import { ApiAdapter } from '../apiAdapter';
 
 
 export class StatefulDecorationSet {
@@ -37,7 +38,7 @@ export class StatefulDecorationSet {
         }
 
         // Reuse plugin's api instance instead of creating new one (preserves cache)
-        const apiAdapter = plugin.api as any
+        const apiAdapter = plugin.api as ApiAdapter
 
         const influxFile = await InfluxFile.create(file.path, apiAdapter)
         await influxFile.makeInfluxList()
@@ -138,16 +139,22 @@ export class StatefulDecorationSet {
             return;
         }
 
+        // Final check before updating decorations - ensure plugin still active and editor valid
+        if (isPluginUnloading() || !this.editor || !this.editor.state) {
+            this.pendingUpdate = null;
+            return;
+        }
+
         // Update decorations using proper CM6 StateEffect
-        // This ensures the update happens within the transaction system
+        // This ensures update happens within transaction system
         if (this.editor.state.field(statefulDecorations.field, false)) {
             try {
                 this.editor.dispatch({
                     effects: [statefulDecorations.update.of(decorations || Decoration.none)]
                 });
             } catch (e) {
-                // Silently ignore errors from destroyed editors
-                // (e.g., editor was unmounted during async computation)
+                // Log error but don't throw - editor may have been destroyed during async computation
+                // This is expected when switching files rapidly
             }
         }
 

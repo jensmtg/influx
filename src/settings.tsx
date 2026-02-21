@@ -19,6 +19,19 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         this.plugin.triggerUpdates('save-settings')
     }
 
+    /**
+     * Helper method to handle textarea onblur events for pattern settings
+     * Reduces code duplication across multiple textarea fields
+     */
+    private handlePatternBlur(e: FocusEvent, settingName: 'exclusionPattern' | 'inclusionPattern' | 'sourceExclusionPattern' | 'sourceInclusionPattern' | 'collapsedPattern'): void {
+        const patterns = (e.target as HTMLInputElement).value;
+        this.plugin.data.settings[settingName] = patterns.split('\n');
+        this.saveSettings().catch(err => {
+            logger.error('Failed to save settings', { error: err });
+            new Notice('Failed to save settings. Check console for details.');
+        });
+    }
+
 
     display(): void {
         const { containerEl } = this;
@@ -232,12 +245,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.exclusionPattern.join('\n'));
                     textArea.inputEl.onblur = (e: FocusEvent) => {
-                        const patterns = (e.target as HTMLInputElement).value;
-                        this.plugin.data.settings.exclusionPattern = patterns.split('\n');
-                        this.saveSettings().catch(err => {
-                            logger.error('Failed to save settings', { error: err });
-                            new Notice('Failed to save settings. Check console for details.');
-                        });
+                        this.handlePatternBlur(e, 'exclusionPattern');
                     };
             });
 
@@ -261,12 +269,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.inclusionPattern.join('\n'));
                     textArea.inputEl.onblur = (e: FocusEvent) => {
-                        const patterns = (e.target as HTMLInputElement).value;
-                        this.plugin.data.settings.inclusionPattern = patterns.split('\n');
-                        this.saveSettings().catch(err => {
-                            logger.error('Failed to save settings', { error: err });
-                            new Notice('Failed to save settings. Check console for details.');
-                        });
+                        this.handlePatternBlur(e, 'inclusionPattern');
                     };
             });
 
@@ -311,12 +314,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.sourceExclusionPattern.join('\n'));
                     textArea.inputEl.onblur = (e: FocusEvent) => {
-                        const patterns = (e.target as HTMLInputElement).value;
-                        this.plugin.data.settings.sourceExclusionPattern = patterns.split('\n');
-                        this.saveSettings().catch(err => {
-                            logger.error('Failed to save settings', { error: err });
-                            new Notice('Failed to save settings. Check console for details.');
-                        });
+                        this.handlePatternBlur(e, 'sourceExclusionPattern');
                     };
             });
 
@@ -340,12 +338,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.sourceInclusionPattern.join('\n'));
                     textArea.inputEl.onblur = (e: FocusEvent) => {
-                        const patterns = (e.target as HTMLInputElement).value;
-                        this.plugin.data.settings.sourceInclusionPattern = patterns.split('\n');
-                        this.saveSettings().catch(err => {
-                            logger.error('Failed to save settings', { error: err });
-                            new Notice('Failed to save settings. Check console for details.');
-                        });
+                        this.handlePatternBlur(e, 'sourceInclusionPattern');
                     };
             });
 
@@ -383,12 +376,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     .setPlaceholder('^templates/\n20\\d\\d\nmenu\nMenu')
                     .setValue(this.plugin.data.settings.collapsedPattern.join('\n'));
                     textArea.inputEl.onblur = (e: FocusEvent) => {
-                        const patterns = (e.target as HTMLInputElement).value;
-                        this.plugin.data.settings.collapsedPattern = patterns.split('\n');
-                        this.saveSettings().catch(err => {
-                            logger.error('Failed to save settings', { error: err });
-                            new Notice('Failed to save settings. Check console for details.');
-                        });
+                        this.handlePatternBlur(e, 'collapsedPattern');
                     };
             });
 
