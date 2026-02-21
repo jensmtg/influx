@@ -2,7 +2,6 @@ import * as React from "react";
 import InfluxFile from '../../InfluxFile';
 import { ExtendedInlinkingFile } from '../../apiAdapter';
 import { ObsidianInfluxSettings } from "../../types";
-import { TFile } from "obsidian";
 import { CONSTANTS } from '../../constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
 import { CollapsedStateManager } from '../../utils/CollapsedStateManager';

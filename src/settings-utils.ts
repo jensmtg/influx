@@ -3,7 +3,7 @@
  * Extracted from settings.tsx and apiAdapter.tsx for testability
  */
 
-import { LinkCache, CachedMetadata } from 'obsidian';
+import { CachedMetadata } from 'obsidian';
 
 export { compareLinkName } from './link-utils';
 

@@ -153,7 +153,7 @@ export class StatefulDecorationSet {
                 this.editor.dispatch({
                     effects: [statefulDecorations.update.of(decorations || Decoration.none)]
                 });
-            } catch (e) {
+            } catch {
                 // Log error but don't throw - editor may have been destroyed during async computation
                 // This is expected when switching files rapidly
             }

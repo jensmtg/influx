@@ -62,7 +62,7 @@ export interface NodeInternal {
     ordinal?: number;
     cols?: number;
     headerId?: string;
-    debug: any;
+    debug: Record<string, unknown>;
 }
 
 export type InternalsIndex = { [key: NodeId]: NodeInternal }
@@ -70,7 +70,7 @@ export type ChildrenIndex = { [key: NodeId]: NodeId[] }
 export type ParentsIndex = { [key: NodeId]: NodeId }
 export type DescendantsIndex = { [key: NodeId]: NodeId[] }
 export type AncestorsIndex = { [key: NodeId]: NodeId[] }
-export type RootsIndex = { [key: NodeId]: any }
+export type RootsIndex = { [key: NodeId]: Record<string, unknown> }
 
 export type TypeIndex = { [key in NodeType]: NodeId[] }
 
@@ -135,11 +135,11 @@ export class StructuredText {
             let stripped = ''
             let type: NodeType = NodeType.Other
             let indent = 0
-            const debug: any = {}
+            const debug: Record<string, unknown> = {}
             let isQuotedBullet: boolean = false
             let isFirstOfMode: boolean = false
             let ordinal: number | undefined
-            let tr: null | { cols: number, isDivider: boolean } = null
+            let tr: null | { cols: number, isDivider: boolean }
             let cols: number = 0
             let headerId: string = ''
 

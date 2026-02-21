@@ -4,8 +4,8 @@
  */
 
 import InfluxFile from '../../src/InfluxFile';
-import { TFile, CachedMetadata, normalizePath } from 'obsidian';
-import { createMockPlugin, mockTFile } from '../mocks';
+import { CachedMetadata } from 'obsidian';
+import { mockTFile } from '../mocks';
 
 // Mock logger to suppress console output during tests
 jest.mock('../../src/utils/logger', () => ({
@@ -105,7 +105,6 @@ describe('InfluxFile', () => {
 		test('should throw error when methods called before initialization', async () => {
 			// Arrange
 			mockApiAdapter.getFileByPath.mockReturnValue(mockTFile('test.md', 'test'));
-			const InfluxFileClass = InfluxFile.constructor;
 
 			// Act & Assert - cannot directly test this since constructor is private,
 			// but we can verify that after creation, initialized is true

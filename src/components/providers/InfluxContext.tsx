@@ -1,5 +1,4 @@
 import * as React from 'react';
-import type { TFile } from 'obsidian';
 import type ObsidianInflux from '../../main';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from '../../types/settings';
 

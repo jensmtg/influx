@@ -1,6 +1,5 @@
 import { WorkspaceLeaf, View, TFile, MarkdownPostProcessorContext } from 'obsidian';
 import { ApiAdapter } from '../apiAdapter';
-import { ObsidianInfluxSettings } from '../types';
 import { rootManager } from '../react/RootManager';
 import { logger } from '../utils/logger';
 import InfluxFile from '../InfluxFile';

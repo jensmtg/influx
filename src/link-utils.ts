@@ -3,7 +3,7 @@
  * Extracted from ApiAdapter to be easily testable
  */
 
-import { LinkCache, normalizePath } from 'obsidian';
+import { LinkCache } from 'obsidian';
 
 /**
  * Extracts and normalizes a link name for comparison

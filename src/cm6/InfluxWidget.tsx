@@ -3,7 +3,6 @@ import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import type { Root } from "react-dom/client";
 import { CONSTANTS } from '../constants';
 import { rootManager } from '../react/RootManager';
 import type ObsidianInflux from '../main';
@@ -15,7 +14,7 @@ try {
         }
     })
 }
-catch (e) {
+catch {
     // Element already defined, which is fine
 }
 

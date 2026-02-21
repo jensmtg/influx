@@ -1,11 +1,10 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, FrontmatterLinkCache } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
 import ObsidianInflux from './main';
 import { logger } from './utils/logger';
 import {
     processFrontmatterLinks,
-    shouldIncludeFrontmatterLinks,
     filterFrontmatterLinksFromBacklinks
 } from './frontmatter-utils';
 import {
@@ -78,7 +77,10 @@ export class ApiAdapter extends Component {
 
         // Runtime check for getBacklinksForFile availability
         let backlinks: BacklinksObject;
-        const metadataCache = this.app.metadataCache as any;
+        type MetadataCacheWithBacklinks = typeof this.app.metadataCache & {
+            getBacklinksForFile?: (file: TFile) => BacklinksObject;
+        };
+        const metadataCache = this.app.metadataCache as MetadataCacheWithBacklinks;
 
         if (typeof metadataCache?.getBacklinksForFile === 'function') {
             backlinks = metadataCache.getBacklinksForFile(file);

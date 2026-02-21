@@ -6,8 +6,8 @@ class MockTFile {
 	basename: string;
 	extension: string;
 	name: string;
-	vault: any;
-	parent: any;
+	vault: Record<string, unknown>;
+	parent: Record<string, unknown>;
 	stat: { mtime: number; ctime: number; size: number };
 
 	constructor(path: string, basename: string) {
@@ -29,7 +29,17 @@ class MockTAbstractFile {}
 
 // Mock Setting fluent API (minimal, without complex UI component mocks)
 export const Setting = jest.fn().mockImplementation(() => {
-	const settingInstance: any = {
+	const settingInstance: {
+		settingEl: { style: { display: string } };
+		setName?: jest.Mock;
+		setDesc?: jest.Mock;
+		setHeading?: jest.Mock;
+		addText?: jest.Mock;
+		addToggle?: jest.Mock;
+		addDropdown?: jest.Mock;
+		addSlider?: jest.Mock;
+		addButton?: jest.Mock;
+	} = {
 		settingEl: { style: { display: "" } },
 	};
 
@@ -38,7 +48,12 @@ export const Setting = jest.fn().mockImplementation(() => {
 	settingInstance.setHeading = jest.fn(() => settingInstance);
 
 	// Simple component adders - no triggerChange helpers (not needed for our tests)
-	settingInstance.addText = jest.fn((cb: any) => {
+	settingInstance.addText = jest.fn((cb: (component: {
+		setPlaceholder: jest.Mock;
+		setValue: jest.Mock;
+		onChange: jest.Mock;
+		onInput: jest.Mock;
+	}) => void) => {
 		const component = {
 			setPlaceholder: jest.fn().mockReturnThis(),
 			setValue: jest.fn().mockReturnThis(),
@@ -49,7 +64,10 @@ export const Setting = jest.fn().mockImplementation(() => {
 		return settingInstance;
 	});
 
-	settingInstance.addToggle = jest.fn((cb: any) => {
+	settingInstance.addToggle = jest.fn((cb: (component: {
+		setValue: jest.Mock;
+		onChange: jest.Mock;
+	}) => void) => {
 		const component = {
 			setValue: jest.fn().mockReturnThis(),
 			onChange: jest.fn().mockReturnThis(),
@@ -58,7 +76,11 @@ export const Setting = jest.fn().mockImplementation(() => {
 		return settingInstance;
 	});
 
-	settingInstance.addDropdown = jest.fn((cb: any) => {
+	settingInstance.addDropdown = jest.fn((cb: (component: {
+		addOption: jest.Mock;
+		setValue: jest.Mock;
+		onChange: jest.Mock;
+	}) => void) => {
 		const component = {
 			addOption: jest.fn().mockReturnThis(),
 			setValue: jest.fn().mockReturnThis(),
@@ -68,7 +90,12 @@ export const Setting = jest.fn().mockImplementation(() => {
 		return settingInstance;
 	});
 
-	settingInstance.addSlider = jest.fn((cb: any) => {
+	settingInstance.addSlider = jest.fn((cb: (component: {
+		setLimits: jest.Mock;
+		setValue: jest.Mock;
+		setDynamicTooltip: jest.Mock;
+		onChange: jest.Mock;
+	}) => void) => {
 		const component = {
 			setLimits: jest.fn().mockReturnThis(),
 			setValue: jest.fn().mockReturnThis(),
@@ -79,7 +106,10 @@ export const Setting = jest.fn().mockImplementation(() => {
 		return settingInstance;
 	});
 
-	settingInstance.addButton = jest.fn((cb: any) => {
+	settingInstance.addButton = jest.fn((cb: (component: {
+		setButtonText: jest.Mock;
+		onClick: jest.Mock;
+	}) => void) => {
 		const component = {
 			setButtonText: jest.fn().mockReturnThis(),
 			onClick: jest.fn().mockReturnThis(),

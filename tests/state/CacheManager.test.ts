@@ -3,8 +3,8 @@
  * Tests cache management system with TTL, invalidation, and thread safety
  */
 
-import { InfluxCacheManager, CacheDebugInfo } from '../../src/state/CacheManager';
-import { mockTFile, mockCachedMetadata, mockLinkCache } from '../mocks';
+import { InfluxCacheManager } from '../../src/state/CacheManager';
+import { mockTFile } from '../mocks';
 
 // Mock logger to suppress console output during tests
 jest.mock('../../src/utils/logger', () => ({

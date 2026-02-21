@@ -9,7 +9,7 @@ export interface RootInfo {
 	type: RootType;
 	filePath?: string;
 	createdAt: number;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 }
 
 export class RootManager {
@@ -25,7 +25,7 @@ export class RootManager {
 		root: Root,
 		type: RootType,
 		filePath?: string,
-		metadata?: Record<string, any>
+		metadata?: Record<string, unknown>
 	): void {
 		if (this.unloading) {
 			logger.warn('Attempted to register root during unload', { type, filePath });
@@ -106,7 +106,7 @@ export class RootManager {
 		this.unloading = true;
 		logger.info('Unmounting all roots', { count: this.roots.size });
 
-		for (const [container, info] of this.roots) {
+		for (const [, info] of this.roots) {
 			try {
 				info.root.unmount();
 			} catch (e) {

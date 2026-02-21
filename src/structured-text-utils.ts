@@ -3,8 +3,6 @@
  * Extracted from StructuredText class to be easily testable
  */
 
-import { NodeType } from './StructuredText';
-
 // Constants
 export const ORDERED_LISTITEM_REGEX = /^(\d+)[.] /gm;
 export const TABLE_ROW_REGEX = /^\|(.+)\|(.*)\|/gm;

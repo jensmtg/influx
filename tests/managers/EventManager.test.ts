@@ -4,7 +4,7 @@
  */
 
 import { EventManager } from '../../src/managers/EventManager';
-import { TAbstractFile, TFile } from 'obsidian';
+import { TAbstractFile } from 'obsidian';
 import { mockTFile } from '../mocks';
 
 describe('EventManager', () => {

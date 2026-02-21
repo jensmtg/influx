@@ -1,4 +1,4 @@
-import { CachedMetadata, TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 import { ObsidianInfluxSettings } from '../types/settings';
 import { logger } from '../utils/logger';
 import type { BacklinksObject } from '../apiAdapter';

@@ -2,6 +2,7 @@
 // Tests the update coordination and debouncing system
 
 import { UpdateCoordinator } from '../../src/utils/UpdateCoordinator';
+import { logger } from '../../src/utils/logger';
 
 jest.useFakeTimers();
 
@@ -20,7 +21,7 @@ describe('UpdateCoordinator', () => {
 	afterEach(() => {
 		jest.clearAllMocks();
 		jest.runOnlyPendingTimers();
-		coordinator = null as any;
+		coordinator = null as unknown as UpdateCoordinator;
 	});
 
 	beforeEach(() => {
@@ -168,7 +169,8 @@ describe('UpdateCoordinator', () => {
 			coordinator.unload();
 
 			// Assert
-			expect((coordinator as any).unloading).toBe(true);
+			const internal = coordinator as unknown as { unloading: boolean };
+			expect(internal.unloading).toBe(true);
 		});
 
 		test('should call cancelAll', () => {
@@ -286,8 +288,6 @@ describe('UpdateCoordinator', () => {
 			const executor = jest.fn().mockImplementation(async () => {
 				throw new Error('Executor error');
 			});
-			const { logger } = require('../../src/utils/logger');
-
 			// Act
 			const promise = coordinator.schedule('test-id', 'modify', '/test/path', executor);
 			jest.advanceTimersByTime(100);
@@ -295,7 +295,7 @@ describe('UpdateCoordinator', () => {
 			// Assert
 			try {
 				await promise;
-			} catch (e) {
+			} catch {
 				// Expected error
 			}
 			expect(logger.error).toHaveBeenCalledWith(
@@ -310,8 +310,6 @@ describe('UpdateCoordinator', () => {
 			// Arrange
 			const executor = jest.fn().mockRejectedValue(new Error('AbortError'));
 			executor.mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
-			const { logger } = require('../../src/utils/logger');
-
 			// Act
 			const promise = coordinator.schedule('test-id', 'modify', '/test/path', executor);
 			coordinator.cancel('test-id');

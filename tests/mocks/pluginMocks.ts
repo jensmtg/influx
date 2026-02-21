@@ -11,11 +11,28 @@ export const mockPluginSettings = {
 	...({} as Partial<ObsidianInfluxSettings>),
 };
 
-export const mockPlugin = {
+type MockPlugin = {
+	app: typeof mockApp;
+	data: {
+		settings: ObsidianInfluxSettings;
+		children: unknown[];
+	};
+	api: {
+		invalidateSettingsCache: jest.Mock;
+	};
+	isUnloading: boolean;
+	onload: jest.Mock;
+	onunload: jest.Mock;
+	addSettingTab: jest.Mock;
+	registerEvent: jest.Mock;
+	registerView: jest.Mock;
+};
+
+export const mockPlugin: MockPlugin = {
 	app: mockApp,
 	data: {
 		settings: mockPluginSettings,
-		children: [],
+		children: [] as unknown[],
 	},
 	api: {
 		invalidateSettingsCache: jest.fn(),
@@ -26,7 +43,7 @@ export const mockPlugin = {
 	addSettingTab: jest.fn(),
 	registerEvent: jest.fn(),
 	registerView: jest.fn(),
-} as any;
+};
 
 /**
  * Mock plugin with data property typed correctly
@@ -35,6 +52,6 @@ export const createMockPlugin = (settingsOverrides: Partial<ObsidianInfluxSettin
 	...mockPlugin,
 	data: {
 		settings: { ...mockPluginSettings, ...settingsOverrides },
-		children: [],
+		children: [] as unknown[],
 	},
 });

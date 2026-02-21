@@ -3,6 +3,8 @@
  * Provides minimal Obsidian app functionality for testing
  */
 
+import type { TFile } from 'obsidian';
+
 export const mockApp = {
 	vault: {
 		getAbstractFileByPath: jest.fn(),
@@ -16,15 +18,14 @@ export const mockApp = {
 	metadataCache: {
 		getFileCache: jest.fn(),
 	},
-} as any;
+};
 
 /**
  * Mock TFile object - uses the mocked TFile from obsidian package
  */
 export const mockTFile = (path: string, basename: string) => {
-	const { TFile } = require('obsidian');
-	const file = new TFile(path, basename);
-	return file as any;
+	const file = new MockTFile(path, basename);
+	return file as unknown as TFile;
 };
 
 /**
@@ -37,10 +38,10 @@ export class MockTFile {
 	) {
 		this.path = path;
 		this.basename = basename;
-		this.extension = path.split('.').pop();
+		this.extension = path.split('.').pop() || '';
 		this.name = basename;
-		this.vault = {} as any;
-		this.parent = {} as any;
+		this.vault = {};
+		this.parent = {};
 		this.stat = {
 			mtime: Date.now(),
 			ctime: Date.now(),
@@ -50,8 +51,8 @@ export class MockTFile {
 
 	extension: string;
 	name: string;
-	vault: any;
-	parent: any;
+	vault: Record<string, unknown>;
+	parent: Record<string, unknown>;
 	stat: { mtime: number; ctime: number; size: number };
 }
 

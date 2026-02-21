@@ -1,12 +1,7 @@
-import { Plugin, TAbstractFile, TFile, WorkspaceLeaf, View } from 'obsidian';
+import { Plugin, TAbstractFile, TFile } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from './settings';
 import { asyncDecoBuilderExt } from './cm6/asyncViewPlugin';
-import InfluxFile from './InfluxFile';
-import InfluxReactComponent from './components/ui/InfluxReactComponent';
-import * as React from "react";
-import { createRoot, Root } from "react-dom/client";
 import { ApiAdapter } from './apiAdapter';
-import { EditorView } from '@codemirror/view';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from './types';
 import { CONSTANTS } from './constants';
 import { logger } from './utils/logger';
@@ -19,24 +14,13 @@ import { InfluxSidebarView } from './views/InfluxSidebarView';
 import { cleanupWindowGlobals, isDebugMode } from './utils/typeGuard';
 import { cacheManager } from './state/CacheManager';
 
-// Type definitions for Obsidian internal properties
-type InfluxView = View & {
-	file?: TFile;
-	currentMode?: { type: string };
-	mode?: string;
-};
-
-type InfluxWorkspaceLeaf = WorkspaceLeaf & {
-	view?: InfluxView;
-	containerEl: HTMLDivElement;
-};
-
 
 export default class ObsidianInflux extends Plugin {
 
 	updating: Map<string, number> = new Map();
 	api: ApiAdapter;
 	data: Data;
+	isUnloading = false;
 
 	private eventManager: EventManager;
 	private previewManager: PreviewManager;
@@ -52,8 +36,25 @@ export default class ObsidianInflux extends Plugin {
 		// CRITICAL: Set window plugin reference BEFORE registering editor extension
 		// This prevents race condition where CodeMirror extension initializes
 		// and tries to access window.influxPlugin before it's set
-		if (!(window as any).influxPlugin) {
-			(window as any).influxPlugin = this;
+		const influxWindow = window as Window & {
+			influxPlugin?: ObsidianInflux;
+			influxDebug?: {
+				getReactRoots: () => {
+					size: number;
+					entries: Array<{
+						id: string;
+						inDom: boolean;
+						visible: boolean;
+						type: string;
+						filePath?: string;
+					}>;
+				};
+			};
+			testInfluxReadingView?: () => void;
+		};
+
+		if (!influxWindow.influxPlugin) {
+			influxWindow.influxPlugin = this;
 		} else {
 			logger.warn('window.influxPlugin already set - skipping assignment');
 		}
@@ -92,7 +93,7 @@ export default class ObsidianInflux extends Plugin {
 
 		// Expose debug functions to browser console (only when debug mode is enabled)
 		if (isDebugMode()) {
-			(window as any).influxDebug = {
+			influxWindow.influxDebug = {
 				getReactRoots: () => ({
 					size: rootManager.size,
 					entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
@@ -109,7 +110,7 @@ export default class ObsidianInflux extends Plugin {
 
 		// Add manual trigger for testing reading view (only in debug mode)
 		if (isDebugMode()) {
-			(window as any).testInfluxReadingView = () => {
+			influxWindow.testInfluxReadingView = () => {
 				this.previewManager.updateAllPreviews();
 			};
 		}
@@ -238,7 +239,7 @@ export default class ObsidianInflux extends Plugin {
 		updateCoordinator.unload();
 
 		// Mark plugin as unloading (for type guards)
-		(this as any).isUnloading = true;
+		this.isUnloading = true;
 
 		// Clean up all React roots on plugin unload
 		rootManager.unmountAll();
