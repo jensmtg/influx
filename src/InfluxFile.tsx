@@ -1,7 +1,6 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
-import { v4 as uuidv4 } from 'uuid';
 import { logger } from './utils/logger';
 
 
@@ -30,7 +29,7 @@ export default class InfluxFile {
     }
 
     private constructor(path: string, apiAdapter: ApiAdapter) {
-        this.uuid = uuidv4()
+        this.uuid = crypto.randomUUID()
         this.api = apiAdapter
         this.file = this.api.getFileByPath(path)
         // Initialize with default values
