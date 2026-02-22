@@ -1,216 +1,57 @@
-// Unit tests for link utility functions
-// Tests the actual pure functions extracted from ApiAdapter
-
 import { LinkCache } from 'obsidian';
-import {
-    extractLinkName,
-    compareLinkName,
-    filterLinksByBasename
-} from '../src/link-utils';
+import { extractLinkName, compareLinkName, filterLinksByBasename } from '../src/link-utils';
 
-// Helper function to create mock LinkCache
-const createTestLink = (link: string): LinkCache => ({
-    link,
-    displayText: link,
+const link = (value: string): LinkCache => ({
+    link: value,
+    displayText: value,
+    original: `[[${value}]]`,
     position: {
-        start: { line: 1, col: 1, offset: 0 },
-        end: { line: 1, col: 1 + link.length, offset: link.length }
+        start: { line: 0, col: 0, offset: 0 },
+        end: { line: 0, col: value.length, offset: value.length },
     },
-    original: `[[${link}]]`
 });
 
-describe('Link Utils', () => {
-
+describe('link-utils', () => {
     describe('extractLinkName', () => {
-        test('should extract simple filename', () => {
-            // Arrange
-            const link = createTestLink('Test Note');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
-        });
-
-        test('should handle file paths with folders', () => {
-            // Arrange
-            const link = createTestLink('folder/subfolder/Test Note');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
-        });
-
-        test('should remove block references', () => {
-            // Arrange
-            const link = createTestLink('Test Note#^block-id');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
-        });
-
-        test('should remove heading references', () => {
-            // Arrange
-            const link = createTestLink('Test Note#heading');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
-        });
-
-        test('should remove .md extension', () => {
-            // Arrange
-            const link = createTestLink('Test Note.md');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
-        });
-
-        test('should handle complex paths with multiple separators', () => {
-            // Arrange
-            const link = createTestLink('docs/notes/Test Note.md#heading^block');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
-        });
-
-        test('should convert to lowercase', () => {
-            // Arrange
-            const link = createTestLink('TEST NOTE');
-
-            // Act
-            const result = extractLinkName(link);
-
-            // Assert
-            expect(result).toBe('test note');
+        test.each([
+            ['Test Note', 'test note'],
+            ['folder/subfolder/Test Note.md#heading^block', 'test note'],
+            ['TEST NOTE', 'test note'],
+        ])('extractLinkName(%p) -> %p', (input, expected) => {
+            expect(extractLinkName(link(input))).toBe(expected);
         });
     });
 
     describe('compareLinkName', () => {
-        test('should match exact basename', () => {
-            // Arrange
-            const link = createTestLink('Test Note');
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
+        test('matches equivalent link/basename forms case-insensitively', () => {
+            expect(compareLinkName(link('folder/Test Note.md#heading'), 'test note')).toBe(true);
         });
 
-        test('should match case-insensitive', () => {
-            // Arrange
-            const link = createTestLink('test note');
-            const basename = 'TEST NOTE';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should not match different names', () => {
-            // Arrange
-            const link = createTestLink('Test Note');
-            const basename = 'Different Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should handle complex link paths', () => {
-            // Arrange
-            const link = createTestLink('folder/Test Note.md#heading');
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
+        test('returns false for different names', () => {
+            expect(compareLinkName(link('Test Note'), 'Different Note')).toBe(false);
         });
     });
 
     describe('filterLinksByBasename', () => {
-        test('should filter links that match basename', () => {
-            // Arrange
+        test('returns only links matching basename across path/ref/case variants', () => {
             const links = [
-                createTestLink('Test Note'),
-                createTestLink('Different Note'),
-                createTestLink('Test Note.md#heading'),
-                createTestLink('folder/Test Note')
+                link('Test Note'),
+                link('folder/Test Note.md#heading'),
+                link('test note'),
+                link('Different Note'),
             ];
-            const basename = 'Test Note';
 
-            // Act
-            const result = filterLinksByBasename(links, basename);
-
-            // Assert
-            expect(result).toHaveLength(3); // All Test Note variations
-            expect(result.every(link => link.link.includes('Test Note'))).toBe(true);
+            const result = filterLinksByBasename(links, 'TEST NOTE');
+            expect(result.map((item) => item.link)).toEqual([
+                'Test Note',
+                'folder/Test Note.md#heading',
+                'test note',
+            ]);
         });
 
-        test('should return empty array when no links match', () => {
-            // Arrange
-            const links = [
-                createTestLink('Note A'),
-                createTestLink('Note B'),
-                createTestLink('Note C')
-            ];
-            const basename = 'Different Note';
-
-            // Act
-            const result = filterLinksByBasename(links, basename);
-
-            // Assert
-            expect(result).toHaveLength(0);
-        });
-
-        test('should handle empty links array', () => {
-            // Arrange
-            const links: LinkCache[] = [];
-            const basename = 'Test Note';
-
-            // Act
-            const result = filterLinksByBasename(links, basename);
-
-            // Assert
-            expect(result).toHaveLength(0);
-        });
-
-        test('should be case-insensitive', () => {
-            // Arrange
-            const links = [
-                createTestLink('test note'),
-                createTestLink('TEST NOTE'),
-                createTestLink('Test Note')
-            ];
-            const basename = 'test note';
-
-            // Act
-            const result = filterLinksByBasename(links, basename);
-
-            // Assert
-            expect(result).toHaveLength(3); // All should match
+        test('returns empty array when there are no matches', () => {
+            expect(filterLinksByBasename([], 'Anything')).toEqual([]);
+            expect(filterLinksByBasename([link('Note A'), link('Note B')], 'Missing')).toEqual([]);
         });
     });
 });

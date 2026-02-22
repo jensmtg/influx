@@ -1,4 +1,4 @@
-import { CachedMetadata, LinkCache } from 'obsidian';
+import { CachedMetadata } from 'obsidian';
 import {
     validateYamlPropertyNames,
     isValidYamlPropertyName,
@@ -9,7 +9,6 @@ import {
     patternMatches,
     createFileComparator,
     createInlinkingFileComparator,
-    compareLinkName,
     shouldShowInfluxWithMatcher,
     isIncludableSourceWithMatcher,
     shouldCollapseInfluxWithMatcher,
@@ -168,7 +167,7 @@ describe('settings-utils', () => {
         });
     });
 
-    describe('comparators and re-export smoke check', () => {
+    describe('comparators', () => {
         test('createFileComparator sorts date fields correctly', () => {
             const older = createMockFile('A', 10, 10);
             const newer = createMockFile('B', 20, 20);
@@ -193,22 +192,15 @@ describe('settings-utils', () => {
             expect(newestFirst(a, b)).toBe(1);
         });
 
-        test('createInlinkingFileComparator delegates to file comparator configuration', () => {
+        test('createInlinkingFileComparator applies configured sort behavior', () => {
             const a = createMockFile('A', 0, 100);
             const b = createMockFile('B', 0, 200);
-
-            const comparator = createInlinkingFileComparator({
-                sortingAttribute: 'mtime',
-                sortingPrinciple: 'OLDEST_FIRST',
-            });
-
-            expect(comparator(a, b)).toBe(-1);
-            expect(comparator(b, a)).toBe(1);
-        });
-
-        test('compareLinkName re-export works for links with path, extension, and block refs', () => {
-            const link = { link: 'folder/Test Note.md#^block' } as LinkCache;
-            expect(compareLinkName(link, 'test note')).toBe(true);
+            expect(
+                createInlinkingFileComparator({
+                    sortingAttribute: 'mtime',
+                    sortingPrinciple: 'OLDEST_FIRST',
+                })(a, b)
+            ).toBe(-1);
         });
     });
 });

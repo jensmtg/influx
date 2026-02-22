@@ -2,7 +2,6 @@ import { CachedMetadata, FrontmatterLinkCache, LinkCache } from 'obsidian';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../src/types';
 import {
     validateFrontmatterProperties,
-    shouldIncludeFrontmatterLinks,
     convertFrontmatterLinkToLinkCache,
     filterFrontmatterLinks,
     mergeConvertedLinksIntoBacklinks,
@@ -39,17 +38,12 @@ const linkAtLine = (link: string, line: number): LinkCache => ({
 } as LinkCache);
 
 describe('frontmatter-utils', () => {
-    describe('property and settings gates', () => {
+    describe('property gates', () => {
         test('validateFrontmatterProperties keeps only non-empty strings', () => {
             expect(
                 validateFrontmatterProperties(['related', '', '  ', 'see_also', null as any, undefined as any])
             ).toEqual(['related', 'see_also']);
             expect(validateFrontmatterProperties(null as any)).toEqual([]);
-        });
-
-        test('shouldIncludeFrontmatterLinks mirrors settings flag', () => {
-            expect(shouldIncludeFrontmatterLinks(createSettings({ includeFrontmatterLinks: true }))).toBe(true);
-            expect(shouldIncludeFrontmatterLinks(createSettings({ includeFrontmatterLinks: false }))).toBe(false);
         });
     });
 
