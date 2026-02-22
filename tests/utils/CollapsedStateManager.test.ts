@@ -4,12 +4,23 @@
  */
 
 import { CollapsedStateManager } from '../../src/utils/CollapsedStateManager';
+import { logger } from '../../src/utils/logger';
+
+jest.mock('../../src/utils/logger', () => ({
+	logger: {
+		error: jest.fn(),
+		info: jest.fn(),
+		warn: jest.fn(),
+		debug: jest.fn(),
+	},
+}));
 
 describe('CollapsedStateManager', () => {
 	let stateManager: CollapsedStateManager;
 
 	beforeEach(() => {
 		stateManager = new CollapsedStateManager();
+		(logger.error as jest.Mock).mockClear();
 	});
 
 	describe('isCollapsed', () => {
@@ -342,6 +353,7 @@ describe('CollapsedStateManager', () => {
 			// Assert
 			expect(errorListener).toHaveBeenCalledTimes(1);
 			expect(successListener).toHaveBeenCalledTimes(1); // Other listeners still called
+			expect(logger.error).toHaveBeenCalledTimes(1);
 		});
 
 		test('should handle null/undefined listeners gracefully', () => {
@@ -351,6 +363,8 @@ describe('CollapsedStateManager', () => {
 				stateManager.toggle('test/path');
 				unsubscribe();
 			}).not.toThrow();
+
+			expect(logger.error).toHaveBeenCalledTimes(1);
 		});
 	});
 

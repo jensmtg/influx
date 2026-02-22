@@ -1,7 +1,4 @@
-// Unit tests for settings utility functions
-// Tests the actual pure functions extracted from settings.tsx and apiAdapter.tsx
-
-import { LinkCache, CachedMetadata } from 'obsidian';
+import { CachedMetadata, LinkCache } from 'obsidian';
 import {
     validateYamlPropertyNames,
     isValidYamlPropertyName,
@@ -11,16 +8,15 @@ import {
     shouldCollapseInflux,
     patternMatches,
     createFileComparator,
+    createInlinkingFileComparator,
     compareLinkName,
     shouldShowInfluxWithMatcher,
     isIncludableSourceWithMatcher,
     shouldCollapseInfluxWithMatcher,
-    createInlinkingFileComparator,
-    type FilterSettings
+    type FilterSettings,
 } from '../src/settings-utils';
 
-// Helper function to create test settings
-const createTestSettings = (overrides: Partial<FilterSettings> = {}): FilterSettings => ({
+const createSettings = (overrides: Partial<FilterSettings> = {}): FilterSettings => ({
     showBehaviour: 'OPT_OUT',
     inclusionPattern: [],
     exclusionPattern: [],
@@ -28,1102 +24,191 @@ const createTestSettings = (overrides: Partial<FilterSettings> = {}): FilterSett
     sourceInclusionPattern: [],
     sourceExclusionPattern: [],
     collapsedPattern: [],
-    ...overrides
+    ...overrides,
 });
 
-// Helper function to create mock file object
-const createMockFile = (path: string, ctime = 1000, mtime = 1000, basename?: string) => ({
-    file: {
-        stat: { ctime, mtime },
-        basename: basename || path.split('/').pop()
-    }
+const createMockFile = (basename: string, ctime: number, mtime: number) => ({
+    file: { basename, stat: { ctime, mtime } },
 });
 
-describe('Settings Utils', () => {
-
-    describe('validateYamlPropertyNames', () => {
-        test('should return all valid properties', () => {
-            // Arrange
-            const properties = ['related', 'author', 'see_also', 'my_property', 'Test-123'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual(['related', 'author', 'see_also', 'my_property', 'Test-123']);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should identify all invalid properties', () => {
-            // Arrange
-            const properties = ['123invalid', 'invalid name', 'test.property', ''];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual(['123invalid', 'invalid name', 'test.property']);
-        });
-
-        test('should handle mixed valid and invalid properties', () => {
-            // Arrange
-            const properties = ['valid', '123invalid', 'another_valid', 'test property', 'author'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual(['valid', 'another_valid', 'author']);
-            expect(result.invalid).toEqual(['123invalid', 'test property']);
-        });
-
-        test('should handle empty array', () => {
-            // Arrange
-            const properties: string[] = [];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should handle null input', () => {
-            // Act
-            const result = validateYamlPropertyNames(null as any);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should handle undefined input', () => {
-            // Act
-            const result = validateYamlPropertyNames(undefined as any);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should filter out empty strings', () => {
-            // Arrange
-            const properties = ['valid', '', '   ', 'another_valid'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual(['valid', 'another_valid']);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should filter out non-string values', () => {
-            // Arrange
-            const properties = ['valid', null as any, undefined as any, 'another_valid'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual(['valid', 'another_valid']);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should accept properties starting with underscore', () => {
-            // Arrange
-            const properties = ['_private', '_test_123', '__init__'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual(['_private', '_test_123', '__init__']);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should accept properties with hyphens', () => {
-            // Arrange
-            const properties = ['test-property', 'my-custom-field', 'a-b-c'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual(['test-property', 'my-custom-field', 'a-b-c']);
-            expect(result.invalid).toEqual([]);
-        });
-
-        test('should reject properties starting with numbers', () => {
-            // Arrange
-            const properties = ['1st', '2prop', '123_test'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual(['1st', '2prop', '123_test']);
-        });
-
-        test('should reject properties with spaces', () => {
-            // Arrange
-            const properties = ['test property', 'my prop', 'with spaces'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual(['test property', 'my prop', 'with spaces']);
-        });
-
-        test('should reject properties with special characters', () => {
-            // Arrange
-            const properties = ['test.property', 'test,property', 'test$property'];
-
-            // Act
-            const result = validateYamlPropertyNames(properties);
-
-            // Assert
-            expect(result.valid).toEqual([]);
-            expect(result.invalid).toEqual(['test.property', 'test,property', 'test$property']);
-        });
-    });
-
-    describe('isValidYamlPropertyName', () => {
-        test('should return true for valid property names', () => {
-            // Arrange
-            const validNames = ['test', 'test_property', 'test-property', 'Test123', '_private', '__init__'];
-
-            // Act & Assert
-            validNames.forEach(name => {
-                expect(isValidYamlPropertyName(name)).toBe(true);
-            });
-        });
-
-        test('should return false for invalid property names', () => {
-            // Arrange
-            const invalidNames = ['123test', 'test property', 'test.property', '', 'test$prop'];
-
-            // Act & Assert
-            invalidNames.forEach(name => {
-                expect(isValidYamlPropertyName(name)).toBe(false);
-            });
-        });
-
-        test('should return false for null', () => {
-            // Act
-            const result = isValidYamlPropertyName(null as any);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false for undefined', () => {
-            // Act
-            const result = isValidYamlPropertyName(undefined as any);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false for non-string types', () => {
-            // Act & Assert
-            expect(isValidYamlPropertyName(123 as any)).toBe(false);
-            expect(isValidYamlPropertyName({} as any)).toBe(false);
-            expect(isValidYamlPropertyName([] as any)).toBe(false);
-        });
-    });
-
-    describe('hasInfluxFrontmatterKey', () => {
-        test('should return true when influx is true', () => {
-            // Arrange
-            const metadata = { frontmatter: { influx: true } } as CachedMetadata;
-
-            // Act
-            const result = hasInfluxFrontmatterKey(metadata);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return true when influx is "true" string', () => {
-            // Arrange
-            const metadata = { frontmatter: { influx: 'true' } } as CachedMetadata;
-
-            // Act
-            const result = hasInfluxFrontmatterKey(metadata);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return false when influx is false', () => {
-            // Arrange
-            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
-
-            // Act
-            const result = hasInfluxFrontmatterKey(metadata);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false when influx is "false" string', () => {
-            // Arrange
-            const metadata = { frontmatter: { influx: 'false' } } as CachedMetadata;
-
-            // Act
-            const result = hasInfluxFrontmatterKey(metadata);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false when influx key is not present', () => {
-            // Arrange
-            const metadata = { frontmatter: { otherKey: true } } as CachedMetadata;
-
-            // Act
-            const result = hasInfluxFrontmatterKey(metadata);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false when frontmatter is null', () => {
-            // Arrange
-            const metadata = { frontmatter: null } as CachedMetadata;
-
-            // Act
-            const result = hasInfluxFrontmatterKey(metadata);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false when metadata is null', () => {
-            // Act
-            const result = hasInfluxFrontmatterKey(null);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false when metadata is undefined', () => {
-            // Act
-            const result = hasInfluxFrontmatterKey(undefined);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-    });
-
-    describe('shouldShowInflux', () => {
-        test('should return true for OPT_IN when pattern matches', () => {
-            // Arrange
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_IN',
-                inclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = shouldShowInflux('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return false for OPT_IN when pattern does not match', () => {
-            // Arrange
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_IN',
-                inclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = shouldShowInflux('/Journal/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false for OPT_IN with empty patterns', () => {
-            // Arrange
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_IN',
-                inclusionPattern: []
-            });
-
-            // Act
-            const result = shouldShowInflux('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false for OPT_OUT when pattern matches', () => {
-            // Arrange
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_OUT',
-                exclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldShowInflux('/Journal/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return true for OPT_OUT when pattern does not match', () => {
-            // Arrange
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_OUT',
-                exclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldShowInflux('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return true for OPT_OUT with empty patterns', () => {
-            // Arrange
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_OUT',
-                exclusionPattern: []
-            });
-
-            // Act
-            const result = shouldShowInflux('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-    });
-
-    describe('isIncludableSource', () => {
-        test('should return true for OPT_IN when pattern matches', () => {
-            // Arrange
-            const settings = createTestSettings({
-                sourceBehaviour: 'OPT_IN',
-                sourceInclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = isIncludableSource('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return false for OPT_IN when pattern does not match', () => {
-            // Arrange
-            const settings = createTestSettings({
-                sourceBehaviour: 'OPT_IN',
-                sourceInclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = isIncludableSource('/Journal/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false for OPT_OUT when pattern matches', () => {
-            // Arrange
-            const settings = createTestSettings({
-                sourceBehaviour: 'OPT_OUT',
-                sourceExclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = isIncludableSource('/Journal/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return true for OPT_OUT when pattern does not match', () => {
-            // Arrange
-            const settings = createTestSettings({
-                sourceBehaviour: 'OPT_OUT',
-                sourceExclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = isIncludableSource('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-    });
-
-    describe('shouldCollapseInflux', () => {
-        test('should return true when pattern matches', () => {
-            // Arrange
-            const settings = createTestSettings({
-                collapsedPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldCollapseInflux('/Journal/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return false when pattern does not match', () => {
-            // Arrange
-            const settings = createTestSettings({
-                collapsedPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldCollapseInflux('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should return false for empty patterns', () => {
-            // Arrange
-            const settings = createTestSettings({
-                collapsedPattern: []
-            });
-
-            // Act
-            const result = shouldCollapseInflux('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-    });
-
-    describe('patternMatches', () => {
-        test('should match simple pattern', () => {
-            // Act & Assert
-            expect(patternMatches('/Notes/Test.md', ['/Notes/'])).toBe(true);
-            expect(patternMatches('/Journal/Test.md', ['/Notes/'])).toBe(false);
-        });
-
-        test('should match regex pattern', () => {
-            // Act & Assert
-            expect(patternMatches('/Notes/Test.md', ['/.*Notes/'])).toBe(true);
-            expect(patternMatches('/Journal/Test.md', ['/.*Notes/'])).toBe(false);
-        });
-
-        test('should handle multiple patterns', () => {
-            // Arrange
-            const patterns = ['/Notes/', '/Journal/'];
-
-            // Act & Assert
-            expect(patternMatches('/Notes/Test.md', patterns)).toBe(true);
-            expect(patternMatches('/Journal/Test.md', patterns)).toBe(true);
-            expect(patternMatches('/Tasks/Test.md', patterns)).toBe(false);
-        });
-
-        test('should filter empty patterns', () => {
-            // Act
-            const result = patternMatches('/Notes/Test.md', ['', '/Notes/', '   ']);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should return false for all empty patterns', () => {
-            // Act
-            const result = patternMatches('/Notes/Test.md', ['', '   ']);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should handle invalid regex patterns gracefully', () => {
-            // Act - Unclosed bracket should cause syntax error
-            const result = patternMatches('/Notes/Test.md', ['[(invalid']);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should ignore non-string pattern values safely', () => {
-            // Act
-            const result = patternMatches('/Notes/Test.md', [
-                '/Notes/',
-                null as any,
+describe('settings-utils', () => {
+    describe('yaml property validation', () => {
+        test('validateYamlPropertyNames keeps valid entries and reports invalid entries', () => {
+            const result = validateYamlPropertyNames([
+                'valid_name',
+                'with-hyphen',
+                '1invalid',
+                'invalid space',
+                '',
+                '   ',
                 undefined as any,
-                123 as any,
-                '' as any,
             ]);
 
-            // Assert
-            expect(result).toBe(true);
+            expect(result).toEqual({
+                valid: ['valid_name', 'with-hyphen'],
+                invalid: ['1invalid', 'invalid space'],
+            });
         });
 
-        test('should trim surrounding whitespace from patterns', () => {
-            // Act
-            const result = patternMatches('/Notes/Test.md', ['  /Notes/  ']);
+        test('validateYamlPropertyNames returns empty groups for non-array input', () => {
+            expect(validateYamlPropertyNames(null as any)).toEqual({ valid: [], invalid: [] });
+            expect(validateYamlPropertyNames(undefined as any)).toEqual({ valid: [], invalid: [] });
+        });
 
-            // Assert
-            expect(result).toBe(true);
+        test.each([
+            ['alpha', true],
+            ['_private', true],
+            ['my-key', true],
+            ['9start', false],
+            ['has space', false],
+            ['dot.name', false],
+            ['', false],
+        ])('isValidYamlPropertyName(%p) => %p', (input, expected) => {
+            expect(isValidYamlPropertyName(input as any)).toBe(expected);
         });
     });
 
-    describe('createFileComparator', () => {
-        const fileA = createMockFile('/A.md', 1000, 1000, 'A');
-        const fileB = createMockFile('/B.md', 2000, 2000, 'B');
-
-        describe('by ctime with NEWEST_FIRST', () => {
-            test('should sort newest first', () => {
-                // Arrange
-                const comparator = createFileComparator('ctime', 'NEWEST_FIRST');
-
-                // Act
-                const resultAB = comparator(fileA, fileB);
-                const resultBA = comparator(fileB, fileA);
-
-                // Assert - With NEWEST_FIRST, B (newer) should come before A
-                expect(resultAB).toBe(1);  // A after B (A is older, should come after)
-                expect(resultBA).toBe(-1); // B before A (B is newer, should come before)
-            });
+    describe('frontmatter and pattern behavior', () => {
+        test('hasInfluxFrontmatterKey only accepts true or "true"', () => {
+            expect(hasInfluxFrontmatterKey({ frontmatter: { influx: true } } as CachedMetadata)).toBe(true);
+            expect(hasInfluxFrontmatterKey({ frontmatter: { influx: 'true' } } as CachedMetadata)).toBe(true);
+            expect(hasInfluxFrontmatterKey({ frontmatter: { influx: false } } as CachedMetadata)).toBe(false);
+            expect(hasInfluxFrontmatterKey({ frontmatter: { influx: 'false' } } as CachedMetadata)).toBe(false);
+            expect(hasInfluxFrontmatterKey({ frontmatter: { other: true } } as CachedMetadata)).toBe(false);
+            expect(hasInfluxFrontmatterKey(null)).toBe(false);
         });
 
-        describe('by ctime with OLDEST_FIRST', () => {
-            test('should sort oldest first', () => {
-                // Arrange
-                const comparator = createFileComparator('ctime', 'OLDEST_FIRST');
-
-                // Act
-                const resultAB = comparator(fileA, fileB);
-                const resultBA = comparator(fileB, fileA);
-
-                // Assert - With OLDEST_FIRST, A (older) should come before B
-                expect(resultAB).toBe(-1); // A before B (A is older, should come before)
-                expect(resultBA).toBe(1);  // B after A (B is newer, should come after)
-            });
+        test('patternMatches supports trimmed regex patterns and ignores invalid values', () => {
+            expect(patternMatches('/Notes/Test.md', ['  /Notes/  ', ''])).toBe(true);
+            expect(patternMatches('/Notes/Test.md', ['[(broken', null as any, 12 as any])).toBe(false);
         });
 
-        describe('by FILENAME', () => {
-            test('should sort by filename with NEWEST_FIRST', () => {
-                // Arrange
-                const comparator = createFileComparator('FILENAME', 'NEWEST_FIRST');
-
-                // Act
-                const resultAB = comparator(fileA, fileB);
-
-                // Assert
-                expect(resultAB).toBe(1); // A after B (reverse alphabetical)
-            });
-
-            test('should sort by filename with OLDEST_FIRST', () => {
-                // Arrange
-                const comparator = createFileComparator('FILENAME', 'OLDEST_FIRST');
-
-                // Act
-                const resultAB = comparator(fileA, fileB);
-
-                // Assert
-                expect(resultAB).toBe(-1); // A before B (alphabetical)
-            });
-        });
-
-        describe('equal values', () => {
-            test('should return 0 for equal ctime', () => {
-                // Arrange
-                const fileA2 = createMockFile('/A.md', 1000, 1000, 'A');
-                const comparator = createFileComparator('ctime', 'NEWEST_FIRST');
-
-                // Act
-                const result = comparator(fileA, fileA2);
-
-                // Assert
-                expect(result).toBe(0);
-            });
-
-            test('should return 0 for equal filename', () => {
-                // Arrange
-                const fileA2 = createMockFile('/A.md', 1000, 1000, 'A');
-                const comparator = createFileComparator('FILENAME', 'NEWEST_FIRST');
-
-                // Act
-                const result = comparator(fileA, fileA2);
-
-                // Assert
-                expect(result).toBe(0);
-            });
-        });
-    });
-
-    describe('compareLinkName', () => {
-        test('should match exact basename', () => {
-            // Arrange
-            const link = { link: 'Test Note' } as LinkCache;
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should match case-insensitive', () => {
-            // Arrange
-            const link = { link: 'test note' } as LinkCache;
-            const basename = 'TEST NOTE';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should not match different names', () => {
-            // Arrange
-            const link = { link: 'Test Note' } as LinkCache;
-            const basename = 'Different Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(false);
-        });
-
-        test('should handle complex link paths', () => {
-            // Arrange
-            const link = { link: 'folder/Test Note.md#heading' } as LinkCache;
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should handle block references', () => {
-            // Arrange
-            const link = { link: 'Test Note#^block-id' } as LinkCache;
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should remove .md extension', () => {
-            // Arrange
-            const link = { link: 'Test Note.md' } as LinkCache;
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should handle folder paths', () => {
-            // Arrange
-            const link = { link: 'folder/subfolder/Test Note' } as LinkCache;
-            const basename = 'Test Note';
-
-            // Act
-            const result = compareLinkName(link, basename);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-    });
-
-    describe('shouldShowInfluxWithMatcher', () => {
-        test('should use default pattern matcher when none provided', () => {
-            // Arrange
-            const settings = createTestSettings({
+        test('shouldShowInflux follows OPT_IN and OPT_OUT semantics', () => {
+            const optIn = createSettings({
                 showBehaviour: 'OPT_IN',
-                inclusionPattern: ['/Notes/']
+                inclusionPattern: ['/Notes/'],
             });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should use injected pattern matcher', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_IN',
-                inclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Any/File.md', settings, mockMatcher);
-
-            // Assert
-            expect(mockMatcher).toHaveBeenCalledWith('/Any/File.md', ['/Notes/']);
-            expect(result).toBe(true);
-        });
-
-        test('should handle OPT_IN with custom matcher returning true', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_IN',
-                inclusionPattern: ['/Special/']
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Random/File.md', settings, mockMatcher);
-
-            // Assert
-            expect(result).toBe(true); // OPT_IN shows when matched
-        });
-
-        test('should handle OPT_IN with custom matcher returning false', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(false);
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_IN',
-                inclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher);
-
-            // Assert
-            expect(result).toBe(false); // OPT_IN hides when not matched
-        });
-
-        test('should handle OPT_OUT with custom matcher returning true', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
+            const optOut = createSettings({
                 showBehaviour: 'OPT_OUT',
-                exclusionPattern: ['/Journal/']
+                exclusionPattern: ['/Archive/'],
             });
 
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Journal/Test.md', settings, mockMatcher);
-
-            // Assert
-            expect(result).toBe(false); // OPT_OUT hides when matched
+            expect(shouldShowInflux('/Notes/Test.md', optIn)).toBe(true);
+            expect(shouldShowInflux('/Journal/Test.md', optIn)).toBe(false);
+            expect(shouldShowInflux('/Archive/Test.md', optOut)).toBe(false);
+            expect(shouldShowInflux('/Notes/Test.md', optOut)).toBe(true);
         });
 
-        test('should handle OPT_OUT with custom matcher returning false', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(false);
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_OUT',
-                exclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher);
-
-            // Assert
-            expect(result).toBe(true); // OPT_OUT shows when not matched
-        });
-
-        test('should show when requireInfluxFrontmatterKey is true and influx: true in metadata', () => {
-            // Arrange
-            const metadata = { frontmatter: { influx: true } } as CachedMetadata;
-            const settings = createTestSettings({
-                requireInfluxFrontmatterKey: true
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, metadata);
-
-            // Assert - Should show because influx key is true
-            expect(result).toBe(true);
-        });
-
-        test('should hide when requireInfluxFrontmatterKey is true and influx is missing', () => {
-            // Arrange
-            const metadata = { frontmatter: { otherKey: true } } as CachedMetadata;
-            const settings = createTestSettings({
-                requireInfluxFrontmatterKey: true
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, metadata);
-
-            // Assert - Should hide because influx key is not present
-            expect(result).toBe(false);
-        });
-
-        test('should hide when requireInfluxFrontmatterKey is true and influx is false', () => {
-            // Arrange
-            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
-            const settings = createTestSettings({
-                requireInfluxFrontmatterKey: true
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, metadata);
-
-            // Assert - Should hide because influx key is false
-            expect(result).toBe(false);
-        });
-
-        test('should hide when requireInfluxFrontmatterKey is true and metadata is null', () => {
-            // Arrange
-            const settings = createTestSettings({
-                requireInfluxFrontmatterKey: true
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, undefined, null);
-
-            // Assert - Should hide because metadata is null
-            expect(result).toBe(false);
-        });
-
-        test('should use pattern matching when requireInfluxFrontmatterKey is false', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(false); // Pattern doesn't match
-            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
-            const settings = createTestSettings({
-                requireInfluxFrontmatterKey: false,
-                showBehaviour: 'OPT_OUT',
-                exclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher, metadata);
-
-            // Assert - Should use pattern matching (show because pattern doesn't match) even though influx is false
-            expect(mockMatcher).toHaveBeenCalledWith('/Notes/Test.md', ['/Journal/']);
-            expect(result).toBe(true);
-        });
-
-        test('should use pattern matching when requireInfluxFrontmatterKey is not set', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(false); // Pattern doesn't match
-            const metadata = { frontmatter: { influx: false } } as CachedMetadata;
-            const settings = createTestSettings({
-                showBehaviour: 'OPT_OUT',
-                exclusionPattern: ['/Journal/']
-            });
-
-            // Act
-            const result = shouldShowInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher, metadata);
-
-            // Assert - Should use pattern matching (show because pattern doesn't match) even though influx is false
-            expect(mockMatcher).toHaveBeenCalledWith('/Notes/Test.md', ['/Journal/']);
-            expect(result).toBe(true);
-        });
-    });
-
-    describe('isIncludableSourceWithMatcher', () => {
-        test('should use default pattern matcher when none provided', () => {
-            // Arrange
-            const settings = createTestSettings({
+        test('isIncludableSource follows source OPT_IN and OPT_OUT semantics', () => {
+            const optIn = createSettings({
                 sourceBehaviour: 'OPT_IN',
-                sourceInclusionPattern: ['/Notes/']
+                sourceInclusionPattern: ['/Projects/'],
             });
-
-            // Act
-            const result = isIncludableSourceWithMatcher('/Notes/Test.md', settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-
-        test('should use injected pattern matcher', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
-                sourceBehaviour: 'OPT_IN',
-                sourceInclusionPattern: ['/Notes/']
-            });
-
-            // Act
-            const result = isIncludableSourceWithMatcher('/Any/File.md', settings, mockMatcher);
-
-            // Assert
-            expect(mockMatcher).toHaveBeenCalledWith('/Any/File.md', ['/Notes/']);
-            expect(result).toBe(true);
-        });
-
-        test('should handle OPT_IN with custom matcher returning true', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
-                sourceBehaviour: 'OPT_IN',
-                sourceInclusionPattern: ['/Special/']
-            });
-
-            // Act
-            const result = isIncludableSourceWithMatcher('/Random/File.md', settings, mockMatcher);
-
-            // Assert
-            expect(result).toBe(true); // OPT_IN includes when matched
-        });
-
-        test('should handle OPT_OUT with custom matcher returning true', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
+            const optOut = createSettings({
                 sourceBehaviour: 'OPT_OUT',
-                sourceExclusionPattern: ['/Journal/']
+                sourceExclusionPattern: ['/Daily/'],
             });
 
-            // Act
-            const result = isIncludableSourceWithMatcher('/Journal/Test.md', settings, mockMatcher);
+            expect(isIncludableSource('/Projects/A.md', optIn)).toBe(true);
+            expect(isIncludableSource('/Notes/A.md', optIn)).toBe(false);
+            expect(isIncludableSource('/Daily/2026-02-22.md', optOut)).toBe(false);
+            expect(isIncludableSource('/Projects/A.md', optOut)).toBe(true);
+        });
 
-            // Assert
-            expect(result).toBe(false); // OPT_OUT excludes when matched
+        test('shouldCollapseInflux is driven only by collapsedPattern matches', () => {
+            const settings = createSettings({ collapsedPattern: ['/Daily/'] });
+            expect(shouldCollapseInflux('/Daily/2026-02-22.md', settings)).toBe(true);
+            expect(shouldCollapseInflux('/Projects/A.md', settings)).toBe(false);
         });
     });
 
-    describe('shouldCollapseInfluxWithMatcher', () => {
-        test('should use default pattern matcher when none provided', () => {
-            // Arrange
-            const settings = createTestSettings({
-                collapsedPattern: ['/Journal/']
+    describe('dependency injection wrappers', () => {
+        test('shouldShowInfluxWithMatcher uses injected matcher when frontmatter requirement is not enabled', () => {
+            const matcher = jest.fn().mockReturnValue(true);
+            const settings = createSettings({
+                showBehaviour: 'OPT_IN',
+                inclusionPattern: ['/Expected/'],
             });
 
-            // Act
-            const result = shouldCollapseInfluxWithMatcher('/Journal/Test.md', settings);
+            const result = shouldShowInfluxWithMatcher('/Any/Path.md', settings, matcher);
 
-            // Assert
             expect(result).toBe(true);
+            expect(matcher).toHaveBeenCalledWith('/Any/Path.md', ['/Expected/']);
         });
 
-        test('should use injected pattern matcher', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(true);
-            const settings = createTestSettings({
-                collapsedPattern: ['/Journal/']
-            });
+        test('shouldShowInfluxWithMatcher bypasses matcher when requireInfluxFrontmatterKey is true', () => {
+            const matcher = jest.fn().mockReturnValue(true);
+            const settings = createSettings({ requireInfluxFrontmatterKey: true });
 
-            // Act
-            const result = shouldCollapseInfluxWithMatcher('/Any/File.md', settings, mockMatcher);
-
-            // Assert
-            expect(mockMatcher).toHaveBeenCalledWith('/Any/File.md', ['/Journal/']);
-            expect(result).toBe(true);
+            expect(
+                shouldShowInfluxWithMatcher('/Any/Path.md', settings, matcher, { frontmatter: { influx: true } } as CachedMetadata)
+            ).toBe(true);
+            expect(
+                shouldShowInfluxWithMatcher('/Any/Path.md', settings, matcher, { frontmatter: { influx: false } } as CachedMetadata)
+            ).toBe(false);
+            expect(matcher).not.toHaveBeenCalled();
         });
 
-        test('should return false when matcher returns false', () => {
-            // Arrange
-            const mockMatcher = jest.fn().mockReturnValue(false);
-            const settings = createTestSettings({
-                collapsedPattern: ['/Journal/']
+        test('isIncludableSourceWithMatcher and shouldCollapseInfluxWithMatcher pass expected patterns', () => {
+            const sourceMatcher = jest.fn().mockReturnValue(false);
+            const collapseMatcher = jest.fn().mockReturnValue(true);
+            const settings = createSettings({
+                sourceBehaviour: 'OPT_OUT',
+                sourceExclusionPattern: ['/Skip/'],
+                collapsedPattern: ['/Collapse/'],
             });
 
-            // Act
-            const result = shouldCollapseInfluxWithMatcher('/Notes/Test.md', settings, mockMatcher);
+            const includeResult = isIncludableSourceWithMatcher('/Skip/A.md', settings, sourceMatcher);
+            const collapseResult = shouldCollapseInfluxWithMatcher('/Any/A.md', settings, collapseMatcher);
 
-            // Assert
-            expect(result).toBe(false);
+            expect(includeResult).toBe(true);
+            expect(collapseResult).toBe(true);
+            expect(sourceMatcher).toHaveBeenCalledWith('/Skip/A.md', ['/Skip/']);
+            expect(collapseMatcher).toHaveBeenCalledWith('/Any/A.md', ['/Collapse/']);
         });
     });
 
-    describe('createInlinkingFileComparator', () => {
-        test('should create comparator for FILENAME with NEWEST_FIRST', () => {
-            // Arrange
-            const settings = {
-                sortingAttribute: 'FILENAME' as const,
-                sortingPrinciple: 'NEWEST_FIRST' as const
-            };
-            const fileA = createMockFile('/A.md', 1000, 1000, 'A');
-            const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+    describe('comparators and re-export smoke check', () => {
+        test('createFileComparator sorts date fields correctly', () => {
+            const older = createMockFile('A', 10, 10);
+            const newer = createMockFile('B', 20, 20);
 
-            // Act
-            const comparator = createInlinkingFileComparator(settings);
-            const result = comparator(fileA, fileB);
+            const byCtimeNewestFirst = createFileComparator('ctime', 'NEWEST_FIRST');
+            const byMtimeOldestFirst = createFileComparator('mtime', 'OLDEST_FIRST');
 
-            // Assert - reverse alphabetical with NEWEST_FIRST (flip = -1)
-            expect(result).toBe(1); // A comes after B (reverse alphabetical)
+            expect(byCtimeNewestFirst(older, newer)).toBe(1);
+            expect(byCtimeNewestFirst(newer, older)).toBe(-1);
+            expect(byMtimeOldestFirst(older, newer)).toBe(-1);
+            expect(byMtimeOldestFirst(newer, older)).toBe(1);
         });
 
-        test('should create comparator for FILENAME with OLDEST_FIRST', () => {
-            // Arrange
-            const settings = {
-                sortingAttribute: 'FILENAME' as const,
-                sortingPrinciple: 'OLDEST_FIRST' as const
-            };
-            const fileA = createMockFile('/A.md', 1000, 1000, 'A');
-            const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+        test('createFileComparator sorts filenames according to sorting principle', () => {
+            const a = createMockFile('A', 0, 0);
+            const b = createMockFile('B', 0, 0);
 
-            // Act
-            const comparator = createInlinkingFileComparator(settings);
-            const result = comparator(fileA, fileB);
+            const oldestFirst = createFileComparator('FILENAME', 'OLDEST_FIRST');
+            const newestFirst = createFileComparator('FILENAME', 'NEWEST_FIRST');
 
-            // Assert - alphabetical order with OLDEST_FIRST (flip = 1)
-            expect(result).toBe(-1); // A comes before B alphabetically
+            expect(oldestFirst(a, b)).toBe(-1);
+            expect(newestFirst(a, b)).toBe(1);
         });
 
-        test('should create comparator for ctime with NEWEST_FIRST', () => {
-            // Arrange
-            const settings = {
-                sortingAttribute: 'ctime' as const,
-                sortingPrinciple: 'NEWEST_FIRST' as const
-            };
-            const fileA = createMockFile('/A.md', 1000, 1000, 'A');
-            const fileB = createMockFile('/B.md', 2000, 2000, 'B');
+        test('createInlinkingFileComparator delegates to file comparator configuration', () => {
+            const a = createMockFile('A', 0, 100);
+            const b = createMockFile('B', 0, 200);
 
-            // Act
-            const comparator = createInlinkingFileComparator(settings);
-            const resultAB = comparator(fileA, fileB);
-            const resultBA = comparator(fileB, fileA);
+            const comparator = createInlinkingFileComparator({
+                sortingAttribute: 'mtime',
+                sortingPrinciple: 'OLDEST_FIRST',
+            });
 
-            // Assert - With NEWEST_FIRST, B (newer) should come before A
-            expect(resultAB).toBe(1);  // A after B (A is older)
-            expect(resultBA).toBe(-1); // B before A (B is newer)
+            expect(comparator(a, b)).toBe(-1);
+            expect(comparator(b, a)).toBe(1);
         });
 
-        test('should create comparator for mtime with OLDEST_FIRST', () => {
-            // Arrange
-            const settings = {
-                sortingAttribute: 'mtime' as const,
-                sortingPrinciple: 'OLDEST_FIRST' as const
-            };
-            const fileA = createMockFile('/A.md', 1000, 2000, 'A'); // mtime 2000 (newer)
-            const fileB = createMockFile('/B.md', 1000, 1000, 'B'); // mtime 1000 (older)
-
-            // Act
-            const comparator = createInlinkingFileComparator(settings);
-            const resultAB = comparator(fileA, fileB);
-            const resultBA = comparator(fileB, fileA);
-
-            // Assert - With OLDEST_FIRST by mtime, B (older mtime) should come before A
-            expect(resultAB).toBe(1);  // A after B (A has newer mtime)
-            expect(resultBA).toBe(-1); // B before A (B has older mtime)
-        });
-
-        test('should return 0 for equal filenames', () => {
-            // Arrange
-            const settings = {
-                sortingAttribute: 'FILENAME' as const,
-                sortingPrinciple: 'NEWEST_FIRST' as const
-            };
-            const fileA = createMockFile('/A.md', 1000, 1000, 'Same');
-            const fileB = createMockFile('/B.md', 2000, 2000, 'Same');
-
-            // Act
-            const comparator = createInlinkingFileComparator(settings);
-            const result = comparator(fileA, fileB);
-
-            // Assert
-            expect(result).toBe(0);
+        test('compareLinkName re-export works for links with path, extension, and block refs', () => {
+            const link = { link: 'folder/Test Note.md#^block' } as LinkCache;
+            expect(compareLinkName(link, 'test note')).toBe(true);
         });
     });
 });

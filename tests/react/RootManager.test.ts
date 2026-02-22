@@ -1,6 +1,15 @@
 import type { Root } from 'react-dom/client';
 import { rootManager } from '../../src/react/RootManager';
 
+jest.mock('../../src/utils/logger', () => ({
+	logger: {
+		error: jest.fn(),
+		info: jest.fn(),
+		warn: jest.fn(),
+		debug: jest.fn(),
+	},
+}));
+
 function createMockRoot(): Root {
 	return {
 		render: jest.fn(),
