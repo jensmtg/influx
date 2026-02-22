@@ -206,15 +206,17 @@ export default class ObsidianInflux extends Plugin {
 		rootManager.cleanupStale();
 
 		// Also clean up any orphaned wrapper elements in the DOM
-		// Use direct child selector for better performance
-		const allContainers = document.querySelectorAll('.influx-preview-wrapper > influx-preview-container');
+		// Use direct child selector for better performance and support both container tags.
+		const allContainers = document.querySelectorAll(
+			`.${CONSTANTS.INFLUX_WRAPPER_CLASS} > ${CONSTANTS.INFLUX_CONTAINER_TAG}, .${CONSTANTS.INFLUX_WRAPPER_CLASS} > ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
+		);
 		allContainers.forEach(container => {
 			const containerElement = container as HTMLElement;
 			const info = rootManager.get(containerElement);
 
 			// If there's a container but no tracked root, clean up its wrapper
 			if (!info) {
-				const wrapper = containerElement.closest('.influx-preview-wrapper');
+				const wrapper = containerElement.closest(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
 				wrapper?.remove();
 			}
 		});

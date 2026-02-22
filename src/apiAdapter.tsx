@@ -225,30 +225,30 @@ export class ApiAdapter extends Component {
         // Use extracted pure function with our cached pattern matcher
         return shouldCollapseInfluxWithMatcher(file.path, settings as FilterSettings, this.patternMatchingFn);
     }
-    patternMatchingFn = (path: string, _patterns: string[]): boolean => {
-        const patterns = _patterns.filter((_path: string) => _path.length > 0)
-        const pathMatchesRegex = (pattern: string): boolean => {
-            try {
-                // Use cached regex if available, otherwise compile and cache it
-                const cachedRegex = cacheManager.getRegex(pattern);
-                if (cachedRegex === null) {
-                    return false;
-                }
-                const regex = cachedRegex ?? new RegExp(pattern);
-                if (!cachedRegex) {
-                    cacheManager.setRegex(pattern, regex);
-                }
-                return regex.test(path);
-            } catch (err) {
-                logger.error('Invalid regex pattern: ' + pattern, { pattern, error: err });
-                // Cache sentinel to prevent repeated error logging
-                cacheManager.setInvalidRegex(pattern);
-                return false;
-            }
-        };
-        const matched = patterns.some(pathMatchesRegex);
-        return matched
-    };
+	    patternMatchingFn = (path: string, _patterns: string[]): boolean => {
+	        const patterns = _patterns
+	            .filter((pattern): pattern is string => typeof pattern === 'string' && pattern.trim().length > 0)
+	            .map(pattern => pattern.trim());
+	        const pathMatchesRegex = (pattern: string): boolean => {
+	            const cachedRegex = cacheManager.getRegex(pattern);
+	            if (cachedRegex !== undefined) {
+	                return cachedRegex === null ? false : cachedRegex.test(path);
+	            }
+
+	            try {
+	                const regex = new RegExp(pattern);
+	                cacheManager.setRegex(pattern, regex);
+	                return regex.test(path);
+	            } catch (err) {
+	                logger.error('Invalid regex pattern: ' + pattern, { pattern, error: err });
+	                // Cache sentinel to prevent repeated error logging
+	                cacheManager.setInvalidRegex(pattern);
+	                return false;
+	            }
+	        };
+	        const matched = patterns.some(pathMatchesRegex);
+	        return matched
+	    };
     /** A sort function to order notes correctly, based on settings. */
     makeComparisonFn(): (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1 {
         const settings = this.getSettings();

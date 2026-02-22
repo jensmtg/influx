@@ -154,7 +154,9 @@ export function shouldCollapseInflux(filePath: string, settings: FilterSettings)
  * @returns true if any pattern matches, false otherwise
  */
 export function patternMatches(filePath: string, patterns: string[]): boolean {
-    const nonEmptyPatterns = patterns.filter(p => p.length > 0);
+    const nonEmptyPatterns = patterns
+        .filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+        .map(p => p.trim());
     return nonEmptyPatterns.some(pattern => {
         try {
             return new RegExp(pattern).test(filePath);

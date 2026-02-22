@@ -10,6 +10,7 @@ import type ObsidianInflux from '../main';
 import { computeSettingsHash } from '../settings-hash-utils';
 import { cacheManager } from '../state/CacheManager';
 import { recordMetric } from '../utils/metrics';
+import { CONSTANTS } from '../constants';
 
 type InfluxView = View & {
 	file?: TFile;
@@ -97,15 +98,14 @@ export class PreviewManager {
 		}
 		const pipelineStart = performance.now();
 
-        const existingContainer = previewDiv.querySelector(
-            '.influx-preview-wrapper > influx-preview-container'
-        ) as HTMLElement;
+		const existingContainer = this.findExistingContainer(previewDiv);
 
-        const fileHash = `${path}-${this.computeSettingsHash()}`;
+		const fileMtime = influxLeaf.view?.file?.stat?.mtime ?? 0;
+		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}`;
 
-        if (existingContainer && cacheManager.getPreviewFileHash(path) === fileHash) {
-            return;
-        }
+		if (existingContainer && cacheManager.getPreviewFileHash(path) === fileHash) {
+			return;
+		}
 
 		// Clean up any existing root for this file path first
 		rootManager.unmountByFilePath(path);
@@ -130,8 +130,8 @@ export class PreviewManager {
 			return;
 		}
 
-        await influxFile.makeInfluxList();
-        const renderedComponents = await influxFile.renderAllMarkdownBlocks();
+		await influxFile.makeInfluxList();
+		const renderedComponents = await influxFile.renderAllMarkdownBlocks();
 		recordMetric({
 			name: 'influx.pipeline.total',
 			mode: 'preview',
@@ -147,7 +147,7 @@ export class PreviewManager {
 			}
 		});
 
-        cacheManager.setPreviewFileHash(path, fileHash);
+		cacheManager.setPreviewFileHash(path, fileHash);
 
 		let anchor: Root | undefined;
 
@@ -167,9 +167,9 @@ export class PreviewManager {
 
 			// Create new container
 			const influxWrapper = document.createElement('div');
-			influxWrapper.className = 'influx-preview-wrapper';
+			influxWrapper.className = CONSTANTS.INFLUX_WRAPPER_CLASS;
 
-			const influxContainer = document.createElement('influx-preview-container');
+			const influxContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
 			influxContainer.id = influxFile.uuid;
 			influxWrapper.appendChild(influxContainer);
 
@@ -253,9 +253,9 @@ export class PreviewManager {
 			});
 
 			const influxWrapper = document.createElement('div');
-			influxWrapper.className = 'influx-preview-wrapper';
+			influxWrapper.className = CONSTANTS.INFLUX_WRAPPER_CLASS;
 
-			const influxContainer = document.createElement('influx-preview-container');
+			const influxContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
 			influxContainer.id = influxFile.uuid;
 			influxWrapper.appendChild(influxContainer);
 
@@ -281,8 +281,10 @@ export class PreviewManager {
 	}
 
 	private cleanupPreviewContainers(container: Element, logCounts = false): void {
-		const wrappers = container.querySelectorAll('.influx-preview-wrapper');
-		const innerContainers = container.querySelectorAll('influx-preview-container');
+		const wrappers = container.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
+		const innerContainers = container.querySelectorAll(
+			`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
+		);
 
 		if (logCounts) {
 			logger.debug('[handlePreviewMode] Found existing wrappers:', { count: wrappers.length });
@@ -296,6 +298,16 @@ export class PreviewManager {
 		});
 
 		wrappers.forEach((wrapper) => wrapper.remove());
+	}
+
+	private findExistingContainer(previewDiv: Element): HTMLElement | null {
+		const wrapper = previewDiv.querySelector(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
+		if (!wrapper) {
+			return null;
+		}
+		return wrapper.querySelector(
+			`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
+		) as HTMLElement | null;
 	}
 
     private computeSettingsHash(): string {

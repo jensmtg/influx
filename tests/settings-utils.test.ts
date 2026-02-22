@@ -553,6 +553,28 @@ describe('Settings Utils', () => {
             // Assert
             expect(result).toBe(false);
         });
+
+        test('should ignore non-string pattern values safely', () => {
+            // Act
+            const result = patternMatches('/Notes/Test.md', [
+                '/Notes/',
+                null as any,
+                undefined as any,
+                123 as any,
+                '' as any,
+            ]);
+
+            // Assert
+            expect(result).toBe(true);
+        });
+
+        test('should trim surrounding whitespace from patterns', () => {
+            // Act
+            const result = patternMatches('/Notes/Test.md', ['  /Notes/  ']);
+
+            // Assert
+            expect(result).toBe(true);
+        });
     });
 
     describe('createFileComparator', () => {

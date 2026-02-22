@@ -343,37 +343,68 @@ describe('InfluxFile', () => {
 			expect(influxFile.inlinkingFiles).toEqual([]);
 		});
 
-		test('should update totalEntryCount', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks = {
-				data: new Map([
-					['file1.md', [{ link: 'file1.md' }]],
-					['file2.md', [{ link: 'file2.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-			mockApiAdapter.isIncludableSource.mockReturnValue(true);
-			mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
-				return mockTFile(path, path);
+			test('should update totalEntryCount', async () => {
+				// Arrange
+				const mockFile = mockTFile('test.md', 'test');
+				const mockBacklinks = {
+					data: new Map([
+						['file1.md', [{ link: 'file1.md' }]],
+						['file2.md', [{ link: 'file2.md' }]]
+					])
+				};
+				mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
+				mockApiAdapter.getMetadata.mockReturnValue({});
+				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
+				mockApiAdapter.getShowStatus.mockReturnValue(false);
+				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
+				mockApiAdapter.isIncludableSource.mockReturnValue(true);
+				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
+					return mockTFile(path, path);
+				});
+
+				const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
+
+				// Act
+				await influxFile.makeInfluxList();
+
+				// Assert - totalEntryCount should match the number of processed files
+				// The actual processing might fail due to unmocked dependencies, so we check the logic
+				expect(mockApiAdapter.getFileByPath).toHaveBeenCalledWith('file1.md');
+				expect(mockApiAdapter.getFileByPath).toHaveBeenCalledWith('file2.md');
+				expect(influxFile.totalEntryCount).toBeGreaterThanOrEqual(0);
 			});
 
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
+			test('should skip self backlink entries with normalized path matching', async () => {
+				// Arrange
+				const mockFile = mockTFile('test.md', 'test');
+				const mockBacklinks = {
+					data: new Map([
+						['TEST.md', [{ link: 'TEST.md' }]],
+					])
+				};
+				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
+					if (path === 'test.md') {
+						return mockFile;
+					}
+					return mockTFile(path, path);
+				});
+				mockApiAdapter.getMetadata.mockReturnValue({});
+				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
+				mockApiAdapter.getShowStatus.mockReturnValue(true);
+				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
+				mockApiAdapter.isIncludableSource.mockReturnValue(true);
 
-			// Act
-			await influxFile.makeInfluxList();
+				const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
+				mockApiAdapter.getFileByPath.mockClear();
 
-			// Assert - totalEntryCount should match the number of processed files
-			// The actual processing might fail due to unmocked dependencies, so we check the logic
-			expect(mockApiAdapter.getFileByPath).toHaveBeenCalledWith('file1.md');
-			expect(mockApiAdapter.getFileByPath).toHaveBeenCalledWith('file2.md');
-			expect(influxFile.totalEntryCount).toBeGreaterThanOrEqual(0);
+				// Act
+				await influxFile.makeInfluxList();
+
+				// Assert
+				expect(mockApiAdapter.getFileByPath).not.toHaveBeenCalledWith('TEST.md');
+				expect(influxFile.totalEntryCount).toBe(0);
+			});
 		});
-	});
 
 	describe('renderAllMarkdownBlocks', () => {
 		test('should return empty array when show is false', async () => {

@@ -7,16 +7,24 @@ import { CONSTANTS } from '../constants';
 import { rootManager } from '../react/RootManager';
 import type ObsidianInflux from '../main';
 
-try {
-    customElements.define(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY, class extends HTMLElement {
+function defineInfluxElement(tagName: string): void {
+    if (typeof customElements === 'undefined') {
+        return;
+    }
+
+    if (customElements.get(tagName)) {
+        return;
+    }
+
+    customElements.define(tagName, class extends HTMLElement {
         disconnectedCallback() {
-            this.dispatchEvent(new CustomEvent("disconnected"))
+            this.dispatchEvent(new CustomEvent("disconnected"));
         }
-    })
+    });
 }
-catch {
-    // Element already defined, which is fine
-}
+
+defineInfluxElement(CONSTANTS.INFLUX_ELEMENT_TAG);
+defineInfluxElement(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY);
 
 
 

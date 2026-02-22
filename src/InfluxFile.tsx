@@ -131,6 +131,7 @@ export default class InfluxFile {
             : DEFAULT_SETTINGS;
         const fileComparator = createFileComparator(settings.sortingAttribute, settings.sortingPrinciple);
         const listLimit = settings.listLimit || 0;
+        const normalizedCurrentPath = normalizePath(this.file.path).toLowerCase();
 
         const validFiles: TFile[] = []
         // Unify iteration pattern for both Map and Object backlinks data
@@ -139,7 +140,8 @@ export default class InfluxFile {
             : Object.entries(this.backlinks.data);
 
         for (const [pathAsKey] of entries) {
-            if (pathAsKey === this.file.path || !this.api.isIncludableSource(pathAsKey)) {
+            const normalizedSourcePath = normalizePath(pathAsKey).toLowerCase();
+            if (normalizedSourcePath === normalizedCurrentPath || !this.api.isIncludableSource(pathAsKey)) {
                 continue;
             }
             const file = this.api.getFileByPath(pathAsKey)
