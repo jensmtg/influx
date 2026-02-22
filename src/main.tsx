@@ -13,7 +13,7 @@ import { PreviewManager } from './managers/PreviewManager';
 import { InfluxSidebarView } from './views/InfluxSidebarView';
 import { cleanupWindowGlobals } from './utils/typeGuard';
 import { cacheManager } from './state/CacheManager';
-import { getMetrics } from './utils/metrics';
+import { clearMetrics, getMetrics, summarizeMetrics } from './utils/metrics';
 import { isDebugMode } from './utils/debug-mode';
 
 
@@ -51,7 +51,12 @@ export default class ObsidianInflux extends Plugin {
 						filePath?: string;
 					}>;
 				};
+				getCache: () => unknown;
+				getUpdates: () => unknown;
 				getMetrics: () => unknown;
+				summarizeMetrics: () => unknown;
+				snapshot: () => unknown;
+				clearMetrics: () => void;
 			};
 			testInfluxReadingView?: () => void;
 		};
@@ -94,21 +99,39 @@ export default class ObsidianInflux extends Plugin {
 			this.openSidebar();
 		}
 
-		// Expose debug functions to browser console (only when debug mode is enabled)
+		// Expose debug helpers in console.
+		influxWindow.influxDebug = {
+			getReactRoots: () => ({
+				size: rootManager.size,
+				entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
+					id: container.id,
+					inDom,
+					visible: container.offsetParent !== null,
+					type: info.type,
+					filePath: info.filePath
+				}))
+			}),
+			getCache: () => cacheManager.getDebugInfo(),
+			getUpdates: () => updateCoordinator.getDebugInfo(),
+			getMetrics: () => getMetrics(),
+			summarizeMetrics: () => summarizeMetrics(),
+			snapshot: () => ({
+				ts: Date.now(),
+				metrics: summarizeMetrics(),
+				cache: cacheManager.getDebugInfo(),
+				roots: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
+					id: container.id,
+					inDom,
+					visible: container.offsetParent !== null,
+					type: info.type,
+					filePath: info.filePath
+				})),
+				updates: updateCoordinator.getDebugInfo(),
+			}),
+			clearMetrics: () => clearMetrics(),
+		};
+
 		if (isDebugMode()) {
-			influxWindow.influxDebug = {
-				getReactRoots: () => ({
-					size: rootManager.size,
-					entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
-						id: container.id,
-						inDom,
-						visible: container.offsetParent !== null,
-						type: info.type,
-						filePath: info.filePath
-					}))
-				}),
-				getMetrics: () => getMetrics()
-			};
 			logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
 		}
 

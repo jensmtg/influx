@@ -25,6 +25,12 @@ interface InfluxWindow extends Window {
 	influxPlugin?: MinimalPluginInterface;
 	influxDebug?: {
 		getReactRoots: () => unknown;
+		getCache?: () => unknown;
+		getUpdates?: () => unknown;
+		getMetrics?: () => unknown;
+		summarizeMetrics?: () => unknown;
+		snapshot?: () => unknown;
+		clearMetrics?: () => void;
 	};
 	testInfluxReadingView?: () => void;
 }

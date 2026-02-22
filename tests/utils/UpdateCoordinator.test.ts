@@ -216,6 +216,25 @@ describe('UpdateCoordinator', () => {
 		});
 	});
 
+	describe('getDebugInfo', () => {
+		test('should expose active operation metadata', () => {
+			const executor = jest.fn().mockResolvedValue(undefined);
+			coordinator.schedule('test-id', 'modify', '/test/path', executor);
+
+			const debugInfo = coordinator.getDebugInfo();
+			expect(debugInfo.unloading).toBe(false);
+			expect(debugInfo.activeCount).toBe(1);
+			expect(debugInfo.operations).toHaveLength(1);
+			expect(debugInfo.operations[0]).toEqual(
+				expect.objectContaining({
+					id: 'test-id',
+					op: 'modify',
+					filePath: '/test/path',
+				})
+			);
+		});
+	});
+
 	describe('Concurrent Operations', () => {
 		test('should handle multiple operations with different IDs', async () => {
 			// Arrange

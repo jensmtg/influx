@@ -295,6 +295,21 @@ describe('InfluxCacheManager', () => {
 			expect(debugInfo).toHaveProperty('backlinksCache');
 			expect(debugInfo).toHaveProperty('settingsCache');
 			expect(debugInfo).toHaveProperty('regexCache');
+			expect(debugInfo).toHaveProperty('stats');
+		});
+
+		test('should track cache hit/miss stats', () => {
+			const file = mockTFile('test.md', 'test');
+			cacheManager.setFile('test.md', file as any);
+
+			// hit
+			expect(cacheManager.getFile('test.md')).toBe(file as any);
+			// miss
+			expect(cacheManager.getFile('missing.md')).toBeNull();
+
+			const debugInfo = cacheManager.getDebugInfo();
+			expect(debugInfo.stats.fileHits).toBeGreaterThanOrEqual(1);
+			expect(debugInfo.stats.fileMisses).toBeGreaterThanOrEqual(1);
 		});
 	});
 });

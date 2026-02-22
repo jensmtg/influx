@@ -41,6 +41,21 @@ interface SummaryCacheEntry extends SummaryCacheValue {
 	targetPath: string;
 }
 
+export interface CacheStats {
+	fileHits: number;
+	fileMisses: number;
+	backlinksHits: number;
+	backlinksMisses: number;
+	settingsHits: number;
+	settingsMisses: number;
+	regexHits: number;
+	regexMisses: number;
+	previewHashHits: number;
+	previewHashMisses: number;
+	summaryHits: number;
+	summaryMisses: number;
+}
+
 /**
  * Debug information structure
  */
@@ -73,6 +88,7 @@ export interface CacheDebugInfo {
 		sources: number;
 		targets: number;
 	};
+	stats: CacheStats;
 	settingsHash?: string;
 }
 
@@ -105,6 +121,20 @@ export class InfluxCacheManager {
 	private summaryCache = new Map<string, SummaryCacheEntry>();
 	private summaryKeysBySource = new Map<string, Set<string>>();
 	private summaryKeysByTarget = new Map<string, Set<string>>();
+	private stats: CacheStats = {
+		fileHits: 0,
+		fileMisses: 0,
+		backlinksHits: 0,
+		backlinksMisses: 0,
+		settingsHits: 0,
+		settingsMisses: 0,
+		regexHits: 0,
+		regexMisses: 0,
+		previewHashHits: 0,
+		previewHashMisses: 0,
+		summaryHits: 0,
+		summaryMisses: 0,
+	};
 
 	private static readonly SUMMARY_STALE_TIME_MS = 10 * 60 * 1000;
 	private static readonly SUMMARY_CACHE_MAX_ENTRIES = 3000;
@@ -127,16 +157,21 @@ export class InfluxCacheManager {
 	getFile(path: string): TFile | null {
 		const key = this.normalizePathKey(path);
 		const entry = this.fileCache.get(key);
-		if (!entry) return null;
+		if (!entry) {
+			this.stats.fileMisses += 1;
+			return null;
+		}
 
 		// Check if cache entry is stale (5 minutes)
 		const STALE_TIME = 5 * 60 * 1000;
 		if (Date.now() - entry.timestamp > STALE_TIME) {
 			this.fileCache.delete(key);
+			this.stats.fileMisses += 1;
 			logger.debug('File cache expired', { path });
 			return null;
 		}
 
+		this.stats.fileHits += 1;
 		return entry.file;
 	}
 
@@ -185,16 +220,21 @@ export class InfluxCacheManager {
 	getBacklinks(path: string): BacklinksObject | null {
 		const key = this.normalizePathKey(path);
 		const entry = this.backlinksCache.get(key);
-		if (!entry) return null;
+		if (!entry) {
+			this.stats.backlinksMisses += 1;
+			return null;
+		}
 
 		// Check if cache entry is stale (2 minutes)
 		const STALE_TIME = 2 * 60 * 1000;
 		if (Date.now() - entry.timestamp > STALE_TIME) {
 			this.backlinksCache.delete(key);
+			this.stats.backlinksMisses += 1;
 			logger.debug('Backlinks cache expired', { path });
 			return null;
 		}
 
+		this.stats.backlinksHits += 1;
 		return entry.backlinks;
 	}
 
@@ -237,7 +277,12 @@ export class InfluxCacheManager {
 	 * Settings cache methods
 	 */
 	getSettings(): ObsidianInfluxSettings | null {
-		return this.settingsCache?.settings || null;
+		if (!this.settingsCache) {
+			this.stats.settingsMisses += 1;
+			return null;
+		}
+		this.stats.settingsHits += 1;
+		return this.settingsCache.settings;
 	}
 
 	setSettings(settings: ObsidianInfluxSettings): void {
@@ -262,8 +307,12 @@ export class InfluxCacheManager {
 	 */
 	getRegex(pattern: string): RegExp | null | undefined {
 		const entry = this.regexCache.get(pattern);
-		if (!entry) return undefined;
+		if (!entry) {
+			this.stats.regexMisses += 1;
+			return undefined;
+		}
 
+		this.stats.regexHits += 1;
 		if (entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL) {
 			return null;
 		}
@@ -294,7 +343,13 @@ export class InfluxCacheManager {
 	 * Preview file hash cache methods
 	 */
 	getPreviewFileHash(path: string): string | undefined {
-		return this.previewFileHashes.get(this.normalizePathKey(path));
+		const hash = this.previewFileHashes.get(this.normalizePathKey(path));
+		if (hash === undefined) {
+			this.stats.previewHashMisses += 1;
+		} else {
+			this.stats.previewHashHits += 1;
+		}
+		return hash;
 	}
 
 	setPreviewFileHash(path: string, hash: string): void {
@@ -328,14 +383,17 @@ export class InfluxCacheManager {
 		const cacheKey = this.makeSummaryCacheKey(sourcePath, sourceMtime, targetPath, settingsHash);
 		const entry = this.summaryCache.get(cacheKey);
 		if (!entry) {
+			this.stats.summaryMisses += 1;
 			return null;
 		}
 
 		if (Date.now() - entry.timestamp > InfluxCacheManager.SUMMARY_STALE_TIME_MS) {
 			this.removeSummaryEntry(cacheKey, entry);
+			this.stats.summaryMisses += 1;
 			return null;
 		}
 
+		this.stats.summaryHits += 1;
 		return {
 			summary: entry.summary,
 			title: entry.title,
@@ -393,6 +451,7 @@ export class InfluxCacheManager {
 		this.summaryCache.clear();
 		this.summaryKeysBySource.clear();
 		this.summaryKeysByTarget.clear();
+		this.resetStats();
 		logger.info('All caches cleared');
 	}
 
@@ -437,6 +496,7 @@ export class InfluxCacheManager {
 				sources: this.summaryKeysBySource.size,
 				targets: this.summaryKeysByTarget.size,
 			},
+			stats: { ...this.stats },
 		};
 	}
 
@@ -539,6 +599,23 @@ export class InfluxCacheManager {
 		for (const [cacheKey, entry] of oldestEntries) {
 			this.removeSummaryEntry(cacheKey, entry);
 		}
+	}
+
+	private resetStats(): void {
+		this.stats = {
+			fileHits: 0,
+			fileMisses: 0,
+			backlinksHits: 0,
+			backlinksMisses: 0,
+			settingsHits: 0,
+			settingsMisses: 0,
+			regexHits: 0,
+			regexMisses: 0,
+			previewHashHits: 0,
+			previewHashMisses: 0,
+			summaryHits: 0,
+			summaryMisses: 0,
+		};
 	}
 
 	private createAndSet<K, V>(map: Map<K, Set<V>>, key: K): Set<V> {

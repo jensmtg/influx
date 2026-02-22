@@ -10,6 +10,17 @@ export interface UpdateOperation {
 	timestamp: number;
 }
 
+export interface UpdateCoordinatorDebugInfo {
+	unloading: boolean;
+	activeCount: number;
+	operations: Array<{
+		id: string;
+		op: string;
+		filePath?: string;
+		ageMs: number;
+	}>;
+}
+
 export class UpdateCoordinator {
 	private operations = new Map<string, UpdateOperation>();
 	private unloading = false;
@@ -109,6 +120,20 @@ export class UpdateCoordinator {
 	 */
 	get activeCount(): number {
 		return this.operations.size;
+	}
+
+	getDebugInfo(): UpdateCoordinatorDebugInfo {
+		const now = Date.now();
+		return {
+			unloading: this.unloading,
+			activeCount: this.operations.size,
+			operations: Array.from(this.operations.values()).map((operation) => ({
+				id: operation.id,
+				op: operation.op,
+				filePath: operation.filePath,
+				ageMs: now - operation.timestamp,
+			})),
+		};
 	}
 }
 
