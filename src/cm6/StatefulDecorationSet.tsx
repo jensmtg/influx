@@ -7,6 +7,7 @@ import { statefulDecorations } from "./helpers";
 import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
 import { ApiAdapter } from '../apiAdapter';
 import type ObsidianInflux from '../main';
+import { recordMetric } from '../utils/metrics';
 
 
 export class StatefulDecorationSet {
@@ -41,14 +42,43 @@ export class StatefulDecorationSet {
 
         // Reuse plugin's api instance instead of creating new one (preserves cache)
         const apiAdapter = plugin.api as ApiAdapter
+        const pipelineStart = performance.now();
 
         const influxFile = await InfluxFile.create(file.path, apiAdapter)
         if (!influxFile.show) {
+            recordMetric({
+                name: 'influx.pipeline.total',
+                mode: 'editor',
+                durationMs: performance.now() - pipelineStart,
+                settings,
+                always: true,
+                ctx: {
+                    filePath: file.path,
+                    show: false,
+                    listLimit: settings.listLimit || 0,
+                    totalEntryCount: 0,
+                    renderedCount: 0,
+                }
+            });
             return Decoration.none;
         }
 
         await influxFile.makeInfluxList()
-        await influxFile.renderAllMarkdownBlocks()
+        const renderedComponents = await influxFile.renderAllMarkdownBlocks()
+        recordMetric({
+            name: 'influx.pipeline.total',
+            mode: 'editor',
+            durationMs: performance.now() - pipelineStart,
+            settings,
+            always: true,
+            ctx: {
+                filePath: file.path,
+                show: influxFile.show,
+                listLimit: settings.listLimit || 0,
+                totalEntryCount: influxFile.totalEntryCount,
+                renderedCount: renderedComponents.length,
+            }
+        });
 
         const decorations: Range<Decoration>[] = []
 

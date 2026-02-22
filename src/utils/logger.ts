@@ -1,4 +1,4 @@
-import { CONSTANTS } from '../constants';
+import { isDebugMode } from './debug-mode';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export interface LogContext {
@@ -9,7 +9,7 @@ class Logger {
 	private prefix = '[Influx]';
 
 	debug(msg: string, ctx?: LogContext) {
-		if (CONSTANTS.DEBUG_MODE) {
+		if (isDebugMode()) {
 			console.debug(this.fmt('debug', msg), ctx);
 		}
 	}

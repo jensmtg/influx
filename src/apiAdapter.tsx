@@ -18,6 +18,7 @@ import {
 import { cacheManager } from './state/CacheManager';
 import { mapWithConcurrency } from './utils/concurrency';
 import { CONSTANTS } from './constants';
+import { recordMetric } from './utils/metrics';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
@@ -61,21 +62,33 @@ export class ApiAdapter extends Component {
         return this.app.metadataCache.getFileCache(file);
     }
     getBacklinks(file: TFile): BacklinksObject {
+        const settings = this.getSettings();
+        const startTime = performance.now();
+
+        const reportFetchMetric = (backlinks: BacklinksObject): BacklinksObject => {
+            const backlinksSourceCount = backlinks?.data instanceof Map
+                ? backlinks.data.size
+                : Object.keys(backlinks?.data || {}).length;
+            recordMetric({
+                name: 'influx.backlinks.fetch',
+                mode: 'shared',
+                durationMs: performance.now() - startTime,
+                settings,
+                ctx: {
+                    filePath: file.path,
+                    backlinksSourceCount,
+                    includeFrontmatterLinks: settings.includeFrontmatterLinks,
+                }
+            });
+            return backlinks;
+        };
+
         // Check cache first to reduce I/O
         const cacheKey = file.path;
         const cached = cacheManager.getBacklinks(cacheKey);
         if (cached) {
-            return cached;
+            return reportFetchMetric(cached);
         }
-
-        // Get settings early to check frontmatter link preference
-        const settings = this.getSettings();
-
-        logger.debug('getBacklinks called', {
-            filePath: file.path,
-            basename: file.basename,
-            includeFrontmatterLinks: settings.includeFrontmatterLinks
-        });
 
         // Runtime check for getBacklinksForFile availability
         let backlinks: BacklinksObject;
@@ -86,26 +99,6 @@ export class ApiAdapter extends Component {
 
         if (typeof metadataCache?.getBacklinksForFile === 'function') {
             backlinks = metadataCache.getBacklinksForFile(file);
-            
-            // Log what we got back from Obsidian
-            logger.debug('Obsidian getBacklinksForFile result', {
-                filePath: file.path,
-                backlinksType: backlinks?.data instanceof Map ? 'Map' : 'Object',
-                entryCount: backlinks?.data instanceof Map ? backlinks.data.size : Object.keys(backlinks?.data || {}).length,
-                sampleEntries: backlinks?.data ? (
-                    backlinks.data instanceof Map 
-                        ? Array.from(backlinks.data.entries()).slice(0, 2).map(([path, links]) => ({
-                            path,
-                            linkCount: links.length,
-                            linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
-                        }))
-                        : Object.entries(backlinks.data).slice(0, 2).map(([path, links]) => ({
-                            path,
-                            linkCount: links.length,
-                            linkPositions: links.map(l => ({ link: l.link, line: l.position?.start?.line }))
-                        }))
-                ) : 'no data'
-            });
         } else {
             logger.warn('getBacklinksForFile not available, returning empty backlinks');
             backlinks = { data: new Map() };
@@ -113,7 +106,6 @@ export class ApiAdapter extends Component {
 
         // Filter out frontmatter links if disabled
         if (!settings.includeFrontmatterLinks) {
-            logger.debug('=== FRONTMATTER LINKS DISABLED - About to filter ===', { filePath: file.path });
             filterFrontmatterLinksFromBacklinks(
                 backlinks,
                 file.basename,
@@ -122,27 +114,17 @@ export class ApiAdapter extends Component {
                     return tFile ? this.getMetadata(tFile) : null;
                 }
             );
-            
-            // Log result after filtering
-            logger.debug('=== AFTER FILTERING ===', {
-                filePath: file.path,
-                entryCount: backlinks?.data instanceof Map ? backlinks.data.size : Object.keys(backlinks?.data || {}).length
-            });
         }
 
         const metadata = this.app.metadataCache.getFileCache(file);
 
         // Process front matter links using the pure function pipeline (only if enabled)
         if (metadata?.frontmatterLinks && Array.isArray(metadata.frontmatterLinks) && settings.includeFrontmatterLinks) {
-            logger.debug('Processing frontmatter links', { 
-                count: metadata.frontmatterLinks.length,
-                filePath: file.path 
-            });
             processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
         }
 
         cacheManager.setBacklinks(cacheKey, backlinks);
-        return backlinks;
+        return reportFetchMetric(backlinks);
     }
     async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
         const div = document.createElement('div');
@@ -160,11 +142,9 @@ export class ApiAdapter extends Component {
         // Return cached settings to reduce property access overhead
         const cached = cacheManager.getSettings();
         if (cached) {
-            logger.debug('Returning cached settings', { sortingPrinciple: cached.sortingPrinciple });
             return cached;
         }
 
-        logger.debug('Cache miss, loading settings');
         // Access settings directly from plugin instance
         let settings: ObsidianInfluxSettings;
         if (this.plugin?.data?.settings) {
@@ -274,6 +254,7 @@ export class ApiAdapter extends Component {
     }
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
+        const startTime = performance.now();
         const comparator = this.makeComparisonFn()
         const sortedFiles = [...inlinkingsFiles].sort(comparator);
         const limitedFiles = sortedFiles.slice(0, settings.listLimit || sortedFiles.length);
@@ -297,12 +278,6 @@ export class ApiAdapter extends Component {
                     .replace(/^_/, '')            // Remove leading underscore (now at start after tag removal)
                     .trim()                    // Remove leading/trailing whitespace
 
-                logger.debug('Processed title HTML', {
-                    original: titleAsMd.innerHTML,
-                    cleaned: titleInnerHTML
-                });
-
- 
                 // Also clean summary HTML to remove unwanted p and heading tags
                 summaryAsMd.innerHTML = summaryAsMd.innerHTML
                     .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
@@ -313,12 +288,6 @@ export class ApiAdapter extends Component {
                     .replace(/(?:<\/(?:p|h[1-6])>\n)/gi, '$1>')  // Remove newlines after </p> and </h1-h6> tags
                     .replace(/(>)(\n+)(<)/gi, '$1$3')  // Remove newlines between tags
                     .trim()                    // Remove leading/trailing whitespace
-
-                logger.debug('Processed summary HTML', {
-                    original: summaryAsMd.innerHTML,
-                    cleaned: summaryAsMd.innerHTML
-                });
-
 
                 const extended: ExtendedInlinkingFile = {
                     inlinkingFile: inlinkingFile,
@@ -333,7 +302,20 @@ export class ApiAdapter extends Component {
             }
         );
 
-        return rendered.filter((component): component is ExtendedInlinkingFile => component !== null);
+        const components = rendered.filter((component): component is ExtendedInlinkingFile => component !== null);
+        recordMetric({
+            name: 'influx.markdown.render',
+            mode: 'shared',
+            durationMs: performance.now() - startTime,
+            settings,
+            ctx: {
+                filePath: inlinkingsFiles[0]?.file?.path,
+                inputCount: inlinkingsFiles.length,
+                renderedCount: components.length,
+                markdownConcurrency: CONSTANTS.MARKDOWN_RENDER_CONCURRENCY,
+            }
+        });
+        return components;
     }
     /** comparison fn for filter in function to make contextual summaries,
      * to find relevant links.

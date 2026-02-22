@@ -9,6 +9,7 @@ import * as React from 'react';
 import type ObsidianInflux from '../main';
 import { computeSettingsHash } from '../settings-hash-utils';
 import { cacheManager } from '../state/CacheManager';
+import { recordMetric } from '../utils/metrics';
 
 type InfluxView = View & {
 	file?: TFile;
@@ -88,12 +89,13 @@ export class PreviewManager {
             return;
         }
 
-        const apiAdapter = this.plugin.api;
-        const path = influxLeaf.view?.file?.path;
-        if (!path) {
-            logger.warn('No file path found for preview');
-            return;
-        }
+		const apiAdapter = this.plugin.api;
+		const path = influxLeaf.view?.file?.path;
+		if (!path) {
+			logger.warn('No file path found for preview');
+			return;
+		}
+		const pipelineStart = performance.now();
 
         const existingContainer = previewDiv.querySelector(
             '.influx-preview-wrapper > influx-preview-container'
@@ -111,11 +113,39 @@ export class PreviewManager {
 		const influxFile = await InfluxFile.create(path, apiAdapter);
 		if (!influxFile.show) {
 			this.cleanupPreviewContainers(previewDiv);
+			recordMetric({
+				name: 'influx.pipeline.total',
+				mode: 'preview',
+				durationMs: performance.now() - pipelineStart,
+				settings,
+				always: true,
+				ctx: {
+					filePath: path,
+					show: false,
+					listLimit: settings.listLimit || 0,
+					totalEntryCount: 0,
+					renderedCount: 0
+				}
+			});
 			return;
 		}
 
         await influxFile.makeInfluxList();
-        await influxFile.renderAllMarkdownBlocks();
+        const renderedComponents = await influxFile.renderAllMarkdownBlocks();
+		recordMetric({
+			name: 'influx.pipeline.total',
+			mode: 'preview',
+			durationMs: performance.now() - pipelineStart,
+			settings,
+			always: true,
+			ctx: {
+				filePath: path,
+				show: influxFile.show,
+				listLimit: settings.listLimit || 0,
+				totalEntryCount: influxFile.totalEntryCount,
+				renderedCount: renderedComponents.length
+			}
+		});
 
         cacheManager.setPreviewFileHash(path, fileHash);
 
@@ -143,8 +173,8 @@ export class PreviewManager {
 			influxContainer.id = influxFile.uuid;
 			influxWrapper.appendChild(influxContainer);
 
-			const settings = this.plugin.data.settings;
-			if (settings.influxAtTopOfPage) {
+			const currentSettings = this.plugin.data.settings;
+			if (currentSettings.influxAtTopOfPage) {
 				previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
 			} else {
 				previewDiv.appendChild(influxWrapper);
@@ -184,14 +214,43 @@ export class PreviewManager {
 		this.cleanupPreviewContainers(element, true);
 
 		try {
+			const pipelineStart = performance.now();
 			// Use plugin's apiAdapter to preserve cache and ensure settings are available
 			const influxFile = await InfluxFile.create(filePath, this.plugin.api);
 			if (!influxFile.show) {
+				recordMetric({
+					name: 'influx.pipeline.total',
+					mode: 'preview',
+					durationMs: performance.now() - pipelineStart,
+					settings,
+					always: true,
+					ctx: {
+						filePath,
+						show: false,
+						listLimit: settings.listLimit || 0,
+						totalEntryCount: 0,
+						renderedCount: 0
+					}
+				});
 				return;
 			}
 
 			await influxFile.makeInfluxList();
-			await influxFile.renderAllMarkdownBlocks();
+			const renderedComponents = await influxFile.renderAllMarkdownBlocks();
+			recordMetric({
+				name: 'influx.pipeline.total',
+				mode: 'preview',
+				durationMs: performance.now() - pipelineStart,
+				settings,
+				always: true,
+				ctx: {
+					filePath,
+					show: influxFile.show,
+					listLimit: settings.listLimit || 0,
+					totalEntryCount: influxFile.totalEntryCount,
+					renderedCount: renderedComponents.length
+				}
+			});
 
 			const influxWrapper = document.createElement('div');
 			influxWrapper.className = 'influx-preview-wrapper';
@@ -200,8 +259,8 @@ export class PreviewManager {
 			influxContainer.id = influxFile.uuid;
 			influxWrapper.appendChild(influxContainer);
 
-			const settings = this.plugin.data.settings;
-			if (settings.influxAtTopOfPage) {
+			const currentSettings = this.plugin.data.settings;
+			if (currentSettings.influxAtTopOfPage) {
 				element.insertBefore(influxWrapper, element.firstChild);
 			} else {
 				element.appendChild(influxWrapper);

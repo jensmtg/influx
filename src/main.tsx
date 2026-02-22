@@ -11,8 +11,10 @@ import { influxUpdates$ } from './utils/Observable';
 import { EventManager } from './managers/EventManager';
 import { PreviewManager } from './managers/PreviewManager';
 import { InfluxSidebarView } from './views/InfluxSidebarView';
-import { cleanupWindowGlobals, isDebugMode } from './utils/typeGuard';
+import { cleanupWindowGlobals } from './utils/typeGuard';
 import { cacheManager } from './state/CacheManager';
+import { getMetrics } from './utils/metrics';
+import { isDebugMode } from './utils/debug-mode';
 
 
 export default class ObsidianInflux extends Plugin {
@@ -49,6 +51,7 @@ export default class ObsidianInflux extends Plugin {
 						filePath?: string;
 					}>;
 				};
+				getMetrics: () => unknown;
 			};
 			testInfluxReadingView?: () => void;
 		};
@@ -103,7 +106,8 @@ export default class ObsidianInflux extends Plugin {
 						type: info.type,
 						filePath: info.filePath
 					}))
-				})
+				}),
+				getMetrics: () => getMetrics()
 			};
 			logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
 		}

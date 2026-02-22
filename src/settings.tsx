@@ -3,6 +3,7 @@ import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { ObsidianInfluxSettings } from './types';
 import { logger } from './utils/logger';
 import { validateYamlPropertyNames } from './settings-utils';
+import { isDebugMode, setDebugMode } from './utils/debug-mode';
 
 type PatternSettingName =
     | 'exclusionPattern'
@@ -404,6 +405,41 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                     const inputEl = e.target as HTMLInputElement;
                     void this.handleFrontmatterPropertiesBlur(inputEl);
                 };
+            });
+
+        containerEl.createEl('h2', { text: 'Advanced Diagnostics' });
+
+        const diagnosticsDetails = containerEl.createEl('details');
+        diagnosticsDetails.createEl('summary', {
+            text: 'Diagnostics and bug-report tools (advanced)'
+        });
+        const diagnosticsContainer = diagnosticsDetails.createDiv();
+
+        diagnosticsContainer.createEl('p', {
+            text: 'These options are intended for troubleshooting and issue reports, not normal usage.'
+        });
+
+        new Setting(diagnosticsContainer)
+            .setName('Enable debug logging')
+            .setDesc('Enables verbose debug logs in the developer console.')
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(isDebugMode())
+                    .onChange((value) => {
+                        setDebugMode(value);
+                        new Notice(value ? 'Influx debug logging enabled.' : 'Influx debug logging disabled.');
+                    });
+            });
+
+        new Setting(diagnosticsContainer)
+            .setName('Enable performance metrics')
+            .setDesc('Captures minimal timing metrics and includes them in debug logs and window.influxDebug.getMetrics().')
+            .addToggle((toggle) => {
+                toggle
+                    .setValue(this.plugin.data.settings.metricsEnabled)
+                    .onChange(async (value) => {
+                        await this.setSetting('metricsEnabled', value);
+                    });
             });
     }
 }

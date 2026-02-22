@@ -6,6 +6,7 @@ import { createFileComparator } from './settings-utils';
 import { mapWithConcurrency } from './utils/concurrency';
 import { CONSTANTS } from './constants';
 import { DEFAULT_SETTINGS } from './types';
+import { recordMetric } from './utils/metrics';
 
 
 export default class InfluxFile {
@@ -100,10 +101,28 @@ export default class InfluxFile {
             this.totalEntryCount = 0;
             return;
         }
+
+        const startTime = performance.now();
         this.backlinks = this.api.getBacklinks(this.file)
         if (!this.backlinks || !this.backlinks.data) {
             this.inlinkingFiles = []
             this.totalEntryCount = 0;
+            const emptySettings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
+                ? this.api.getSettings()
+                : DEFAULT_SETTINGS;
+            recordMetric({
+                name: 'influx.inlinking.build',
+                mode: 'shared',
+                durationMs: performance.now() - startTime,
+                settings: emptySettings,
+                ctx: {
+                    filePath: this.file.path,
+                    candidateSourceCount: 0,
+                    processedSourceCount: 0,
+                    listLimit: emptySettings.listLimit || 0,
+                    summaryConcurrency: CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
+                }
+            });
             return
         }
 
@@ -151,6 +170,20 @@ export default class InfluxFile {
 
         const inlinkingFilesNew = processed.filter((item): item is InlinkingFile => item !== null);
         this.inlinkingFiles = inlinkingFilesNew
+
+        recordMetric({
+            name: 'influx.inlinking.build',
+            mode: 'shared',
+            durationMs: performance.now() - startTime,
+            settings,
+            ctx: {
+                filePath: this.file.path,
+                candidateSourceCount: validFiles.length,
+                processedSourceCount: inlinkingFilesNew.length,
+                listLimit,
+                summaryConcurrency: CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
+            }
+        });
 
         // Warn user if some files failed to process
         if (inlinkingFilesNew.length < filesToProcess.length) {

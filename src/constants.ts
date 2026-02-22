@@ -24,7 +24,6 @@ const DOM = {
 
 // Feature flags and configuration
 const FEATURES = {
-	DEBUG_MODE: false,
 	FRONTMATTER_KEY: 'influx-title',
 } as const;
 

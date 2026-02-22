@@ -9,6 +9,7 @@ import { InfluxErrorBoundary } from './InfluxErrorBoundary';
 import type ObsidianInflux from '../../main';
 import { logger } from '../../utils/logger';
 import { debounce } from '../../utils/debounce';
+import { recordMetric } from '../../utils/metrics';
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 
@@ -133,16 +134,31 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const influxFileRef = React.useRef(influxFile);
 	influxFileRef.current = influxFile;
+	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
+	const renderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
 
 	const indexedComponents = React.useMemo(
 		() => buildSearchIndex(components),
 		[components]
 	);
 
-	const filteredComponents = React.useMemo(
-		() => filterComponentsBySearch(indexedComponents, searchQuery),
-		[indexedComponents, searchQuery]
-	);
+	const filteredComponents = React.useMemo(() => {
+		const startTime = performance.now();
+		const filtered = filterComponentsBySearch(indexedComponents, searchQuery);
+		recordMetric({
+			name: 'influx.ui.filter',
+			mode: renderMode,
+			durationMs: performance.now() - startTime,
+			settings,
+			ctx: {
+				filePath: influxFile.file?.path,
+				componentCount: indexedComponents.length,
+				filteredCount: filtered.length,
+				queryLength: searchQuery.length,
+			}
+		});
+		return filtered;
+	}, [indexedComponents, searchQuery, renderMode, settings, influxFile.file?.path]);
 	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS);
 	const visibleComponents = React.useMemo(
 		() => filteredComponents.slice(0, visibleCount),
@@ -150,9 +166,28 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	);
 	const hasMoreVisible = visibleCount < filteredComponents.length;
 
-	const loadMoreComponents = React.useCallback(() => {
-		setVisibleCount((count) => Math.min(count + VISIBLE_COMPONENTS_CHUNK, filteredComponents.length));
-	}, [filteredComponents.length]);
+	const loadMoreComponents = React.useCallback((trigger: 'observer' | 'button') => {
+		setVisibleCount((count) => {
+			const nextVisibleCount = Math.min(count + VISIBLE_COMPONENTS_CHUNK, filteredComponents.length);
+			if (nextVisibleCount !== count) {
+				recordMetric({
+					name: 'influx.ui.virtualize.append',
+					mode: renderMode,
+					durationMs: 0,
+					settings,
+					always: true,
+					ctx: {
+						filePath: influxFile.file?.path,
+						prevVisibleCount: count,
+						nextVisibleCount,
+						totalFilteredCount: filteredComponents.length,
+						trigger,
+					}
+				});
+			}
+			return nextVisibleCount;
+		});
+	}, [filteredComponents.length, renderMode, settings, influxFile.file?.path]);
 
 	React.useEffect(() => {
 		setVisibleCount(Math.min(INITIAL_VISIBLE_COMPONENTS, filteredComponents.length));
@@ -170,7 +205,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries.some((entry) => entry.isIntersecting)) {
-					loadMoreComponents();
+					loadMoreComponents('observer');
 				}
 			},
 			{
@@ -257,8 +292,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}, [influxFile.uuid]);
 
 	const shownLength = components.length || 0;
-
-	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
 
 	const centered = settings.variant !== 'ROWS';
 	const fontSize = settings.fontSize || 13;
@@ -500,7 +533,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										{typeof IntersectionObserver === 'undefined' && (
 											<button
 												className="tree-item-self is-clickable"
-												onClick={loadMoreComponents}
+												onClick={() => loadMoreComponents('button')}
 											>
 												Load more backlinks
 											</button>

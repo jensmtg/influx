@@ -66,28 +66,6 @@ export function isPluginUnloading(): boolean {
 }
 
 /**
- * Check if debug mode is enabled through localStorage or URL parameter
- * Allows enabling debug mode without code changes in production
- */
-export function isDebugMode(): boolean {
-	// Check localStorage first
-	const localStorageDebug = localStorage.getItem('influx-debug-mode');
-	if (localStorageDebug !== null) {
-		return localStorageDebug === 'true';
-	}
-
-	// Check URL parameter
-	const urlParams = new URLSearchParams(window.location.search);
-	const urlDebug = urlParams.get('influx-debug');
-	if (urlDebug !== null) {
-		return urlDebug === 'true';
-	}
-
-	// Default to false
-	return false;
-}
-
-/**
  * Remove test/debug functions from window object
  * Called during plugin unload to clean up
  */

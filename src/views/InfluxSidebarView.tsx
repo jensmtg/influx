@@ -6,6 +6,7 @@ import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import type ObsidianInflux from '../main';
 import { logger } from '../utils/logger';
 import { CONSTANTS } from '../constants';
+import { recordMetric } from '../utils/metrics';
 
 export class InfluxSidebarView extends ItemView {
 	private currentFile: TFile | null = null;
@@ -125,6 +126,7 @@ export class InfluxSidebarView extends ItemView {
 		this.componentKey = file.path;
 
 		try {
+			const pipelineStart = performance.now();
 			this.influxFile = await InfluxFile.create(file.path, this.plugin.api);
 
 			// Check if this update is still current
@@ -133,6 +135,20 @@ export class InfluxSidebarView extends ItemView {
 			}
 
 			if (!this.influxFile.show) {
+				recordMetric({
+					name: 'influx.pipeline.total',
+					mode: 'sidebar',
+					durationMs: performance.now() - pipelineStart,
+					settings: this.plugin.data.settings,
+					always: true,
+					ctx: {
+						filePath: file.path,
+						show: false,
+						listLimit: this.plugin.data.settings.listLimit || 0,
+						totalEntryCount: 0,
+						renderedCount: 0
+					}
+				});
 				this.root?.render(null);
 				return;
 			}
@@ -144,7 +160,21 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
-			await this.influxFile.renderAllMarkdownBlocks();
+			const renderedComponents = await this.influxFile.renderAllMarkdownBlocks();
+			recordMetric({
+				name: 'influx.pipeline.total',
+				mode: 'sidebar',
+				durationMs: performance.now() - pipelineStart,
+				settings: this.plugin.data.settings,
+				always: true,
+				ctx: {
+					filePath: file.path,
+					show: this.influxFile.show,
+					listLimit: this.plugin.data.settings.listLimit || 0,
+					totalEntryCount: this.influxFile.totalEntryCount,
+					renderedCount: renderedComponents.length
+				}
+			});
 
 			// Final check before rendering
 			if (signal.aborted || updateId !== this.currentUpdateId) {
@@ -191,9 +221,24 @@ export class InfluxSidebarView extends ItemView {
 		const updateId = this.currentUpdateId;
 
 		try {
+			const pipelineStart = performance.now();
 			const shouldShow = this.plugin.api.getShowStatus(this.currentFile);
 			this.influxFile.show = shouldShow;
 			if (!shouldShow) {
+				recordMetric({
+					name: 'influx.pipeline.total',
+					mode: 'sidebar',
+					durationMs: performance.now() - pipelineStart,
+					settings: this.plugin.data.settings,
+					always: true,
+					ctx: {
+						filePath: this.currentFile.path,
+						show: false,
+						listLimit: this.plugin.data.settings.listLimit || 0,
+						totalEntryCount: 0,
+						renderedCount: 0
+					}
+				});
 				this.root?.render(null);
 				return;
 			}
@@ -205,7 +250,21 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
-			await this.influxFile.renderAllMarkdownBlocks();
+			const renderedComponents = await this.influxFile.renderAllMarkdownBlocks();
+			recordMetric({
+				name: 'influx.pipeline.total',
+				mode: 'sidebar',
+				durationMs: performance.now() - pipelineStart,
+				settings: this.plugin.data.settings,
+				always: true,
+				ctx: {
+					filePath: this.currentFile.path,
+					show: this.influxFile.show,
+					listLimit: this.plugin.data.settings.listLimit || 0,
+					totalEntryCount: this.influxFile.totalEntryCount,
+					renderedCount: renderedComponents.length
+				}
+			});
 
 			if (signal?.aborted || updateId !== this.currentUpdateId) {
 				return;
