@@ -1,19 +1,33 @@
-.cm-content {
+/* Influx Host Elements */
+:is(
+	influx-plugin-widget-v2,
+	obsidian-influx-element,
+	influx-preview-container-v2,
+	influx-preview-container
+) {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* Editor / Preview Layout */
+.cm-content:has(> influx-plugin-widget-v2),
+.cm-content:has(> obsidian-influx-element) {
 	padding-bottom: 1.5rem !important;
 }
 
-body .markdown-preview-sizer {
+body .markdown-preview-sizer:has(.influx-preview-wrapper) {
 	padding-bottom: unset !important;
 }
 
-/* Fix for readable line width in reading mode */
+/* Reading mode width alignment */
 .markdown-preview-view .influx-preview-wrapper,
 .markdown-reading-view .influx-preview-wrapper {
 	max-width: var(--file-line-width, 100%);
 	margin-inline: auto;
 }
 
-/* Centering container when readable line length is enabled */
+/* Keep wrapper aligned when readable line length is enabled */
 body.is-readable-line-width .influx-preview-wrapper {
 	max-width: var(--file-line-width);
 	margin-inline: auto;
@@ -28,7 +42,7 @@ body.is-readable-line-width .influx-preview-wrapper {
 	}
 }
 
-/* Influx Component Styles */
+/* Influx Component (Shared) */
 .influx-component {
 	margin-top: 3em;
 }
@@ -87,25 +101,6 @@ body.is-readable-line-width .influx-preview-wrapper {
 	& li h5,
 	& li h6 {
 		display: inline-block;
-	}
-	/* } */
-
-	/* & li:nth-child(1) {
-        margin-block-start: calc(-1 * var(--influx-line-height, 19.5px)) !important;
-    } */
-
-	& li h1,
-	& li h2,
-	& li h3,
-	& li h4,
-	& li h5,
-	& li h6 {
-		display: inline-block;
-	}
-
-	& ul {
-		/* margin-top: 0; */
-		padding-inline-start: 20px;
 	}
 
 	& p {
