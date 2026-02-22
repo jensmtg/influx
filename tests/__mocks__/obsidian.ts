@@ -27,6 +27,31 @@ class MockTFile {
 
 class MockTAbstractFile {}
 
+export class Component {
+	private children: Component[] = [];
+
+	addChild(child: Component): void {
+		this.children.push(child);
+	}
+
+	removeChild(child: Component): void {
+		this.children = this.children.filter((currentChild) => currentChild !== child);
+	}
+
+	unload(): void {
+		for (const child of this.children) {
+			child.unload();
+		}
+		this.children = [];
+	}
+}
+
+export const MarkdownRenderer = {
+	renderMarkdown: jest.fn(async (markdown: string, el: HTMLElement) => {
+		el.textContent = markdown;
+	}),
+};
+
 // Mock Setting fluent API (minimal, without complex UI component mocks)
 export const Setting = jest.fn().mockImplementation(() => {
 	const settingInstance: {
@@ -145,6 +170,8 @@ export const TAbstractFile = MockTAbstractFile;
 export default {
 	TFile: MockTFile,
 	TAbstractFile: MockTAbstractFile,
+	Component,
+	MarkdownRenderer,
 	normalizePath,
 	Setting,
 	Notice,

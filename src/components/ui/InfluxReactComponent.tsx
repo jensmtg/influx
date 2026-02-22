@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { setIcon } from 'obsidian';
 import InfluxFile from '../../InfluxFile';
 import { ExtendedInlinkingFile } from '../../apiAdapter';
 import { ObsidianInfluxSettings } from '../../types';
@@ -7,6 +6,7 @@ import { CONSTANTS } from '../../constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
 import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './InfluxErrorBoundary';
+import MarkdownMount from './MarkdownMount';
 import type ObsidianInflux from '../../main';
 import { logger } from '../../utils/logger';
 import { debounce } from '../../utils/debounce';
@@ -32,60 +32,26 @@ function collectInitialCollapsedPaths(influxFile: InfluxFile): string[] {
 	return collectComponentPaths(influxFile.components);
 }
 
-function stripHtmlToLowerText(html: string): string {
-	return html.replace(/<[^>]*>/g, '').toLowerCase();
-}
+const searchTextCache = new WeakMap<ExtendedInlinkingFile, string>();
 
-function normalizeCalloutIconId(rawIconId: string): string {
-	return rawIconId
-		.trim()
-		.replace(/^['"]|['"]$/g, '')
-		.replace(/^lucide-/, '');
-}
-
-function resolveCalloutIconId(calloutEl: HTMLElement): string | null {
-	const calloutType = calloutEl.getAttribute('data-callout')?.trim();
-	const computedIcon = window.getComputedStyle(calloutEl).getPropertyValue('--callout-icon').trim();
-	const iconId = computedIcon || calloutType;
-	if (!iconId) {
-		return null;
+function getSearchText(item: ExtendedInlinkingFile): string {
+	const cached = searchTextCache.get(item);
+	if (cached) {
+		return cached;
 	}
-	return normalizeCalloutIconId(iconId);
+	const basename = item.inlinkingFile.file?.basename ?? '';
+	const text = `${basename} ${item.titleText} ${item.summaryMarkdown}`.toLowerCase();
+	searchTextCache.set(item, text);
+	return text;
 }
 
-function hasRenderableSvgChildren(svgEl: SVGElement | null): boolean {
-	if (!svgEl) {
-		return false;
-	}
-	return svgEl.querySelector('path, circle, rect, line, polyline, polygon, ellipse, g, use') !== null;
-}
-
-type IndexedSearchComponent = {
-	component: ExtendedInlinkingFile;
-	searchText: string;
-};
-
-function buildSearchIndex(components: ExtendedInlinkingFile[]): IndexedSearchComponent[] {
-	return components.map((item) => {
-		const basename = item.inlinkingFile.file?.basename.toLowerCase() ?? '';
-		const titleText = stripHtmlToLowerText(item.titleInnerHTML);
-		const contentText = stripHtmlToLowerText(item.inner.innerHTML);
-		return {
-			component: item,
-			searchText: `${basename} ${titleText} ${contentText}`,
-		};
-	});
-}
-
-function filterComponentsBySearch(indexedComponents: IndexedSearchComponent[], searchQuery: string): ExtendedInlinkingFile[] {
+function filterComponentsBySearch(components: ExtendedInlinkingFile[], searchQuery: string): ExtendedInlinkingFile[] {
 	const normalizedQuery = searchQuery.toLowerCase().trim();
 	if (!normalizedQuery) {
-		return indexedComponents.map((item) => item.component);
+		return components;
 	}
 
-	return indexedComponents
-		.filter((item) => item.searchText.includes(normalizedQuery))
-		.map((item) => item.component);
+	return components.filter((item) => getSearchText(item).includes(normalizedQuery));
 }
 
 function getLinkedMentionsCountLabel(params: {
@@ -136,7 +102,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
 	const searchResultsContainerRef = React.useRef<HTMLDivElement>(null);
 	const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
-	const componentRootRef = React.useRef<HTMLDivElement>(null);
 	const updateSeqRef = React.useRef(0);
 
 	React.useEffect(() => {
@@ -163,14 +128,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
 	const renderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
 
-	const indexedComponents = React.useMemo(
-		() => buildSearchIndex(components),
-		[components]
-	);
-
 	const filteredComponents = React.useMemo(() => {
 		const startTime = performance.now();
-		const filtered = filterComponentsBySearch(indexedComponents, searchQuery);
+		const filtered = filterComponentsBySearch(components, searchQuery);
 		recordMetric({
 			name: 'influx.ui.filter',
 			mode: renderMode,
@@ -178,13 +138,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			settings,
 			ctx: {
 				filePath: influxFile.file?.path,
-				componentCount: indexedComponents.length,
+				componentCount: components.length,
 				filteredCount: filtered.length,
 				queryLength: searchQuery.length,
 			}
 		});
 		return filtered;
-	}, [indexedComponents, searchQuery, renderMode, settings, influxFile.file?.path]);
+	}, [components, searchQuery, renderMode, settings, influxFile.file?.path]);
 	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS);
 	const visibleComponents = React.useMemo(
 		() => filteredComponents.slice(0, visibleCount),
@@ -242,33 +202,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		observer.observe(trigger);
 		return () => observer.disconnect();
 		}, [hasMoreVisible, loadMoreComponents, visibleCount]);
-
-	React.useEffect(() => {
-		const rootEl = componentRootRef.current;
-		if (!rootEl) {
-			return;
-		}
-
-		const calloutIconContainers = rootEl.querySelectorAll<HTMLElement>('.callout .callout-icon');
-		calloutIconContainers.forEach((iconContainer) => {
-			const existingSvg = iconContainer.querySelector('svg');
-			if (hasRenderableSvgChildren(existingSvg)) {
-				return;
-			}
-
-			const calloutEl = iconContainer.closest('.callout') as HTMLElement | null;
-			if (!calloutEl) {
-				return;
-			}
-
-			const iconId = resolveCalloutIconId(calloutEl);
-			if (!iconId) {
-				return;
-			}
-
-			setIcon(iconContainer, iconId as Parameters<typeof setIcon>[1]);
-		});
-	}, [visibleComponents]);
 
 	const debouncedSetSearchQuery = React.useMemo(
 		() => debounce((value: string) => {
@@ -366,7 +299,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 				<React.Fragment>
 
 					<div
-						ref={componentRootRef}
 						className={`embedded-backlinks influx-component influx-component--${renderMode}`}
 						style={{
 							animation: 'fadeIn .6s',
@@ -515,11 +447,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 									const inlinkedCollapsed = collapsedManager.isCollapsed(filePath);
 
-									const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
+									const entryHeader = settings.entryHeaderVisible && extended.titleText && !extended.inlinkingFile.isLinkInTitle ? (
 										<h2>
-											<span
-												dangerouslySetInnerHTML={{ __html: extended.titleInnerHTML }}
-											/>
+											<span>{extended.titleText}</span>
 										</h2>
 									) : null;
 
@@ -561,8 +491,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 														<div className="influx-entries" >
 															{entryHeader}
-																<div
-																	dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
+																<MarkdownMount
+																	markdown={extended.summaryMarkdown}
+																	sourcePath={extended.sourcePath}
 																	className={`influx-entry ${preview ? 'is-preview' : ''}`}
 																/>
 														</div>

@@ -2,7 +2,6 @@ import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
 import { logger } from './utils/logger';
-import { createFileComparator } from './settings-utils';
 import { mapWithConcurrency } from './utils/concurrency';
 import { CONSTANTS } from './constants';
 import { DEFAULT_SETTINGS } from './types';
@@ -129,7 +128,6 @@ export default class InfluxFile {
         const settings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
             ? this.api.getSettings()
             : DEFAULT_SETTINGS;
-        const fileComparator = createFileComparator(settings.sortingAttribute, settings.sortingPrinciple);
         const listLimit = settings.listLimit || 0;
         const normalizedCurrentPath = normalizePath(this.file.path).toLowerCase();
 
@@ -152,7 +150,24 @@ export default class InfluxFile {
 
         this.totalEntryCount = validFiles.length;
 
-        const sortedFiles = [...validFiles].sort((a, b) => fileComparator({ file: a }, { file: b }));
+        const flip = settings.sortingPrinciple === 'NEWEST_FIRST' ? -1 : 1;
+        const sortAttr = settings.sortingAttribute === 'mtime' ? 'mtime' : 'ctime';
+
+        const sortedFiles = [...validFiles].sort((a, b) => {
+            if (settings.sortingAttribute === 'FILENAME') {
+                const aName = a.basename || '';
+                const bName = b.basename || '';
+                if (aName < bName) return -1 * flip;
+                if (aName > bName) return 1 * flip;
+                return 0;
+            }
+
+            const aTime = a.stat?.[sortAttr] || 0;
+            const bTime = b.stat?.[sortAttr] || 0;
+            if (aTime < bTime) return -1 * flip;
+            if (aTime > bTime) return 1 * flip;
+            return 0;
+        });
         const filesToProcess = listLimit > 0 ? sortedFiles.slice(0, listLimit) : sortedFiles;
 
         const processed = await mapWithConcurrency(

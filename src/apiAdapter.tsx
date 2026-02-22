@@ -1,4 +1,4 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, Component } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
 import ObsidianInflux from './main';
@@ -9,22 +9,20 @@ import {
 } from './frontmatter-utils';
 import {
     compareLinkName,
-    createInlinkingFileComparator,
     shouldShowInfluxWithMatcher,
     isIncludableSourceWithMatcher,
     shouldCollapseInfluxWithMatcher,
     type FilterSettings
 } from './settings-utils';
 import { cacheManager } from './state/CacheManager';
-import { mapWithConcurrency } from './utils/concurrency';
-import { CONSTANTS } from './constants';
 import { recordMetric } from './utils/metrics';
 
 export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
 export type ExtendedInlinkingFile = {
     inlinkingFile: InlinkingFile;
-    titleInnerHTML: string;
-    inner: HTMLDivElement;
+    titleText: string;
+    summaryMarkdown: string;
+    sourcePath: string;
 }
 
 export class ApiAdapter extends Component {
@@ -125,18 +123,6 @@ export class ApiAdapter extends Component {
 
         cacheManager.setBacklinks(cacheKey, backlinks);
         return reportFetchMetric(backlinks);
-    }
-    async renderMarkdown(markdown: string): Promise<HTMLDivElement> {
-        const div = document.createElement('div');
-        await MarkdownRenderer.renderMarkdown(markdown, div, '/', this);
-
-        // Disable checkboxes in preview mode to prevent interaction
-        // Use direct DOM manipulation instead of innerHTML replacement for better performance
-        const checkboxes = Array.from(div.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-        for (const checkbox of checkboxes) {
-            checkbox.disabled = true;
-        }
-        return div;
     }
     getSettings(): ObsidianInfluxSettings {
         // Return cached settings to reduce property access overhead
@@ -249,66 +235,17 @@ export class ApiAdapter extends Component {
 	        const matched = patterns.some(pathMatchesRegex);
 	        return matched
 	    };
-    /** A sort function to order notes correctly, based on settings. */
-    makeComparisonFn(): (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1 {
-        const settings = this.getSettings();
-        logger.debug('Creating comparison function', {
-            attribute: settings.sortingAttribute,
-            principle: settings.sortingPrinciple
-        });
-        // Use extracted pure function for file comparison
-        return createInlinkingFileComparator(settings) as (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1;
-    }
-	    private sanitizeRenderedTitleHtml(html: string): string {
-	        return html
-	            .replace(/<\/?p\b[^>]*>/gi, '')    // Remove <p>, </p> tags only
-	            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
-	            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
-	            .replace(/^_/, '')                 // Remove leading underscore
-	            .trim();
-	    }
-	    private sanitizeRenderedSummaryHtml(html: string): string {
-	        return html
-	            .replace(/<\/?p\b[^>]*>/gi, '')    // Remove <p>, </p> tags only
-	            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
-	            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
-	            .trim();
-	    }
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[], targetFilePath?: string): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const startTime = performance.now();
-        const comparator = this.makeComparisonFn()
-        const sortedFiles = [...inlinkingsFiles].sort(comparator);
-        const limitedFiles = sortedFiles.slice(0, settings.listLimit || sortedFiles.length);
+        const limitedFiles = inlinkingsFiles.slice(0, settings.listLimit || inlinkingsFiles.length);
+        const components = limitedFiles.map((inlinkingFile): ExtendedInlinkingFile => ({
+            inlinkingFile,
+            titleText: (inlinkingFile.title ?? '').trim(),
+            summaryMarkdown: inlinkingFile.summary ?? '',
+            sourcePath: inlinkingFile.file?.path ?? targetFilePath ?? '/',
+        }));
 
-        const rendered = await mapWithConcurrency(
-            limitedFiles,
-            CONSTANTS.MARKDOWN_RENDER_CONCURRENCY,
-            async (inlinkingFile): Promise<ExtendedInlinkingFile | null> => {
-                try {
-                    // Render title and summary together per file; global concurrency is capped above.
-                    const [titleAsMd, summaryAsMd] = await Promise.all([
-                        this.renderMarkdown(`_${inlinkingFile.title}`),
-                        this.renderMarkdown(inlinkingFile.summary),
-                    ])
-
-                    const titleInnerHTML = this.sanitizeRenderedTitleHtml(titleAsMd.innerHTML);
-                    summaryAsMd.innerHTML = this.sanitizeRenderedSummaryHtml(summaryAsMd.innerHTML);
-
-                    const extended: ExtendedInlinkingFile = {
-                        inlinkingFile: inlinkingFile,
-                        titleInnerHTML: titleInnerHTML,
-                        inner: summaryAsMd,
-                    }
-                    return extended
-                } catch (error) {
-                    logger.error('Failed to render markdown block', { filePath: inlinkingFile.file?.path, error });
-                    return null;
-                }
-            }
-        );
-
-        const components = rendered.filter((component): component is ExtendedInlinkingFile => component !== null);
         recordMetric({
             name: 'influx.markdown.render',
             mode: 'shared',
@@ -318,7 +255,7 @@ export class ApiAdapter extends Component {
                 filePath: targetFilePath,
                 inputCount: inlinkingsFiles.length,
                 renderedCount: components.length,
-                markdownConcurrency: CONSTANTS.MARKDOWN_RENDER_CONCURRENCY,
+                markdownConcurrency: 0,
             }
         });
         return components;
