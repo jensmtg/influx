@@ -107,8 +107,8 @@ export class PreviewManager {
 			return;
 		}
 
-		// Clean up any existing root for this file path first
-		rootManager.unmountByFilePath(path);
+		// Clean up existing preview roots for this file path first
+		rootManager.unmountByFilePath(path, 'preview');
 
 		const influxFile = await InfluxFile.create(path, apiAdapter);
 		if (!influxFile.show) {
@@ -206,9 +206,9 @@ export class PreviewManager {
 
 		logger.debug('[handlePreviewMode] Processing file:', { filePath });
 
-		// Clean up any existing React root for this file path first
-		// This is more reliable than DOM querying as it uses rootManager's tracking
-		rootManager.unmountByFilePath(filePath);
+		// Clean up existing preview roots for this file path first.
+		// This is more reliable than DOM querying as it uses rootManager's tracking.
+		rootManager.unmountByFilePath(filePath, 'preview');
 
 		// Also clean up any orphaned DOM elements (defense-in-depth)
 		this.cleanupPreviewContainers(element, true);

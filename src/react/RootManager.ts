@@ -14,7 +14,7 @@ export interface RootInfo {
 
 export class RootManager {
 	private roots = new Map<HTMLElement, RootInfo>();
-	private filePathIndex = new Map<string, HTMLElement>();
+	private filePathIndex = new Map<string, Set<HTMLElement>>();
 	private unloading = false;
 
 	/**
@@ -48,12 +48,9 @@ export class RootManager {
 		this.roots.set(container, info);
 
 		if (filePath) {
-			// Unmount any existing root for this file path
-			const existing = this.filePathIndex.get(filePath);
-			if (existing && existing !== container) {
-				this.unmount(existing);
-			}
-			this.filePathIndex.set(filePath, container);
+			const containers = this.filePathIndex.get(filePath) ?? new Set<HTMLElement>();
+			containers.add(container);
+			this.filePathIndex.set(filePath, containers);
 		}
 	}
 
@@ -65,7 +62,13 @@ export class RootManager {
 		const info = this.roots.get(container);
 		if (info) {
 			if (info.filePath) {
-				this.filePathIndex.delete(info.filePath);
+				const containers = this.filePathIndex.get(info.filePath);
+				if (containers) {
+					containers.delete(container);
+					if (containers.size === 0) {
+						this.filePathIndex.delete(info.filePath);
+					}
+				}
 			}
 			this.roots.delete(container);
 		}
@@ -109,9 +112,20 @@ export class RootManager {
 	/**
 	 * Unmount all roots for a specific file path
 	 */
-	unmountByFilePath(filePath: string): void {
-		const container = this.filePathIndex.get(filePath);
-		if (container) {
+	unmountByFilePath(filePath: string, type?: RootType): void {
+		const containers = this.filePathIndex.get(filePath);
+		if (!containers || containers.size === 0) {
+			return;
+		}
+
+		const targets = Array.from(containers);
+		for (const container of targets) {
+			if (type) {
+				const info = this.roots.get(container);
+				if (!info || info.type !== type) {
+					continue;
+				}
+			}
 			this.unmount(container);
 		}
 	}
@@ -122,7 +136,12 @@ export class RootManager {
 	cleanupStale(): number {
 		let cleaned = 0;
 
-		for (const [container] of this.roots) {
+		for (const [container, info] of this.roots) {
+			// Editor widget roots can be temporarily detached by CM6 viewport virtualization.
+			// Let widget lifecycle manage those to avoid churn while scrolling long notes.
+			if (info.type === 'editor') {
+				continue;
+			}
 			if (!document.body.contains(container)) {
 				this.unmount(container);
 				cleaned++;

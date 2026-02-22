@@ -37,12 +37,17 @@ interface InfluxWidgetSpec {
 
 
 export class InfluxWidget extends WidgetType {
+	private static readonly DEFAULT_ESTIMATED_HEIGHT_PX = 320;
+	private static readonly MAX_HEIGHT_CACHE_SIZE = 500;
+	private static measuredHeights = new Map<string, number>();
+
     protected influxFile
     protected show
     protected plugin: ObsidianInflux
     private disconnectedHandler: (() => void) | null = null
     private currentContainer: HTMLElement | null = null
     private currentDOMContainer: HTMLElement | null = null
+	private resizeObserver: ResizeObserver | null = null
 
     constructor({ influxFile, show, plugin }: InfluxWidgetSpec) {
         super()
@@ -52,7 +57,26 @@ export class InfluxWidget extends WidgetType {
 
     }
 
+	get estimatedHeight(): number {
+		if (!this.show) {
+			return 0;
+		}
+		const key = this.influxFile.file?.path;
+		if (key) {
+			const cached = InfluxWidget.measuredHeights.get(key);
+			if (typeof cached === 'number' && cached > 0) {
+				return cached;
+			}
+		}
+		return InfluxWidget.DEFAULT_ESTIMATED_HEIGHT_PX;
+	}
+
     destroy(): void {
+		this.persistMeasuredHeight(this.currentContainer);
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect();
+			this.resizeObserver = null;
+		}
         // Clean up event listener from the container we actually added it to
         if (this.currentDOMContainer && this.disconnectedHandler) {
             this.currentDOMContainer.removeEventListener("disconnected", this.disconnectedHandler);
@@ -105,14 +129,20 @@ export class InfluxWidget extends WidgetType {
                 preview={false}
                 plugin={this.plugin}
             />);
+			this.observeHeight(container);
         }
         else {
             root.render(null)
+			if (this.resizeObserver) {
+				this.resizeObserver.disconnect();
+				this.resizeObserver = null;
+			}
         }
 
         // Cleanup when element is disconnected from DOM
         // Store handler for proper cleanup in destroy()
         const disconnectedHandler = () => {
+			this.persistMeasuredHeight(container);
             rootManager.unmount(container);
         };
 
@@ -130,6 +160,45 @@ export class InfluxWidget extends WidgetType {
 
         return container
     }
+
+	private observeHeight(container: HTMLElement): void {
+		if (typeof ResizeObserver === 'undefined') {
+			this.persistMeasuredHeight(container);
+			return;
+		}
+
+		if (this.resizeObserver) {
+			this.resizeObserver.disconnect();
+		}
+
+		this.resizeObserver = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			if (!entry) {
+				return;
+			}
+			this.persistMeasuredHeight(container, entry.contentRect.height);
+		});
+		this.resizeObserver.observe(container);
+	}
+
+	private persistMeasuredHeight(container: HTMLElement | null, explicitHeight?: number): void {
+		const key = this.influxFile.file?.path;
+		if (!key || !container) {
+			return;
+		}
+		const measured = Math.ceil(explicitHeight ?? container.offsetHeight);
+		if (!Number.isFinite(measured) || measured <= 0) {
+			return;
+		}
+
+		InfluxWidget.measuredHeights.set(key, measured);
+		if (InfluxWidget.measuredHeights.size > InfluxWidget.MAX_HEIGHT_CACHE_SIZE) {
+			const oldestKey = InfluxWidget.measuredHeights.keys().next().value as string | undefined;
+			if (oldestKey) {
+				InfluxWidget.measuredHeights.delete(oldestKey);
+			}
+		}
+	}
 }
 
 
