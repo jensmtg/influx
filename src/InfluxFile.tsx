@@ -6,6 +6,7 @@ import { mapWithConcurrency } from './utils/concurrency';
 import { CONSTANTS } from './constants';
 import { DEFAULT_SETTINGS } from './types';
 import { recordMetric } from './utils/metrics';
+import { computeSettingsHash } from './settings-hash-utils';
 
 
 export default class InfluxFile {
@@ -128,6 +129,7 @@ export default class InfluxFile {
         const settings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
             ? this.api.getSettings()
             : DEFAULT_SETTINGS;
+        const settingsHash = computeSettingsHash(settings);
         const listLimit = settings.listLimit || 0;
         const normalizedCurrentPath = normalizePath(this.file.path).toLowerCase();
 
@@ -176,7 +178,7 @@ export default class InfluxFile {
             async (file: TFile): Promise<InlinkingFile | null> => {
                 try {
                     const inlinkingFile = new InlinkingFile(file, this.api);
-                    await inlinkingFile.makeSummary(this);
+                    await inlinkingFile.makeSummary(this, settingsHash);
                     return inlinkingFile;
                 } catch (error) {
                     logger.error(`Failed to process file ${file.path}:`, { filePath: file.path, error });

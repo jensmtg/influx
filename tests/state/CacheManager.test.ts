@@ -121,6 +121,90 @@ describe('InfluxCacheManager', () => {
 		});
 	});
 
+	describe('Summary Cache', () => {
+		test('should cache and retrieve summaries by source/mtime/target/settings key', () => {
+			cacheManager.setSummary('Source.md', 1000, 'Target.md', 'hash-a', {
+				summary: 'summary content',
+				title: 'My title',
+				titleLineNum: 3,
+				isLinkInTitle: true,
+			});
+
+			const cached = cacheManager.getSummary('Source.md', 1000, 'Target.md', 'hash-a');
+			expect(cached).toEqual({
+				summary: 'summary content',
+				title: 'My title',
+				titleLineNum: 3,
+				isLinkInTitle: true,
+			});
+		});
+
+		test('should normalize paths for summary cache lookup', () => {
+			cacheManager.setSummary('Folder\\Source.md', 1000, 'Folder\\Target.md', 'hash-a', {
+				summary: 'summary content',
+				title: 'My title',
+				titleLineNum: undefined,
+				isLinkInTitle: false,
+			});
+
+			const cached = cacheManager.getSummary('folder/source.md', 1000, 'folder/target.md', 'hash-a');
+			expect(cached).not.toBeNull();
+		});
+
+		test('should return null for stale summary entries', () => {
+			cacheManager.setSummary('Source.md', 1000, 'Target.md', 'hash-a', {
+				summary: 'summary content',
+				title: 'My title',
+				titleLineNum: 1,
+				isLinkInTitle: false,
+			});
+
+			const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 11 * 60 * 1000);
+			expect(cacheManager.getSummary('Source.md', 1000, 'Target.md', 'hash-a')).toBeNull();
+			nowSpy.mockRestore();
+		});
+
+		test('should invalidate summary entries when source file is invalidated', () => {
+			cacheManager.setSummary('Source.md', 1000, 'Target-a.md', 'hash-a', {
+				summary: 'a',
+				title: 'title a',
+				titleLineNum: 1,
+				isLinkInTitle: false,
+			});
+			cacheManager.setSummary('Source.md', 1001, 'Target-b.md', 'hash-a', {
+				summary: 'b',
+				title: 'title b',
+				titleLineNum: 2,
+				isLinkInTitle: false,
+			});
+
+			cacheManager.invalidateFile('source.md');
+
+			expect(cacheManager.getSummary('Source.md', 1000, 'Target-a.md', 'hash-a')).toBeNull();
+			expect(cacheManager.getSummary('Source.md', 1001, 'Target-b.md', 'hash-a')).toBeNull();
+		});
+
+		test('should invalidate summary entries when target file is invalidated', () => {
+			cacheManager.setSummary('Source-a.md', 1000, 'Target.md', 'hash-a', {
+				summary: 'a',
+				title: 'title a',
+				titleLineNum: 1,
+				isLinkInTitle: false,
+			});
+			cacheManager.setSummary('Source-b.md', 1000, 'Target.md', 'hash-a', {
+				summary: 'b',
+				title: 'title b',
+				titleLineNum: 2,
+				isLinkInTitle: true,
+			});
+
+			cacheManager.invalidateFile('target.md');
+
+			expect(cacheManager.getSummary('Source-a.md', 1000, 'Target.md', 'hash-a')).toBeNull();
+			expect(cacheManager.getSummary('Source-b.md', 1000, 'Target.md', 'hash-a')).toBeNull();
+		});
+	});
+
 	describe('Cache Invalidation', () => {
 		test('should clear all caches', () => {
 			const file = mockTFile('test.md', 'test');
@@ -134,10 +218,17 @@ describe('InfluxCacheManager', () => {
 			const backlinks = { data: {} };
 			cacheManager.setFile('test.md', mockTFile('test.md', 'test') as any);
 			cacheManager.setBacklinks('test.md', backlinks);
+			cacheManager.setSummary('source.md', 1000, 'test.md', 'hash-a', {
+				summary: 'cached',
+				title: 'title',
+				titleLineNum: 1,
+				isLinkInTitle: false,
+			});
 			cacheManager.invalidateFile('test.md');
 			
 			expect(cacheManager.getFile('test.md')).toBeNull();
 			expect(cacheManager.getBacklinks('test.md')).toBeNull();
+			expect(cacheManager.getSummary('source.md', 1000, 'test.md', 'hash-a')).toBeNull();
 		});
 
 		test('should invalidate dependent backlink caches when a source file changes', () => {
@@ -176,6 +267,17 @@ describe('InfluxCacheManager', () => {
 			cacheManager.invalidateFile('folder/source.md');
 
 			expect(cacheManager.getBacklinks('target.md')).toBeNull();
+		});
+
+		test('should clear summary cache when settings cache is invalidated', () => {
+			cacheManager.setSummary('source.md', 1000, 'target.md', 'hash-a', {
+				summary: 'cached',
+				title: 'title',
+				titleLineNum: 1,
+				isLinkInTitle: false,
+			});
+			cacheManager.invalidateSettingsCache();
+			expect(cacheManager.getSummary('source.md', 1000, 'target.md', 'hash-a')).toBeNull();
 		});
 	});
 

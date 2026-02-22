@@ -28,6 +28,19 @@ export interface RegexCacheEntry {
 	timestamp: number;
 }
 
+export interface SummaryCacheValue {
+	summary: string;
+	title: string;
+	titleLineNum: number | undefined;
+	isLinkInTitle: boolean;
+}
+
+interface SummaryCacheEntry extends SummaryCacheValue {
+	timestamp: number;
+	sourcePath: string;
+	targetPath: string;
+}
+
 /**
  * Debug information structure
  */
@@ -54,6 +67,11 @@ export interface CacheDebugInfo {
 	};
 	previewFileHashes: {
 		size: number;
+	};
+	summaryCache: {
+		size: number;
+		sources: number;
+		targets: number;
 	};
 	settingsHash?: string;
 }
@@ -82,6 +100,14 @@ export class InfluxCacheManager {
 
 	// Settings hash for preview mode
 	private cachedSettingsHash: string | null = null;
+
+	// Summary cache for expensive per-source summary generation
+	private summaryCache = new Map<string, SummaryCacheEntry>();
+	private summaryKeysBySource = new Map<string, Set<string>>();
+	private summaryKeysByTarget = new Map<string, Set<string>>();
+
+	private static readonly SUMMARY_STALE_TIME_MS = 10 * 60 * 1000;
+	private static readonly SUMMARY_CACHE_MAX_ENTRIES = 3000;
 
 	// Sentinel for invalid regex patterns
 	private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
@@ -132,6 +158,8 @@ export class InfluxCacheManager {
 		this.previewFileHashes.delete(normalizedPath);
 		this.removeDependencyEntriesForTarget(normalizedPath);
 		this.backlinksTargetsBySource.delete(normalizedPath);
+		this.removeSummaryEntriesForSource(normalizedPath);
+		this.removeSummaryEntriesForTarget(normalizedPath);
 
 		for (const targetPath of dependentTargets) {
 			if (targetPath === normalizedPath) {
@@ -140,6 +168,7 @@ export class InfluxCacheManager {
 			this.backlinksCache.delete(targetPath);
 			this.previewFileHashes.delete(targetPath);
 			this.removeDependencyEntriesForTarget(targetPath);
+			this.removeSummaryEntriesForTarget(targetPath);
 		}
 
 		logger.debug('File cache invalidated', { path });
@@ -224,6 +253,7 @@ export class InfluxCacheManager {
 		this.cachedSettingsHash = null;
 		this.clearRegexCache();
 		this.clearBacklinksCache();
+		this.clearSummaryCache();
 		logger.info('Settings cache invalidated');
 	}
 
@@ -292,6 +322,63 @@ export class InfluxCacheManager {
 	}
 
 	/**
+	 * Summary cache methods
+	 */
+	getSummary(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): SummaryCacheValue | null {
+		const cacheKey = this.makeSummaryCacheKey(sourcePath, sourceMtime, targetPath, settingsHash);
+		const entry = this.summaryCache.get(cacheKey);
+		if (!entry) {
+			return null;
+		}
+
+		if (Date.now() - entry.timestamp > InfluxCacheManager.SUMMARY_STALE_TIME_MS) {
+			this.removeSummaryEntry(cacheKey, entry);
+			return null;
+		}
+
+		return {
+			summary: entry.summary,
+			title: entry.title,
+			titleLineNum: entry.titleLineNum,
+			isLinkInTitle: entry.isLinkInTitle,
+		};
+	}
+
+	setSummary(
+		sourcePath: string,
+		sourceMtime: number,
+		targetPath: string,
+		settingsHash: string,
+		value: SummaryCacheValue
+	): void {
+		const normalizedSource = this.normalizePathKey(sourcePath);
+		const normalizedTarget = this.normalizePathKey(targetPath);
+		const cacheKey = this.makeSummaryCacheKey(sourcePath, sourceMtime, targetPath, settingsHash);
+		const existing = this.summaryCache.get(cacheKey);
+		if (existing) {
+			this.removeSummaryEntry(cacheKey, existing);
+		}
+
+		this.summaryCache.set(cacheKey, {
+			...value,
+			timestamp: Date.now(),
+			sourcePath: normalizedSource,
+			targetPath: normalizedTarget,
+		});
+
+		(this.summaryKeysBySource.get(normalizedSource) ?? this.createAndSet(this.summaryKeysBySource, normalizedSource)).add(cacheKey);
+		(this.summaryKeysByTarget.get(normalizedTarget) ?? this.createAndSet(this.summaryKeysByTarget, normalizedTarget)).add(cacheKey);
+		this.enforceSummaryCacheLimit();
+	}
+
+	clearSummaryCache(): void {
+		this.summaryCache.clear();
+		this.summaryKeysBySource.clear();
+		this.summaryKeysByTarget.clear();
+		logger.info('Summary cache cleared');
+	}
+
+	/**
 	 * Clear all caches
 	 */
 	clearAll(): void {
@@ -303,6 +390,9 @@ export class InfluxCacheManager {
 		this.regexCache.clear();
 		this.previewFileHashes.clear();
 		this.cachedSettingsHash = null;
+		this.summaryCache.clear();
+		this.summaryKeysBySource.clear();
+		this.summaryKeysByTarget.clear();
 		logger.info('All caches cleared');
 	}
 
@@ -341,7 +431,12 @@ export class InfluxCacheManager {
 			},
 			previewFileHashes: {
 				size: this.previewFileHashes.size
-			}
+			},
+			summaryCache: {
+				size: this.summaryCache.size,
+				sources: this.summaryKeysBySource.size,
+				targets: this.summaryKeysByTarget.size,
+			},
 		};
 	}
 
@@ -376,6 +471,74 @@ export class InfluxCacheManager {
 		}
 
 		this.backlinksSourcesByTarget.delete(targetPath);
+	}
+
+	private makeSummaryCacheKey(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): string {
+		const normalizedSource = this.normalizePathKey(sourcePath);
+		const normalizedTarget = this.normalizePathKey(targetPath);
+		return `${normalizedSource}|${sourceMtime}|${normalizedTarget}|${settingsHash}`;
+	}
+
+	private removeSummaryEntriesForSource(sourcePath: string): void {
+		const keys = this.summaryKeysBySource.get(sourcePath);
+		if (!keys) {
+			return;
+		}
+		for (const key of Array.from(keys)) {
+			const entry = this.summaryCache.get(key);
+			if (!entry) {
+				continue;
+			}
+			this.removeSummaryEntry(key, entry);
+		}
+	}
+
+	private removeSummaryEntriesForTarget(targetPath: string): void {
+		const keys = this.summaryKeysByTarget.get(targetPath);
+		if (!keys) {
+			return;
+		}
+		for (const key of Array.from(keys)) {
+			const entry = this.summaryCache.get(key);
+			if (!entry) {
+				continue;
+			}
+			this.removeSummaryEntry(key, entry);
+		}
+	}
+
+	private removeSummaryEntry(cacheKey: string, entry: SummaryCacheEntry): void {
+		this.summaryCache.delete(cacheKey);
+
+		const sourceKeys = this.summaryKeysBySource.get(entry.sourcePath);
+		if (sourceKeys) {
+			sourceKeys.delete(cacheKey);
+			if (sourceKeys.size === 0) {
+				this.summaryKeysBySource.delete(entry.sourcePath);
+			}
+		}
+
+		const targetKeys = this.summaryKeysByTarget.get(entry.targetPath);
+		if (targetKeys) {
+			targetKeys.delete(cacheKey);
+			if (targetKeys.size === 0) {
+				this.summaryKeysByTarget.delete(entry.targetPath);
+			}
+		}
+	}
+
+	private enforceSummaryCacheLimit(): void {
+		const overflow = this.summaryCache.size - InfluxCacheManager.SUMMARY_CACHE_MAX_ENTRIES;
+		if (overflow <= 0) {
+			return;
+		}
+
+		const oldestEntries = Array.from(this.summaryCache.entries())
+			.sort((a, b) => a[1].timestamp - b[1].timestamp)
+			.slice(0, overflow);
+		for (const [cacheKey, entry] of oldestEntries) {
+			this.removeSummaryEntry(cacheKey, entry);
+		}
 	}
 
 	private createAndSet<K, V>(map: Map<K, Set<V>>, key: K): Set<V> {

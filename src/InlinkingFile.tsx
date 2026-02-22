@@ -3,6 +3,7 @@ import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
 import { StructuredText } from './StructuredText';
 import { CONSTANTS } from './constants';
+import { cacheManager } from './state/CacheManager';
 
 
 export class InlinkingFile {
@@ -20,16 +21,36 @@ export class InlinkingFile {
         this.api = apiAdapter
         this.file = file
         this.meta = this.api.getMetadata(this.file)
+        this.content = ''
+        this.title = ''
+        this.titleLineNum = undefined
+        this.isLinkInTitle = false
+        this.summary = ''
     }
 
-    public async makeSummary(contextFile: InfluxFile) {
+    public async makeSummary(contextFile: InfluxFile, settingsHash: string) {
         this.contextFile = contextFile
-        this.content = await this.api.readFile(this.file)
+        const targetPath = contextFile.file?.path
+        const sourcePath = this.file?.path
+        const sourceMtime = this.file?.stat?.mtime ?? 0
+
+        if (sourcePath && targetPath) {
+            const cachedSummary = cacheManager.getSummary(sourcePath, sourceMtime, targetPath, settingsHash)
+            if (cachedSummary) {
+                this.title = cachedSummary.title
+                this.titleLineNum = cachedSummary.titleLineNum
+                this.isLinkInTitle = cachedSummary.isLinkInTitle
+                this.summary = cachedSummary.summary
+                return
+            }
+        }
 
         if (!this.meta) {
             this.summary = ''
             return
         }
+
+        this.content = await this.api.readFile(this.file)
 
         const struct = new StructuredText(this.content)
         // Extract only links that reference the context file
@@ -49,6 +70,15 @@ export class InlinkingFile {
         }
         else {
             this.summary = struct.stringifyBranchesOfNodesWithLinks(lineNumbersOfLinks)
+        }
+
+        if (sourcePath && targetPath) {
+            cacheManager.setSummary(sourcePath, sourceMtime, targetPath, settingsHash, {
+                summary: this.summary,
+                title: this.title,
+                titleLineNum: this.titleLineNum,
+                isLinkInTitle: this.isLinkInTitle,
+            })
         }
 
     }
