@@ -9,6 +9,51 @@ interface MarkdownMountProps {
 	disableCheckboxes?: boolean;
 }
 
+function splitFencePrefix(line: string): { prefix: string; content: string } {
+	const trimmedStart = line.trimStart();
+	const leadingWhitespaceLength = line.length - trimmedStart.length;
+	const quotePrefixMatch = trimmedStart.match(/^(>\s*)+/);
+	const quotePrefix = quotePrefixMatch ? quotePrefixMatch[0] : '';
+	const prefix = line.slice(0, leadingWhitespaceLength) + quotePrefix;
+	const content = trimmedStart.slice(quotePrefix.length);
+	return { prefix, content };
+}
+
+export function prepareMarkdownForInflux(markdown: string): string {
+	if (!markdown || markdown.toLowerCase().indexOf('```query') === -1) {
+		return markdown;
+	}
+
+	const lines = markdown.split(/\r?\n/);
+	const output: string[] = [];
+	let inQueryFence = false;
+	let fencePrefix = '';
+
+	for (const line of lines) {
+		const { prefix, content } = splitFencePrefix(line);
+		const normalizedContent = content.trim();
+
+		if (!inQueryFence && /^```query\b/i.test(normalizedContent)) {
+			inQueryFence = true;
+			fencePrefix = prefix;
+			output.push(`${fencePrefix}\`\`\`text`);
+			output.push(`${fencePrefix}[Influx] query block disabled in backlink snippet`);
+			continue;
+		}
+
+		if (inQueryFence && /^```/.test(normalizedContent)) {
+			output.push(`${fencePrefix}\`\`\``);
+			inQueryFence = false;
+			fencePrefix = '';
+			continue;
+		}
+
+		output.push(line);
+	}
+
+	return output.join('\n');
+}
+
 function disableRenderedCheckboxes(container: HTMLElement): void {
 	const checkboxes = Array.from(container.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
 	for (const checkbox of checkboxes) {
@@ -36,7 +81,8 @@ const MarkdownMount = React.memo(function MarkdownMount({
 
 		const render = async () => {
 			try {
-				await MarkdownRenderer.renderMarkdown(markdown, container, sourcePath || '/', renderComponent);
+				const preparedMarkdown = prepareMarkdownForInflux(markdown);
+				await MarkdownRenderer.renderMarkdown(preparedMarkdown, container, sourcePath || '/', renderComponent);
 				if (cancelled) {
 					return;
 				}

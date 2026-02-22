@@ -1,12 +1,14 @@
-import { TFile, CachedMetadata } from 'obsidian';
+import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
 import { StructuredText } from './StructuredText';
 import { CONSTANTS } from './constants';
-import { cacheManager } from './state/CacheManager';
+import { cacheManager, SummaryCacheValue } from './state/CacheManager';
 
 
 export class InlinkingFile {
+    private static inflightSummaries = new Map<string, Promise<SummaryCacheValue>>();
+
     api: ApiAdapter;
     file: TFile;
     meta: CachedMetadata;
@@ -37,50 +39,31 @@ export class InlinkingFile {
         if (sourcePath && targetPath) {
             const cachedSummary = cacheManager.getSummary(sourcePath, sourceMtime, targetPath, settingsHash)
             if (cachedSummary) {
-                this.title = cachedSummary.title
-                this.titleLineNum = cachedSummary.titleLineNum
-                this.isLinkInTitle = cachedSummary.isLinkInTitle
-                this.summary = cachedSummary.summary
+                this.applySummary(cachedSummary)
                 return
+            }
+
+            const cacheKey = this.makeInflightSummaryKey(sourcePath, sourceMtime, targetPath, settingsHash)
+            const inflightSummary = InlinkingFile.inflightSummaries.get(cacheKey)
+            if (inflightSummary) {
+                this.applySummary(await inflightSummary)
+                return
+            }
+
+            const buildPromise = this.buildSummaryValue(contextFile)
+            InlinkingFile.inflightSummaries.set(cacheKey, buildPromise)
+
+            try {
+                const summaryValue = await buildPromise
+                cacheManager.setSummary(sourcePath, sourceMtime, targetPath, settingsHash, summaryValue)
+                this.applySummary(summaryValue)
+                return
+            } finally {
+                InlinkingFile.inflightSummaries.delete(cacheKey)
             }
         }
 
-        if (!this.meta) {
-            this.summary = ''
-            return
-        }
-
-        this.content = await this.api.readFile(this.file)
-
-        const struct = new StructuredText(this.content)
-        // Extract only links that reference the context file
-        const links = this.meta.links
-            ? this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
-            : []
-        const lineNumbersOfLinks = links
-            .filter(link => link.position && link.position.start)
-            .map(link => link.position.start.line)
-
-        this.setTitle()
-        this.isLinkInTitle = this.titleLineNum !== undefined && lineNumbersOfLinks.includes(this.titleLineNum)
-
-        // If link is in title, show entire content; otherwise show only relevant branches
-        if (this.isLinkInTitle) {
-            this.summary = struct.stringify()
-        }
-        else {
-            this.summary = struct.stringifyBranchesOfNodesWithLinks(lineNumbersOfLinks)
-        }
-
-        if (sourcePath && targetPath) {
-            cacheManager.setSummary(sourcePath, sourceMtime, targetPath, settingsHash, {
-                summary: this.summary,
-                title: this.title,
-                titleLineNum: this.titleLineNum,
-                isLinkInTitle: this.isLinkInTitle,
-            })
-        }
-
+        this.applySummary(await this.buildSummaryValue(contextFile))
     }
 
     setTitle() {
@@ -91,5 +74,48 @@ export class InlinkingFile {
         this.titleLineNum = titleByFirstHeader?.position?.start.line ?? undefined;
     }
 
+    private makeInflightSummaryKey(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): string {
+        return `${normalizePath(sourcePath).toLowerCase()}|${sourceMtime}|${normalizePath(targetPath).toLowerCase()}|${settingsHash}`
+    }
+
+    private applySummary(summaryValue: SummaryCacheValue): void {
+        this.summary = summaryValue.summary
+        this.title = summaryValue.title
+        this.titleLineNum = summaryValue.titleLineNum
+        this.isLinkInTitle = summaryValue.isLinkInTitle
+    }
+
+    private async buildSummaryValue(contextFile: InfluxFile): Promise<SummaryCacheValue> {
+        if (!this.meta) {
+            return {
+                summary: '',
+                title: '',
+                titleLineNum: undefined,
+                isLinkInTitle: false,
+            }
+        }
+
+        this.content = await this.api.readFile(this.file)
+        const struct = new StructuredText(this.content)
+        const links = this.meta.links
+            ? this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
+            : []
+        const lineNumbersOfLinks = links
+            .filter(link => link.position && link.position.start)
+            .map(link => link.position.start.line)
+
+        this.setTitle()
+        const isLinkInTitle = this.titleLineNum !== undefined && lineNumbersOfLinks.includes(this.titleLineNum)
+        const summary = isLinkInTitle
+            ? struct.stringify()
+            : struct.stringifyBranchesOfNodesWithLinks(lineNumbersOfLinks)
+
+        return {
+            summary,
+            title: this.title,
+            titleLineNum: this.titleLineNum,
+            isLinkInTitle,
+        }
+    }
 }
 

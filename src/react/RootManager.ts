@@ -55,8 +55,6 @@ export class RootManager {
 			}
 			this.filePathIndex.set(filePath, container);
 		}
-
-		logger.debug('Root registered', { type, filePath, totalRoots: this.roots.size });
 	}
 
 	/**
@@ -70,7 +68,6 @@ export class RootManager {
 				this.filePathIndex.delete(info.filePath);
 			}
 			this.roots.delete(container);
-			logger.debug('Root unregistered', { type: info.type, filePath: info.filePath });
 		}
 	}
 
@@ -82,7 +79,6 @@ export class RootManager {
 		if (info) {
 			try {
 				info.root.unmount();
-				logger.debug('Root unmounted', { type: info.type, filePath: info.filePath });
 			} catch (e) {
 				logger.error('Failed to unmount root', { error: e, container });
 			}

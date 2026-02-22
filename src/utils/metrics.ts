@@ -1,4 +1,5 @@
 import type { ObsidianInfluxSettings } from '../types/settings';
+import { isDebugMode } from './debug-mode';
 
 export type MetricMode = 'editor' | 'preview' | 'sidebar' | 'shared';
 export type MetricValue = string | number | boolean | undefined;
@@ -32,6 +33,7 @@ export interface MetricSummary {
 
 const METRIC_BUFFER_MAX = 200;
 const METRIC_MIN_DURATION_MS = 2;
+const METRIC_LOG_MIN_DURATION_MS = 100;
 const metricBuffer: MetricEvent[] = [];
 
 function isMetricsEnabled(settings?: Partial<ObsidianInfluxSettings> | null): boolean {
@@ -107,10 +109,12 @@ export function recordMetric(params: {
 		metricBuffer.shift();
 	}
 
-	const ctxSummary = formatContextForLog(normalizedCtx);
-	console.debug(
-		`[Influx] [METRIC] ${name} mode=${mode} durationMs=${durationMs.toFixed(1)} ${ctxSummary}`
-	);
+	if (isDebugMode() && durationMs >= METRIC_LOG_MIN_DURATION_MS) {
+		const ctxSummary = formatContextForLog(normalizedCtx);
+		console.debug(
+			`[Influx] [METRIC] ${name} mode=${mode} durationMs=${durationMs.toFixed(1)} ${ctxSummary}`
+		);
+	}
 }
 
 export function getMetrics(): MetricEvent[] {

@@ -181,7 +181,6 @@ export class InfluxCacheManager {
 			file,
 			timestamp: Date.now()
 		});
-		logger.debug('File cached', { path });
 	}
 
 	invalidateFile(path: string): void {
@@ -262,8 +261,6 @@ export class InfluxCacheManager {
 		if (normalizedSources.size > 0) {
 			this.backlinksSourcesByTarget.set(normalizedTarget, normalizedSources);
 		}
-
-		logger.debug('Backlinks cached', { path });
 	}
 
 	clearBacklinksCache(): void {

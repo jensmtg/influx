@@ -16,8 +16,17 @@ interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, 
 
 const SEARCH_DEBOUNCE_MS = 400;
 const SEARCH_FOCUS_DELAY_MS = 100;
-const INITIAL_VISIBLE_COMPONENTS = 80;
-const VISIBLE_COMPONENTS_CHUNK = 50;
+type InfluxRenderMode = 'editor' | 'preview' | 'sidebar';
+const INITIAL_VISIBLE_COMPONENTS_BY_MODE: Record<InfluxRenderMode, number> = {
+	editor: 40,
+	preview: 80,
+	sidebar: 80,
+};
+const VISIBLE_COMPONENTS_CHUNK_BY_MODE: Record<InfluxRenderMode, number> = {
+	editor: 30,
+	preview: 50,
+	sidebar: 50,
+};
 
 function collectComponentPaths(components: ExtendedInlinkingFile[]): string[] {
 	return components
@@ -126,7 +135,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const influxFileRef = React.useRef(influxFile);
 	influxFileRef.current = influxFile;
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
-	const renderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
+	const renderMode: InfluxRenderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
+	const autoLoadByObserver = renderMode !== 'editor';
 
 	const filteredComponents = React.useMemo(() => {
 		const startTime = performance.now();
@@ -145,7 +155,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		});
 		return filtered;
 	}, [components, searchQuery, renderMode, settings, influxFile.file?.path]);
-	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS);
+	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS_BY_MODE[renderMode]);
 	const visibleComponents = React.useMemo(
 		() => filteredComponents.slice(0, visibleCount),
 		[filteredComponents, visibleCount]
@@ -154,7 +164,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const loadMoreComponents = React.useCallback((trigger: 'observer' | 'button') => {
 		setVisibleCount((count) => {
-			const nextVisibleCount = Math.min(count + VISIBLE_COMPONENTS_CHUNK, filteredComponents.length);
+			const nextVisibleCount = Math.min(count + VISIBLE_COMPONENTS_CHUNK_BY_MODE[renderMode], filteredComponents.length);
 			if (nextVisibleCount !== count) {
 				recordMetric({
 					name: 'influx.ui.virtualize.append',
@@ -176,11 +186,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}, [filteredComponents.length, renderMode, settings, influxFile.file?.path]);
 
 	React.useEffect(() => {
-		setVisibleCount(Math.min(INITIAL_VISIBLE_COMPONENTS, filteredComponents.length));
-	}, [filteredComponents]);
+		setVisibleCount(Math.min(INITIAL_VISIBLE_COMPONENTS_BY_MODE[renderMode], filteredComponents.length));
+	}, [filteredComponents, renderMode]);
 
 	React.useEffect(() => {
-		if (!hasMoreVisible || typeof IntersectionObserver === 'undefined') {
+		if (!autoLoadByObserver || !hasMoreVisible || typeof IntersectionObserver === 'undefined') {
 			return;
 		}
 		const trigger = loadMoreTriggerRef.current;
@@ -201,7 +211,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		);
 		observer.observe(trigger);
 		return () => observer.disconnect();
-		}, [hasMoreVisible, loadMoreComponents, visibleCount]);
+		}, [autoLoadByObserver, hasMoreVisible, loadMoreComponents, visibleCount]);
 
 	const debouncedSetSearchQuery = React.useMemo(
 		() => debounce((value: string) => {
@@ -514,8 +524,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 								{hasMoreVisible && (
 									<React.Fragment>
-										<div ref={loadMoreTriggerRef} style={{ height: 1 }} />
-										{typeof IntersectionObserver === 'undefined' && (
+										{autoLoadByObserver && <div ref={loadMoreTriggerRef} style={{ height: 1 }} />}
+										{(!autoLoadByObserver || typeof IntersectionObserver === 'undefined') && (
 											<button
 												className="tree-item-self is-clickable"
 												onClick={() => loadMoreComponents('button')}
