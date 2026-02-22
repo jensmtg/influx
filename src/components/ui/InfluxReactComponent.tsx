@@ -8,7 +8,6 @@ import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './InfluxErrorBoundary';
 import MarkdownMount from './MarkdownMount';
 import type ObsidianInflux from '../../main';
-import { logger } from '../../utils/logger';
 import { debounce } from '../../utils/debounce';
 import { recordMetric } from '../../utils/metrics';
 
@@ -264,18 +263,39 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 		const handleUpdate = async (event: InfluxUpdateEvent) => {
 			const seq = ++updateSeqRef.current;
-			logger.debug('React component received update', { op: event.op, file: event.file?.path });
 			const current = influxFileRef.current;
-			if (abortController.signal.aborted) return;
-			if (event.op === 'modify' && !current.shouldUpdate(event.file)) {
+			if (abortController.signal.aborted) {
+				return;
+			}
+			if (event.op === 'layout-change' || event.op === 'file-open') {
+				return;
+			}
+
+			const currentPath = current.file?.path;
+			if (!currentPath) {
+				return;
+			}
+
+			if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && event.file) {
+				const touchesCurrentFile = event.file.path === currentPath;
+				const affectsBacklinks = current.shouldUpdate(event.file);
+				if (!touchesCurrentFile && !affectsBacklinks) {
+					return;
+				}
+			}
+
+			if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && !event.file) {
 				return;
 			}
 
 			await current.makeInfluxList();
-			if (abortController.signal.aborted) return;
+			if (abortController.signal.aborted) {
+				return;
+			}
 			const newComponents = await current.renderAllMarkdownBlocks();
-			if (abortController.signal.aborted || seq !== updateSeqRef.current) return;
-			logger.debug('Setting new components', { count: newComponents.length });
+			if (abortController.signal.aborted || seq !== updateSeqRef.current) {
+				return;
+			}
 			setComponents(newComponents);
 		};
 
