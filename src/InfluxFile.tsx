@@ -200,7 +200,7 @@ export default class InfluxFile {
             return [];
         }
 
-        const components = await this.api.renderAllMarkdownBlocks(this.inlinkingFiles)
+        const components = await this.api.renderAllMarkdownBlocks(this.inlinkingFiles, this.file?.path)
         this.components = components
         return components
     }

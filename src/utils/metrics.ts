@@ -19,6 +19,45 @@ function isMetricsEnabled(settings?: Partial<ObsidianInfluxSettings> | null): bo
 	return settings?.metricsEnabled === true;
 }
 
+function hashString(value: string): string {
+	let hash = 0;
+	for (let i = 0; i < value.length; i++) {
+		hash = (hash << 5) - hash + value.charCodeAt(i);
+		hash |= 0;
+	}
+	return Math.abs(hash).toString(36);
+}
+
+function shouldAnonymizeKey(key: string): boolean {
+	const keyLower = key.toLowerCase();
+	return keyLower.includes('path') || keyLower.includes('file');
+}
+
+function normalizeMetricValue(key: string, value: MetricValue): string | number | boolean {
+	if (typeof value === 'string' && shouldAnonymizeKey(key)) {
+		return `note_${hashString(value)}`;
+	}
+	return value as string | number | boolean;
+}
+
+function normalizeContext(ctx: Record<string, MetricValue>): Record<string, string | number | boolean> {
+	const normalized: Record<string, string | number | boolean> = {};
+	for (const [key, value] of Object.entries(ctx)) {
+		if (value !== undefined) {
+			normalized[key] = normalizeMetricValue(key, value);
+		}
+	}
+	return normalized;
+}
+
+function formatContextForLog(ctx: Record<string, string | number | boolean>): string {
+	const entries = Object.entries(ctx);
+	if (entries.length === 0) {
+		return 'ctx=none';
+	}
+	return entries.map(([key, value]) => `${key}=${String(value)}`).join(' ');
+}
+
 export function recordMetric(params: {
 	name: string;
 	mode: MetricMode;
@@ -34,13 +73,14 @@ export function recordMetric(params: {
 	if (!always && durationMs < METRIC_MIN_DURATION_MS) {
 		return;
 	}
+	const normalizedCtx = normalizeContext(ctx);
 
 	const event: MetricEvent = {
 		name,
 		durationMs,
 		ts: Date.now(),
 		mode,
-		ctx,
+		ctx: normalizedCtx,
 	};
 
 	metricBuffer.push(event);
@@ -48,7 +88,10 @@ export function recordMetric(params: {
 		metricBuffer.shift();
 	}
 
-	console.debug(`[Influx] [METRIC] ${name}`, event);
+	const ctxSummary = formatContextForLog(normalizedCtx);
+	console.debug(
+		`[Influx] [METRIC] ${name} mode=${mode} durationMs=${durationMs.toFixed(1)} ${ctxSummary}`
+	);
 }
 
 export function getMetrics(): MetricEvent[] {

@@ -201,6 +201,7 @@ describe('EventManager', () => {
 			expect(mockPlugin.app.vault.on).toHaveBeenCalledWith('delete', expect.any(Function));
 			expect(mockPlugin.app.workspace.on).toHaveBeenCalledWith('file-open', expect.any(Function));
 			expect(mockPlugin.app.workspace.on).toHaveBeenCalledWith('layout-change', expect.any(Function));
+			expect(mockPlugin.app.workspace.on).toHaveBeenCalledWith('active-leaf-change', expect.any(Function));
 		});
 	});
 });

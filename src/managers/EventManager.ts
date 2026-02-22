@@ -1,11 +1,20 @@
-import { TAbstractFile, TFile } from 'obsidian';
+import { TAbstractFile, TFile, WorkspaceLeaf, View } from 'obsidian';
 import type ObsidianInflux from '../main';
+import { recordMetric } from '../utils/metrics';
+
+type ModeLabel = 'preview' | 'editor' | 'other';
+type InfluxView = View & {
+	currentMode?: { type?: string };
+	mode?: string;
+};
 
 /**
  * Manages Obsidian event registration for file modifications, renames, deletions,
  * and workspace layout changes. Triggers plugin updates when relevant events occur.
  */
 export class EventManager {
+	private lastMode: ModeLabel | null = null;
+
 	constructor(private plugin: ObsidianInflux) {}
 
 	register(): void {
@@ -23,6 +32,9 @@ export class EventManager {
 		);
 		this.plugin.registerEvent(
 			this.plugin.app.workspace.on('layout-change', this.handleLayoutChange.bind(this))
+		);
+		this.plugin.registerEvent(
+			this.plugin.app.workspace.on('active-leaf-change', this.handleActiveLeafChange.bind(this))
 		);
 	}
 
@@ -69,5 +81,48 @@ export class EventManager {
 	private handleLayoutChange(): void {
 		this.plugin.cleanupReactRoots();
 		this.plugin.triggerUpdates('layout-change');
+	}
+
+	private handleActiveLeafChange(leaf: WorkspaceLeaf | null): void {
+		const nextMode = this.detectMode(leaf);
+		if (!nextMode || nextMode === this.lastMode) {
+			return;
+		}
+
+		recordMetric({
+			name: 'influx.mode.change',
+			mode: 'shared',
+			durationMs: 0,
+			always: true,
+			settings: this.plugin.data.settings,
+			ctx: {
+				fromMode: this.lastMode ?? 'none',
+				toMode: nextMode,
+			}
+		});
+
+		this.lastMode = nextMode;
+	}
+
+	private detectMode(leaf: WorkspaceLeaf | null): ModeLabel | null {
+		const view = leaf?.view as InfluxView | undefined;
+		if (!view) {
+			return null;
+		}
+
+		const explicitMode = view.currentMode?.type || view.mode;
+		if (explicitMode === 'preview') {
+			return 'preview';
+		}
+		if (explicitMode === 'source' || explicitMode === 'live') {
+			return 'editor';
+		}
+
+		const viewType = typeof view.getViewType === 'function' ? view.getViewType() : '';
+		if (viewType === 'markdown') {
+			return 'editor';
+		}
+
+		return 'other';
 	}
 }

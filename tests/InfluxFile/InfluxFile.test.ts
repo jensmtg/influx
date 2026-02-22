@@ -413,7 +413,7 @@ describe('InfluxFile', () => {
 			const result = await influxFile.renderAllMarkdownBlocks();
 
 			// Assert
-			expect(mockApiAdapter.renderAllMarkdownBlocks).toHaveBeenCalledWith(mockInlinkingFiles);
+			expect(mockApiAdapter.renderAllMarkdownBlocks).toHaveBeenCalledWith(mockInlinkingFiles, 'test.md');
 			expect(result).toBe(mockComponents);
 			expect(influxFile.components).toBe(mockComponents);
 		});

@@ -252,7 +252,7 @@ export class ApiAdapter extends Component {
         // Use extracted pure function for file comparison
         return createInlinkingFileComparator(settings) as (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1;
     }
-    async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[]): Promise<ExtendedInlinkingFile[]> {
+    async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[], targetFilePath?: string): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const startTime = performance.now();
         const comparator = this.makeComparisonFn()
@@ -309,7 +309,7 @@ export class ApiAdapter extends Component {
             durationMs: performance.now() - startTime,
             settings,
             ctx: {
-                filePath: inlinkingsFiles[0]?.file?.path,
+                filePath: targetFilePath,
                 inputCount: inlinkingsFiles.length,
                 renderedCount: components.length,
                 markdownConcurrency: CONSTANTS.MARKDOWN_RENDER_CONCURRENCY,
