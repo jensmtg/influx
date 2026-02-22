@@ -56,6 +56,33 @@ describe('UpdateCoordinator', () => {
             expect(second).toHaveBeenCalledTimes(1);
         });
 
+        test('older same-id operation completion does not remove newer active operation', async () => {
+            let resolveFirst: (() => void) | null = null;
+            const first = jest.fn().mockImplementation(
+                () =>
+                    new Promise<void>((resolve) => {
+                        resolveFirst = resolve;
+                    })
+            );
+            const second = jest.fn().mockResolvedValue(undefined);
+
+            const p1 = coordinator.schedule('id', 'modify', '/a.md', first);
+            await advanceDebounce();
+            expect(first).toHaveBeenCalledTimes(1);
+
+            const p2 = coordinator.schedule('id', 'modify', '/b.md', second);
+            expect(coordinator.activeCount).toBe(1);
+
+            resolveFirst?.();
+            await Promise.resolve();
+            expect(coordinator.activeCount).toBe(1);
+
+            await advanceDebounce();
+            await Promise.all([p1, p2]);
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(coordinator.activeCount).toBe(0);
+        });
+
         test('getDebugInfo exposes pending operation metadata', () => {
             coordinator.schedule('id', 'modify', '/a.md', jest.fn().mockResolvedValue(undefined));
             const info = coordinator.getDebugInfo();

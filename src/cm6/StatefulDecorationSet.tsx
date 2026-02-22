@@ -13,7 +13,7 @@ import { computeSettingsHash } from '../settings-hash-utils';
 
 
 export class StatefulDecorationSet {
-    private static readonly RECENT_COMPUTE_TTL_MS = 1000;
+    private static readonly RECENT_COMPUTE_TTL_MS = 5000;
 
     editor: EditorView;
     decoCache: { [cls: string]: Decoration } = Object.create(null);
@@ -26,9 +26,10 @@ export class StatefulDecorationSet {
         this.editor = editor;
     }
 
-    async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
+    async computeAsyncDecorations(state: EditorState, show: boolean, updateId: number): Promise<DecorationSet | null> {
         if (!state.field(editorViewField)) return null; // If not yet loaded.
         if (!show) return Decoration.none;
+        if (!this.isUpdateCurrent(updateId, show)) return null;
 
         const { file } = state.field(editorViewField);
         if (!file) return null; // If no file is loaded
@@ -51,6 +52,9 @@ export class StatefulDecorationSet {
         const pipelineStart = performance.now();
 
         const influxFile = await InfluxFile.create(file.path, apiAdapter)
+        if (!this.isUpdateCurrent(updateId, show)) {
+            return null;
+        }
         if (!influxFile.show) {
             recordMetric({
                 name: 'influx.pipeline.total',
@@ -70,7 +74,13 @@ export class StatefulDecorationSet {
         }
 
         await influxFile.makeInfluxList()
+        if (!this.isUpdateCurrent(updateId, show)) {
+            return null;
+        }
         const renderedComponents = await influxFile.renderAllMarkdownBlocks()
+        if (!this.isUpdateCurrent(updateId, show)) {
+            return null;
+        }
         recordMetric({
             name: 'influx.pipeline.total',
             mode: 'editor',
@@ -152,7 +162,7 @@ export class StatefulDecorationSet {
 
         // Compute decorations using the state at call time.
         // Coalesce duplicate in-flight builds for the same file/state/settings.
-        const decorations = await this.computeAsyncDecorationsCoalesced(state, show, plugin);
+        const decorations = await this.computeAsyncDecorationsCoalesced(state, show, plugin, currentUpdateId);
 
         // Early exit if plugin or editor was destroyed during async computation
         // This prevents updating a destroyed editor
@@ -210,17 +220,23 @@ export class StatefulDecorationSet {
         this.pendingUpdate = null;
     }
 
+    private isUpdateCurrent(updateId: number, show: boolean): boolean {
+        return this.pendingUpdate?.updateId === updateId && this.pendingUpdate?.show === show;
+    }
+
     private makeComputationKey(state: EditorState, show: boolean, plugin: MinimalPluginInterface): string {
         const field = state.field(editorViewField, false);
         const filePath = field?.file?.path ?? '';
+        const fileMtime = field?.file?.stat?.mtime ?? 0;
         const settingsHash = computeSettingsHash(plugin.data.settings);
-        return `${filePath}|${show ? 1 : 0}|${state.doc.length}|${state.doc.lines}|${settingsHash}`;
+        return `${filePath}|${fileMtime}|${show ? 1 : 0}|${settingsHash}`;
     }
 
     private async computeAsyncDecorationsCoalesced(
         state: EditorState,
         show: boolean,
-        plugin: MinimalPluginInterface
+        plugin: MinimalPluginInterface,
+        updateId: number
     ): Promise<DecorationSet | null> {
         const key = this.makeComputationKey(state, show, plugin);
         const recent = this.recentComputation;
@@ -233,7 +249,7 @@ export class StatefulDecorationSet {
             return await inflight.promise;
         }
 
-        const promise = this.computeAsyncDecorations(state, show);
+        const promise = this.computeAsyncDecorations(state, show, updateId);
         this.inflightComputation = { key, promise };
 
         try {

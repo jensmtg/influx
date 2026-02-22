@@ -40,10 +40,12 @@ export class PreviewManager {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
 			const leafType: string = influxLeaf.view?.currentMode?.type;
 			const viewMode = influxLeaf.view?.mode;
+			const isPreviewMode = leafType === 'preview' || viewMode === 'preview';
+			const hasPreviewRoot = isPreviewMode
+				? true
+				: !!influxLeaf.containerEl?.querySelector('.markdown-preview-view');
 
-			const hasPreviewRoot = !!influxLeaf.containerEl?.querySelector('.markdown-preview-view');
-
-			if (leafType === 'preview' || viewMode === 'preview' || hasPreviewRoot) {
+			if (hasPreviewRoot) {
 				previewLeaves.push(leaf);
 			}
 		});
