@@ -4,6 +4,7 @@
  */
 
 import InfluxFile from '../../src/InfluxFile';
+import { InlinkingFile } from '../../src/InlinkingFile';
 import { CachedMetadata } from 'obsidian';
 import { mockTFile } from '../mocks';
 
@@ -403,6 +404,61 @@ describe('InfluxFile', () => {
 				// Assert
 				expect(mockApiAdapter.getFileByPath).not.toHaveBeenCalledWith('TEST.md');
 				expect(influxFile.totalEntryCount).toBe(0);
+			});
+
+			test('should dedupe concurrent list builds for same file/settings', async () => {
+				// Arrange
+				const targetFile = mockTFile('target.md', 'target');
+				targetFile.stat.mtime = 111;
+				const sourceFile = mockTFile('source.md', 'source');
+				sourceFile.stat.mtime = 222;
+				const mockBacklinks = {
+					data: new Map([
+						['source.md', [{ link: 'source.md' }]]
+					])
+				};
+
+				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
+					if (path === 'target.md') return targetFile;
+					if (path === 'source.md') return sourceFile;
+					return null;
+				});
+				mockApiAdapter.getMetadata.mockReturnValue({
+					links: [],
+					headings: [],
+					frontmatter: null,
+				});
+				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
+				mockApiAdapter.getShowStatus.mockReturnValue(true);
+				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
+				mockApiAdapter.isIncludableSource.mockReturnValue(true);
+
+				const summarySpy = jest
+					.spyOn(InlinkingFile.prototype, 'makeSummary')
+					.mockImplementation(async function () {
+						await new Promise((resolve) => setTimeout(resolve, 10));
+						this.summary = 'summary';
+						this.title = 'title';
+						this.titleLineNum = 1;
+						this.isLinkInTitle = false;
+					});
+
+				const influxA = await InfluxFile.create('target.md', mockApiAdapter);
+				const influxB = await InfluxFile.create('target.md', mockApiAdapter);
+
+				try {
+					// Act
+					await Promise.all([influxA.makeInfluxList(), influxB.makeInfluxList()]);
+
+					// Assert
+					expect(summarySpy).toHaveBeenCalledTimes(1);
+					expect(influxA.totalEntryCount).toBe(1);
+					expect(influxB.totalEntryCount).toBe(1);
+					expect(influxA.inlinkingFiles).toHaveLength(1);
+					expect(influxB.inlinkingFiles).toHaveLength(1);
+				} finally {
+					summarySpy.mockRestore();
+				}
 			});
 		});
 

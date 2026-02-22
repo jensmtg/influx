@@ -10,6 +10,11 @@ import { computeSettingsHash } from './settings-hash-utils';
 
 
 export default class InfluxFile {
+    private static inflightListBuilds = new Map<string, Promise<{
+        inlinkingFiles: InlinkingFile[];
+        totalEntryCount: number;
+    }>>();
+
     uuid: string;
     api: ApiAdapter;
     file: TFile;
@@ -102,34 +107,62 @@ export default class InfluxFile {
             return;
         }
 
-        const startTime = performance.now();
-        this.backlinks = this.api.getBacklinks(this.file)
-        if (!this.backlinks || !this.backlinks.data) {
-            this.inlinkingFiles = []
-            this.totalEntryCount = 0;
-            const emptySettings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
-                ? this.api.getSettings()
-                : DEFAULT_SETTINGS;
-            recordMetric({
-                name: 'influx.inlinking.build',
-                mode: 'shared',
-                durationMs: performance.now() - startTime,
-                settings: emptySettings,
-                ctx: {
-                    filePath: this.file.path,
-                    candidateSourceCount: 0,
-                    processedSourceCount: 0,
-                    listLimit: emptySettings.listLimit || 0,
-                    summaryConcurrency: CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
-                }
-            });
-            return
-        }
-
         const settings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
             ? this.api.getSettings()
             : DEFAULT_SETTINGS;
         const settingsHash = computeSettingsHash(settings);
+        const buildKey = this.makeInflightListBuildKey(this.file.path, this.file.stat?.mtime ?? 0, settingsHash);
+        const inflight = InfluxFile.inflightListBuilds.get(buildKey);
+        if (inflight) {
+            const shared = await inflight;
+            this.inlinkingFiles = shared.inlinkingFiles;
+            this.totalEntryCount = shared.totalEntryCount;
+            return;
+        }
+
+        const buildPromise = this.buildInfluxList(settings, settingsHash);
+        InfluxFile.inflightListBuilds.set(buildKey, buildPromise);
+        try {
+            const built = await buildPromise;
+            this.inlinkingFiles = built.inlinkingFiles;
+            this.totalEntryCount = built.totalEntryCount;
+        } finally {
+            if (InfluxFile.inflightListBuilds.get(buildKey) === buildPromise) {
+                InfluxFile.inflightListBuilds.delete(buildKey);
+            }
+        }
+    }
+
+    private makeInflightListBuildKey(path: string, fileMtime: number, settingsHash: string): string {
+        return `${normalizePath(path).toLowerCase()}|${fileMtime}|${settingsHash}`;
+    }
+
+    private async buildInfluxList(
+        settings: typeof DEFAULT_SETTINGS,
+        settingsHash: string
+    ): Promise<{ inlinkingFiles: InlinkingFile[]; totalEntryCount: number }> {
+        const startTime = performance.now();
+        this.backlinks = this.api.getBacklinks(this.file);
+        if (!this.backlinks || !this.backlinks.data) {
+            recordMetric({
+                name: 'influx.inlinking.build',
+                mode: 'shared',
+                durationMs: performance.now() - startTime,
+                settings,
+                ctx: {
+                    filePath: this.file.path,
+                    candidateSourceCount: 0,
+                    processedSourceCount: 0,
+                    listLimit: settings.listLimit || 0,
+                    summaryConcurrency: CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
+                }
+            });
+            return {
+                inlinkingFiles: [],
+                totalEntryCount: 0,
+            };
+        }
+
         const listLimit = settings.listLimit || 0;
         const normalizedCurrentPath = normalizePath(this.file.path).toLowerCase();
 
@@ -150,7 +183,7 @@ export default class InfluxFile {
             }
         }
 
-        this.totalEntryCount = validFiles.length;
+        const totalEntryCount = validFiles.length;
 
         const flip = settings.sortingPrinciple === 'NEWEST_FIRST' ? -1 : 1;
         const sortAttr = settings.sortingAttribute === 'mtime' ? 'mtime' : 'ctime';
@@ -188,8 +221,6 @@ export default class InfluxFile {
         );
 
         const inlinkingFilesNew = processed.filter((item): item is InlinkingFile => item !== null);
-        this.inlinkingFiles = inlinkingFilesNew
-
         recordMetric({
             name: 'influx.inlinking.build',
             mode: 'shared',
@@ -212,6 +243,11 @@ export default class InfluxFile {
                 totalCandidates: validFiles.length
             });
         }
+
+        return {
+            inlinkingFiles: inlinkingFilesNew,
+            totalEntryCount,
+        };
     }
     async renderAllMarkdownBlocks(): Promise<ExtendedInlinkingFile[]> {
         this.ensureInitialized();

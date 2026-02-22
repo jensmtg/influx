@@ -5,16 +5,22 @@ import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
 import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
+import type { MinimalPluginInterface } from '../utils/typeGuard';
 import { ApiAdapter } from '../apiAdapter';
 import type ObsidianInflux from '../main';
 import { recordMetric } from '../utils/metrics';
+import { computeSettingsHash } from '../settings-hash-utils';
 
 
 export class StatefulDecorationSet {
+    private static readonly RECENT_COMPUTE_TTL_MS = 1000;
+
     editor: EditorView;
     decoCache: { [cls: string]: Decoration } = Object.create(null);
     pendingUpdate: { show: boolean; updateId: number } | null = null;
     private updateId: number = 0;
+    private inflightComputation: { key: string; promise: Promise<DecorationSet | null> } | null = null;
+    private recentComputation: { key: string; decorations: DecorationSet | null; timestamp: number } | null = null;
 
     constructor(editor: EditorView) {
         this.editor = editor;
@@ -144,8 +150,9 @@ export class StatefulDecorationSet {
         const currentUpdateId = ++this.updateId;
         this.pendingUpdate = { show, updateId: currentUpdateId };
 
-        // Compute decorations using the state at call time
-        const decorations = await this.computeAsyncDecorations(state, show);
+        // Compute decorations using the state at call time.
+        // Coalesce duplicate in-flight builds for the same file/state/settings.
+        const decorations = await this.computeAsyncDecorationsCoalesced(state, show, plugin);
 
         // Early exit if plugin or editor was destroyed during async computation
         // This prevents updating a destroyed editor
@@ -201,5 +208,46 @@ export class StatefulDecorationSet {
      */
     cancelPendingUpdates(): void {
         this.pendingUpdate = null;
+    }
+
+    private makeComputationKey(state: EditorState, show: boolean, plugin: MinimalPluginInterface): string {
+        const field = state.field(editorViewField, false);
+        const filePath = field?.file?.path ?? '';
+        const settingsHash = computeSettingsHash(plugin.data.settings);
+        return `${filePath}|${show ? 1 : 0}|${state.doc.length}|${state.doc.lines}|${settingsHash}`;
+    }
+
+    private async computeAsyncDecorationsCoalesced(
+        state: EditorState,
+        show: boolean,
+        plugin: MinimalPluginInterface
+    ): Promise<DecorationSet | null> {
+        const key = this.makeComputationKey(state, show, plugin);
+        const recent = this.recentComputation;
+        if (recent && recent.key === key && Date.now() - recent.timestamp <= StatefulDecorationSet.RECENT_COMPUTE_TTL_MS) {
+            return recent.decorations;
+        }
+
+        const inflight = this.inflightComputation;
+        if (inflight && inflight.key === key) {
+            return await inflight.promise;
+        }
+
+        const promise = this.computeAsyncDecorations(state, show);
+        this.inflightComputation = { key, promise };
+
+        try {
+            const decorations = await promise;
+            this.recentComputation = {
+                key,
+                decorations,
+                timestamp: Date.now(),
+            };
+            return decorations;
+        } finally {
+            if (this.inflightComputation?.key === key) {
+                this.inflightComputation = null;
+            }
+        }
     }
 }
