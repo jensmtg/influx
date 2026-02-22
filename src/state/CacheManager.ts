@@ -99,13 +99,14 @@ export class InfluxCacheManager {
 	 * File cache methods
 	 */
 	getFile(path: string): TFile | null {
-		const entry = this.fileCache.get(path);
+		const key = this.normalizePathKey(path);
+		const entry = this.fileCache.get(key);
 		if (!entry) return null;
 
 		// Check if cache entry is stale (5 minutes)
 		const STALE_TIME = 5 * 60 * 1000;
 		if (Date.now() - entry.timestamp > STALE_TIME) {
-			this.fileCache.delete(path);
+			this.fileCache.delete(key);
 			logger.debug('File cache expired', { path });
 			return null;
 		}
@@ -114,7 +115,8 @@ export class InfluxCacheManager {
 	}
 
 	setFile(path: string, file: TFile): void {
-		this.fileCache.set(path, {
+		const key = this.normalizePathKey(path);
+		this.fileCache.set(key, {
 			file,
 			timestamp: Date.now()
 		});
@@ -125,14 +127,14 @@ export class InfluxCacheManager {
 		const normalizedPath = this.normalizePathKey(path);
 		const dependentTargets = Array.from(this.backlinksTargetsBySource.get(normalizedPath) ?? []);
 
-		this.fileCache.delete(path);
-		this.backlinksCache.delete(path);
-		this.previewFileHashes.delete(path);
-		this.removeDependencyEntriesForTarget(path);
+		this.fileCache.delete(normalizedPath);
+		this.backlinksCache.delete(normalizedPath);
+		this.previewFileHashes.delete(normalizedPath);
+		this.removeDependencyEntriesForTarget(normalizedPath);
 		this.backlinksTargetsBySource.delete(normalizedPath);
 
 		for (const targetPath of dependentTargets) {
-			if (targetPath === path) {
+			if (targetPath === normalizedPath) {
 				continue;
 			}
 			this.backlinksCache.delete(targetPath);
@@ -152,13 +154,14 @@ export class InfluxCacheManager {
 	 * Backlinks cache methods
 	 */
 	getBacklinks(path: string): BacklinksObject | null {
-		const entry = this.backlinksCache.get(path);
+		const key = this.normalizePathKey(path);
+		const entry = this.backlinksCache.get(key);
 		if (!entry) return null;
 
 		// Check if cache entry is stale (2 minutes)
 		const STALE_TIME = 2 * 60 * 1000;
 		if (Date.now() - entry.timestamp > STALE_TIME) {
-			this.backlinksCache.delete(path);
+			this.backlinksCache.delete(key);
 			logger.debug('Backlinks cache expired', { path });
 			return null;
 		}
@@ -167,14 +170,14 @@ export class InfluxCacheManager {
 	}
 
 	setBacklinks(path: string, backlinks: BacklinksObject): void {
-		this.removeDependencyEntriesForTarget(path);
+		const normalizedTarget = this.normalizePathKey(path);
+		this.removeDependencyEntriesForTarget(normalizedTarget);
 
-		this.backlinksCache.set(path, {
+		this.backlinksCache.set(normalizedTarget, {
 			backlinks,
 			timestamp: Date.now()
 		});
 
-		const normalizedTarget = this.normalizePathKey(path);
 		const sourcePaths = this.extractBacklinksSourcePaths(backlinks);
 		const normalizedSources = new Set<string>();
 
@@ -184,11 +187,11 @@ export class InfluxCacheManager {
 				continue;
 			}
 			normalizedSources.add(normalizedSource);
-			(this.backlinksTargetsBySource.get(normalizedSource) ?? this.createAndSet(this.backlinksTargetsBySource, normalizedSource)).add(path);
+			(this.backlinksTargetsBySource.get(normalizedSource) ?? this.createAndSet(this.backlinksTargetsBySource, normalizedSource)).add(normalizedTarget);
 		}
 
 		if (normalizedSources.size > 0) {
-			this.backlinksSourcesByTarget.set(path, normalizedSources);
+			this.backlinksSourcesByTarget.set(normalizedTarget, normalizedSources);
 		}
 
 		logger.debug('Backlinks cached', { path });
@@ -227,9 +230,9 @@ export class InfluxCacheManager {
 	/**
 	 * Regex cache methods
 	 */
-	getRegex(pattern: string): RegExp | null {
+	getRegex(pattern: string): RegExp | null | undefined {
 		const entry = this.regexCache.get(pattern);
-		if (!entry) return null;
+		if (!entry) return undefined;
 
 		if (entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL) {
 			return null;
@@ -261,15 +264,15 @@ export class InfluxCacheManager {
 	 * Preview file hash cache methods
 	 */
 	getPreviewFileHash(path: string): string | undefined {
-		return this.previewFileHashes.get(path);
+		return this.previewFileHashes.get(this.normalizePathKey(path));
 	}
 
 	setPreviewFileHash(path: string, hash: string): void {
-		this.previewFileHashes.set(path, hash);
+		this.previewFileHashes.set(this.normalizePathKey(path), hash);
 	}
 
 	invalidatePreviewFileHash(path: string): void {
-		this.previewFileHashes.delete(path);
+		this.previewFileHashes.delete(this.normalizePathKey(path));
 	}
 
 	clearPreviewFileHashes(): void {

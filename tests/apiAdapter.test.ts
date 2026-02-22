@@ -310,5 +310,18 @@ Heading
             expect(result).toContain('Another Content here');
             expect(result).not.toMatch(/Heading\s*\n/);
         });
+
+        it('should not corrupt tag names while sanitizing summary html', () => {
+            const html = '\n<p>Para</p>\n<h2>Heading</h2>\n<ul><li>Item</li></ul>\n';
+            const result = html
+                .replace(/<\/?p[^>]*>/gi, '')
+                .replace(/<\/?h[1-6][^>]*>/gi, '')
+                .replace(/(\r\n|\n|\r)+/g, ' ')
+                .trim();
+
+            expect(result).toContain('Para Heading');
+            expect(result).toContain('<ul><li>Item</li></ul>');
+            expect(result).not.toContain('<>');
+        });
     });
 });

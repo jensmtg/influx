@@ -36,7 +36,7 @@ describe('EventManager', () => {
 	});
 
 	describe('handleModify', () => {
-		test('should skip processing when liveUpdate is false', () => {
+		test('should invalidate cache but skip trigger when liveUpdate is false', () => {
 			// Arrange
 			mockPlugin.data.settings.liveUpdate = false;
 			const file = mockTFile('test.md', 'test');
@@ -45,7 +45,7 @@ describe('EventManager', () => {
 			(eventManager as any).handleModify(file);
 
 			// Assert
-			expect(mockPlugin.api.invalidateFileCache).not.toHaveBeenCalled();
+			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith(file.path);
 			expect(mockPlugin.triggerUpdates).not.toHaveBeenCalled();
 		});
 

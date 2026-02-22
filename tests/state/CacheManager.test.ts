@@ -38,6 +38,14 @@ describe('InfluxCacheManager', () => {
 			expect(retrieved).toBe(file);
 		});
 
+		test('should retrieve files with normalized/case-insensitive paths', () => {
+			const file = mockTFile('Folder/Test.md', 'test');
+
+			cacheManager.setFile('Folder/Test.md', file as any);
+
+			expect(cacheManager.getFile('folder\\test.md')).toBe(file);
+		});
+
 		test('should return null for non-existent files', () => {
 			const retrieved = cacheManager.getFile('nonexistent.md');
 			
@@ -106,7 +114,7 @@ describe('InfluxCacheManager', () => {
 		});
 
 		test('should return null for invalid patterns', () => {
-			cacheManager.setRegex('invalid', null as any);
+			cacheManager.setInvalidRegex('invalid');
 			const retrieved = cacheManager.getRegex('invalid');
 			
 			expect(retrieved).toBeNull();
@@ -156,6 +164,18 @@ describe('InfluxCacheManager', () => {
 			expect(cacheManager.getBacklinks('target-a.md')).toBeNull();
 			expect(cacheManager.getBacklinks('target-b.md')).toBeNull();
 			expect(cacheManager.getBacklinks('unrelated.md')).not.toBeNull();
+		});
+
+		test('should invalidate dependent backlinks for normalized source paths', () => {
+			cacheManager.setBacklinks('Target.md', {
+				data: new Map([
+					['Folder\\Source.md', []],
+				])
+			} as any);
+
+			cacheManager.invalidateFile('folder/source.md');
+
+			expect(cacheManager.getBacklinks('target.md')).toBeNull();
 		});
 	});
 

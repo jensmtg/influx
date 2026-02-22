@@ -165,6 +165,34 @@ describe('Observable', () => {
 			expect(order).toEqual(['observer1-start', 'observer2', 'observer1-end']);
 		});
 
+		test('should process the latest queued notification after current notify completes', async () => {
+			// Arrange
+			const received: string[] = [];
+			let releaseFirstObserver: (() => void) | undefined;
+			const firstObserverGate = new Promise<void>((resolve) => {
+				releaseFirstObserver = resolve;
+			});
+
+			const observer = jest.fn().mockImplementation(async (data: string) => {
+				received.push(data);
+				if (data === 'first') {
+					await firstObserverGate;
+				}
+			});
+			observable.subscribe('test-id', observer);
+
+			// Act
+			const firstNotify = observable.notify('first');
+			await Promise.resolve(); // Let the first observer start
+			await observable.notify('second');
+			await observable.notify('third');
+			releaseFirstObserver?.();
+			await firstNotify;
+
+			// Assert
+			expect(received).toEqual(['first', 'third']);
+		});
+
 		test('should handle observer errors gracefully', async () => {
 			// Arrange
 			const observer1 = jest.fn().mockRejectedValue(new Error('Observer error'));

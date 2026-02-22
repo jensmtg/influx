@@ -39,15 +39,15 @@ export class EventManager {
 	}
 
 	private handleModify(file: TAbstractFile): void {
-		if (!this.plugin.data.settings.liveUpdate) {
-			return;
-		}
 		// Only process files, skip folders
 		if (!(file instanceof TFile)) {
 			return;
 		}
+
 		this.plugin.api.invalidateFileCache(file.path);
-		this.plugin.triggerUpdates('modify', file);
+		if (this.plugin.data.settings.liveUpdate) {
+			this.plugin.triggerUpdates('modify', file);
+		}
 	}
 
 	private handleRename(file: TAbstractFile, oldPath?: string): void {

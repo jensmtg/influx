@@ -184,7 +184,11 @@ export class ApiAdapter extends Component {
 
         // Pre-compile all patterns to populate the cache
         for (const pattern of allPatterns) {
-            if (pattern && pattern.length > 0 && !cacheManager.getRegex(pattern)) {
+            if (!pattern || pattern.length === 0) {
+                continue;
+            }
+            const cachedRegex = cacheManager.getRegex(pattern);
+            if (cachedRegex === undefined) {
                 try {
                     cacheManager.setRegex(pattern, new RegExp(pattern));
                 } catch (err) {
@@ -226,9 +230,12 @@ export class ApiAdapter extends Component {
         const pathMatchesRegex = (pattern: string): boolean => {
             try {
                 // Use cached regex if available, otherwise compile and cache it
-                let regex = cacheManager.getRegex(pattern);
-                if (!regex) {
-                    regex = new RegExp(pattern);
+                const cachedRegex = cacheManager.getRegex(pattern);
+                if (cachedRegex === null) {
+                    return false;
+                }
+                const regex = cachedRegex ?? new RegExp(pattern);
+                if (!cachedRegex) {
                     cacheManager.setRegex(pattern, regex);
                 }
                 return regex.test(path);
@@ -252,6 +259,21 @@ export class ApiAdapter extends Component {
         // Use extracted pure function for file comparison
         return createInlinkingFileComparator(settings) as (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1;
     }
+    private sanitizeRenderedTitleHtml(html: string): string {
+        return html
+            .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
+            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
+            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
+            .replace(/^_/, '')                 // Remove leading underscore
+            .trim();
+    }
+    private sanitizeRenderedSummaryHtml(html: string): string {
+        return html
+            .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
+            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
+            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
+            .trim();
+    }
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[], targetFilePath?: string): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const startTime = performance.now();
@@ -270,31 +292,15 @@ export class ApiAdapter extends Component {
                         this.renderMarkdown(inlinkingFile.summary),
                     ])
 
-                // Optimize string processing: remove p and heading tags, then clean up any remaining underscores
-                const titleInnerHTML = titleAsMd.innerHTML
-                    .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
-                    .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
-                    .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines from outline-style headings with space
-                    .replace(/^_/, '')            // Remove leading underscore (now at start after tag removal)
-                    .trim()                    // Remove leading/trailing whitespace
+                    const titleInnerHTML = this.sanitizeRenderedTitleHtml(titleAsMd.innerHTML);
+                    summaryAsMd.innerHTML = this.sanitizeRenderedSummaryHtml(summaryAsMd.innerHTML);
 
-                // Also clean summary HTML to remove unwanted p and heading tags
-                summaryAsMd.innerHTML = summaryAsMd.innerHTML
-                    .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
-                    .replace(/<\/?h[1-6][^>]*>/gi, '')   // Remove <h1-h6>, </h1-h6> tags
-                    .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines from outline-style headings with space
-                    .replace(/\n(Heading \d+|H\d+)\n/g, '\n<li class="has-bare-heading">$1</li>\n')  // Mark bare heading list items with class
-                    .replace(/\n<(?:p|h[1-6])/gi, '<$1')  // Remove newlines before <p> and <h1-h6> tags
-                    .replace(/(?:<\/(?:p|h[1-6])>\n)/gi, '$1>')  // Remove newlines after </p> and </h1-h6> tags
-                    .replace(/(>)(\n+)(<)/gi, '$1$3')  // Remove newlines between tags
-                    .trim()                    // Remove leading/trailing whitespace
-
-                const extended: ExtendedInlinkingFile = {
-                    inlinkingFile: inlinkingFile,
-                    titleInnerHTML: titleInnerHTML,
-                    inner: summaryAsMd,
-                }
-                return extended
+                    const extended: ExtendedInlinkingFile = {
+                        inlinkingFile: inlinkingFile,
+                        titleInnerHTML: titleInnerHTML,
+                        inner: summaryAsMd,
+                    }
+                    return extended
                 } catch (error) {
                     logger.error('Failed to render markdown block', { filePath: inlinkingFile.file?.path, error });
                     return null;
