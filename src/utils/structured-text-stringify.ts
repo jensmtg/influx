@@ -11,13 +11,27 @@ import {
 
 export function stringify(state: StructuredTextState, explIncludes?: ExplicitIncludes): string {
     let str = '';
+    const appendAncestorIndent = (id: NodeId): void => {
+        state.ancestors[id]?.forEach(_id => {
+            const anc = state.internals[_id];
+            if (!anc) {
+                return;
+            }
+            if (anc.ordinal) {
+                str += OUTPUT_INDENT.repeat(String(anc.ordinal).length + OUTPUT_ORDINAL_SIGN.length);
+            }
+            else {
+                str += OUTPUT_INDENT_STEP;
+            }
+        });
+    };
 
     const depthFirstStringify = (id: NodeId, level: number) => {
         const internals = state.internals[id];
         const include = !explIncludes || explIncludes[Number(id)];
 
         if (internals && include) {
-            if (explIncludes && internals.isFirstOfMode) {
+            if (explIncludes && internals.isFirstOfMode && level === 0) {
                 str += '\n';
             }
 
@@ -25,15 +39,7 @@ export function stringify(state: StructuredTextState, explIncludes?: ExplicitInc
                 // pass
             }
             else if (internals.mode === ModeType.List) {
-                state.ancestors[id].forEach(_id => {
-                    const anc = state.internals[_id];
-                    if (anc.ordinal) {
-                        str += OUTPUT_INDENT.repeat(String(anc.ordinal).length + OUTPUT_ORDINAL_SIGN.length);
-                    }
-                    else {
-                        str += OUTPUT_INDENT_STEP;
-                    }
-                });
+                appendAncestorIndent(id);
 
                 if (internals.type === NodeType.ListOrdered) {
                     str += internals.ordinal;
@@ -73,6 +79,7 @@ export function stringify(state: StructuredTextState, explIncludes?: ExplicitInc
                 str += '\n';
             }
             else {
+                appendAncestorIndent(id);
                 str += internals.stripped;
                 str += '\n';
             }

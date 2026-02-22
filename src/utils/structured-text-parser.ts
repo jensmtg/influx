@@ -157,6 +157,7 @@ export function parseText(text: string): ParsedText {
             else {
                 type = NodeType.Other;
                 stripped = trimmed;
+                indent = leadingIndent;
                 if (mode === ModeType.CallOut) {
                     indent = calloutLevel;
                 }

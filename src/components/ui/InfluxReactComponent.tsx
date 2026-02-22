@@ -524,7 +524,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 																<MarkdownMount
 																	markdown={extended.summaryMarkdown}
 																	sourcePath={extended.sourcePath}
-																	className={`influx-entry ${preview ? 'is-preview' : ''}`}
+																	className={`influx-entry ${preview ? 'is-preview' : ''} influx-entry--${renderMode}`}
+																	mode={renderMode}
 																/>
 														</div>
 													</div>

@@ -211,6 +211,20 @@ describe('StructuredText Parsing Tests', () => {
       expect(output.trim()).toEqual(expectedOutput.trim());
     });
 
+    test('Should preserve nested non-list lines under list items', () => {
+      const input =
+        `* Parent\n` +                     // 0000
+        `  * Child (LINK)\n` +             // 0001
+        `    ## Heading in bullet\n` +     // 0002
+        `    detail line\n`;               // 0003
+
+      const struct = new StructuredText(input);
+      const output = struct.stringifyBranchesOfNodesWithLinks([1]);
+
+      expect(struct.children["0001"]).toEqual(["0002", "0003"]);
+      expect(output.trim()).toEqual(input.trim());
+    });
+
     test('Should handle tables', () => {
       const input =
         `aaa \n` +                    // 0000
