@@ -10,10 +10,18 @@ import { computeSettingsHash } from './settings-hash-utils';
 
 
 export default class InfluxFile {
+    private static readonly RECENT_LIST_BUILD_TTL_MS = 1500;
     private static inflightListBuilds = new Map<string, Promise<{
         inlinkingFiles: InlinkingFile[];
         totalEntryCount: number;
     }>>();
+    private static recentListBuilds = new Map<string, {
+        value: {
+            inlinkingFiles: InlinkingFile[];
+            totalEntryCount: number;
+        };
+        timestamp: number;
+    }>();
 
     uuid: string;
     api: ApiAdapter;
@@ -112,10 +120,18 @@ export default class InfluxFile {
             : DEFAULT_SETTINGS;
         const settingsHash = computeSettingsHash(settings);
         const buildKey = this.makeInflightListBuildKey(this.file.path, this.file.stat?.mtime ?? 0, settingsHash);
+
+        const recent = InfluxFile.recentListBuilds.get(buildKey);
+        if (recent && Date.now() - recent.timestamp <= InfluxFile.RECENT_LIST_BUILD_TTL_MS) {
+            this.inlinkingFiles = [...recent.value.inlinkingFiles];
+            this.totalEntryCount = recent.value.totalEntryCount;
+            return;
+        }
+
         const inflight = InfluxFile.inflightListBuilds.get(buildKey);
         if (inflight) {
             const shared = await inflight;
-            this.inlinkingFiles = shared.inlinkingFiles;
+            this.inlinkingFiles = [...shared.inlinkingFiles];
             this.totalEntryCount = shared.totalEntryCount;
             return;
         }
@@ -124,8 +140,16 @@ export default class InfluxFile {
         InfluxFile.inflightListBuilds.set(buildKey, buildPromise);
         try {
             const built = await buildPromise;
-            this.inlinkingFiles = built.inlinkingFiles;
+            this.inlinkingFiles = [...built.inlinkingFiles];
             this.totalEntryCount = built.totalEntryCount;
+            InfluxFile.recentListBuilds.set(buildKey, {
+                value: {
+                    inlinkingFiles: built.inlinkingFiles,
+                    totalEntryCount: built.totalEntryCount,
+                },
+                timestamp: Date.now(),
+            });
+            this.pruneRecentListBuilds();
         } finally {
             if (InfluxFile.inflightListBuilds.get(buildKey) === buildPromise) {
                 InfluxFile.inflightListBuilds.delete(buildKey);
@@ -248,6 +272,20 @@ export default class InfluxFile {
             inlinkingFiles: inlinkingFilesNew,
             totalEntryCount,
         };
+    }
+
+    private pruneRecentListBuilds(): void {
+        const now = Date.now();
+        for (const [key, entry] of InfluxFile.recentListBuilds.entries()) {
+            if (now - entry.timestamp > InfluxFile.RECENT_LIST_BUILD_TTL_MS) {
+                InfluxFile.recentListBuilds.delete(key);
+            }
+        }
+    }
+
+    static clearBuildCachesForTests(): void {
+        InfluxFile.inflightListBuilds.clear();
+        InfluxFile.recentListBuilds.clear();
     }
     async renderAllMarkdownBlocks(): Promise<ExtendedInlinkingFile[]> {
         this.ensureInitialized();

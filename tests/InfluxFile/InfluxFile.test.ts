@@ -22,6 +22,7 @@ describe('InfluxFile', () => {
 	let mockApiAdapter: any;
 
 	beforeEach(() => {
+		InfluxFile.clearBuildCachesForTests();
 		mockApiAdapter = {
 			getFileByPath: jest.fn(),
 			getMetadata: jest.fn(),
@@ -31,6 +32,10 @@ describe('InfluxFile', () => {
 			isIncludableSource: jest.fn(),
 			renderAllMarkdownBlocks: jest.fn(),
 		};
+	});
+
+	afterEach(() => {
+		InfluxFile.clearBuildCachesForTests();
 	});
 
 	describe('async factory method', () => {
@@ -456,6 +461,55 @@ describe('InfluxFile', () => {
 					expect(influxB.totalEntryCount).toBe(1);
 					expect(influxA.inlinkingFiles).toHaveLength(1);
 					expect(influxB.inlinkingFiles).toHaveLength(1);
+				} finally {
+					summarySpy.mockRestore();
+				}
+			});
+
+			test('should reuse recent list build for immediate sequential requests', async () => {
+				const targetFile = mockTFile('target-reuse.md', 'target-reuse');
+				targetFile.stat.mtime = 555;
+				const sourceFile = mockTFile('source-reuse.md', 'source-reuse');
+				sourceFile.stat.mtime = 777;
+				const mockBacklinks = {
+					data: new Map([
+						['source-reuse.md', [{ link: 'source-reuse.md' }]]
+					])
+				};
+
+				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
+					if (path === 'target-reuse.md') return targetFile;
+					if (path === 'source-reuse.md') return sourceFile;
+					return null;
+				});
+				mockApiAdapter.getMetadata.mockReturnValue({
+					links: [],
+					headings: [],
+					frontmatter: null,
+				});
+				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
+				mockApiAdapter.getShowStatus.mockReturnValue(true);
+				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
+				mockApiAdapter.isIncludableSource.mockReturnValue(true);
+
+				const summarySpy = jest
+					.spyOn(InlinkingFile.prototype, 'makeSummary')
+					.mockImplementation(async function () {
+						this.summary = 'summary';
+						this.title = 'title';
+						this.titleLineNum = 1;
+						this.isLinkInTitle = false;
+					});
+
+				const influxA = await InfluxFile.create('target-reuse.md', mockApiAdapter);
+				const influxB = await InfluxFile.create('target-reuse.md', mockApiAdapter);
+
+				try {
+					await influxA.makeInfluxList();
+					await influxB.makeInfluxList();
+					expect(summarySpy).toHaveBeenCalledTimes(1);
+					expect(influxA.totalEntryCount).toBe(1);
+					expect(influxB.totalEntryCount).toBe(1);
 				} finally {
 					summarySpy.mockRestore();
 				}
