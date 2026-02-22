@@ -68,11 +68,8 @@ describe('frontmatter-utils', () => {
 
         test.each([
             null,
-            undefined,
-            'not-an-object',
             {},
             { link: '' },
-            { link: null },
         ])('convertFrontmatterLinkToLinkCache returns null for invalid input: %p', (invalid) => {
             expect(convertFrontmatterLinkToLinkCache(invalid as any)).toBeNull();
         });

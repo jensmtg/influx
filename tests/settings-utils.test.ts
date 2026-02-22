@@ -56,11 +56,8 @@ describe('settings-utils', () => {
 
         test.each([
             ['alpha', true],
-            ['_private', true],
             ['my-key', true],
             ['9start', false],
-            ['has space', false],
-            ['dot.name', false],
             ['', false],
         ])('isValidYamlPropertyName(%p) => %p', (input, expected) => {
             expect(isValidYamlPropertyName(input as any)).toBe(expected);

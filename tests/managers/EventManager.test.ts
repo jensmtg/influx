@@ -1,207 +1,158 @@
-/**
- * Unit tests for EventManager
- * Tests event filtering and plugin trigger coordination
- */
-
-import { EventManager } from '../../src/managers/EventManager';
 import { TAbstractFile } from 'obsidian';
+import { EventManager } from '../../src/managers/EventManager';
 import { mockTFile } from '../mocks';
+import { recordMetric } from '../../src/utils/metrics';
+
+jest.mock('../../src/utils/metrics', () => ({
+    recordMetric: jest.fn(),
+}));
 
 describe('EventManager', () => {
-	let eventManager: EventManager;
-	let mockPlugin: any;
+    let eventManager: EventManager;
+    let plugin: any;
 
-	beforeEach(() => {
-		mockPlugin = {
-			app: {
-				vault: {
-					on: jest.fn()
-				},
-				workspace: {
-					on: jest.fn()
-				}
-			},
-			data: {
-				settings: { liveUpdate: true }
-			},
-			api: {
-				invalidateFileCache: jest.fn()
-			},
-			cleanupFileHash: jest.fn(),
-			triggerUpdates: jest.fn(),
-			registerEvent: jest.fn(),
-			cleanupReactRoots: jest.fn()
-		};
-		eventManager = new EventManager(mockPlugin);
-	});
+    beforeEach(() => {
+        plugin = {
+            app: {
+                vault: { on: jest.fn() },
+                workspace: { on: jest.fn() },
+            },
+            data: { settings: { liveUpdate: true } },
+            api: { invalidateFileCache: jest.fn() },
+            cleanupFileHash: jest.fn(),
+            cleanupReactRoots: jest.fn(),
+            triggerUpdates: jest.fn(),
+            registerEvent: jest.fn(),
+        };
+        eventManager = new EventManager(plugin);
+        (recordMetric as jest.Mock).mockClear();
+    });
 
-	describe('handleModify', () => {
-		test('should invalidate cache but skip trigger when liveUpdate is false', () => {
-			// Arrange
-			mockPlugin.data.settings.liveUpdate = false;
-			const file = mockTFile('test.md', 'test');
+    describe('register', () => {
+        test('registers all expected vault/workspace handlers', () => {
+            eventManager.register();
 
-			// Act
-			(eventManager as any).handleModify(file);
+            expect(plugin.app.vault.on).toHaveBeenCalledWith('modify', expect.any(Function));
+            expect(plugin.app.vault.on).toHaveBeenCalledWith('rename', expect.any(Function));
+            expect(plugin.app.vault.on).toHaveBeenCalledWith('delete', expect.any(Function));
+            expect(plugin.app.workspace.on).toHaveBeenCalledWith('file-open', expect.any(Function));
+            expect(plugin.app.workspace.on).toHaveBeenCalledWith('layout-change', expect.any(Function));
+            expect(plugin.app.workspace.on).toHaveBeenCalledWith('active-leaf-change', expect.any(Function));
+            expect(plugin.registerEvent).toHaveBeenCalledTimes(6);
+        });
+    });
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith(file.path);
-			expect(mockPlugin.triggerUpdates).not.toHaveBeenCalled();
-		});
+    describe('file event handlers', () => {
+        test('handleModify: ignores folders, invalidates file cache, and respects liveUpdate flag', () => {
+            const folder = {} as TAbstractFile;
+            const file = mockTFile('test.md', 'test');
 
-		test('should skip processing for folders (TAbstractFile)', () => {
-			// Arrange
-			const folder = {} as TAbstractFile; // Not a TFile
-			mockPlugin.data.settings.liveUpdate = true;
+            (eventManager as any).handleModify(folder);
+            expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+            expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
-			// Act
-			(eventManager as any).handleModify(folder);
+            plugin.data.settings.liveUpdate = false;
+            (eventManager as any).handleModify(file);
+            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
+            expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).not.toHaveBeenCalled();
-			expect(mockPlugin.triggerUpdates).not.toHaveBeenCalled();
-		});
+            plugin.data.settings.liveUpdate = true;
+            (eventManager as any).handleModify(file);
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('modify', file);
+        });
 
-		test('should process files when liveUpdate is true', () => {
-			// Arrange
-			const file = mockTFile('test.md', 'test');
-			mockPlugin.data.settings.liveUpdate = true;
+        test('handleRename: invalidates old/new paths for files and always triggers rename update', () => {
+            const file = mockTFile('new.md', 'new');
+            const folder = {} as TAbstractFile;
 
-			// Act
-			(eventManager as any).handleModify(file);
+            (eventManager as any).handleRename(file, 'old.md');
+            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('old.md');
+            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
+            expect(plugin.cleanupFileHash).toHaveBeenCalledWith('old.md');
+            expect(plugin.cleanupFileHash).toHaveBeenCalledWith('new.md');
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', file);
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith(file.path);
-			expect(mockPlugin.triggerUpdates).toHaveBeenCalledWith('modify', file);
-		});
-	});
+            plugin.api.invalidateFileCache.mockClear();
+            plugin.cleanupFileHash.mockClear();
+            plugin.triggerUpdates.mockClear();
 
-	describe('handleRename', () => {
-		test('should skip processing for folders', () => {
-			// Arrange
-			const folder = {} as TAbstractFile;
+            (eventManager as any).handleRename(folder);
+            expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+            expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', folder);
+        });
 
-			// Act
-			(eventManager as any).handleRename(folder);
+        test('handleDelete: invalidates/cleans files and always triggers delete update', () => {
+            const file = mockTFile('test.md', 'test');
+            const folder = {} as TAbstractFile;
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).not.toHaveBeenCalled();
-			expect(mockPlugin.cleanupFileHash).not.toHaveBeenCalled();
-		});
+            (eventManager as any).handleDelete(file);
+            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
+            expect(plugin.cleanupFileHash).toHaveBeenCalledWith('test.md');
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', file);
 
-		test('should process file rename', () => {
-			// Arrange
-			const file = mockTFile('test.md', 'test');
+            plugin.api.invalidateFileCache.mockClear();
+            plugin.cleanupFileHash.mockClear();
+            plugin.triggerUpdates.mockClear();
 
-			// Act
-			(eventManager as any).handleRename(file);
+            (eventManager as any).handleDelete(folder);
+            expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+            expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', folder);
+        });
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
-			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('test.md');
-			expect(mockPlugin.triggerUpdates).toHaveBeenCalledWith('rename', file);
-		});
+        test('handleFileOpen triggers only for real files', () => {
+            const file = mockTFile('test.md', 'test');
+            const folder = {} as TAbstractFile;
 
-		test('should invalidate old and new paths when old path is provided', () => {
-			// Arrange
-			const file = mockTFile('new.md', 'new');
+            (eventManager as any).handleFileOpen(null);
+            (eventManager as any).handleFileOpen(folder);
+            expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
-			// Act
-			(eventManager as any).handleRename(file, 'old.md');
+            (eventManager as any).handleFileOpen(file);
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('file-open', file);
+        });
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith('old.md');
-			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
-			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('old.md');
-			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('new.md');
-		});
-	});
+        test('handleLayoutChange cleans roots and triggers layout update', () => {
+            (eventManager as any).handleLayoutChange();
+            expect(plugin.cleanupReactRoots).toHaveBeenCalledTimes(1);
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('layout-change');
+        });
+    });
 
-	describe('handleDelete', () => {
-		test('should skip processing for folders', () => {
-			// Arrange
-			const folder = {} as TAbstractFile;
+    describe('mode change metrics', () => {
+        test('records metric only when detected mode actually changes', () => {
+            const markdownLeaf = {
+                view: {
+                    getViewType: () => 'markdown',
+                },
+            };
+            const previewLeaf = {
+                view: {
+                    currentMode: { type: 'preview' },
+                    getViewType: () => 'markdown',
+                },
+            };
 
-			// Act
-			(eventManager as any).handleDelete(folder);
+            (eventManager as any).handleActiveLeafChange(markdownLeaf);
+            expect(recordMetric).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'influx.mode.change',
+                    ctx: expect.objectContaining({ fromMode: 'none', toMode: 'editor' }),
+                })
+            );
 
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).not.toHaveBeenCalled();
-			expect(mockPlugin.cleanupFileHash).not.toHaveBeenCalled();
-		});
+            (recordMetric as jest.Mock).mockClear();
+            (eventManager as any).handleActiveLeafChange(markdownLeaf);
+            expect(recordMetric).not.toHaveBeenCalled();
 
-		test('should process file deletion', () => {
-			// Arrange
-			const file = mockTFile('test.md', 'test');
-
-			// Act
-			(eventManager as any).handleDelete(file);
-
-			// Assert
-			expect(mockPlugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
-			expect(mockPlugin.cleanupFileHash).toHaveBeenCalledWith('test.md');
-			expect(mockPlugin.triggerUpdates).toHaveBeenCalledWith('delete', file);
-		});
-	});
-
-	describe('handleFileOpen', () => {
-		test('should skip processing when file is null', () => {
-			// Arrange
-			const file = null as TAbstractFile | null;
-
-			// Act
-			(eventManager as any).handleFileOpen(file);
-
-			// Assert
-			expect(mockPlugin.triggerUpdates).not.toHaveBeenCalled();
-		});
-
-		test('should skip processing for folders', () => {
-			// Arrange
-			const folder = {} as TAbstractFile;
-
-			// Act
-			(eventManager as any).handleFileOpen(folder);
-
-			// Assert
-			expect(mockPlugin.triggerUpdates).not.toHaveBeenCalled();
-		});
-
-		test('should process file open', () => {
-			// Arrange
-			const file = mockTFile('test.md', 'test');
-
-			// Act
-			(eventManager as any).handleFileOpen(file);
-
-			// Assert
-			expect(mockPlugin.triggerUpdates).toHaveBeenCalledWith('file-open', file);
-		});
-	});
-
-	describe('handleLayoutChange', () => {
-		test('should cleanup react roots and trigger updates', () => {
-			// Act
-			(eventManager as any).handleLayoutChange();
-
-			// Assert
-			expect(mockPlugin.cleanupReactRoots).toHaveBeenCalled();
-			expect(mockPlugin.triggerUpdates).toHaveBeenCalledWith('layout-change');
-		});
-	});
-
-	describe('register', () => {
-		test('should register all event handlers', () => {
-			// Act
-			eventManager.register();
-
-			// Assert
-			expect(mockPlugin.app.vault.on).toHaveBeenCalledWith('modify', expect.any(Function));
-			expect(mockPlugin.app.vault.on).toHaveBeenCalledWith('rename', expect.any(Function));
-			expect(mockPlugin.app.vault.on).toHaveBeenCalledWith('delete', expect.any(Function));
-			expect(mockPlugin.app.workspace.on).toHaveBeenCalledWith('file-open', expect.any(Function));
-			expect(mockPlugin.app.workspace.on).toHaveBeenCalledWith('layout-change', expect.any(Function));
-			expect(mockPlugin.app.workspace.on).toHaveBeenCalledWith('active-leaf-change', expect.any(Function));
-		});
-	});
+            (eventManager as any).handleActiveLeafChange(previewLeaf);
+            expect(recordMetric).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'influx.mode.change',
+                    ctx: expect.objectContaining({ fromMode: 'editor', toMode: 'preview' }),
+                })
+            );
+        });
+    });
 });
