@@ -160,7 +160,7 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
-			const renderedComponents = await this.influxFile.renderAllMarkdownBlocks();
+			const renderedComponents = this.influxFile.toEntries();
 			recordMetric({
 				name: 'influx.pipeline.total',
 				mode: 'sidebar',
@@ -250,7 +250,7 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
-			const renderedComponents = await this.influxFile.renderAllMarkdownBlocks();
+			const renderedComponents = this.influxFile.toEntries();
 			recordMetric({
 				name: 'influx.pipeline.total',
 				mode: 'sidebar',

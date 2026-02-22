@@ -70,7 +70,6 @@ export default class InfluxFile {
             return;
         }
         this.meta = this.api.getMetadata(this.file)
-        this.backlinks = this.api.getBacklinks(this.file)
         this.show = this.api.getShowStatus(this.file)
         this.collapsed = this.api.getCollapsedStatus(this.file)
         this.initialized = true;
@@ -287,14 +286,36 @@ export default class InfluxFile {
         InfluxFile.inflightListBuilds.clear();
         InfluxFile.recentListBuilds.clear();
     }
-    async renderAllMarkdownBlocks(): Promise<ExtendedInlinkingFile[]> {
+    toEntries(): ExtendedInlinkingFile[] {
         this.ensureInitialized();
         if (!this.show) {
             return [];
         }
 
-        const components = await this.api.renderAllMarkdownBlocks(this.inlinkingFiles, this.file?.path)
-        this.components = components
-        return components
+        const settings = this.api.getSettings();
+        const startTime = performance.now();
+        const targetFilePath = this.file?.path;
+        const entries = this.inlinkingFiles.map((inlinkingFile): ExtendedInlinkingFile => ({
+            inlinkingFile,
+            titleText: (inlinkingFile.title ?? '').trim(),
+            summaryMarkdown: inlinkingFile.summary ?? '',
+            sourcePath: inlinkingFile.file?.path ?? targetFilePath ?? '/',
+        }));
+
+        recordMetric({
+            name: 'influx.markdown.render',
+            mode: 'shared',
+            durationMs: performance.now() - startTime,
+            settings,
+            ctx: {
+                filePath: targetFilePath,
+                inputCount: this.inlinkingFiles.length,
+                renderedCount: entries.length,
+                markdownConcurrency: 0,
+            }
+        });
+
+        this.components = entries
+        return entries
     }
 }

@@ -292,7 +292,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			if (abortController.signal.aborted) {
 				return;
 			}
-			const newComponents = await current.renderAllMarkdownBlocks();
+			const newComponents = current.toEntries();
 			if (abortController.signal.aborted || seq !== updateSeqRef.current) {
 				return;
 			}

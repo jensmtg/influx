@@ -28,7 +28,6 @@ const createApiAdapterMock = () => ({
     getShowStatus: jest.fn().mockReturnValue(true),
     getCollapsedStatus: jest.fn().mockReturnValue(false),
     isIncludableSource: jest.fn().mockReturnValue(true),
-    renderAllMarkdownBlocks: jest.fn().mockResolvedValue([]),
     getSettings: jest.fn().mockReturnValue(DEFAULT_SETTINGS),
 });
 
@@ -46,12 +45,10 @@ describe('InfluxFile', () => {
     });
 
     describe('create and initialization', () => {
-        test('initializes file, metadata, backlinks and visibility flags', async () => {
+        test('initializes file, metadata, and visibility flags', async () => {
             const file = makeFile('target.md');
-            const backlinks = { data: new Map([['source.md', [{ link: 'source.md' }]]]) };
             api.getFileByPath.mockReturnValue(file);
             api.getMetadata.mockReturnValue({ frontmatter: {} } as CachedMetadata);
-            api.getBacklinks.mockReturnValue(backlinks);
             api.getShowStatus.mockReturnValue(true);
             api.getCollapsedStatus.mockReturnValue(true);
 
@@ -59,7 +56,7 @@ describe('InfluxFile', () => {
 
             expect(influx.file).toBe(file);
             expect(influx.meta).toEqual({ frontmatter: {} });
-            expect(influx.backlinks).toBe(backlinks);
+            expect(influx.backlinks).toBeNull();
             expect(influx.show).toBe(true);
             expect(influx.collapsed).toBe(true);
             expect(influx.uuid).toBeTruthy();
@@ -112,6 +109,7 @@ describe('InfluxFile', () => {
                 .mockReturnValueOnce({ data: new Map([['new.md', []]]) });
 
             const influx = await InfluxFile.create('target.md', api as any);
+            expect(influx.shouldUpdate(makeFile('new.md'))).toBe(false);
             expect(influx.shouldUpdate(makeFile('new.md'))).toBe(true);
             expect((influx.backlinks?.data as Map<string, unknown>).has('new.md')).toBe(true);
         });
@@ -255,30 +253,38 @@ describe('InfluxFile', () => {
         });
     });
 
-    describe('renderAllMarkdownBlocks', () => {
+    describe('toEntries', () => {
         test('returns empty output when show is false', async () => {
             const file = makeFile('target.md');
             api.getFileByPath.mockReturnValue(file);
             api.getShowStatus.mockReturnValue(false);
             const influx = await InfluxFile.create('target.md', api as any);
 
-            await expect(influx.renderAllMarkdownBlocks()).resolves.toEqual([]);
+            expect(influx.toEntries()).toEqual([]);
         });
 
-        test('delegates markdown rendering when show is true', async () => {
+        test('maps inlinking files into render entries directly', async () => {
             const file = makeFile('target.md');
-            const rendered = [{ sourcePath: 'source.md' }];
             api.getFileByPath.mockReturnValue(file);
             api.getShowStatus.mockReturnValue(true);
-            api.renderAllMarkdownBlocks.mockResolvedValue(rendered);
 
             const influx = await InfluxFile.create('target.md', api as any);
-            influx.inlinkingFiles = [] as any;
-            const result = await influx.renderAllMarkdownBlocks();
+            influx.inlinkingFiles = [
+                {
+                    file: { path: 'source.md', basename: 'source' },
+                    title: '  Title  ',
+                    summary: 'Body',
+                } as any,
+            ];
+            const result = influx.toEntries();
 
-            expect(api.renderAllMarkdownBlocks).toHaveBeenCalledWith([], 'target.md');
-            expect(result).toBe(rendered);
-            expect(influx.components).toBe(rendered as any);
+            expect(result).toHaveLength(1);
+            expect(result[0]).toMatchObject({
+                titleText: 'Title',
+                summaryMarkdown: 'Body',
+                sourcePath: 'source.md',
+            });
+            expect(influx.components).toEqual(result as any);
         });
     });
 });

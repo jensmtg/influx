@@ -77,7 +77,7 @@ export class StatefulDecorationSet {
         if (!this.isUpdateCurrent(updateId, show)) {
             return null;
         }
-        const renderedComponents = await influxFile.renderAllMarkdownBlocks()
+        const renderedComponents = influxFile.toEntries()
         if (!this.isUpdateCurrent(updateId, show)) {
             return null;
         }

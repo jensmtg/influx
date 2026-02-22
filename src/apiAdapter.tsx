@@ -1,5 +1,5 @@
 import { App, TFile, CachedMetadata, LinkCache, Component } from 'obsidian';
-import { InlinkingFile } from './InlinkingFile';
+import type { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
 import ObsidianInflux from './main';
 import { logger } from './utils/logger';
@@ -235,31 +235,6 @@ export class ApiAdapter extends Component {
 	        const matched = patterns.some(pathMatchesRegex);
 	        return matched
 	    };
-    async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[], targetFilePath?: string): Promise<ExtendedInlinkingFile[]> {
-        const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
-        const startTime = performance.now();
-        const limitedFiles = inlinkingsFiles.slice(0, settings.listLimit || inlinkingsFiles.length);
-        const components = limitedFiles.map((inlinkingFile): ExtendedInlinkingFile => ({
-            inlinkingFile,
-            titleText: (inlinkingFile.title ?? '').trim(),
-            summaryMarkdown: inlinkingFile.summary ?? '',
-            sourcePath: inlinkingFile.file?.path ?? targetFilePath ?? '/',
-        }));
-
-        recordMetric({
-            name: 'influx.markdown.render',
-            mode: 'shared',
-            durationMs: performance.now() - startTime,
-            settings,
-            ctx: {
-                filePath: targetFilePath,
-                inputCount: inlinkingsFiles.length,
-                renderedCount: components.length,
-                markdownConcurrency: 0,
-            }
-        });
-        return components;
-    }
     /** comparison fn for filter in function to make contextual summaries,
      * to find relevant links.
      * Delegates to the pure function in settings-utils.

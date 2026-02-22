@@ -137,7 +137,7 @@ export class PreviewManager {
 		}
 
 		await influxFile.makeInfluxList();
-		const renderedComponents = await influxFile.renderAllMarkdownBlocks();
+		const renderedComponents = influxFile.toEntries();
 		recordMetric({
 			name: 'influx.pipeline.total',
 			mode: 'preview',
@@ -243,7 +243,7 @@ export class PreviewManager {
 			}
 
 			await influxFile.makeInfluxList();
-			const renderedComponents = await influxFile.renderAllMarkdownBlocks();
+			const renderedComponents = influxFile.toEntries();
 			recordMetric({
 				name: 'influx.pipeline.total',
 				mode: 'preview',
