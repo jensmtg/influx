@@ -17,6 +17,8 @@ describe('link-utils', () => {
             ['Test Note', 'test note'],
             ['folder/subfolder/Test Note.md#heading^block', 'test note'],
             ['TEST NOTE', 'test note'],
+            ['folder\\sub\\Windows Note.MD', 'windows note'],
+            ['a/b/readme.md.backup', 'readme.md.backup'],
         ])('extractLinkName(%p) -> %p', (input, expected) => {
             expect(extractLinkName(link(input))).toBe(expected);
         });

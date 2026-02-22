@@ -41,9 +41,9 @@ export class PreviewManager {
 			const leafType: string = influxLeaf.view?.currentMode?.type;
 			const viewMode = influxLeaf.view?.mode;
 
-			const hasPreviewClass = influxLeaf.containerEl?.classList.contains('markdown-preview-view');
+			const hasPreviewRoot = !!influxLeaf.containerEl?.querySelector('.markdown-preview-view');
 
-			if (leafType === 'preview' || viewMode === 'preview' || hasPreviewClass) {
+			if (leafType === 'preview' || viewMode === 'preview' || hasPreviewRoot) {
 				previewLeaves.push(leaf);
 			}
 		});
@@ -103,7 +103,11 @@ export class PreviewManager {
 		const fileMtime = influxLeaf.view?.file?.stat?.mtime ?? 0;
 		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}`;
 
-		if (existingContainer && cacheManager.getPreviewFileHash(path) === fileHash) {
+		if (
+			existingContainer &&
+			cacheManager.getPreviewFileHash(path) === fileHash &&
+			rootManager.has(existingContainer)
+		) {
 			return;
 		}
 
@@ -190,7 +194,8 @@ export class PreviewManager {
 	}
 
 	async handlePreviewMode(element: HTMLElement, context: MarkdownPostProcessorContext): Promise<void> {
-		if (!element.classList.contains('markdown-preview-view')) {
+		const previewRoot = this.resolvePreviewRoot(element);
+		if (!previewRoot) {
 			return;
 		}
 
@@ -211,7 +216,7 @@ export class PreviewManager {
 		rootManager.unmountByFilePath(filePath, 'preview');
 
 		// Also clean up any orphaned DOM elements (defense-in-depth)
-		this.cleanupPreviewContainers(element, true);
+		this.cleanupPreviewContainers(previewRoot, true);
 
 		try {
 			const pipelineStart = performance.now();
@@ -261,9 +266,9 @@ export class PreviewManager {
 
 			const currentSettings = this.plugin.data.settings;
 			if (currentSettings.influxAtTopOfPage) {
-				element.insertBefore(influxWrapper, element.firstChild);
+				previewRoot.insertBefore(influxWrapper, previewRoot.firstChild);
 			} else {
-				element.appendChild(influxWrapper);
+				previewRoot.appendChild(influxWrapper);
 			}
 
 			const anchor = createRoot(influxContainer);
@@ -298,6 +303,18 @@ export class PreviewManager {
 		});
 
 		wrappers.forEach((wrapper) => wrapper.remove());
+	}
+
+	private resolvePreviewRoot(element: HTMLElement): HTMLElement | null {
+		if (element.classList.contains('markdown-preview-view')) {
+			return element;
+		}
+		const closest = element.closest('.markdown-preview-view');
+		if (closest instanceof HTMLElement) {
+			return closest;
+		}
+		const nested = element.querySelector('.markdown-preview-view');
+		return nested instanceof HTMLElement ? nested : null;
 	}
 
 	private findExistingContainer(previewDiv: Element): HTMLElement | null {

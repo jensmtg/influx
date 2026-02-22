@@ -139,8 +139,19 @@ function isLinkFromFrontmatter(
             if (linkPosition?.start?.line === undefined) {
                 return true;
             }
-            
-            // If position is defined and near start of file (lines 0-2), it's frontmatter
+
+            // Synthetic frontmatter link positions in some flows.
+            if (linkPosition.start.line < 0) {
+                return true;
+            }
+
+            const frontmatterRange = getFrontmatterLineRange(metadata);
+            if (frontmatterRange) {
+                return linkPosition.start.line >= frontmatterRange.startLine &&
+                    linkPosition.start.line <= frontmatterRange.endLine;
+            }
+
+            // Fallback when metadata has frontmatter links but no explicit range.
             if (linkPosition.start.line >= 0 && linkPosition.start.line <= 2) {
                 return true;
             }
@@ -148,6 +159,31 @@ function isLinkFromFrontmatter(
     }
 
     return false;
+}
+
+function getFrontmatterLineRange(
+    metadata: CachedMetadata
+): { startLine: number; endLine: number } | null {
+    const maybeWithPosition = metadata as CachedMetadata & {
+        frontmatterPosition?: {
+            start?: { line?: number };
+            end?: { line?: number };
+        };
+    };
+
+    const startLine = maybeWithPosition.frontmatterPosition?.start?.line;
+    const endLine = maybeWithPosition.frontmatterPosition?.end?.line;
+
+    if (
+        typeof startLine === 'number' &&
+        typeof endLine === 'number' &&
+        startLine >= 0 &&
+        endLine >= startLine
+    ) {
+        return { startLine, endLine };
+    }
+
+    return null;
 }
 
 function countTotalLinks(data: BacklinksData): number {

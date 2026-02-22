@@ -163,9 +163,6 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
                         } else {
                             this.plugin.closeSidebar();
                         }
-
-                        // Keep existing explicit extra refresh behavior.
-                        this.plugin.triggerUpdates('save-settings');
                     });
             });
 

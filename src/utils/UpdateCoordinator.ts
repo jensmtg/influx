@@ -58,7 +58,9 @@ export class UpdateCoordinator {
 		try {
 			await operation.promise;
 		} finally {
-			this.operations.delete(id);
+			if (this.operations.get(id) === operation) {
+				this.operations.delete(id);
+			}
 		}
 	}
 

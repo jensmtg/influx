@@ -14,10 +14,11 @@ export function extractLinkName(link: LinkCache): string {
     const path = link.link;
     
     // Grab only the filename from a multi-folder path
-    const filenameOnly = path.split("/").slice(-1)[0];
+    const filenameOnly = path.split(/[\\/]/).slice(-1)[0] || path;
 
-    // Strip any block and heading references from the end and the ".md" extension
-    const linkname = filenameOnly.split(/[#^]/)[0].split(".md")[0];
+    // Strip block/heading refs and only a trailing ".md" extension.
+    const withoutRefs = filenameOnly.split(/[#^]/)[0];
+    const linkname = withoutRefs.replace(/\.md$/i, '');
 
     return linkname.toLowerCase();
 }

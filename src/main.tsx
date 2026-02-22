@@ -61,11 +61,10 @@ export default class ObsidianInflux extends Plugin {
 			testInfluxReadingView?: () => void;
 		};
 
-		if (!influxWindow.influxPlugin) {
-			influxWindow.influxPlugin = this;
-		} else {
-			logger.warn('window.influxPlugin already set - skipping assignment');
+		if (influxWindow.influxPlugin && influxWindow.influxPlugin !== this) {
+			logger.warn('Replacing stale window.influxPlugin reference');
 		}
+		influxWindow.influxPlugin = this;
 
 		this.registerEditorExtension(asyncDecoBuilderExt)
 
@@ -282,8 +281,8 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	triggerUpdates(op: string, file?: TAbstractFile) {
-		// Create a unique key for this update to prevent overlapping async operations
-		const id = `${op}:${file?.path || 'global'}`;
+		// Coalesce by target path (or global) to avoid duplicate concurrent pipelines across ops.
+		const id = file?.path ? `path:${file.path}` : 'global';
 
 		updateCoordinator.schedule(id, op, file?.path, async (signal) => {
 			if (signal.aborted) return;

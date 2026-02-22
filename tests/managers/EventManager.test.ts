@@ -141,6 +141,7 @@ describe('EventManager', () => {
                     ctx: expect.objectContaining({ fromMode: 'none', toMode: 'editor' }),
                 })
             );
+            expect(plugin.triggerUpdates).not.toHaveBeenCalledWith('mode-change', expect.anything());
 
             (recordMetric as jest.Mock).mockClear();
             (eventManager as any).handleActiveLeafChange(markdownLeaf);
@@ -153,6 +154,40 @@ describe('EventManager', () => {
                     ctx: expect.objectContaining({ fromMode: 'editor', toMode: 'preview' }),
                 })
             );
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('mode-change', undefined);
+        });
+
+        test('triggers a mode-change refresh only for editor <-> preview transitions', () => {
+            const file = mockTFile('A.md', 'A');
+            const editorLeaf = {
+                view: {
+                    mode: 'source',
+                    file,
+                    getViewType: () => 'markdown',
+                },
+            };
+            const previewLeaf = {
+                view: {
+                    mode: 'preview',
+                    file,
+                    getViewType: () => 'markdown',
+                },
+            };
+            const otherLeaf = {
+                view: {
+                    getViewType: () => 'file-explorer',
+                },
+            };
+
+            (eventManager as any).handleActiveLeafChange(editorLeaf);
+            expect(plugin.triggerUpdates).not.toHaveBeenCalled();
+
+            (eventManager as any).handleActiveLeafChange(previewLeaf);
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('mode-change', file);
+
+            plugin.triggerUpdates.mockClear();
+            (eventManager as any).handleActiveLeafChange(otherLeaf);
+            expect(plugin.triggerUpdates).not.toHaveBeenCalled();
         });
     });
 });

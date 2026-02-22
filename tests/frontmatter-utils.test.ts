@@ -141,6 +141,25 @@ describe('frontmatter-utils', () => {
             expect((result.data as Map<string, LinkCache[]>).get('Source.md')?.[0].position.start.line).toBe(5);
         });
 
+        test('uses frontmatterPosition range when available', () => {
+            const backlinks = {
+                data: new Map<string, LinkCache[]>([
+                    ['Source.md', [linkAtLine('Target', 6), linkAtLine('Target', 12)]],
+                ]),
+            };
+            getMetadata.mockReturnValue({
+                frontmatterLinks: [fmLink('related', 'Target')],
+                frontmatterPosition: {
+                    start: { line: 0, col: 0, offset: 0 },
+                    end: { line: 8, col: 0, offset: 0 },
+                },
+            } as CachedMetadata);
+
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'Target', getMetadata);
+            expect((result.data as Map<string, LinkCache[]>).get('Source.md')).toHaveLength(1);
+            expect((result.data as Map<string, LinkCache[]>).get('Source.md')?.[0].position.start.line).toBe(12);
+        });
+
         test('deletes a source key when all links are frontmatter-derived (Record data)', () => {
             const backlinks = {
                 data: {

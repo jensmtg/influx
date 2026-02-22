@@ -6,6 +6,7 @@ type ModeLabel = 'preview' | 'editor' | 'other';
 type InfluxView = View & {
 	currentMode?: { type?: string };
 	mode?: string;
+	file?: TFile;
 };
 
 /**
@@ -88,6 +89,7 @@ export class EventManager {
 		if (!nextMode || nextMode === this.lastMode) {
 			return;
 		}
+		const previousMode = this.lastMode;
 
 		recordMetric({
 			name: 'influx.mode.change',
@@ -96,12 +98,16 @@ export class EventManager {
 			always: true,
 			settings: this.plugin.data.settings,
 			ctx: {
-				fromMode: this.lastMode ?? 'none',
+				fromMode: previousMode ?? 'none',
 				toMode: nextMode,
 			}
 		});
 
 		this.lastMode = nextMode;
+		if (this.shouldRefreshForModeChange(previousMode, nextMode)) {
+			const activeFile = this.getLeafFile(leaf);
+			this.plugin.triggerUpdates('mode-change', activeFile);
+		}
 	}
 
 	private detectMode(leaf: WorkspaceLeaf | null): ModeLabel | null {
@@ -124,5 +130,21 @@ export class EventManager {
 		}
 
 		return 'other';
+	}
+
+	private shouldRefreshForModeChange(previousMode: ModeLabel | null, nextMode: ModeLabel): boolean {
+		if (!previousMode || previousMode === nextMode) {
+			return false;
+		}
+		const isRenderableMode = (mode: ModeLabel) => mode === 'editor' || mode === 'preview';
+		return isRenderableMode(previousMode) && isRenderableMode(nextMode);
+	}
+
+	private getLeafFile(leaf: WorkspaceLeaf | null): TFile | undefined {
+		const view = leaf?.view as InfluxView | undefined;
+		if (!view?.file) {
+			return undefined;
+		}
+		return view.file instanceof TFile ? view.file : undefined;
 	}
 }

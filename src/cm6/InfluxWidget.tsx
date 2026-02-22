@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { CONSTANTS } from '../constants';
 import { rootManager } from '../react/RootManager';
 import type ObsidianInflux from '../main';
+import { computeSettingsHash } from '../settings-hash-utils';
 
 function defineInfluxElement(tagName: string): void {
     if (typeof customElements === 'undefined') {
@@ -61,7 +62,7 @@ export class InfluxWidget extends WidgetType {
 		if (!this.show) {
 			return 0;
 		}
-		const key = this.influxFile.file?.path;
+		const key = this.getHeightCacheKey();
 		if (key) {
 			const cached = InfluxWidget.measuredHeights.get(key);
 			if (typeof cached === 'number' && cached > 0) {
@@ -110,17 +111,11 @@ export class InfluxWidget extends WidgetType {
         // Use unique ID based on file path to avoid conflicts
         container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 
-        // Use unified root manager to get or create React root
-        const existingInfo = rootManager.get(container);
-        let root = existingInfo?.root;
-
-        if (!root) {
-            root = createRoot(container);
-            rootManager.register(container, root, 'editor', this.influxFile.file?.path, {
-				widget: this,
-				view
-			});
-        }
+        const root = createRoot(container);
+        rootManager.register(container, root, 'editor', this.influxFile.file?.path, {
+			widget: this,
+			view
+		});
 
         if (this.show) {
             root.render(<InfluxReactComponent
@@ -182,7 +177,7 @@ export class InfluxWidget extends WidgetType {
 	}
 
 	private persistMeasuredHeight(container: HTMLElement | null, explicitHeight?: number): void {
-		const key = this.influxFile.file?.path;
+		const key = this.getHeightCacheKey();
 		if (!key || !container) {
 			return;
 		}
@@ -198,6 +193,17 @@ export class InfluxWidget extends WidgetType {
 				InfluxWidget.measuredHeights.delete(oldestKey);
 			}
 		}
+	}
+
+	private getHeightCacheKey(): string | null {
+		const filePath = this.influxFile.file?.path;
+		if (!filePath) {
+			return null;
+		}
+		const settingsHash = computeSettingsHash(this.plugin.data.settings);
+		const componentCount = this.influxFile.components?.length ?? 0;
+		const collapsedFlag = this.influxFile.collapsed ? 1 : 0;
+		return `${filePath}|${settingsHash}|${componentCount}|${collapsedFlag}`;
 	}
 }
 
