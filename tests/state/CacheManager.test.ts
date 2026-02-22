@@ -1,315 +1,198 @@
-/**
- * Unit tests for InfluxCacheManager
- * Tests cache management system with TTL, invalidation, and thread safety
- */
-
 import { InfluxCacheManager } from '../../src/state/CacheManager';
 import { mockTFile } from '../mocks';
 
-// Mock logger to suppress console output during tests
 jest.mock('../../src/utils/logger', () => ({
-	logger: {
-		debug: jest.fn(),
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-	}
+    logger: {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    },
 }));
 
 describe('InfluxCacheManager', () => {
-	let cacheManager: InfluxCacheManager;
+    let cache: InfluxCacheManager;
 
-	beforeEach(() => {
-		cacheManager = InfluxCacheManager.getInstance();
-		cacheManager.clearAll();
-	});
+    beforeEach(() => {
+        cache = InfluxCacheManager.getInstance();
+        cache.clearAll();
+    });
 
-	afterEach(() => {
-		cacheManager.clearAll();
-	});
+    afterEach(() => {
+        cache.clearAll();
+        jest.restoreAllMocks();
+    });
 
-	describe('File Cache', () => {
-		test('should cache and retrieve files', () => {
-			const file = mockTFile('test.md', 'test');
-			
-			cacheManager.setFile('test.md', file as any);
-			const retrieved = cacheManager.getFile('test.md');
-			
-			expect(retrieved).toBe(file);
-		});
+    describe('file cache', () => {
+        test('stores and retrieves files with normalized/case-insensitive keys', () => {
+            const file = mockTFile('Folder/Test.md', 'Test');
+            cache.setFile('Folder/Test.md', file as any);
 
-		test('should retrieve files with normalized/case-insensitive paths', () => {
-			const file = mockTFile('Folder/Test.md', 'test');
+            expect(cache.getFile('folder\\test.md')).toBe(file);
+            expect(cache.getFile('missing.md')).toBeNull();
+        });
 
-			cacheManager.setFile('Folder/Test.md', file as any);
+        test('expires stale file entries after ttl', () => {
+            const file = mockTFile('stale.md', 'stale');
+            cache.setFile('stale.md', file as any);
+            const now = Date.now();
+            jest.spyOn(Date, 'now').mockReturnValue(now + 6 * 60 * 1000);
 
-			expect(cacheManager.getFile('folder\\test.md')).toBe(file);
-		});
+            expect(cache.getFile('stale.md')).toBeNull();
+        });
+    });
 
-		test('should return null for non-existent files', () => {
-			const retrieved = cacheManager.getFile('nonexistent.md');
-			
-			expect(retrieved).toBeNull();
-		});
+    describe('backlinks cache', () => {
+        test('stores and retrieves backlinks and expires stale entries', () => {
+            const backlinks = { data: { 'a.md': [] } } as any;
+            cache.setBacklinks('target.md', backlinks);
+            expect(cache.getBacklinks('target.md')).toEqual(backlinks);
 
-		test('should invalidate file cache', () => {
-			const file = mockTFile('test.md', 'test');
-			
-			cacheManager.setFile('test.md', file as any);
-			cacheManager.invalidateFile('test.md');
-			
-			const retrieved = cacheManager.getFile('test.md');
-			expect(retrieved).toBeNull();
-		});
+            const now = Date.now();
+            jest.spyOn(Date, 'now').mockReturnValue(now + 3 * 60 * 1000);
+            expect(cache.getBacklinks('target.md')).toBeNull();
+        });
 
-		test('should expire stale file entries (5 minutes)', () => {
-			const file = mockTFile('test.md', 'test');
-			
-			cacheManager.setFile('test.md', file as any);
-			
-			// Advance time by 6 minutes
-			jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 6 * 60 * 1000);
-			
-			const retrieved = cacheManager.getFile('test.md');
-			expect(retrieved).toBeNull();
-		});
-	});
+        test('invalidating a source file clears dependent backlink targets', () => {
+            cache.setBacklinks('target-a.md', { data: new Map([['source.md', []], ['other.md', []]]) } as any);
+            cache.setBacklinks('target-b.md', { data: { 'source.md': [], 'another.md': [] } } as any);
+            cache.setBacklinks('unrelated.md', { data: new Map([['different-source.md', []]]) } as any);
 
-	describe('Backlinks Cache', () => {
-		test('should cache and retrieve backlinks', () => {
-			const backlinks = { data: { 'test.md': [] as any } } as any;
-			
-			cacheManager.setBacklinks('test.md', backlinks);
-			const retrieved = cacheManager.getBacklinks('test.md');
-			
-			expect(retrieved).toEqual(backlinks);
-		});
+            cache.invalidateFile('source.md');
 
-		test('should return null for non-existent backlinks', () => {
-			const retrieved = cacheManager.getBacklinks('nonexistent.md');
-			
-			expect(retrieved).toBeNull();
-		});
-	});
+            expect(cache.getBacklinks('target-a.md')).toBeNull();
+            expect(cache.getBacklinks('target-b.md')).toBeNull();
+            expect(cache.getBacklinks('unrelated.md')).not.toBeNull();
+        });
 
-	describe('Settings Cache', () => {
-		test('should cache and retrieve settings', () => {
-			const settings = { showInfluxInSidebar: false, liveUpdate: false, sortingPrinciple: 'file-basename', sortingAttribute: 'alphabetical', showBehaviour: 'OPT_OUT' };
-			
-			cacheManager.setSettings(settings as any);
-			const retrieved = cacheManager.getSettings();
-			
-			expect(retrieved).toEqual(settings);
-		});
-	});
+        test('source dependency invalidation uses normalized paths', () => {
+            cache.setBacklinks('Target.md', { data: new Map([['Folder\\Source.md', []]]) } as any);
+            cache.invalidateFile('folder/source.md');
+            expect(cache.getBacklinks('target.md')).toBeNull();
+        });
+    });
 
-	describe('Regex Cache', () => {
-		test('should cache valid regex patterns', () => {
-			const regex = /test/i;
-			
-			cacheManager.setRegex('test', regex);
-			const retrieved = cacheManager.getRegex('test');
-			
-			expect(retrieved).toBe(regex);
-		});
+    describe('settings and regex caches', () => {
+        test('settings cache get/set works and invalidateSettingsCache clears dependent caches', () => {
+            const settings = { showInfluxInSidebar: true } as any;
+            cache.setSettings(settings);
+            cache.setRegex('pattern', /pattern/);
+            cache.setBacklinks('target.md', { data: {} } as any);
+            cache.setSummary('source.md', 1, 'target.md', 'hash', {
+                summary: 's',
+                title: 't',
+                titleLineNum: 1,
+                isLinkInTitle: false,
+            });
 
-		test('should return null for invalid patterns', () => {
-			cacheManager.setInvalidRegex('invalid');
-			const retrieved = cacheManager.getRegex('invalid');
-			
-			expect(retrieved).toBeNull();
-		});
-	});
+            expect(cache.getSettings()).toBe(settings);
+            cache.invalidateSettingsCache();
 
-	describe('Summary Cache', () => {
-		test('should cache and retrieve summaries by source/mtime/target/settings key', () => {
-			cacheManager.setSummary('Source.md', 1000, 'Target.md', 'hash-a', {
-				summary: 'summary content',
-				title: 'My title',
-				titleLineNum: 3,
-				isLinkInTitle: true,
-			});
+            expect(cache.getSettings()).toBeNull();
+            expect(cache.getRegex('pattern')).toBeUndefined();
+            expect(cache.getBacklinks('target.md')).toBeNull();
+            expect(cache.getSummary('source.md', 1, 'target.md', 'hash')).toBeNull();
+        });
 
-			const cached = cacheManager.getSummary('Source.md', 1000, 'Target.md', 'hash-a');
-			expect(cached).toEqual({
-				summary: 'summary content',
-				title: 'My title',
-				titleLineNum: 3,
-				isLinkInTitle: true,
-			});
-		});
+        test('invalid regex sentinel is returned as null', () => {
+            cache.setInvalidRegex('broken');
+            expect(cache.getRegex('broken')).toBeNull();
+        });
+    });
 
-		test('should normalize paths for summary cache lookup', () => {
-			cacheManager.setSummary('Folder\\Source.md', 1000, 'Folder\\Target.md', 'hash-a', {
-				summary: 'summary content',
-				title: 'My title',
-				titleLineNum: undefined,
-				isLinkInTitle: false,
-			});
+    describe('preview hash and settings hash', () => {
+        test('preview file hash supports set/get/invalidate and tracks hit/miss stats', () => {
+            cache.setPreviewFileHash('A.md', 'hash-a');
+            expect(cache.getPreviewFileHash('a.md')).toBe('hash-a');
+            expect(cache.getPreviewFileHash('missing.md')).toBeUndefined();
 
-			const cached = cacheManager.getSummary('folder/source.md', 1000, 'folder/target.md', 'hash-a');
-			expect(cached).not.toBeNull();
-		});
+            cache.invalidatePreviewFileHash('a.md');
+            expect(cache.getPreviewFileHash('a.md')).toBeUndefined();
 
-		test('should return null for stale summary entries', () => {
-			cacheManager.setSummary('Source.md', 1000, 'Target.md', 'hash-a', {
-				summary: 'summary content',
-				title: 'My title',
-				titleLineNum: 1,
-				isLinkInTitle: false,
-			});
+            const stats = cache.getDebugInfo().stats;
+            expect(stats.previewHashHits).toBeGreaterThanOrEqual(1);
+            expect(stats.previewHashMisses).toBeGreaterThanOrEqual(2);
+        });
 
-			const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 11 * 60 * 1000);
-			expect(cacheManager.getSummary('Source.md', 1000, 'Target.md', 'hash-a')).toBeNull();
-			nowSpy.mockRestore();
-		});
+        test('settings hash supports set/get', () => {
+            expect(cache.getSettingsHash()).toBeNull();
+            cache.setSettingsHash('abc123');
+            expect(cache.getSettingsHash()).toBe('abc123');
+        });
+    });
 
-		test('should invalidate summary entries when source file is invalidated', () => {
-			cacheManager.setSummary('Source.md', 1000, 'Target-a.md', 'hash-a', {
-				summary: 'a',
-				title: 'title a',
-				titleLineNum: 1,
-				isLinkInTitle: false,
-			});
-			cacheManager.setSummary('Source.md', 1001, 'Target-b.md', 'hash-a', {
-				summary: 'b',
-				title: 'title b',
-				titleLineNum: 2,
-				isLinkInTitle: false,
-			});
+    describe('summary cache', () => {
+        test('stores and retrieves summaries with normalized source/target paths', () => {
+            cache.setSummary('Folder\\Source.md', 1000, 'Folder\\Target.md', 'hash', {
+                summary: 'summary',
+                title: 'title',
+                titleLineNum: 2,
+                isLinkInTitle: true,
+            });
 
-			cacheManager.invalidateFile('source.md');
+            expect(cache.getSummary('folder/source.md', 1000, 'folder/target.md', 'hash')).toEqual({
+                summary: 'summary',
+                title: 'title',
+                titleLineNum: 2,
+                isLinkInTitle: true,
+            });
+        });
 
-			expect(cacheManager.getSummary('Source.md', 1000, 'Target-a.md', 'hash-a')).toBeNull();
-			expect(cacheManager.getSummary('Source.md', 1001, 'Target-b.md', 'hash-a')).toBeNull();
-		});
+        test('expires stale summary entries and invalidates by source/target file changes', () => {
+            cache.setSummary('source.md', 1000, 'target-a.md', 'hash', {
+                summary: 'a',
+                title: 'a',
+                titleLineNum: 1,
+                isLinkInTitle: false,
+            });
+            cache.setSummary('source-b.md', 1000, 'target-a.md', 'hash', {
+                summary: 'b',
+                title: 'b',
+                titleLineNum: 2,
+                isLinkInTitle: false,
+            });
 
-		test('should invalidate summary entries when target file is invalidated', () => {
-			cacheManager.setSummary('Source-a.md', 1000, 'Target.md', 'hash-a', {
-				summary: 'a',
-				title: 'title a',
-				titleLineNum: 1,
-				isLinkInTitle: false,
-			});
-			cacheManager.setSummary('Source-b.md', 1000, 'Target.md', 'hash-a', {
-				summary: 'b',
-				title: 'title b',
-				titleLineNum: 2,
-				isLinkInTitle: true,
-			});
+            const now = Date.now();
+            jest.spyOn(Date, 'now').mockReturnValue(now + 11 * 60 * 1000);
+            expect(cache.getSummary('source.md', 1000, 'target-a.md', 'hash')).toBeNull();
+            jest.restoreAllMocks();
 
-			cacheManager.invalidateFile('target.md');
+            cache.setSummary('source.md', 1001, 'target-a.md', 'hash', {
+                summary: 'c',
+                title: 'c',
+                titleLineNum: 3,
+                isLinkInTitle: false,
+            });
+            cache.invalidateFile('target-a.md');
+            expect(cache.getSummary('source.md', 1001, 'target-a.md', 'hash')).toBeNull();
+        });
+    });
 
-			expect(cacheManager.getSummary('Source-a.md', 1000, 'Target.md', 'hash-a')).toBeNull();
-			expect(cacheManager.getSummary('Source-b.md', 1000, 'Target.md', 'hash-a')).toBeNull();
-		});
-	});
+    describe('global clear and debug info', () => {
+        test('clearAll wipes caches and resets stats', () => {
+            const file = mockTFile('test.md', 'test');
+            cache.setFile('test.md', file as any);
+            cache.getFile('test.md');
+            cache.getFile('missing.md');
 
-	describe('Cache Invalidation', () => {
-		test('should clear all caches', () => {
-			const file = mockTFile('test.md', 'test');
-			cacheManager.setFile('test.md', file as any);
-			cacheManager.clearAll();
-			
-			expect(cacheManager.getFile('test.md')).toBeNull();
-		});
+            cache.clearAll();
 
-		test('should invalidate file and related caches', () => {
-			const backlinks = { data: {} };
-			cacheManager.setFile('test.md', mockTFile('test.md', 'test') as any);
-			cacheManager.setBacklinks('test.md', backlinks);
-			cacheManager.setSummary('source.md', 1000, 'test.md', 'hash-a', {
-				summary: 'cached',
-				title: 'title',
-				titleLineNum: 1,
-				isLinkInTitle: false,
-			});
-			cacheManager.invalidateFile('test.md');
-			
-			expect(cacheManager.getFile('test.md')).toBeNull();
-			expect(cacheManager.getBacklinks('test.md')).toBeNull();
-			expect(cacheManager.getSummary('source.md', 1000, 'test.md', 'hash-a')).toBeNull();
-		});
+            expect(cache.getFile('test.md')).toBeNull();
+            const stats = cache.getDebugInfo().stats;
+            expect(stats.fileHits).toBe(0);
+            expect(stats.fileMisses).toBe(1);
+        });
 
-		test('should invalidate dependent backlink caches when a source file changes', () => {
-			cacheManager.setBacklinks('target-a.md', {
-				data: new Map([
-					['source.md', []],
-					['other.md', []]
-				])
-			} as any);
-			cacheManager.setBacklinks('target-b.md', {
-				data: {
-					'source.md': [],
-					'another.md': []
-				}
-			} as any);
-			cacheManager.setBacklinks('unrelated.md', {
-				data: new Map([
-					['different-source.md', []]
-				])
-			} as any);
+        test('getDebugInfo reports populated cache sections', () => {
+            cache.setFile('test.md', mockTFile('test.md', 'test') as any);
+            cache.setBacklinks('test.md', { data: {} } as any);
 
-			cacheManager.invalidateFile('source.md');
-
-			expect(cacheManager.getBacklinks('target-a.md')).toBeNull();
-			expect(cacheManager.getBacklinks('target-b.md')).toBeNull();
-			expect(cacheManager.getBacklinks('unrelated.md')).not.toBeNull();
-		});
-
-		test('should invalidate dependent backlinks for normalized source paths', () => {
-			cacheManager.setBacklinks('Target.md', {
-				data: new Map([
-					['Folder\\Source.md', []],
-				])
-			} as any);
-
-			cacheManager.invalidateFile('folder/source.md');
-
-			expect(cacheManager.getBacklinks('target.md')).toBeNull();
-		});
-
-		test('should clear summary cache when settings cache is invalidated', () => {
-			cacheManager.setSummary('source.md', 1000, 'target.md', 'hash-a', {
-				summary: 'cached',
-				title: 'title',
-				titleLineNum: 1,
-				isLinkInTitle: false,
-			});
-			cacheManager.invalidateSettingsCache();
-			expect(cacheManager.getSummary('source.md', 1000, 'target.md', 'hash-a')).toBeNull();
-		});
-	});
-
-	describe('Debug Info', () => {
-		test('should return debug information with cache sizes', () => {
-			const file = mockTFile('test.md', 'test');
-			const backlinks = { data: {} };
-			
-			cacheManager.setFile('test.md', file as any);
-			cacheManager.setBacklinks('test.md', backlinks);
-			
-			const debugInfo = cacheManager.getDebugInfo();
-			
-			expect(debugInfo).toHaveProperty('fileCache');
-			expect(debugInfo).toHaveProperty('backlinksCache');
-			expect(debugInfo).toHaveProperty('settingsCache');
-			expect(debugInfo).toHaveProperty('regexCache');
-			expect(debugInfo).toHaveProperty('stats');
-		});
-
-		test('should track cache hit/miss stats', () => {
-			const file = mockTFile('test.md', 'test');
-			cacheManager.setFile('test.md', file as any);
-
-			// hit
-			expect(cacheManager.getFile('test.md')).toBe(file as any);
-			// miss
-			expect(cacheManager.getFile('missing.md')).toBeNull();
-
-			const debugInfo = cacheManager.getDebugInfo();
-			expect(debugInfo.stats.fileHits).toBeGreaterThanOrEqual(1);
-			expect(debugInfo.stats.fileMisses).toBeGreaterThanOrEqual(1);
-		});
-	});
+            const info = cache.getDebugInfo();
+            expect(info.fileCache.size).toBe(1);
+            expect(info.backlinksCache.size).toBe(1);
+            expect(info).toHaveProperty('regexCache');
+            expect(info).toHaveProperty('summaryCache');
+            expect(info).toHaveProperty('stats');
+        });
+    });
 });

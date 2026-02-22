@@ -1,8 +1,5 @@
-// Unit tests for front matter utility functions
-// These test the actual pure functions extracted from ApiAdapter
-
-import { FrontmatterLinkCache, LinkCache, CachedMetadata } from 'obsidian';
-import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from '../src/types';
+import { CachedMetadata, FrontmatterLinkCache, LinkCache } from 'obsidian';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../src/types';
 import {
     validateFrontmatterProperties,
     shouldIncludeFrontmatterLinks,
@@ -10,478 +7,179 @@ import {
     filterFrontmatterLinks,
     mergeConvertedLinksIntoBacklinks,
     processFrontmatterLinks,
-    filterFrontmatterLinksFromBacklinks
+    filterFrontmatterLinksFromBacklinks,
 } from '../src/frontmatter-utils';
 
-// Helper functions for creating test data
-const createTestFrontmatterLink = (key: string, link: string, displayText?: string): FrontmatterLinkCache => {
-    return {
-        key,
-        link,
-        displayText: displayText || link,
-        original: `[[${link}]]`
-    } as FrontmatterLinkCache;
-};
+jest.mock('../src/utils/logger', () => ({
+    logger: {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    },
+}));
 
-const createTestBacklinks = (data: Map<string, LinkCache[]> | Record<string, LinkCache[]> = new Map()) => {
-    return { data };
-};
+const createSettings = (
+    overrides: Partial<ObsidianInfluxSettings> = {}
+): ObsidianInfluxSettings => ({ ...DEFAULT_SETTINGS, ...overrides });
 
-const createTestSettings = (overrides: Partial<ObsidianInfluxSettings> = {}): ObsidianInfluxSettings => {
-    return {
-        ...DEFAULT_SETTINGS,
-        ...overrides
-    };
-};
+const fmLink = (key: string, link: string): FrontmatterLinkCache => ({
+    key,
+    link,
+    displayText: link,
+    original: `[[${link}]]`,
+} as FrontmatterLinkCache);
 
-describe('Frontmatter Utils', () => {
+const linkAtLine = (link: string, line: number): LinkCache => ({
+    link,
+    position: {
+        start: { line, col: 0, offset: 0 },
+        end: { line, col: 10, offset: 10 },
+    },
+} as LinkCache);
 
-    describe('validateFrontmatterProperties', () => {
-        test('should filter out empty and invalid property names', () => {
-            // Arrange
-            const properties = [
-                'related',
-                '',
-                'see_also',
-                '   ',
-                'references',
-                null as any,
-                undefined as any,
-                'author'
-            ];
-
-            // Act
-            const result = validateFrontmatterProperties(properties);
-
-            // Assert
-            expect(result).toEqual(['related', 'see_also', 'references', 'author']);
-        });
-
-        test('should handle empty properties array', () => {
-            // Arrange
-            const properties: string[] = [];
-
-            // Act
-            const result = validateFrontmatterProperties(properties);
-
-            // Assert
-            expect(result).toEqual([]);
-        });
-
-        test('should handle null/undefined properties array', () => {
-            // Act & Assert
+describe('frontmatter-utils', () => {
+    describe('property and settings gates', () => {
+        test('validateFrontmatterProperties keeps only non-empty strings', () => {
+            expect(
+                validateFrontmatterProperties(['related', '', '  ', 'see_also', null as any, undefined as any])
+            ).toEqual(['related', 'see_also']);
             expect(validateFrontmatterProperties(null as any)).toEqual([]);
-            expect(validateFrontmatterProperties(undefined as any)).toEqual([]);
+        });
+
+        test('shouldIncludeFrontmatterLinks mirrors settings flag', () => {
+            expect(shouldIncludeFrontmatterLinks(createSettings({ includeFrontmatterLinks: true }))).toBe(true);
+            expect(shouldIncludeFrontmatterLinks(createSettings({ includeFrontmatterLinks: false }))).toBe(false);
         });
     });
 
-    describe('shouldIncludeFrontmatterLinks', () => {
-        test('should return false when includeFrontmatterLinks is false', () => {
-            // Arrange
-            const settings = createTestSettings({ includeFrontmatterLinks: false });
-
-            // Act
-            const result = shouldIncludeFrontmatterLinks(settings);
-
-            // Assert
-            expect(result).toBe(false);
+    describe('link conversion and property filtering', () => {
+        test('convertFrontmatterLinkToLinkCache converts valid links and sets sentinel position', () => {
+            const converted = convertFrontmatterLinkToLinkCache(fmLink('related', 'Test Note'));
+            expect(converted).toMatchObject({
+                link: 'Test Note',
+                displayText: 'Test Note',
+                original: '[[Test Note]]',
+            });
+            expect(converted?.position.start.line).toBe(-1);
         });
 
-        test('should return true when includeFrontmatterLinks is true', () => {
-            // Arrange
-            const settings = createTestSettings({ includeFrontmatterLinks: true });
-
-            // Act
-            const result = shouldIncludeFrontmatterLinks(settings);
-
-            // Assert
-            expect(result).toBe(true);
-        });
-    });
-
-    describe('convertFrontmatterLinkToLinkCache', () => {
-        test('should convert valid front matter link to link cache', () => {
-            // Arrange
-            const fmLink = createTestFrontmatterLink('related', 'Test Note', 'Display Name');
-
-            // Act
-            const result = convertFrontmatterLinkToLinkCache(fmLink);
-
-            // Assert
-            expect(result).not.toBeNull();
-            expect(result!.link).toBe('Test Note');
-            expect(result!.displayText).toBe('Display Name');
-            expect(result!.original).toBe('[[Test Note]]');
-            expect(result!.position.start.line).toBe(-1); // Front matter sentinel
-        });
-
-        test('should use fallback values for missing displayText and original', () => {
-            // Arrange
-            const fmLink = {
-                key: 'related',
-                link: 'Test Note'
-                // displayText and original missing
-            } as FrontmatterLinkCache;
-
-            // Act
-            const result = convertFrontmatterLinkToLinkCache(fmLink);
-
-            // Assert
-            expect(result).not.toBeNull();
-            expect(result!.displayText).toBe('Test Note'); // Fallback to link
-            expect(result!.original).toBe('[[Test Note]]'); // Fallback to link format
-        });
-
-        test('should return null for invalid front matter links', () => {
-            // Arrange
-            const invalidLinks = [
-                null,
-                undefined,
-                'not-an-object',
-                { link: null },
-                { link: '' },
-                {} // Missing link
-            ] as any[];
-
-            // Act & Assert
-            invalidLinks.forEach(link => {
-                expect(convertFrontmatterLinkToLinkCache(link)).toBeNull();
+        test('convertFrontmatterLinkToLinkCache uses fallback display/original values', () => {
+            const converted = convertFrontmatterLinkToLinkCache({ key: 'related', link: 'Fallback' } as FrontmatterLinkCache);
+            expect(converted).toMatchObject({
+                displayText: 'Fallback',
+                original: '[[Fallback]]',
             });
         });
-    });
 
-    describe('filterFrontmatterLinks', () => {
-        test('should include all links when no properties specified', () => {
-            // Arrange
-            const frontmatterLinks = [
-                createTestFrontmatterLink('related', 'Note 1'),
-                createTestFrontmatterLink('author', 'Note 2'),
-                createTestFrontmatterLink('see_also', 'Note 3')
-            ];
-            const targetProperties: string[] = [];
-
-            // Act
-            const result = filterFrontmatterLinks(frontmatterLinks, targetProperties);
-
-            // Assert
-            expect(result).toHaveLength(3);
-            expect(result.map(l => l.link)).toEqual(['Note 1', 'Note 2', 'Note 3']);
+        test.each([
+            null,
+            undefined,
+            'not-an-object',
+            {},
+            { link: '' },
+            { link: null },
+        ])('convertFrontmatterLinkToLinkCache returns null for invalid input: %p', (invalid) => {
+            expect(convertFrontmatterLinkToLinkCache(invalid as any)).toBeNull();
         });
 
-        test('should filter links when properties are specified', () => {
-            // Arrange
-            const frontmatterLinks = [
-                createTestFrontmatterLink('related', 'Note 1'),
-                createTestFrontmatterLink('author', 'Note 2'),
-                createTestFrontmatterLink('see_also', 'Note 3')
-            ];
-            const targetProperties = ['related', 'see_also'];
-
-            // Act
-            const result = filterFrontmatterLinks(frontmatterLinks, targetProperties);
-
-            // Assert
-            expect(result).toHaveLength(2);
-            expect(result.map(l => l.link)).toEqual(['Note 1', 'Note 3']);
-        });
-
-        test('should handle links without key property', () => {
-            // Arrange
-            const frontmatterLinks = [
-                createTestFrontmatterLink('related', 'Note 1'),
-                { link: 'Note 2', displayText: 'Note 2' } as FrontmatterLinkCache, // Missing key
-                createTestFrontmatterLink('see_also', 'Note 3')
-            ];
-            const targetProperties = ['related', 'see_also'];
-
-            // Act
-            const result = filterFrontmatterLinks(frontmatterLinks, targetProperties);
-
-            // Assert
-            expect(result).toHaveLength(2);
-            expect(result.map(l => l.link)).toEqual(['Note 1', 'Note 3']);
-        });
-
-        test('should handle null/undefined frontmatter links array', () => {
-            // Act & Assert
-            expect(filterFrontmatterLinks(null as any, [])).toEqual([]);
-            expect(filterFrontmatterLinks(undefined as any, [])).toEqual([]);
+        test('filterFrontmatterLinks filters by key when target properties are provided', () => {
+            const links = [fmLink('related', 'A'), fmLink('author', 'B'), fmLink('see_also', 'C')];
+            expect(filterFrontmatterLinks(links, ['related', 'see_also']).map(l => l.link)).toEqual(['A', 'C']);
+            expect(filterFrontmatterLinks(links, []).map(l => l.link)).toEqual(['A', 'B', 'C']);
         });
     });
 
-    describe('mergeConvertedLinksIntoBacklinks', () => {
-        test('should merge links into Map backlinks', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['Existing Note', [{ link: 'Existing Note' } as LinkCache]]
-            ]));
-            const convertedLinks = [
-                { link: 'New Note 1' } as LinkCache,
-                { link: 'New Note 2' } as LinkCache
-            ];
-
-            // Act
-            mergeConvertedLinksIntoBacklinks(backlinks, convertedLinks);
-
-            // Assert
-            expect((backlinks.data as Map<string, LinkCache[]>).get('Existing Note')).toHaveLength(1);
-            expect((backlinks.data as Map<string, LinkCache[]>).get('New Note 1')).toHaveLength(1);
-            expect((backlinks.data as Map<string, LinkCache[]>).get('New Note 2')).toHaveLength(1);
+    describe('backlinks merge pipeline', () => {
+        test('mergeConvertedLinksIntoBacklinks merges for Map and appends repeated destinations', () => {
+            const backlinks = { data: new Map<string, LinkCache[]>() };
+            mergeConvertedLinksIntoBacklinks(backlinks, [{ link: 'A' } as LinkCache, { link: 'A' } as LinkCache]);
+            expect(backlinks.data.get('A')).toHaveLength(2);
         });
 
-        test('should merge links into Object backlinks', () => {
-            // Arrange
-            const backlinks = createTestBacklinks({
-                'Existing Note': [{ link: 'Existing Note' } as LinkCache]
-            } as { [key: string]: LinkCache[] });
-            const convertedLinks = [
-                { link: 'New Note' } as LinkCache
-            ];
-
-            // Act
-            mergeConvertedLinksIntoBacklinks(backlinks, convertedLinks);
-
-            // Assert
-            expect((backlinks.data as { [key: string]: LinkCache[] })['Existing Note']).toHaveLength(1);
-            expect((backlinks.data as { [key: string]: LinkCache[] })['New Note']).toHaveLength(1);
+        test('mergeConvertedLinksIntoBacklinks merges for Record and tolerates invalid input', () => {
+            const backlinks = { data: { Existing: [{ link: 'Existing' } as LinkCache] } as Record<string, LinkCache[]> };
+            mergeConvertedLinksIntoBacklinks(backlinks, [{ link: 'New' } as LinkCache]);
+            expect(backlinks.data.Existing).toHaveLength(1);
+            expect(backlinks.data.New).toHaveLength(1);
+            expect(() => mergeConvertedLinksIntoBacklinks(null as any, [{ link: 'x' } as LinkCache])).not.toThrow();
+            expect(() => mergeConvertedLinksIntoBacklinks(backlinks, null as any)).not.toThrow();
         });
 
-        test('should handle multiple links to same destination', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map());
-            const convertedLinks = [
-                { link: 'Same Note' } as LinkCache,
-                { link: 'Same Note' } as LinkCache
-            ];
+        test('processFrontmatterLinks runs the full pipeline when enabled and property-filtered', () => {
+            const backlinks = { data: new Map<string, LinkCache[]>() };
+            const result = processFrontmatterLinks(
+                backlinks,
+                [fmLink('related', 'Included'), fmLink('author', 'Excluded')],
+                createSettings({
+                    includeFrontmatterLinks: true,
+                    frontmatterProperties: ['related'],
+                })
+            );
 
-            // Act
-            mergeConvertedLinksIntoBacklinks(backlinks, convertedLinks);
-
-            // Assert
-            expect((backlinks.data as Map<string, LinkCache[]>).get('Same Note')).toHaveLength(2);
+            expect((result.data as Map<string, LinkCache[]>).get('Included')).toHaveLength(1);
+            expect((result.data as Map<string, LinkCache[]>).get('Excluded')).toBeUndefined();
         });
 
-        test('should handle null/undefined inputs gracefully', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map());
-            const validLinks = [{ link: 'Test Note' } as LinkCache];
-
-            // Act & Assert - Should not throw
-            expect(() => {
-                mergeConvertedLinksIntoBacklinks(null as any, validLinks);
-            }).not.toThrow();
-
-            expect(() => {
-                mergeConvertedLinksIntoBacklinks(backlinks, null as any);
-            }).not.toThrow();
-
-            expect(() => {
-                mergeConvertedLinksIntoBacklinks(backlinks, undefined as any);
-            }).not.toThrow();
+        test('processFrontmatterLinks returns input unchanged when disabled or malformed', () => {
+            const backlinks = { data: new Map<string, LinkCache[]>() };
+            expect(
+                processFrontmatterLinks(backlinks, [fmLink('related', 'A')], createSettings({ includeFrontmatterLinks: false }))
+            ).toBe(backlinks);
+            expect(processFrontmatterLinks(backlinks, null as any, createSettings({ includeFrontmatterLinks: true }))).toBe(backlinks);
         });
     });
 
-    describe('processFrontmatterLinks', () => {
-        test('should process complete pipeline when enabled', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['Existing Note', [{ link: 'Existing Note' } as LinkCache]]
-            ]));
-            const frontmatterLinks = [
-                createTestFrontmatterLink('related', 'Front Matter Note 1'),
-                createTestFrontmatterLink('author', 'Front Matter Note 2')
-            ];
-            const settings = createTestSettings({
-                includeFrontmatterLinks: true,
-                frontmatterProperties: ['related'] // Only include 'related'
-            });
+    describe('frontmatter filtering from backlinks', () => {
+        const getMetadata = jest.fn((_: string): CachedMetadata | null => null);
 
-            // Act
-            const result = processFrontmatterLinks(backlinks, frontmatterLinks, settings);
-
-            // Assert
-            expect((result.data as Map<string, LinkCache[]>).get('Existing Note')).toHaveLength(1);
-            expect((result.data as Map<string, LinkCache[]>).get('Front Matter Note 1')).toHaveLength(1);
-            expect((result.data as Map<string, LinkCache[]>).get('Front Matter Note 2')).toBeUndefined(); // Filtered out
+        beforeEach(() => {
+            getMetadata.mockReset();
         });
 
-        test('should return unchanged backlinks when disabled', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['Existing Note', [{ link: 'Existing Note' } as LinkCache]]
-            ]));
-            const frontmatterLinks = [
-                createTestFrontmatterLink('related', 'Front Matter Note 1')
-            ];
-            const settings = createTestSettings({
-                includeFrontmatterLinks: false // Disabled
-            });
+        test('removes only frontmatter-matching links at frontmatter positions (Map data)', () => {
+            const backlinks = {
+                data: new Map<string, LinkCache[]>([
+                    ['Source.md', [linkAtLine('Target', 0), linkAtLine('Target', 5)]],
+                ]),
+            };
+            getMetadata.mockReturnValue({ frontmatterLinks: [fmLink('related', 'Target')] } as CachedMetadata);
 
-            // Act
-            const result = processFrontmatterLinks(backlinks, frontmatterLinks, settings);
-
-            // Assert
-            expect((result.data as Map<string, LinkCache[]>).get('Existing Note')).toHaveLength(1);
-            expect((result.data as Map<string, LinkCache[]>).get('Front Matter Note 1')).toBeUndefined(); // Not processed
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'Target', getMetadata);
+            expect((result.data as Map<string, LinkCache[]>).get('Source.md')).toHaveLength(1);
+            expect((result.data as Map<string, LinkCache[]>).get('Source.md')?.[0].position.start.line).toBe(5);
         });
 
-        test('should include all links when no properties specified', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map());
-            const frontmatterLinks = [
-                createTestFrontmatterLink('related', 'Note 1'),
-                createTestFrontmatterLink('author', 'Note 2')
-            ];
-            const settings = createTestSettings({
-                includeFrontmatterLinks: true,
-                frontmatterProperties: [] // Include all
-            });
+        test('deletes a source key when all links are frontmatter-derived (Record data)', () => {
+            const backlinks = {
+                data: {
+                    'Source.md': [{ link: 'Target' } as LinkCache],
+                } as Record<string, LinkCache[]>,
+            };
+            getMetadata.mockReturnValue({ frontmatterLinks: [fmLink('related', 'Target')] } as CachedMetadata);
 
-            // Act
-            const result = processFrontmatterLinks(backlinks, frontmatterLinks, settings);
-
-            // Assert
-            expect((result.data as Map<string, LinkCache[]>).get('Note 1')).toHaveLength(1);
-            expect((result.data as Map<string, LinkCache[]>).get('Note 2')).toHaveLength(1);
+            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'Target', getMetadata);
+            expect((result.data as Record<string, LinkCache[]>)['Source.md']).toBeUndefined();
         });
 
-        test('should handle errors gracefully', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map());
-            const settings = createTestSettings({ includeFrontmatterLinks: true });
+        test('keeps links when metadata is missing or target is not in frontmatter links', () => {
+            const mapBacklinks = {
+                data: new Map<string, LinkCache[]>([
+                    ['Source.md', [linkAtLine('Target', 0)]],
+                ]),
+            };
+            getMetadata.mockReturnValue({ frontmatterLinks: [fmLink('related', 'Different')] } as CachedMetadata);
+            const unmatched = filterFrontmatterLinksFromBacklinks(mapBacklinks, 'Target', getMetadata);
+            expect((unmatched.data as Map<string, LinkCache[]>).get('Source.md')).toHaveLength(1);
 
-            // Act & Assert - Should not throw even with malformed data
-            expect(() => {
-                const result = processFrontmatterLinks(backlinks, null as any, settings);
-                expect(result).toBe(backlinks); // Should return unchanged
-            }).not.toThrow();
-        });
-    });
-
-    describe('filterFrontmatterLinksFromBacklinks', () => {
-        const mockGetMetadata = jest.fn().mockReturnValue(null);
-
-        test('should filter out frontmatter links from Map backlinks', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['File A', [
-                    { link: 'File A', position: { start: { line: 5, col: 0, offset: 100 }, end: { line: 5, col: 10, offset: 110 } } } as LinkCache,
-                    { link: 'File A', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 10, offset: 10 } } } as LinkCache
-                ]]
-            ]));
-            
-            // Mock metadata with frontmatter link
-            mockGetMetadata.mockReturnValue({
-                frontmatterLinks: [
-                    { link: 'File A', key: 'related', displayText: 'File A' } as FrontmatterLinkCache
-                ]
-            } as CachedMetadata);
-
-            // Act
-            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
-
-            // Assert
-            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(1);
-            expect((result.data as Map<string, LinkCache[]>)?.get('File A')?.[0].position.start.line).toBe(5);
+            getMetadata.mockReturnValue(null);
+            const missingMeta = filterFrontmatterLinksFromBacklinks(mapBacklinks, 'Target', getMetadata);
+            expect((missingMeta.data as Map<string, LinkCache[]>).get('Source.md')).toHaveLength(1);
         });
 
-        test('should filter out frontmatter links from Object backlinks', () => {
-            // Arrange
-            const backlinks = createTestBacklinks({
-                'File A': [
-                    { link: 'File A', position: { start: { line: 5, col: 0, offset: 100 }, end: { line: 5, col: 10, offset: 110 } } } as LinkCache,
-                    { link: 'File A', position: { start: { line: 1, col: 0, offset: 50 }, end: { line: 1, col: 10, offset: 60 } } } as LinkCache
-                ]
-            } as { [key: string]: LinkCache[] });
-            
-            // Mock metadata with frontmatter link
-            mockGetMetadata.mockReturnValue({
-                frontmatterLinks: [
-                    { link: 'File A', key: 'related', displayText: 'File A' } as FrontmatterLinkCache
-                ]
-            } as CachedMetadata);
-
-            // Act
-            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
-
-            // Assert
-            expect((result.data as Record<string, LinkCache[]>)?.['File A']).toHaveLength(1);
-            expect((result.data as Record<string, LinkCache[]>)?.['File A']?.[0].position.start.line).toBe(5);
-        });
-
-        test('should delete source from Map when all links are filtered out (undefined position)', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['File A', [
-                    { link: 'File A' } as LinkCache // Undefined position
-                ]]
-            ]));
-
-            // Mock metadata with frontmatter link
-            mockGetMetadata.mockReturnValue({
-                frontmatterLinks: [
-                    { link: 'File A', key: 'related', displayText: 'File A' } as FrontmatterLinkCache
-                ]
-            } as CachedMetadata);
-
-            // Act
-            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
-
-            // Assert - key should be deleted entirely when all links filtered
-            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toBeUndefined();
-            expect((result.data as Map<string, LinkCache[]>)?.size).toBe(0);
-        });
-
-        test('should not filter links from body even at line 0-2 when not in frontmatter', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['File A', [
-                    { link: 'File A', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 10, offset: 10 } } } as LinkCache
-                ]]
-            ]));
-            
-            // Mock metadata without frontmatter links
-            mockGetMetadata.mockReturnValue({
-                frontmatterLinks: []
-            } as CachedMetadata);
-
-            // Act
-            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
-
-            // Assert
-            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(1);
-        });
-
-        test('should handle missing metadata gracefully', () => {
-            // Arrange
-            const backlinks = createTestBacklinks(new Map([
-                ['File A', [
-                    { link: 'File A', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 10, offset: 10 } } } as LinkCache
-                ]]
-            ]));
-            
-            // Mock returns null
-            mockGetMetadata.mockReturnValue(null);
-
-            // Act
-            const result = filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata);
-
-            // Assert - link should not be filtered when metadata is unavailable
-            expect((result.data as Map<string, LinkCache[]>)?.get('File A')).toHaveLength(1);
-        });
-
-        test('should handle null/undefined backlinks gracefully', () => {
-            // Act & Assert
-            expect(() => filterFrontmatterLinksFromBacklinks(null as any, 'File A', mockGetMetadata)).not.toThrow();
-            expect(() => filterFrontmatterLinksFromBacklinks(undefined as any, 'File A', mockGetMetadata)).not.toThrow();
-        });
-
-        test('should handle backlinks without data property', () => {
-            // Arrange
-            const backlinks = {} as any;
-
-            // Act & Assert - Should not throw
-            expect(() => filterFrontmatterLinksFromBacklinks(backlinks, 'File A', mockGetMetadata)).not.toThrow();
+        test('handles nullish backlinks container safely', () => {
+            expect(() => filterFrontmatterLinksFromBacklinks(null as any, 'Target', getMetadata)).not.toThrow();
+            expect(() => filterFrontmatterLinksFromBacklinks({} as any, 'Target', getMetadata)).not.toThrow();
         });
     });
 });

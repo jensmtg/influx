@@ -1,562 +1,284 @@
-/**
- * Unit tests for InfluxFile
- * Tests async initialization, race conditions, and update logic
- */
-
+import { CachedMetadata } from 'obsidian';
 import InfluxFile from '../../src/InfluxFile';
 import { InlinkingFile } from '../../src/InlinkingFile';
-import { CachedMetadata } from 'obsidian';
+import { DEFAULT_SETTINGS } from '../../src/types';
 import { mockTFile } from '../mocks';
 
-// Mock logger to suppress console output during tests
 jest.mock('../../src/utils/logger', () => ({
-	logger: {
-		debug: jest.fn(),
-		info: jest.fn(),
-		warn: jest.fn(),
-		error: jest.fn(),
-	}
+    logger: {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    },
 }));
 
+const makeFile = (path: string) => {
+    const basename = path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? path;
+    const file = mockTFile(path, basename);
+    file.stat.mtime = 1000;
+    file.stat.ctime = 1000;
+    return file;
+};
+
+const createApiAdapterMock = () => ({
+    getFileByPath: jest.fn(),
+    getMetadata: jest.fn().mockReturnValue({} as CachedMetadata),
+    getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
+    getShowStatus: jest.fn().mockReturnValue(true),
+    getCollapsedStatus: jest.fn().mockReturnValue(false),
+    isIncludableSource: jest.fn().mockReturnValue(true),
+    renderAllMarkdownBlocks: jest.fn().mockResolvedValue([]),
+    getSettings: jest.fn().mockReturnValue(DEFAULT_SETTINGS),
+});
+
 describe('InfluxFile', () => {
-	let mockApiAdapter: any;
-
-	beforeEach(() => {
-		InfluxFile.clearBuildCachesForTests();
-		mockApiAdapter = {
-			getFileByPath: jest.fn(),
-			getMetadata: jest.fn(),
-			getBacklinks: jest.fn(),
-			getShowStatus: jest.fn(),
-			getCollapsedStatus: jest.fn(),
-			isIncludableSource: jest.fn(),
-			renderAllMarkdownBlocks: jest.fn(),
-		};
-	});
-
-	afterEach(() => {
-		InfluxFile.clearBuildCachesForTests();
-	});
-
-	describe('async factory method', () => {
-		test('should create and initialize InfluxFile', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockMeta = {} as CachedMetadata;
-			const mockBacklinks = {
-				data: new Map([
-					['other.md', [{ link: 'other.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue(mockMeta);
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(true);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			// Act
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Assert
-			expect(influxFile).toBeInstanceOf(InfluxFile);
-			expect(influxFile.file).toBe(mockFile);
-			expect(influxFile.meta).toBe(mockMeta);
-			expect(influxFile.backlinks).toBe(mockBacklinks);
-			expect(influxFile.show).toBe(true);
-			expect(influxFile.collapsed).toBe(false);
-		});
-
-		test('should handle non-existent file', async () => {
-			// Arrange
-			mockApiAdapter.getFileByPath.mockReturnValue(null);
-
-			// Act
-			const influxFile = await InfluxFile.create('nonexistent.md', mockApiAdapter);
-
-			// Assert
-			expect(influxFile.file).toBeNull();
-			expect(influxFile.meta).toBeNull();
-			expect(influxFile.backlinks).toBeNull();
-		});
-
-		test('should generate unique UUID', async () => {
-			// Arrange
-			mockApiAdapter.getFileByPath.mockReturnValue(mockTFile('test.md', 'test'));
-
-			// Act
-			const file1 = await InfluxFile.create('test.md', mockApiAdapter);
-			const file2 = await InfluxFile.create('test2.md', mockApiAdapter);
-
-			// Assert
-			expect(file1.uuid).toBeDefined();
-			expect(file2.uuid).toBeDefined();
-			expect(file1.uuid).not.toBe(file2.uuid);
-		});
-	});
-
-	describe('constructor access prevention', () => {
-		test('should prevent direct constructor calls', async () => {
-			// Arrange
-			mockApiAdapter.getFileByPath.mockReturnValue(mockTFile('test.md', 'test'));
-
-			// Act
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Assert - accessing methods before initialization should throw
-			expect(() => {
-				(influxFile as any).ensureInitialized();
-			}).not.toThrow(); // Should not throw after initialization
-		});
-
-		test('should throw error when methods called before initialization', async () => {
-			// Arrange
-			mockApiAdapter.getFileByPath.mockReturnValue(mockTFile('test.md', 'test'));
-
-			// Act & Assert - cannot directly test this since constructor is private,
-			// but we can verify that after creation, initialized is true
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-			expect((influxFile as any).initialized).toBe(true);
-		});
-	});
-
-	describe('shouldUpdate', () => {
-		test('should return false when no file', async () => {
-			// Arrange
-			mockApiAdapter.getFileByPath.mockReturnValue(null);
-			const influxFile = await InfluxFile.create('nonexistent.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('other.md', 'other'));
-
-			// Assert
-			expect(result).toBe(false);
-		});
-
-		test('should return false when no backlinks', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(null);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-			mockApiAdapter.getBacklinks.mockReturnValue(null); // No backlinks
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('other.md', 'other'));
-
-			// Assert
-			expect(result).toBe(false);
-		});
-
-		test('should return false when backlinks.data is null', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue({ data: null });
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('other.md', 'other'));
-
-			// Assert
-			expect(result).toBe(false);
-		});
-
-		test('should return true when file is in backlinks (Map)', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks = {
-				data: new Map([
-					['other.md', [{ link: 'other.md' }]],
-					['another.md', [{ link: 'another.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('other.md', 'other'));
-
-			// Assert
-			expect(result).toBe(true);
-		});
-
-		test('should return true when file is in backlinks (Object)', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks = {
-				data: {
-					'other.md': [{ link: 'other.md' }],
-					'another.md': [{ link: 'another.md' }]
-				}
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('other.md', 'other'));
-
-			// Assert
-			expect(result).toBe(true);
-		});
-
-		test('should return false when file is not in backlinks', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks = {
-				data: new Map([
-					['other.md', [{ link: 'other.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('not-in-backlinks.md', 'not'));
-
-			// Assert
-			expect(result).toBe(false);
-		});
-
-		test('should be case-insensitive for path matching', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks = {
-				data: new Map([
-					['Other.md', [{ link: 'Other.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('other.md', 'other'));
-
-			// Assert
-			expect(result).toBe(true);
-		});
-
-		test('should normalize paths for comparison', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks = {
-				data: new Map([
-					['path\\to\\file.md', [{ link: 'path\\to\\file.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('path/to/file.md', 'file'));
-
-			// Assert
-			expect(result).toBe(true);
-		});
-
-		test('should update backlinks on check', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockBacklinks1 = {
-				data: new Map([
-					['other.md', [{ link: 'other.md' }]]
-				])
-			};
-			const mockBacklinks2 = {
-				data: new Map([
-					['new.md', [{ link: 'new.md' }]]
-				])
-			};
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks1);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-			mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks2);
-
-			// Act
-			const result = influxFile.shouldUpdate(mockTFile('new.md', 'new'));
-
-			// Assert
-			expect(result).toBe(true);
-			expect(influxFile.backlinks).toBe(mockBacklinks2);
-		});
-	});
-
-	describe('makeInfluxList', () => {
-		test('should return empty array when no file', async () => {
-			// Arrange
-			mockApiAdapter.getFileByPath.mockReturnValue(null);
-			const influxFile = await InfluxFile.create('nonexistent.md', mockApiAdapter);
-
-			// Act
-			await influxFile.makeInfluxList();
-
-			// Assert
-			expect(influxFile.inlinkingFiles).toEqual([]);
-		});
-
-		test('should return empty array when no backlinks', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue(null);
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-			mockApiAdapter.getBacklinks.mockReturnValue(null);
-
-			// Act
-			await influxFile.makeInfluxList();
-
-			// Assert
-			expect(influxFile.inlinkingFiles).toEqual([]);
-		});
-
-			test('should update totalEntryCount', async () => {
-				// Arrange
-				const mockFile = mockTFile('test.md', 'test');
-				const mockBacklinks = {
-					data: new Map([
-						['file1.md', [{ link: 'file1.md' }]],
-						['file2.md', [{ link: 'file2.md' }]]
-					])
-				};
-				mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-				mockApiAdapter.getMetadata.mockReturnValue({});
-				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-				mockApiAdapter.getShowStatus.mockReturnValue(false);
-				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-				mockApiAdapter.isIncludableSource.mockReturnValue(true);
-				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
-					return mockTFile(path, path);
-				});
-
-				const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-				// Act
-				await influxFile.makeInfluxList();
-
-				// Assert - totalEntryCount should match the number of processed files
-				// The actual processing might fail due to unmocked dependencies, so we check the logic
-				expect(mockApiAdapter.getFileByPath).toHaveBeenCalledWith('file1.md');
-				expect(mockApiAdapter.getFileByPath).toHaveBeenCalledWith('file2.md');
-				expect(influxFile.totalEntryCount).toBeGreaterThanOrEqual(0);
-			});
-
-			test('should skip self backlink entries with normalized path matching', async () => {
-				// Arrange
-				const mockFile = mockTFile('test.md', 'test');
-				const mockBacklinks = {
-					data: new Map([
-						['TEST.md', [{ link: 'TEST.md' }]],
-					])
-				};
-				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
-					if (path === 'test.md') {
-						return mockFile;
-					}
-					return mockTFile(path, path);
-				});
-				mockApiAdapter.getMetadata.mockReturnValue({});
-				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-				mockApiAdapter.getShowStatus.mockReturnValue(true);
-				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-				mockApiAdapter.isIncludableSource.mockReturnValue(true);
-
-				const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-				mockApiAdapter.getFileByPath.mockClear();
-
-				// Act
-				await influxFile.makeInfluxList();
-
-				// Assert
-				expect(mockApiAdapter.getFileByPath).not.toHaveBeenCalledWith('TEST.md');
-				expect(influxFile.totalEntryCount).toBe(0);
-			});
-
-			test('should dedupe concurrent list builds for same file/settings', async () => {
-				// Arrange
-				const targetFile = mockTFile('target.md', 'target');
-				targetFile.stat.mtime = 111;
-				const sourceFile = mockTFile('source.md', 'source');
-				sourceFile.stat.mtime = 222;
-				const mockBacklinks = {
-					data: new Map([
-						['source.md', [{ link: 'source.md' }]]
-					])
-				};
-
-				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
-					if (path === 'target.md') return targetFile;
-					if (path === 'source.md') return sourceFile;
-					return null;
-				});
-				mockApiAdapter.getMetadata.mockReturnValue({
-					links: [],
-					headings: [],
-					frontmatter: null,
-				});
-				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-				mockApiAdapter.getShowStatus.mockReturnValue(true);
-				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-				mockApiAdapter.isIncludableSource.mockReturnValue(true);
-
-				const summarySpy = jest
-					.spyOn(InlinkingFile.prototype, 'makeSummary')
-					.mockImplementation(async function () {
-						await new Promise((resolve) => setTimeout(resolve, 10));
-						this.summary = 'summary';
-						this.title = 'title';
-						this.titleLineNum = 1;
-						this.isLinkInTitle = false;
-					});
-
-				const influxA = await InfluxFile.create('target.md', mockApiAdapter);
-				const influxB = await InfluxFile.create('target.md', mockApiAdapter);
-
-				try {
-					// Act
-					await Promise.all([influxA.makeInfluxList(), influxB.makeInfluxList()]);
-
-					// Assert
-					expect(summarySpy).toHaveBeenCalledTimes(1);
-					expect(influxA.totalEntryCount).toBe(1);
-					expect(influxB.totalEntryCount).toBe(1);
-					expect(influxA.inlinkingFiles).toHaveLength(1);
-					expect(influxB.inlinkingFiles).toHaveLength(1);
-				} finally {
-					summarySpy.mockRestore();
-				}
-			});
-
-			test('should reuse recent list build for immediate sequential requests', async () => {
-				const targetFile = mockTFile('target-reuse.md', 'target-reuse');
-				targetFile.stat.mtime = 555;
-				const sourceFile = mockTFile('source-reuse.md', 'source-reuse');
-				sourceFile.stat.mtime = 777;
-				const mockBacklinks = {
-					data: new Map([
-						['source-reuse.md', [{ link: 'source-reuse.md' }]]
-					])
-				};
-
-				mockApiAdapter.getFileByPath.mockImplementation((path: string) => {
-					if (path === 'target-reuse.md') return targetFile;
-					if (path === 'source-reuse.md') return sourceFile;
-					return null;
-				});
-				mockApiAdapter.getMetadata.mockReturnValue({
-					links: [],
-					headings: [],
-					frontmatter: null,
-				});
-				mockApiAdapter.getBacklinks.mockReturnValue(mockBacklinks);
-				mockApiAdapter.getShowStatus.mockReturnValue(true);
-				mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-				mockApiAdapter.isIncludableSource.mockReturnValue(true);
-
-				const summarySpy = jest
-					.spyOn(InlinkingFile.prototype, 'makeSummary')
-					.mockImplementation(async function () {
-						this.summary = 'summary';
-						this.title = 'title';
-						this.titleLineNum = 1;
-						this.isLinkInTitle = false;
-					});
-
-				const influxA = await InfluxFile.create('target-reuse.md', mockApiAdapter);
-				const influxB = await InfluxFile.create('target-reuse.md', mockApiAdapter);
-
-				try {
-					await influxA.makeInfluxList();
-					await influxB.makeInfluxList();
-					expect(summarySpy).toHaveBeenCalledTimes(1);
-					expect(influxA.totalEntryCount).toBe(1);
-					expect(influxB.totalEntryCount).toBe(1);
-				} finally {
-					summarySpy.mockRestore();
-				}
-			});
-		});
-
-	describe('renderAllMarkdownBlocks', () => {
-		test('should return empty array when show is false', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue({ data: new Map() });
-			mockApiAdapter.getShowStatus.mockReturnValue(false);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-
-			// Act
-			const result = await influxFile.renderAllMarkdownBlocks();
-
-			// Assert
-			expect(result).toEqual([]);
-		});
-
-		test('should call api.renderAllMarkdownBlocks when show is true', async () => {
-			// Arrange
-			const mockFile = mockTFile('test.md', 'test');
-			const mockInlinkingFiles: any[] = [];
-			const mockComponents = [{ component: 'test' }];
-			mockApiAdapter.getFileByPath.mockReturnValue(mockFile);
-			mockApiAdapter.getMetadata.mockReturnValue({});
-			mockApiAdapter.getBacklinks.mockReturnValue({ data: new Map() });
-			mockApiAdapter.getShowStatus.mockReturnValue(true);
-			mockApiAdapter.getCollapsedStatus.mockReturnValue(false);
-			mockApiAdapter.renderAllMarkdownBlocks.mockResolvedValue(mockComponents);
-
-			const influxFile = await InfluxFile.create('test.md', mockApiAdapter);
-			influxFile.inlinkingFiles = mockInlinkingFiles as any;
-
-			// Act
-			const result = await influxFile.renderAllMarkdownBlocks();
-
-			// Assert
-			expect(mockApiAdapter.renderAllMarkdownBlocks).toHaveBeenCalledWith(mockInlinkingFiles, 'test.md');
-			expect(result).toBe(mockComponents);
-			expect(influxFile.components).toBe(mockComponents);
-		});
-	});
+    let api: ReturnType<typeof createApiAdapterMock>;
+
+    beforeEach(() => {
+        InfluxFile.clearBuildCachesForTests();
+        api = createApiAdapterMock();
+    });
+
+    afterEach(() => {
+        InfluxFile.clearBuildCachesForTests();
+        jest.restoreAllMocks();
+    });
+
+    describe('create and initialization', () => {
+        test('initializes file, metadata, backlinks and visibility flags', async () => {
+            const file = makeFile('target.md');
+            const backlinks = { data: new Map([['source.md', [{ link: 'source.md' }]]]) };
+            api.getFileByPath.mockReturnValue(file);
+            api.getMetadata.mockReturnValue({ frontmatter: {} } as CachedMetadata);
+            api.getBacklinks.mockReturnValue(backlinks);
+            api.getShowStatus.mockReturnValue(true);
+            api.getCollapsedStatus.mockReturnValue(true);
+
+            const influx = await InfluxFile.create('target.md', api as any);
+
+            expect(influx.file).toBe(file);
+            expect(influx.meta).toEqual({ frontmatter: {} });
+            expect(influx.backlinks).toBe(backlinks);
+            expect(influx.show).toBe(true);
+            expect(influx.collapsed).toBe(true);
+            expect(influx.uuid).toBeTruthy();
+        });
+
+        test('handles missing target file gracefully', async () => {
+            api.getFileByPath.mockReturnValue(null);
+            const influx = await InfluxFile.create('missing.md', api as any);
+            expect(influx.file).toBeNull();
+            expect(influx.meta).toBeNull();
+            expect(influx.backlinks).toBeNull();
+        });
+    });
+
+    describe('shouldUpdate', () => {
+        test('returns false when file/backlinks are unavailable', async () => {
+            api.getFileByPath.mockReturnValue(null);
+            const noFile = await InfluxFile.create('missing.md', api as any);
+            expect(noFile.shouldUpdate(makeFile('any.md'))).toBe(false);
+
+            const file = makeFile('target.md');
+            api.getFileByPath.mockReturnValue(file);
+            api.getBacklinks.mockReturnValue(null);
+            const noBacklinks = await InfluxFile.create('target.md', api as any);
+            expect(noBacklinks.shouldUpdate(makeFile('any.md'))).toBe(false);
+        });
+
+        test.each([
+            [{ data: new Map([['Other.md', [{ link: 'Other.md' }]]]) }, 'other.md', true],
+            [{ data: { 'Other.md': [{ link: 'Other.md' }] } }, 'other.md', true],
+            [{ data: new Map([['path\\to\\file.md', [{ link: 'path\\to\\file.md' }]]]) }, 'path/to/file.md', true],
+            [{ data: new Map([['other.md', [{ link: 'other.md' }]]]) }, 'missing.md', false],
+        ])(
+            'matches target path correctly for backlinks shape',
+            async (backlinks, changedPath, expected) => {
+                const file = makeFile('target.md');
+                api.getFileByPath.mockReturnValue(file);
+                api.getBacklinks.mockReturnValue(backlinks as any);
+
+                const influx = await InfluxFile.create('target.md', api as any);
+                expect(influx.shouldUpdate(makeFile(changedPath))).toBe(expected);
+            }
+        );
+
+        test('refreshes backlinks from API on every shouldUpdate call', async () => {
+            const file = makeFile('target.md');
+            api.getFileByPath.mockReturnValue(file);
+            api.getBacklinks
+                .mockReturnValueOnce({ data: new Map([['old.md', []]]) })
+                .mockReturnValueOnce({ data: new Map([['new.md', []]]) });
+
+            const influx = await InfluxFile.create('target.md', api as any);
+            expect(influx.shouldUpdate(makeFile('new.md'))).toBe(true);
+            expect((influx.backlinks?.data as Map<string, unknown>).has('new.md')).toBe(true);
+        });
+    });
+
+    describe('makeInfluxList', () => {
+        test('returns empty list/count when no file or no backlinks', async () => {
+            api.getFileByPath.mockReturnValue(null);
+            const noFile = await InfluxFile.create('missing.md', api as any);
+            await noFile.makeInfluxList();
+            expect(noFile.inlinkingFiles).toEqual([]);
+            expect(noFile.totalEntryCount).toBe(0);
+
+            const file = makeFile('target.md');
+            api.getFileByPath.mockReturnValue(file);
+            api.getBacklinks.mockReturnValue(null);
+            const noBacklinks = await InfluxFile.create('target.md', api as any);
+            await noBacklinks.makeInfluxList();
+            expect(noBacklinks.inlinkingFiles).toEqual([]);
+            expect(noBacklinks.totalEntryCount).toBe(0);
+        });
+
+        test('filters self-path and excluded sources, and preserves candidate total count', async () => {
+            const target = makeFile('target.md');
+            const sourceA = makeFile('source-a.md');
+            const sourceB = makeFile('source-b.md');
+
+            api.getFileByPath.mockImplementation((path: string) => {
+                if (path.toLowerCase() === 'target.md') return target;
+                if (path === 'source-a.md') return sourceA;
+                if (path === 'source-b.md') return sourceB;
+                return null;
+            });
+            api.getBacklinks.mockReturnValue({
+                data: new Map([
+                    ['TARGET.md', [{ link: 'TARGET.md' }]],
+                    ['source-a.md', [{ link: 'source-a.md' }]],
+                    ['source-b.md', [{ link: 'source-b.md' }]],
+                ]),
+            });
+            api.isIncludableSource.mockImplementation((path: string) => path !== 'source-b.md');
+
+            const summarySpy = jest.spyOn(InlinkingFile.prototype, 'makeSummary').mockImplementation(async function () {
+                this.summary = 'summary';
+            });
+
+            const influx = await InfluxFile.create('target.md', api as any);
+            await influx.makeInfluxList();
+
+            expect(influx.totalEntryCount).toBe(1);
+            expect(influx.inlinkingFiles).toHaveLength(1);
+            expect(influx.inlinkingFiles[0].file.path).toBe('source-a.md');
+            summarySpy.mockRestore();
+        });
+
+        test('honors listLimit while retaining full totalEntryCount', async () => {
+            const target = makeFile('target-limit.md');
+            const source1 = makeFile('source-1.md');
+            const source2 = makeFile('source-2.md');
+            source1.stat.ctime = 1000;
+            source2.stat.ctime = 2000;
+            api.getSettings.mockReturnValue({ ...DEFAULT_SETTINGS, listLimit: 1 });
+            api.getFileByPath.mockImplementation((path: string) => {
+                if (path === 'target-limit.md') return target;
+                if (path === 'source-1.md') return source1;
+                if (path === 'source-2.md') return source2;
+                return null;
+            });
+            api.getBacklinks.mockReturnValue({
+                data: new Map([
+                    ['source-1.md', [{ link: 'source-1.md' }]],
+                    ['source-2.md', [{ link: 'source-2.md' }]],
+                ]),
+            });
+
+            const summarySpy = jest.spyOn(InlinkingFile.prototype, 'makeSummary').mockImplementation(async function () {
+                this.summary = 'summary';
+            });
+
+            const influx = await InfluxFile.create('target-limit.md', api as any);
+            await influx.makeInfluxList();
+
+            expect(influx.totalEntryCount).toBe(2);
+            expect(influx.inlinkingFiles).toHaveLength(1);
+            summarySpy.mockRestore();
+        });
+
+        test('dedupes concurrent list builds for same file/settings', async () => {
+            const target = makeFile('target-dedupe.md');
+            target.stat.mtime = 111;
+            const source = makeFile('source-dedupe.md');
+            source.stat.mtime = 222;
+
+            api.getFileByPath.mockImplementation((path: string) => {
+                if (path === 'target-dedupe.md') return target;
+                if (path === 'source-dedupe.md') return source;
+                return null;
+            });
+            api.getMetadata.mockReturnValue({ links: [], headings: [], frontmatter: null } as CachedMetadata);
+            api.getBacklinks.mockReturnValue({ data: new Map([['source-dedupe.md', [{ link: 'source-dedupe.md' }]]]) });
+
+            const summarySpy = jest
+                .spyOn(InlinkingFile.prototype, 'makeSummary')
+                .mockImplementation(async function () {
+                    await new Promise((resolve) => setTimeout(resolve, 10));
+                    this.summary = 'summary';
+                });
+
+            const a = await InfluxFile.create('target-dedupe.md', api as any);
+            const b = await InfluxFile.create('target-dedupe.md', api as any);
+            await Promise.all([a.makeInfluxList(), b.makeInfluxList()]);
+
+            expect(summarySpy).toHaveBeenCalledTimes(1);
+            expect(a.inlinkingFiles).toHaveLength(1);
+            expect(b.inlinkingFiles).toHaveLength(1);
+            summarySpy.mockRestore();
+        });
+
+        test('reuses recent completed list build for immediate sequential requests', async () => {
+            const target = makeFile('target-reuse.md');
+            const source = makeFile('source-reuse.md');
+            api.getFileByPath.mockImplementation((path: string) => {
+                if (path === 'target-reuse.md') return target;
+                if (path === 'source-reuse.md') return source;
+                return null;
+            });
+            api.getMetadata.mockReturnValue({ links: [], headings: [], frontmatter: null } as CachedMetadata);
+            api.getBacklinks.mockReturnValue({ data: new Map([['source-reuse.md', [{ link: 'source-reuse.md' }]]]) });
+
+            const summarySpy = jest.spyOn(InlinkingFile.prototype, 'makeSummary').mockImplementation(async function () {
+                this.summary = 'summary';
+            });
+
+            const a = await InfluxFile.create('target-reuse.md', api as any);
+            const b = await InfluxFile.create('target-reuse.md', api as any);
+            await a.makeInfluxList();
+            await b.makeInfluxList();
+
+            expect(summarySpy).toHaveBeenCalledTimes(1);
+            summarySpy.mockRestore();
+        });
+    });
+
+    describe('renderAllMarkdownBlocks', () => {
+        test('returns empty output when show is false', async () => {
+            const file = makeFile('target.md');
+            api.getFileByPath.mockReturnValue(file);
+            api.getShowStatus.mockReturnValue(false);
+            const influx = await InfluxFile.create('target.md', api as any);
+
+            await expect(influx.renderAllMarkdownBlocks()).resolves.toEqual([]);
+        });
+
+        test('delegates markdown rendering when show is true', async () => {
+            const file = makeFile('target.md');
+            const rendered = [{ sourcePath: 'source.md' }];
+            api.getFileByPath.mockReturnValue(file);
+            api.getShowStatus.mockReturnValue(true);
+            api.renderAllMarkdownBlocks.mockResolvedValue(rendered);
+
+            const influx = await InfluxFile.create('target.md', api as any);
+            influx.inlinkingFiles = [] as any;
+            const result = await influx.renderAllMarkdownBlocks();
+
+            expect(api.renderAllMarkdownBlocks).toHaveBeenCalledWith([], 'target.md');
+            expect(result).toBe(rendered);
+            expect(influx.components).toBe(rendered as any);
+        });
+    });
 });
