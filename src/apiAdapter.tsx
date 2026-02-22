@@ -259,21 +259,21 @@ export class ApiAdapter extends Component {
         // Use extracted pure function for file comparison
         return createInlinkingFileComparator(settings) as (a: InlinkingFile, b: InlinkingFile) => 0 | 1 | -1;
     }
-    private sanitizeRenderedTitleHtml(html: string): string {
-        return html
-            .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
-            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
-            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
-            .replace(/^_/, '')                 // Remove leading underscore
-            .trim();
-    }
-    private sanitizeRenderedSummaryHtml(html: string): string {
-        return html
-            .replace(/<\/?p[^>]*>/gi, '')      // Remove <p>, </p> tags
-            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
-            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
-            .trim();
-    }
+	    private sanitizeRenderedTitleHtml(html: string): string {
+	        return html
+	            .replace(/<\/?p\b[^>]*>/gi, '')    // Remove <p>, </p> tags only
+	            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
+	            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
+	            .replace(/^_/, '')                 // Remove leading underscore
+	            .trim();
+	    }
+	    private sanitizeRenderedSummaryHtml(html: string): string {
+	        return html
+	            .replace(/<\/?p\b[^>]*>/gi, '')    // Remove <p>, </p> tags only
+	            .replace(/<\/?h[1-6][^>]*>/gi, '') // Remove <h1-h6>, </h1-h6> tags
+	            .replace(/(\r\n|\n|\r)+/g, ' ')    // Replace newlines with a single space
+	            .trim();
+	    }
     async renderAllMarkdownBlocks(inlinkingsFiles: InlinkingFile[], targetFilePath?: string): Promise<ExtendedInlinkingFile[]> {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const startTime = performance.now();

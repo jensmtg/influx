@@ -314,7 +314,7 @@ Heading
         it('should not corrupt tag names while sanitizing summary html', () => {
             const html = '\n<p>Para</p>\n<h2>Heading</h2>\n<ul><li>Item</li></ul>\n';
             const result = html
-                .replace(/<\/?p[^>]*>/gi, '')
+                .replace(/<\/?p\b[^>]*>/gi, '')
                 .replace(/<\/?h[1-6][^>]*>/gi, '')
                 .replace(/(\r\n|\n|\r)+/g, ' ')
                 .trim();
@@ -322,6 +322,18 @@ Heading
             expect(result).toContain('Para Heading');
             expect(result).toContain('<ul><li>Item</li></ul>');
             expect(result).not.toContain('<>');
+        });
+
+        it('should preserve callout icon path tags when removing paragraph tags', () => {
+            const html = '<div class="callout-icon"><svg width="16" height="16"><path d="M1 1h14"></path></svg></div><p>Text</p>';
+            const result = html
+                .replace(/<\/?p\b[^>]*>/gi, '')
+                .replace(/<\/?h[1-6][^>]*>/gi, '')
+                .replace(/(\r\n|\n|\r)+/g, ' ')
+                .trim();
+
+            expect(result).toContain('<svg width="16" height="16"><path d="M1 1h14"></path></svg>');
+            expect(result).toContain('Text');
         });
     });
 });

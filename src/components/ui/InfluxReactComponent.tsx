@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { setIcon } from 'obsidian';
 import InfluxFile from '../../InfluxFile';
 import { ExtendedInlinkingFile } from '../../apiAdapter';
 import { ObsidianInfluxSettings } from '../../types';
@@ -33,6 +34,30 @@ function collectInitialCollapsedPaths(influxFile: InfluxFile): string[] {
 
 function stripHtmlToLowerText(html: string): string {
 	return html.replace(/<[^>]*>/g, '').toLowerCase();
+}
+
+function normalizeCalloutIconId(rawIconId: string): string {
+	return rawIconId
+		.trim()
+		.replace(/^['"]|['"]$/g, '')
+		.replace(/^lucide-/, '');
+}
+
+function resolveCalloutIconId(calloutEl: HTMLElement): string | null {
+	const calloutType = calloutEl.getAttribute('data-callout')?.trim();
+	const computedIcon = window.getComputedStyle(calloutEl).getPropertyValue('--callout-icon').trim();
+	const iconId = computedIcon || calloutType;
+	if (!iconId) {
+		return null;
+	}
+	return normalizeCalloutIconId(iconId);
+}
+
+function hasRenderableSvgChildren(svgEl: SVGElement | null): boolean {
+	if (!svgEl) {
+		return false;
+	}
+	return svgEl.querySelector('path, circle, rect, line, polyline, polygon, ellipse, g, use') !== null;
 }
 
 type IndexedSearchComponent = {
@@ -111,6 +136,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
 	const searchResultsContainerRef = React.useRef<HTMLDivElement>(null);
 	const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
+	const componentRootRef = React.useRef<HTMLDivElement>(null);
 	const updateSeqRef = React.useRef(0);
 
 	React.useEffect(() => {
@@ -215,7 +241,34 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		);
 		observer.observe(trigger);
 		return () => observer.disconnect();
-	}, [hasMoreVisible, loadMoreComponents, visibleCount]);
+		}, [hasMoreVisible, loadMoreComponents, visibleCount]);
+
+	React.useEffect(() => {
+		const rootEl = componentRootRef.current;
+		if (!rootEl) {
+			return;
+		}
+
+		const calloutIconContainers = rootEl.querySelectorAll<HTMLElement>('.callout .callout-icon');
+		calloutIconContainers.forEach((iconContainer) => {
+			const existingSvg = iconContainer.querySelector('svg');
+			if (hasRenderableSvgChildren(existingSvg)) {
+				return;
+			}
+
+			const calloutEl = iconContainer.closest('.callout') as HTMLElement | null;
+			if (!calloutEl) {
+				return;
+			}
+
+			const iconId = resolveCalloutIconId(calloutEl);
+			if (!iconId) {
+				return;
+			}
+
+			setIcon(iconContainer, iconId as Parameters<typeof setIcon>[1]);
+		});
+	}, [visibleComponents]);
 
 	const debouncedSetSearchQuery = React.useMemo(
 		() => debounce((value: string) => {
@@ -308,18 +361,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		return null;
 	}
 
-	return (
-		<InfluxErrorBoundary>
-			<React.Fragment>
+		return (
+			<InfluxErrorBoundary>
+				<React.Fragment>
 
-				<div
-					className="embedded-backlinks influx-component"
-					style={{
-						animation: 'fadeIn .6s',
-						'--influx-font-size': `${fontSize}px`,
-						'--influx-line-height': `${lineHeight}px`
-					} as React.CSSProperties}
-				>
+					<div
+						ref={componentRootRef}
+						className={`embedded-backlinks influx-component influx-component--${renderMode}`}
+						style={{
+							animation: 'fadeIn .6s',
+							'--influx-font-size': `${fontSize}px`,
+							'--influx-line-height': `${lineHeight}px`
+						} as React.CSSProperties}
+					>
 
 					<div className="nav-header">
 

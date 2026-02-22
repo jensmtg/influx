@@ -47,6 +47,30 @@ body.is-readable-line-width .influx-preview-wrapper {
 	margin-top: 3em;
 }
 
+/* Editor Mode Polish */
+.influx-component--editor {
+	margin-top: 2em;
+}
+
+.influx-component--editor .nav-header {
+	padding-inline-start: var(--size-4-2);
+	padding-inline-end: var(--size-4-2);
+}
+
+.influx-component--editor .search-result-container {
+	padding-top: var(--size-4-1);
+}
+
+.influx-component--editor .search-result-file-title {
+	padding-inline-end: var(--size-4-2);
+}
+
+.influx-component--editor .search-result-file-matches {
+	border-radius: var(--radius-m);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: none;
+}
+
 .influx-entries {
 	font-size: var(--influx-font-size, 13px);
 	line-height: var(--influx-line-height, 19.5px);
@@ -150,7 +174,18 @@ body.is-readable-line-width .influx-preview-wrapper {
 	}
 
 	& .callout-icon {
-		width: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--icon-size, 16px);
+		min-width: var(--icon-size, 16px);
+		margin-right: var(--size-2-2);
+	}
+
+	& .callout-icon svg {
+		display: block;
+		width: var(--icon-size, 16px);
+		height: var(--icon-size, 16px);
 	}
 
 	& span[data-callout-title] {
