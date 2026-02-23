@@ -195,43 +195,8 @@ body.is-readable-line-width .influx-preview-wrapper {
 }
 
 /* Editor-only markdown layout normalization */
-.influx-entry--editor {
-	& li.influx-li-leading-heading > h1,
-	& li.influx-li-leading-heading > h2,
-	& li.influx-li-leading-heading > h3,
-	& li.influx-li-leading-heading > h4,
-	& li.influx-li-leading-heading > h5,
-	& li.influx-li-leading-heading > h6 {
-		display: inline;
-		margin: 0;
-		font-size: inherit;
-		line-height: inherit;
-		font-weight: var(--font-semibold, var(--font-bold, 600));
-	}
-
-	& li.influx-li-heading-only > p {
-		display: inline;
-		margin: 0;
-	}
-}
-
-.influx-entry--editor li.influx-li-leading-heading > h1,
-.influx-entry--editor li.influx-li-leading-heading > h2,
-.influx-entry--editor li.influx-li-leading-heading > h3,
-.influx-entry--editor li.influx-li-leading-heading > h4,
-.influx-entry--editor li.influx-li-leading-heading > h5,
-.influx-entry--editor li.influx-li-leading-heading > h6,
 .influx-entry--editor li.influx-li-leading-heading > .influx-inline-heading {
-	display: inline !important;
-	margin: 0 !important;
-	font-size: inherit !important;
-	line-height: inherit !important;
 	font-weight: var(--font-semibold, var(--font-bold, 600));
-}
-
-.influx-entry--editor li.influx-li-heading-only > p {
-	display: inline;
-	margin: 0;
 }
 
 /* Preview mode overrides */
