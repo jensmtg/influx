@@ -19,21 +19,21 @@ export class InfluxErrorBoundary extends React.Component<Props, State> {
 	}
 
 	componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-		logger.error('React component error', { 
-			error, 
-			componentStack: errorInfo.componentStack 
+		logger.error('React component error', {
+			error,
+			componentStack: errorInfo.componentStack
 		});
 	}
 
 	render() {
-		if (this.state.hasError) {
-			return this.props.fallback || (
-				<div className="influx-error" style={{ 
-					padding: '1rem', 
-					color: 'var(--text-error)' 
-				}}>
-					Failed to render Influx component. Check console for details.
-				</div>
+			if (this.state.hasError) {
+				return this.props.fallback || (
+					<div className="influx-error" style={{
+						padding: '1rem',
+						color: 'var(--text-error)'
+					}}>
+						Failed to render Influx component. Check console for details.
+					</div>
 			);
 		}
 

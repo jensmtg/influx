@@ -46,8 +46,15 @@ describe('PreviewManager', () => {
 	test('updatePreview retries preview root lookup before sidebar cleanup', async () => {
 		jest.useFakeTimers();
 
+		const innerContainer = { remove: jest.fn() } as unknown as HTMLElement;
+		const wrapper = { remove: jest.fn() } as unknown as Element;
 		const previewRoot = {
-			querySelectorAll: jest.fn().mockReturnValue([]),
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
+					return [innerContainer];
+				}
+				return [wrapper];
+			}),
 		} as unknown as HTMLElement;
 		let queryCount = 0;
 		const containerEl = {
@@ -72,6 +79,7 @@ describe('PreviewManager', () => {
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
 
+		const unmountSpy = jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 		const unmountByPathSpy = jest.spyOn(rootManager, 'unmountByFilePath').mockImplementation(() => {});
 		(globalThis as { window?: Window }).window = {
 			setTimeout,
@@ -82,6 +90,41 @@ describe('PreviewManager', () => {
 		await promise;
 
 		expect(containerEl.querySelector).toHaveBeenCalledTimes(2);
-		expect(unmountByPathSpy).toHaveBeenCalledWith('Scratchpad.md', 'preview');
+		expect(unmountSpy).toHaveBeenCalledWith(innerContainer);
+		expect(unmountByPathSpy).not.toHaveBeenCalled();
+	});
+
+	test('handlePreviewMode sidebar cleanup is scoped to local preview root', async () => {
+		const innerContainer = { remove: jest.fn() } as unknown as HTMLElement;
+		const wrapper = { remove: jest.fn() } as unknown as Element;
+		const previewRoot = {
+			classList: {
+				contains: (name: string) => name === 'markdown-preview-view',
+			},
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
+					return [innerContainer];
+				}
+				return [wrapper];
+			}),
+		} as unknown as HTMLElement;
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: true } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Map<string, number>(),
+		} as any;
+		const api = {} as any;
+		const manager = new PreviewManager(plugin, api);
+
+		const unmountSpy = jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
+		const unmountByPathSpy = jest.spyOn(rootManager, 'unmountByFilePath').mockImplementation(() => {});
+
+		await manager.handlePreviewMode(previewRoot, {
+			sourcePath: 'Shared.md',
+		} as any);
+
+		expect(unmountSpy).toHaveBeenCalledWith(innerContainer);
+		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
 });

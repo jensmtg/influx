@@ -27,31 +27,26 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 ### Display Options
 
-- **Excerpt Length**: Control how much context to show around each backlink
-  - *Recommended*: 150 characters for most use cases
-  - *Research*: 200-250 characters for academic work
-  - *Quick scan*: 100 characters for rapid review
+- **Sorting attribute**: Order backlinks by `mtime`, `ctime`, or `FILENAME`
+  - *Recommended*: `mtime` for active work
+  - *Reference vaults*: `FILENAME` for predictable lookup
 
-- **Grouping**: Organize backlinks by hierarchy or chronology
-  - *By hierarchy*: Groups content by bullet point structure (great for organized notes)
-  - *Chronological*: Shows most recent links first (good for active projects)
+- **Sorting principle**: Choose `NEWEST_FIRST` or `OLDEST_FIRST`
+  - *Recommended*: `NEWEST_FIRST`
 
-- **Sorting**: Choose how to order your backlinks (alphabetical, by date, etc.)
-  - *Alphabetical*: Easiest to find specific notes
-  - *By modification date*: See recently updated content first
+- **List length**: Limit how many linked notes are rendered
+  - *Recommended*: `10-15`
+  - *Large vaults*: `5-10` for faster first paint
 
 ### Layout Settings
 
-- **Max Items**: Limit the number of backlinks shown
-  - *Recommended*: 10-15 items to keep view manageable
-  - *Large vaults*: Consider 5-8 items for better performance
+- **Layout variant**: `Continous stream` or `Note by note`
+  - *Continous stream*: Better for skimming
+  - *Note by note*: Better source separation
 
-- **Show Hierarchy**: Display bullet point structure
-  - *Enable*: When you want to see the organizational context
-  - *Disable*: For cleaner, more compact display
+- **Show Influx below text**: Place Influx below the note body or at the top
 
-- **Compact Mode**: Reduce spacing for dense information
-  - *Great for*: Mobile devices or when screen space is limited
+- **Show headers**: Include first heading/frontmatter title from source notes
 
 ### Filtering
 
@@ -62,8 +57,8 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 - **Include Only**: Show backlinks only from selected sources
   - *Use case*: Focus on specific project folders or research areas
 
-- **Minimum Context**: Filter out links with insufficient context
-  - *Recommended*: 20 characters minimum to avoid meaningless fragments
+- **Require frontmatter key**: Only show Influx on notes with `influx: true`
+- **Collapse all by default**: Start every note with backlink entries collapsed
 
 ## Usage Examples
 
@@ -73,9 +68,10 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 **Configuration**:
 
-- Excerpt Length: 200 characters (for detailed context)
-- Grouping: By hierarchy (to see argument structure)
-- Max Items: 15 (comprehensive view)
+- Sorting attribute: `mtime`
+- Sorting principle: `NEWEST_FIRST`
+- List length: `15`
+- Layout variant: `Note by note`
 
 **Benefits**:
 
@@ -89,9 +85,10 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 **Configuration**:
 
-- Excerpt Length: 150 characters (balanced view)
-- Grouping: Chronological (track learning progression)
-- Sorting: Alphabetical (easy navigation)
+- Sorting attribute: `FILENAME`
+- Sorting principle: `NEWEST_FIRST`
+- List length: `10`
+- Display location: `Sidebar`
 
 **Benefits**:
 
@@ -105,9 +102,10 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 **Configuration**:
 
-- Excerpt Length: 100 characters (quick context)
-- Grouping: By hierarchy (organize by story arcs)
-- Max Items: 8 (focused view)
+- Sorting attribute: `mtime`
+- Sorting principle: `NEWEST_FIRST`
+- List length: `8`
+- Collapse all by default: `Enabled`
 
 **Benefits**:
 
@@ -164,10 +162,10 @@ project: thesis-chapter-2
 
 For large vaults or optimal performance:
 
-1. **Reduce Max Items**: Limit to 5-10 items for faster rendering
-2. **Use Filtering**: Exclude template folders or daily notes
-3. **Enable Compact Mode**: Reduces DOM overhead
-4. **Set Minimum Context**: Filter out short, meaningless fragments
+1. **Reduce List length**: Limit to 5-10 items for faster rendering
+2. **Use source filtering**: Exclude templates, archive, and high-churn folders
+3. **Disable live update**: Reduce update churn while writing
+4. **Use Sidebar mode**: Keep one render target when reviewing many notes
 
 ## Troubleshooting
 
@@ -181,7 +179,7 @@ For large vaults or optimal performance:
 
 - Reduce the maximum number of displayed items
 - Exclude large folders from indexing
-- Use compact mode for faster rendering
+- Disable live update while editing large notes
 
 ## Contributing
 

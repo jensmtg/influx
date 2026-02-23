@@ -26,6 +26,14 @@ export class UpdateCoordinator {
 	private unloading = false;
 
 	/**
+	 * Reset coordinator state after plugin reload/re-enable.
+	 */
+	initialize(): void {
+		this.cancelAll();
+		this.unloading = false;
+	}
+
+	/**
 	 * Schedule an update operation
 	 */
 	async schedule(

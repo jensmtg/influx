@@ -96,7 +96,7 @@ describe('UpdateCoordinator', () => {
         });
     });
 
-    describe('cancellation and unload', () => {
+	    describe('cancellation and unload', () => {
         test('cancel(id) aborts pending operation', async () => {
             const executor = jest.fn().mockResolvedValue(undefined);
             const promise = coordinator.schedule('id', 'modify', '/a.md', executor);
@@ -124,7 +124,7 @@ describe('UpdateCoordinator', () => {
             expect(coordinator.activeCount).toBe(0);
         });
 
-        test('unload cancels pending operations and blocks new scheduling', async () => {
+	        test('unload cancels pending operations and blocks new scheduling', async () => {
             const executor = jest.fn().mockResolvedValue(undefined);
             const pending = coordinator.schedule('id', 'modify', '/a.md', executor);
 
@@ -138,10 +138,24 @@ describe('UpdateCoordinator', () => {
             const info = coordinator.getDebugInfo();
             expect(executor).not.toHaveBeenCalled();
             expect(postUnloadExecutor).not.toHaveBeenCalled();
-            expect(info.unloading).toBe(true);
-            expect(info.activeCount).toBe(0);
-        });
-    });
+	            expect(info.unloading).toBe(true);
+	            expect(info.activeCount).toBe(0);
+	        });
+
+	        test('initialize re-enables scheduling after unload', async () => {
+	            coordinator.unload();
+	            coordinator.initialize();
+
+	            const executor = jest.fn().mockResolvedValue(undefined);
+	            const promise = coordinator.schedule('id', 'modify', '/a.md', executor);
+
+	            await advanceDebounce();
+	            await promise;
+
+	            expect(executor).toHaveBeenCalledTimes(1);
+	            expect(coordinator.getDebugInfo().unloading).toBe(false);
+	        });
+	    });
 
     describe('error behavior', () => {
         test('logs and propagates executor errors when operation is not aborted', async () => {

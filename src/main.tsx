@@ -29,6 +29,7 @@ export default class ObsidianInflux extends Plugin {
 
 	async onload(): Promise<void> {
 		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
+		updateCoordinator.initialize();
 
 		this.migrateOldElements();
 
@@ -168,24 +169,24 @@ export default class ObsidianInflux extends Plugin {
 		}
 	}
 
-	toggleSortOrder() {
+	async toggleSortOrder(): Promise<void> {
 		const oldOrder = this.data.settings.sortingPrinciple;
 		const newOrder = oldOrder === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST';
 		logger.debug('Toggle sort order', { oldOrder, newOrder });
 		this.data.settings.sortingPrinciple = newOrder;
-		this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder });
+		await this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder });
 		this.triggerUpdates('save-settings');
 	}
 
-	toggleFrontmatterLinks() {
+	async toggleFrontmatterLinks(): Promise<void> {
 		const newValue = !this.data.settings.includeFrontmatterLinks;
 		logger.debug('Toggle frontmatter links', { newValue });
 		this.data.settings.includeFrontmatterLinks = newValue;
-		this.saveSettingsByParams({ ...this.data.settings, "includeFrontmatterLinks": newValue });
+		await this.saveSettingsByParams({ ...this.data.settings, "includeFrontmatterLinks": newValue });
 		this.triggerUpdates('save-settings');
 	}
 
-	cycleListLimit() {
+	async cycleListLimit(): Promise<void> {
 		const currentLimit = this.data.settings.listLimit;
 		const limits = [0, 5, 10, 15, 25, 50];
 
@@ -196,7 +197,7 @@ export default class ObsidianInflux extends Plugin {
 
 		logger.debug('Cycle list limit', { oldLimit: currentLimit, newLimit });
 		this.data.settings.listLimit = newLimit;
-		this.saveSettingsByParams({ ...this.data.settings, "listLimit": newLimit });
+		await this.saveSettingsByParams({ ...this.data.settings, "listLimit": newLimit });
 		this.triggerUpdates('save-settings');
 	}
 

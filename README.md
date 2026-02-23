@@ -41,13 +41,14 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 2. Open any note that has backlinks
 3. Scroll to the bottom to see Influx in action
 4. Try clicking on different backlinks to see the context
-5. Explore the settings to adjust excerpt length and grouping
+5. Explore settings like sort order, list length, filtering, and sidebar mode
 
 **Recommended settings for beginners**:
 
-- **Excerpt Length**: 150 characters (good balance of context vs brevity)
-- **Grouping**: By hierarchy (organizes content logically)
-- **Max Items**: 10 (keeps view manageable)
+- **Sorting attribute**: `mtime` (surfaced recent context first)
+- **Sorting principle**: `NEWEST_FIRST`
+- **List length**: `10` (keeps view manageable)
+- **Display location**: `Inline` (switch to `Sidebar` if you prefer one persistent panel)
 
 **📖 Need more help?** Check out our [complete documentation](https://jensmtg.github.io/influx/) for advanced configuration and usage examples.
 
