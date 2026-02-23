@@ -1,5 +1,6 @@
 import type { Root } from 'react-dom/client';
 import { rootManager } from '../../src/react/RootManager';
+import { asHTMLElement, createFakeElement } from '../helpers/fake-dom';
 
 jest.mock('../../src/utils/logger', () => ({
 	logger: {
@@ -39,8 +40,8 @@ describe('RootManager', () => {
 
 	test('supports multiple roots for the same file path and unmounts by type', () => {
 		const filePath = 'Work Projects.md';
-		const editorContainer = { id: 'editor-root' } as unknown as HTMLElement;
-		const previewContainer = { id: 'preview-root' } as unknown as HTMLElement;
+		const editorContainer = asHTMLElement(createFakeElement('div'));
+		const previewContainer = asHTMLElement(createFakeElement('div'));
 
 		const editorRoot = createMockRoot();
 		const previewRoot = createMockRoot();
@@ -57,8 +58,8 @@ describe('RootManager', () => {
 	});
 
 	test('cleanupStale skips transient editor roots but cleans stale preview roots', () => {
-		const editorContainer = { id: 'editor-root' } as unknown as HTMLElement;
-		const previewContainer = { id: 'preview-root' } as unknown as HTMLElement;
+		const editorContainer = asHTMLElement(createFakeElement('div'));
+		const previewContainer = asHTMLElement(createFakeElement('div'));
 
 		const editorRoot = createMockRoot();
 		const previewRoot = createMockRoot();
