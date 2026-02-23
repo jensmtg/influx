@@ -131,6 +131,22 @@ export class RootManager {
 	}
 
 	/**
+	 * Unmount all roots of a specific type.
+	 */
+	unmountByType(type: RootType): void {
+		const targets: HTMLElement[] = [];
+		for (const [container, info] of this.roots) {
+			if (info.type === type) {
+				targets.push(container);
+			}
+		}
+
+		for (const container of targets) {
+			this.unmount(container);
+		}
+	}
+
+	/**
 	 * Clean up roots for containers no longer in DOM
 	 */
 	cleanupStale(): number {

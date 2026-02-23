@@ -28,12 +28,19 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
  * React root management, and cache invalidation.
  */
 export class PreviewManager {
+	private static readonly PREVIEW_ROOT_RETRY_MS = 75;
+
 	constructor(
 		private plugin: ObsidianInflux,
 		private apiAdapter: ApiAdapter
 	) {}
 
 	async updateAllPreviews(): Promise<void> {
+		if (this.plugin.data.settings.showInfluxInSidebar) {
+			this.cleanupAllPreviewRootsAndContainers();
+			return;
+		}
+
 		const previewLeaves: WorkspaceLeaf[] = [];
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
@@ -79,25 +86,24 @@ export class PreviewManager {
 	async updatePreview(leaf: WorkspaceLeaf): Promise<void> {
 		const influxLeaf = leaf as InfluxWorkspaceLeaf;
 		const container: HTMLDivElement = influxLeaf.containerEl;
-
-		const previewDiv = container.querySelector('.markdown-preview-view');
-
-		if (!previewDiv) {
-			logger.warn('No preview found for leaf');
-			return;
-		}
-
-        const settings = this.plugin.data.settings;
-        if (settings.showInfluxInSidebar) {
-            return;
-        }
-
-		const apiAdapter = this.plugin.api;
 		const path = influxLeaf.view?.file?.path;
 		if (!path) {
 			logger.warn('No file path found for preview');
 			return;
 		}
+
+		const settings = this.plugin.data.settings;
+		const previewDiv = await this.resolvePreviewDiv(container, this.isLeafInPreviewMode(influxLeaf));
+		if (!previewDiv) {
+			logger.debug('Preview root not ready for leaf', { filePath: path });
+			return;
+		}
+		if (settings.showInfluxInSidebar) {
+			rootManager.unmountByFilePath(path, 'preview');
+			this.cleanupPreviewContainers(previewDiv);
+			return;
+		}
+
 		const pipelineStart = performance.now();
 
 		const existingContainer = this.findExistingContainer(previewDiv);
@@ -116,7 +122,7 @@ export class PreviewManager {
 		// Clean up existing preview roots for this file path first
 		rootManager.unmountByFilePath(path, 'preview');
 
-		const influxFile = await InfluxFile.create(path, apiAdapter);
+		const influxFile = await InfluxFile.create(path, this.apiAdapter);
 		if (!influxFile.show) {
 			this.cleanupPreviewContainers(previewDiv);
 			recordMetric({
@@ -208,6 +214,8 @@ export class PreviewManager {
 
 		const settings = this.plugin.data.settings;
 		if (settings.showInfluxInSidebar) {
+			rootManager.unmountByFilePath(filePath, 'preview');
+			this.cleanupPreviewContainers(previewRoot);
 			return;
 		}
 
@@ -223,7 +231,7 @@ export class PreviewManager {
 		try {
 			const pipelineStart = performance.now();
 			// Use plugin's apiAdapter to preserve cache and ensure settings are available
-			const influxFile = await InfluxFile.create(filePath, this.plugin.api);
+			const influxFile = await InfluxFile.create(filePath, this.apiAdapter);
 			if (!influxFile.show) {
 				recordMetric({
 					name: 'influx.pipeline.total',
@@ -305,6 +313,30 @@ export class PreviewManager {
 		});
 
 		wrappers.forEach((wrapper) => wrapper.remove());
+	}
+
+	private cleanupAllPreviewRootsAndContainers(): void {
+		rootManager.unmountByType('preview');
+		document
+			.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`)
+			.forEach((wrapper) => wrapper.remove());
+	}
+
+	private isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
+		const leafType: string | undefined = leaf.view?.currentMode?.type;
+		const viewMode = leaf.view?.mode;
+		return leafType === 'preview' || viewMode === 'preview';
+	}
+
+	private async resolvePreviewDiv(container: HTMLElement, allowRetry: boolean): Promise<HTMLElement | null> {
+		const getPreviewDiv = () => container.querySelector('.markdown-preview-view') as HTMLElement | null;
+		const immediate = getPreviewDiv();
+		if (immediate || !allowRetry) {
+			return immediate;
+		}
+
+		await new Promise((resolve) => window.setTimeout(resolve, PreviewManager.PREVIEW_ROOT_RETRY_MS));
+		return getPreviewDiv();
 	}
 
 	private resolvePreviewRoot(element: HTMLElement): HTMLElement | null {

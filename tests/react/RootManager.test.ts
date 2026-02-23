@@ -76,4 +76,27 @@ describe('RootManager', () => {
 		expect(rootManager.has(editorContainer)).toBe(true);
 		expect(rootManager.has(previewContainer)).toBe(false);
 	});
+
+	test('unmountByType removes only matching root type', () => {
+		const editorContainer = asHTMLElement(createFakeElement('div'));
+		const previewContainer = asHTMLElement(createFakeElement('div'));
+		const sidebarContainer = asHTMLElement(createFakeElement('div'));
+
+		const editorRoot = createMockRoot();
+		const previewRoot = createMockRoot();
+		const sidebarRoot = createMockRoot();
+
+		rootManager.register(editorContainer, editorRoot, 'editor', 'Editor.md');
+		rootManager.register(previewContainer, previewRoot, 'preview', 'Preview.md');
+		rootManager.register(sidebarContainer, sidebarRoot, 'sidebar', 'Sidebar.md');
+
+		rootManager.unmountByType('preview');
+
+		expect(previewRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(editorRoot.unmount).not.toHaveBeenCalled();
+		expect(sidebarRoot.unmount).not.toHaveBeenCalled();
+		expect(rootManager.has(previewContainer)).toBe(false);
+		expect(rootManager.has(editorContainer)).toBe(true);
+		expect(rootManager.has(sidebarContainer)).toBe(true);
+	});
 });
