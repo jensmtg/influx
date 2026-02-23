@@ -8,121 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - Unreleased
 
 ### Added
-
-- Unified Root Manager (`src/react/RootManager.ts`) for consistent React root lifecycle management across editor and preview modes
-- Update Coordinator (`src/utils/UpdateCoordinator.ts`) with AbortController-based cancellation and proper async operation scheduling
-- Observable Update System (`src/utils/Observable.ts`) with type-safe observer pattern for component updates
-- Collapsed State Manager (`src/utils/CollapsedStateManager.ts`) using path-based Set storage instead of basename-based arrays
-- React Error Boundary component to catch and handle component errors gracefully
-- Migration system for old Influx elements from previous plugin versions
-- Centralized type definitions in `src/types/settings.ts` and `src/types/index.ts`
-- New constants file (`src/constants.ts`) for all magic numbers and string literals
-- Logger utility (`src/utils/logger.ts`) with consistent formatting and debug mode support
-- Unit tests for Update Coordinator (`src/utils/UpdateCoordinator.test.ts`):
-  - Tests for debounce behavior, operation cancellation, and abort signal handling
-  - Tests for concurrent operations and error handling
-- Unit tests for Observable (`src/utils/Observable.test.ts`):
-  - Tests for subscribe/unsubscribe patterns and notification propagation
-  - Tests for re-entrancy prevention and error handling
+- Root lifecycle management through `RootManager`
+- Update scheduling and cancellation through `UpdateCoordinator`
+- Observable-based update notifications for UI components
+- React error boundary and migration helpers
+- Centralized constants, logger utilities, and shared type definitions
 
 ### Changed
-
-- CSS management - replaced JSS with vanilla CSS, migrated to single `styles.css`
-- Removed JSS dependencies: `jss`, `jss-preset-default`, `react-jss`, `@types/jss`
-- Replaced dual React root systems (Map in main.tsx, WeakMap in InfluxWidget.tsx) with unified RootManager
-- Replaced manual debounce maps (`updateDebouncers`, `pendingUpdates`, `updating`) with UpdateCoordinator using AbortController
-- Replaced string-keyed component callbacks registry with Observable pattern for type-safe updates
-- Replaced basename-based collapsed state tracking (`string[]`) with path-based normalized storage (`Set<string>`)
-- Replaced all magic numbers with named constants across codebase
-- Replaced all `console.*` calls with new logger utility
-- Updated type imports to use centralized type definitions
-- Extracted event handling logic into `src/managers/EventManager.ts` for better code organization
-- Extracted preview mode logic into `src/managers/PreviewManager.tsx` for better separation of concerns
-- Reduced `main.tsx` size through manager extraction
-- Settings validation in `src/settings.tsx`:
-  - Changed all onblur handlers from async to synchronous for immediate user feedback
-  - Queue async save operations without blocking UI
-  - Handlers updated: exclusionPattern, inclusionPattern, sourceExclusionPattern, sourceInclusionPattern, collapsedPattern, frontmatterProperties
-- ApiAdapter now requires plugin instance in constructor to access settings directly instead of through Obsidian's plugin registry
-- PreviewManager now uses plugin's shared ApiAdapter instance instead of creating new instances
-
-### Removed
-
-- JSS stylesheet creation system (`src/createStyleSheet.tsx`)
-- Dead code: delay show callback system, timer setup, and associated methods
-- Dead code cleanup in `src/InfluxReactComponent.tsx`:
-- Unused export from `src/link-utils.ts`:
-  - Removed processTitleHTML function (was unused)
+- Refactored mode-specific behavior into `EventManager` and `PreviewManager`
+- Replaced JSS with `styles.css`
+- Simplified editor and preview rendering paths to avoid fragile HTML string round-tripping
+- Improved cache invalidation with per-file and timestamp-based checks
+- Reduced reliance on ad-hoc globals and duplicated lifecycle code
 
 ### Fixed
-
-- Memory leak in Observable - `isNotifying` flag now reset on error using try/finally
-- Stale cache data in ApiAdapter - per-file cache invalidation on modify/rename/delete events
-- Race condition in PreviewManager - atomic timestamp-based update tracking with 1s debounce
-- Null reference risk in InlinkingFile - early return guard when metadata is unavailable
-- Type safety: DEFAULT_SETTINGS now properly typed as `ObsidianInfluxSettings` instead of `Partial<...>`
-- Type safety: Replaced `any` types with proper imports using `import type` in EventManager and PreviewManager
-- Access modifiers: Made `cleanupFileHash`, `cleanupReactRoots`, and `previewFileHashes` accessible to manager classes
-- Performance: JSS setup now called once at plugin load instead of on every stylesheet creation
-- Code quality: Removed duplicate `compareLinkName` function - now re-exported from link-utils.ts
-- Code quality: `renderAllMarkdownBlocks` now explicitly returns empty array when `show` is false
-- Dead code: Removed hidden non-functional search input from InfluxReactComponent
-- Dead code: Removed unused `componentCallbacks` system, `registerInfluxComponent`, and `deregisterInfluxComponent`
-- Dead code: Removed unused `nodeLookup` and `contextSummaries` properties from InlinkingFile
-- React: useEffect now uses ref pattern to access current influxFile without stale closures
-- React: Added AbortController to prevent state updates on unmounted components during async operations
-- React: Fixed toggle all button aria-label to correctly update after clicking
-- Consistency: Settings tab now uses logger utility instead of console.error
-- Memory leaks from window references not being cleaned up on plugin unload
-- Null reference risks in InfluxFile - added early return guards when file is unavailable in `shouldUpdate()` and `makeInfluxList()`
-- Type safety in InlinkingFile - `titleLineNum` now typed as `number | undefined` instead of `number`
-- Type safety in StructuredText - initialized all local variables to fix TypeScript implicit any errors
-- Performance in EventManager - early return in `handleModify()` when liveUpdate is disabled
-- Error handling in PreviewManager - replaced throws with `logger.warn()` for missing preview and path
-- Grammar in settings description - "changes in a note is" to "changes in a note are"
-- HTML content - stripped `<h1-h6>` tags from rendered markdown
-- React structure - removed unnecessary empty div wrapper that was interfering with flex layout
-- CSS layout - simplified margins, added `.has-bare-heading` styling for list item headings
-- Removed redundant double-spread of DEFAULT_SETTINGS in ApiAdapter.getSettings()
-- Fixed test helper in frontmatter-utils.test.ts to use actual DEFAULT_SETTINGS instead of incomplete mock
-- Runtime crashes from missing Obsidian API checks in getBacklinks() and getSettings()
-- Silent error suppression with proper error logging throughout codebase
-- Stale stylesheet references by capturing at call time instead of render time
-- Cross-platform path comparison issues with normalizePath() and case-insensitive comparisons
-- Preview cache not invalidating on all setting changes by expanding hash computation
-- Race conditions in StatefulDecorationSet where updates dispatched to destroyed editors
-- Added multiple validation checkpoints to prevent operations on unloaded plugin or destroyed editors
-- Sorting comparator flip logic: `NEWEST_FIRST` now correctly reverses order, `OLDEST_FIRST` preserves natural ascending order
-- Race condition in `triggerUpdates` where concurrent file updates would cancel each other's timeouts
-- Memory leak by cleaning up React roots when files are renamed or deleted (both `updateInfluxInPreview` and `handlePreviewMode`)
-- Stale React root reuse in InfluxWidget by using container as WeakMap key
-- Cascading failures in `Promise.all` by adding error handling for individual file processing with user warning
-- Invalid regex patterns causing repeated error logging by caching sentinel values
-- Undefined `titleLineNum` by using nullish coalescing for explicit initialization
-- Inefficient DOM query in `cleanupReactRoots` by using direct child selector
-- Missing cleanup in `asyncViewPlugin.destroy()` by cancelling debounced callback
-- Empty document check to use exact equality (`=== 0`) for clarity
-- Editing mode not displaying Influx widget due to strict state equality check blocking decoration updates
-- Settings access in `ApiAdapter.getSettings()` - changed from broken `app.plugins.plugins.influx.data.settings` path to direct `plugin.data.settings` access
-- Initialization order in `onload()` - moved `loadDataInitially()` before stylesheet creation to ensure settings are available
-- PreviewManager creating duplicate ApiAdapter instances - now reuses `plugin.api` for consistency and caching benefits
-- Race conditions in StatefulDecorationSet where updates dispatched to destroyed editors
-- Added multiple validation checkpoints to prevent operations on unloaded plugin or destroyed editors
-- Sorting comparator flip logic: `NEWEST_FIRST` now correctly reverses order, `OLDEST_FIRST` preserves natural ascending order
-- Race condition in `triggerUpdates` where concurrent file updates would cancel each other's timeouts
-- Memory leak by cleaning up React roots when files are renamed or deleted (both `updateInfluxInPreview` and `handlePreviewMode`)
-- Stale React root reuse in InfluxWidget by using container as WeakMap key
-- Cascading failures in `Promise.all` by adding error handling for individual file processing with user warning
-- Invalid regex patterns causing repeated error logging by caching sentinel values
-- Undefined `titleLineNum` by using nullish coalescing for explicit initialization
-- Inefficient DOM query in `cleanupReactRoots` by using direct child selector
-- Missing cleanup in `asyncViewPlugin.destroy()` by cancelling debounced callback
-- Empty document check to use exact equality (`=== 0`) for clarity
-- Editing mode not displaying Influx widget due to strict state equality check blocking decoration updates
-- Settings access in `ApiAdapter.getSettings()` - changed from broken `app.plugins.plugins.influx.data.settings` path to direct `plugin.data.settings` access
-- Initialization order in `onload()` - moved `loadDataInitially()` before stylesheet creation to ensure settings are available
-- PreviewManager creating duplicate ApiAdapter instances - now reuses `plugin.api` for consistency and caching benefits
-- CSS management complexity - consolidated all JSS styles into `styles.css`
+- Memory leaks in roots, preview cache state, and window-scoped references
+- Race conditions across async updates, mode transitions, and decoration updates
+- Rendering regressions when switching between editor and reading modes
+- Callout rendering issues, including empty SVG icon output during post-processing
+- Cross-platform path comparison and normalization issues
 
 ## [2.3.1] - 2025-01-30
 
