@@ -1,5 +1,5 @@
 import { normalizePath } from 'obsidian';
-import { logger } from './logger';
+import { logger } from '../platform/diagnostics/logger';
 
 export class CollapsedStateManager {
 	private collapsedPaths = new Set<string>();

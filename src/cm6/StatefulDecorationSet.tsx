@@ -4,11 +4,11 @@ import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
-import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
-import type { MinimalPluginInterface } from '../utils/typeGuard';
+import { getPlugin, isPluginUnloading } from '../platform/obsidian/plugin-window-guards';
+import type { MinimalPluginInterface } from '../platform/obsidian/plugin-window-guards';
 import { ApiAdapter } from '../apiAdapter';
 import type ObsidianInflux from '../app/InfluxPlugin';
-import { recordMetric } from '../utils/metrics';
+import { recordMetric } from '../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../settings-hash-utils';
 
 

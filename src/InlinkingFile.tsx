@@ -3,7 +3,7 @@ import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
 import { StructuredText } from './StructuredText';
 import { CONSTANTS } from './constants';
-import { cacheManager, SummaryCacheValue } from './state/CacheManager';
+import { cacheManager, SummaryCacheValue } from './platform/cache/CacheManager';
 
 
 export class InlinkingFile {

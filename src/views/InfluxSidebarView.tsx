@@ -4,9 +4,9 @@ import * as React from 'react';
 import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import type ObsidianInflux from '../app/InfluxPlugin';
-import { logger } from '../utils/logger';
+import { logger } from '../platform/diagnostics/logger';
 import { CONSTANTS } from '../constants';
-import { recordMetric } from '../utils/metrics';
+import { recordMetric } from '../platform/diagnostics/metrics';
 
 export class InfluxSidebarView extends ItemView {
 	private currentFile: TFile | null = null;

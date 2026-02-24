@@ -4,7 +4,7 @@ import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { CONSTANTS } from '../constants';
-import { rootManager } from '../react/RootManager';
+import { rootManager } from '../platform/react/RootManager';
 import type ObsidianInflux from '../app/InfluxPlugin';
 import { computeSettingsHash } from '../settings-hash-utils';
 

@@ -3,13 +3,13 @@ import InfluxFile from '../../InfluxFile';
 import type { ExtendedInlinkingFile } from '../../domain/backlinks/types';
 import { ObsidianInfluxSettings } from '../../types';
 import { CONSTANTS } from '../../constants';
-import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
+import { influxUpdates$, InfluxUpdateEvent } from '../../app/events/influx-updates';
 import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './InfluxErrorBoundary';
 import MarkdownMount from './MarkdownMount';
 import type ObsidianInflux from '../../app/InfluxPlugin';
-import { debounce } from '../../utils/debounce';
-import { recordMetric } from '../../utils/metrics';
+import { debounce } from '../../shared/async/debounce';
+import { recordMetric } from '../../platform/diagnostics/metrics';
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 

@@ -1,5 +1,5 @@
 import { Root } from 'react-dom/client';
-import { logger } from '../utils/logger';
+import { logger } from '../diagnostics/logger';
 
 export type RootType = 'preview' | 'editor' | 'sidebar';
 

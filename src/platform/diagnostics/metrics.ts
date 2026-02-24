@@ -1,4 +1,4 @@
-import type { ObsidianInfluxSettings } from '../types/settings';
+import type { ObsidianInfluxSettings } from '../../types/settings';
 import { isDebugMode } from './debug-mode';
 
 export type MetricMode = 'editor' | 'preview' | 'sidebar' | 'shared';

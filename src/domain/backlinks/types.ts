@@ -1,11 +1,6 @@
-import type { LinkCache } from 'obsidian';
 import type { InlinkingFile } from '../../InlinkingFile';
 
-export type BacklinksData = Map<string, LinkCache[]> | Record<string, LinkCache[]>;
-
-export interface BacklinksObject {
-	data: BacklinksData;
-}
+export type { BacklinksObject } from '../../types/backlinks';
 
 export interface ExtendedInlinkingFile {
 	inlinkingFile: InlinkingFile;

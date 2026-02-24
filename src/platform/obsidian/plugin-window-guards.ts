@@ -3,9 +3,9 @@
  * Replaces unsafe 'as any' casts with proper runtime validation
  */
 
-import { logger } from './logger';
-import type { BacklinksObject } from '../domain/backlinks/types';
-import type { ObsidianInfluxSettings } from '../types/settings';
+import { logger } from '../diagnostics/logger';
+import type { BacklinksObject } from '../../types/backlinks';
+import type { ObsidianInfluxSettings } from '../../types/settings';
 
 /**
  * Minimal interface for plugin type validation

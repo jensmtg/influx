@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { logger } from '../../utils/logger';
+import { logger } from '../../platform/diagnostics/logger';
 
 interface Props {
 	children: React.ReactNode;

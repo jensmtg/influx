@@ -1,8 +1,8 @@
 import { App, TFile, CachedMetadata, LinkCache, Component } from 'obsidian';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
 import type ObsidianInflux from './app/InfluxPlugin';
-import { logger } from './utils/logger';
-import type { BacklinksObject } from './domain/backlinks/types';
+import { logger } from './platform/diagnostics/logger';
+import type { BacklinksObject } from './types/backlinks';
 import {
     processFrontmatterLinks,
     filterFrontmatterLinksFromBacklinks
@@ -14,8 +14,8 @@ import {
     shouldCollapseInfluxWithMatcher,
     type FilterSettings
 } from './settings-utils';
-import { cacheManager } from './state/CacheManager';
-import { recordMetric } from './utils/metrics';
+import { cacheManager } from './platform/cache/CacheManager';
+import { recordMetric } from './platform/diagnostics/metrics';
 
 export class ApiAdapter extends Component {
     app: App;
