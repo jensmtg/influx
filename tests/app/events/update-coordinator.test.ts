@@ -1,10 +1,10 @@
-import { CONSTANTS } from '../../src/constants';
-import { UpdateCoordinator } from '../../src/utils/UpdateCoordinator';
-import { logger } from '../../src/utils/logger';
+import { CONSTANTS } from '@/config/constants';
+import { UpdateCoordinator } from '@/app/events/update-coordinator';
+import { logger } from '@/platform/diagnostics/logger';
 
 jest.useFakeTimers();
 
-jest.mock('../../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

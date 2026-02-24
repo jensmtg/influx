@@ -1,8 +1,8 @@
-import { InlinkingFile } from '../src/InlinkingFile';
-import { cacheManager } from '../src/state/CacheManager';
-import { mockTFile } from './mocks';
+import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
+import { cacheManager } from '@/platform/cache/cache-manager';
+import { mockTFile } from '../../mocks';
 
-jest.mock('../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
 	logger: {
 		debug: jest.fn(),
 		info: jest.fn(),

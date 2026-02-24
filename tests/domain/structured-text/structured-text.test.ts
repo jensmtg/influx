@@ -1,4 +1,4 @@
-import { ModeType, StructuredText } from "../src/StructuredText";
+import { ModeType, StructuredText } from '@/domain/structured-text/structured-text';
 
 // Helper function to check if a value is empty (undefined or empty array)
 const isEmpty = (val: unknown): boolean => {

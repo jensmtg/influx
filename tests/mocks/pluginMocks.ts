@@ -3,7 +3,7 @@
  * Provides minimal plugin functionality for testing
  */
 
-import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from '../../src/types/settings';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS } from '@/types/settings';
 import { mockApp } from './obsidianMocks';
 
 export const mockPluginSettings = {

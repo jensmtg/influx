@@ -13,7 +13,7 @@ import {
     isIncludableSourceWithMatcher,
     shouldCollapseInfluxWithMatcher,
     type FilterSettings,
-} from '../src/settings-utils';
+} from '@/domain/settings/filtering';
 
 const createSettings = (overrides: Partial<FilterSettings> = {}): FilterSettings => ({
     showBehaviour: 'OPT_OUT',

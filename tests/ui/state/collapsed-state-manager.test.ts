@@ -1,7 +1,7 @@
-import { CollapsedStateManager } from '../../src/utils/CollapsedStateManager';
-import { logger } from '../../src/utils/logger';
+import { CollapsedStateManager } from '@/ui/state/collapsed-state-manager';
+import { logger } from '@/platform/diagnostics/logger';
 
-jest.mock('../../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         error: jest.fn(),
         info: jest.fn(),

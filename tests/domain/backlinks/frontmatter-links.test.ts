@@ -1,5 +1,5 @@
 import { CachedMetadata, FrontmatterLinkCache, LinkCache } from 'obsidian';
-import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../src/types';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '@/types';
 import {
     validateFrontmatterProperties,
     convertFrontmatterLinkToLinkCache,
@@ -7,9 +7,9 @@ import {
     mergeConvertedLinksIntoBacklinks,
     processFrontmatterLinks,
     filterFrontmatterLinksFromBacklinks,
-} from '../src/frontmatter-utils';
+} from '@/domain/backlinks/frontmatter-links';
 
-jest.mock('../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

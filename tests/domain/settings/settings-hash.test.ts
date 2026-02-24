@@ -1,5 +1,5 @@
-import { computeSettingsHash } from '../src/settings-hash-utils';
-import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../src/types';
+import { computeSettingsHash } from '@/domain/settings/settings-hash';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '@/types';
 
 const createSettings = (
     overrides: Partial<ObsidianInfluxSettings> = {}

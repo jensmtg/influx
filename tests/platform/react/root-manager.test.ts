@@ -1,8 +1,8 @@
 import type { Root } from 'react-dom/client';
-import { rootManager } from '../../src/react/RootManager';
-import { asHTMLElement, createFakeElement } from '../helpers/fake-dom';
+import { rootManager } from '@/platform/react/root-manager';
+import { asHTMLElement, createFakeElement } from '../../helpers/fake-dom';
 
-jest.mock('../../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
 	logger: {
 		error: jest.fn(),
 		info: jest.fn(),

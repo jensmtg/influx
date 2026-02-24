@@ -1,4 +1,4 @@
-import { clearMetrics, recordMetric, summarizeMetrics } from '../../src/utils/metrics';
+import { clearMetrics, recordMetric, summarizeMetrics } from '@/platform/diagnostics/metrics';
 
 describe('metrics utilities', () => {
 	beforeEach(() => {

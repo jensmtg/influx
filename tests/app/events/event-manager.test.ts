@@ -1,9 +1,9 @@
 import { TAbstractFile } from 'obsidian';
-import { EventManager } from '../../src/managers/EventManager';
-import { mockTFile } from '../mocks';
-import { recordMetric } from '../../src/utils/metrics';
+import { EventManager } from '@/app/events/event-manager';
+import { mockTFile } from '../../mocks';
+import { recordMetric } from '@/platform/diagnostics/metrics';
 
-jest.mock('../../src/utils/metrics', () => ({
+jest.mock('@/platform/diagnostics/metrics', () => ({
     recordMetric: jest.fn(),
 }));
 

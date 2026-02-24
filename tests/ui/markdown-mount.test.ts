@@ -1,4 +1,4 @@
-import { prepareMarkdownForInflux } from '../../src/components/ui/MarkdownMount';
+import { prepareMarkdownForInflux } from '@/ui/markdown-mount';
 
 describe('prepareMarkdownForInflux', () => {
 	test('should keep markdown unchanged when no query fence is present', () => {

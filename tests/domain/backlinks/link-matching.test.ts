@@ -1,5 +1,5 @@
 import { LinkCache } from 'obsidian';
-import { extractLinkName, compareLinkName, filterLinksByBasename } from '../src/link-utils';
+import { extractLinkName, compareLinkName, filterLinksByBasename } from '@/domain/backlinks/link-matching';
 
 const link = (value: string): LinkCache => ({
     link: value,

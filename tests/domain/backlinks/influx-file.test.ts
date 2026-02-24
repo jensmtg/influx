@@ -1,10 +1,10 @@
 import { CachedMetadata } from 'obsidian';
-import InfluxFile from '../../src/InfluxFile';
-import { InlinkingFile } from '../../src/InlinkingFile';
-import { DEFAULT_SETTINGS } from '../../src/types';
-import { mockTFile } from '../mocks';
+import InfluxFile from '@/domain/backlinks/influx-file';
+import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
+import { DEFAULT_SETTINGS } from '@/types';
+import { mockTFile } from '../../mocks';
 
-jest.mock('../../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

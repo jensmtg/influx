@@ -1,7 +1,7 @@
-import { Observable } from '../../src/utils/Observable';
-import { logger } from '../../src/utils/logger';
+import { Observable } from '@/app/events/influx-updates';
+import { logger } from '@/platform/diagnostics/logger';
 
-jest.mock('../../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

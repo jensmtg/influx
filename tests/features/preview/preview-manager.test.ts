@@ -1,6 +1,6 @@
-import { PreviewManager } from '../../src/managers/PreviewManager';
-import { rootManager } from '../../src/react/RootManager';
-import { CONSTANTS } from '../../src/constants';
+import { PreviewManager } from '@/features/preview/preview-manager';
+import { rootManager } from '@/platform/react/root-manager';
+import { CONSTANTS } from '@/config/constants';
 
 describe('PreviewManager', () => {
 	const originalDocument = (globalThis as { document?: Document }).document;

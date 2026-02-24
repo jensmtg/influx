@@ -1,7 +1,7 @@
-import { InfluxCacheManager } from '../../src/state/CacheManager';
-import { mockTFile } from '../mocks';
+import { InfluxCacheManager } from '@/platform/cache/cache-manager';
+import { mockTFile } from '../../mocks';
 
-jest.mock('../../src/utils/logger', () => ({
+jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

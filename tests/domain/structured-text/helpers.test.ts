@@ -8,7 +8,7 @@ import {
     padToNodeId,
     stripBulletMarker,
     stripOrdinalMarker,
-} from '../src/utils/structured-text-utils';
+} from '@/domain/structured-text/helpers';
 
 describe('structured-text-utils', () => {
     describe('lastNonEmptyElement', () => {

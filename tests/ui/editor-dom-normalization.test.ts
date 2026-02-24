@@ -1,7 +1,7 @@
 import {
 	headingLevelFromTagName,
 	normalizeEditorListItems,
-} from '../../src/components/ui/editor-dom-normalization';
+} from '@/ui/editor-dom-normalization';
 import {
 	asHTMLElement,
 	createFakeElement,
