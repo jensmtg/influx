@@ -1,7 +1,7 @@
 import { TFile, normalizePath } from 'obsidian';
 import { ObsidianInfluxSettings } from '../types/settings';
 import { logger } from '../utils/logger';
-import type { BacklinksObject } from '../apiAdapter';
+import type { BacklinksObject } from '../domain/backlinks/types';
 
 /**
  * Centralized cache management for Influx plugin

@@ -7,7 +7,7 @@ import { statefulDecorations } from "./helpers";
 import { getPlugin, isPluginUnloading } from '../utils/typeGuard';
 import type { MinimalPluginInterface } from '../utils/typeGuard';
 import { ApiAdapter } from '../apiAdapter';
-import type ObsidianInflux from '../main';
+import type ObsidianInflux from '../app/InfluxPlugin';
 import { recordMetric } from '../utils/metrics';
 import { computeSettingsHash } from '../settings-hash-utils';
 

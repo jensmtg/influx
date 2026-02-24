@@ -3,7 +3,7 @@ import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../components/ui/InfluxReactComponent';
-import type ObsidianInflux from '../main';
+import type ObsidianInflux from '../app/InfluxPlugin';
 import { logger } from '../utils/logger';
 import { CONSTANTS } from '../constants';
 import { recordMetric } from '../utils/metrics';

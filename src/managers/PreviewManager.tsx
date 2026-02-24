@@ -6,7 +6,7 @@ import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
-import type ObsidianInflux from '../main';
+import type ObsidianInflux from '../app/InfluxPlugin';
 import { computeSettingsHash } from '../settings-hash-utils';
 import { cacheManager } from '../state/CacheManager';
 import { recordMetric } from '../utils/metrics';

@@ -1,5 +1,5 @@
 import { TAbstractFile, TFile, WorkspaceLeaf, View } from 'obsidian';
-import type ObsidianInflux from '../main';
+import type ObsidianInflux from '../app/InfluxPlugin';
 import { recordMetric } from '../utils/metrics';
 
 type ModeLabel = 'preview' | 'editor' | 'other';

@@ -1,5 +1,6 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
-import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
+import { ApiAdapter } from './apiAdapter';
+import type { BacklinksObject, ExtendedInlinkingFile } from './domain/backlinks/types';
 import { InlinkingFile } from './InlinkingFile';
 import { logger } from './utils/logger';
 import { mapWithConcurrency } from './utils/concurrency';

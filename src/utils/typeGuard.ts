@@ -4,7 +4,7 @@
  */
 
 import { logger } from './logger';
-import type { BacklinksObject } from '../apiAdapter';
+import type { BacklinksObject } from '../domain/backlinks/types';
 import type { ObsidianInfluxSettings } from '../types/settings';
 
 /**

@@ -1,8 +1,8 @@
 import { App, TFile, CachedMetadata, LinkCache, Component } from 'obsidian';
-import type { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
-import ObsidianInflux from './main';
+import type ObsidianInflux from './app/InfluxPlugin';
 import { logger } from './utils/logger';
+import type { BacklinksObject } from './domain/backlinks/types';
 import {
     processFrontmatterLinks,
     filterFrontmatterLinksFromBacklinks
@@ -16,14 +16,6 @@ import {
 } from './settings-utils';
 import { cacheManager } from './state/CacheManager';
 import { recordMetric } from './utils/metrics';
-
-export type BacklinksObject = { data: Map<string, LinkCache[]> | { [key: string]: LinkCache[] } }
-export type ExtendedInlinkingFile = {
-    inlinkingFile: InlinkingFile;
-    titleText: string;
-    summaryMarkdown: string;
-    sourcePath: string;
-}
 
 export class ApiAdapter extends Component {
     app: App;

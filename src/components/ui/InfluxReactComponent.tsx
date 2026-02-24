@@ -1,13 +1,13 @@
 import * as React from 'react';
 import InfluxFile from '../../InfluxFile';
-import { ExtendedInlinkingFile } from '../../apiAdapter';
+import type { ExtendedInlinkingFile } from '../../domain/backlinks/types';
 import { ObsidianInfluxSettings } from '../../types';
 import { CONSTANTS } from '../../constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../utils/Observable';
 import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
 import { InfluxErrorBoundary } from './InfluxErrorBoundary';
 import MarkdownMount from './MarkdownMount';
-import type ObsidianInflux from '../../main';
+import type ObsidianInflux from '../../app/InfluxPlugin';
 import { debounce } from '../../utils/debounce';
 import { recordMetric } from '../../utils/metrics';
 

@@ -1,20 +1,20 @@
 import { Plugin, TAbstractFile, TFile } from 'obsidian';
-import { ObsidianInfluxSettingsTab } from './settings';
-import { asyncDecoBuilderExt } from './cm6/asyncViewPlugin';
-import { ApiAdapter } from './apiAdapter';
-import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from './types';
-import { CONSTANTS } from './constants';
-import { logger } from './utils/logger';
-import { rootManager } from './react/RootManager';
-import { updateCoordinator } from './utils/UpdateCoordinator';
-import { influxUpdates$ } from './utils/Observable';
-import { EventManager } from './managers/EventManager';
-import { PreviewManager } from './managers/PreviewManager';
-import { InfluxSidebarView } from './views/InfluxSidebarView';
-import { cleanupWindowGlobals } from './utils/typeGuard';
-import { cacheManager } from './state/CacheManager';
-import { clearMetrics, getMetrics, summarizeMetrics } from './utils/metrics';
-import { isDebugMode } from './utils/debug-mode';
+import { ObsidianInfluxSettingsTab } from '../settings';
+import { asyncDecoBuilderExt } from '../cm6/asyncViewPlugin';
+import { ApiAdapter } from '../apiAdapter';
+import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from '../types';
+import { CONSTANTS } from '../constants';
+import { logger } from '../utils/logger';
+import { rootManager } from '../react/RootManager';
+import { updateCoordinator } from '../utils/UpdateCoordinator';
+import { influxUpdates$ } from '../utils/Observable';
+import { EventManager } from '../managers/EventManager';
+import { PreviewManager } from '../managers/PreviewManager';
+import { InfluxSidebarView } from '../views/InfluxSidebarView';
+import { cleanupWindowGlobals } from '../utils/typeGuard';
+import { cacheManager } from '../state/CacheManager';
+import { clearMetrics, getMetrics, summarizeMetrics } from '../utils/metrics';
+import { isDebugMode } from '../utils/debug-mode';
 
 
 export default class ObsidianInflux extends Plugin {
