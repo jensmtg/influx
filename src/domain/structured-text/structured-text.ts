@@ -1,9 +1,9 @@
-import { buildAncestorsAndDescendantsIndexes, buildRoots } from './utils/structured-text-graph';
-import { parseText } from './utils/structured-text-parser';
+import { buildAncestorsAndDescendantsIndexes, buildRoots } from './graph';
+import { parseText } from './parser';
 import {
     stringify as stringifyStructuredText,
     stringifyBranchesOfNodesWithLinks
-} from './utils/structured-text-stringify';
+} from './stringify';
 import type {
     AncestorsIndex,
     ChildrenIndex,
@@ -14,8 +14,8 @@ import type {
     ParentsIndex,
     RootsIndex,
     StructuredTextState
-} from './types/structured-text';
-export { ModeType, NodeType } from './types/structured-text';
+} from './types';
+export { ModeType, NodeType } from './types';
 export type {
     ExplicitIncludes,
     NodeId,
@@ -26,7 +26,7 @@ export type {
     DescendantsIndex,
     AncestorsIndex,
     RootsIndex
-} from './types/structured-text';
+} from './types';
 
 export class StructuredText {
 

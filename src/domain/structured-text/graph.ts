@@ -4,7 +4,7 @@ import type {
     InternalsIndex,
     ParentsIndex,
     RootsIndex,
-} from '../types/structured-text';
+} from './types';
 
 export function buildAncestorsAndDescendantsIndexes(
     internals: InternalsIndex,

@@ -1,5 +1,5 @@
-import type { ExplicitIncludes, NodeId, StructuredTextState } from '../types/structured-text';
-import { ModeType, NodeType } from '../types/structured-text';
+import type { ExplicitIncludes, NodeId, StructuredTextState } from './types';
+import { ModeType, NodeType } from './types';
 import {
     NODE_ID_PAD_LENGTH,
     OUTPUT_BULLET,
@@ -7,7 +7,7 @@ import {
     OUTPUT_INDENT_STEP,
     OUTPUT_ORDINAL_SIGN,
     OUTPUT_QUOTE,
-} from './structured-text-constants';
+} from './constants';
 
 export function stringify(state: StructuredTextState, explIncludes?: ExplicitIncludes): string {
     let str = '';

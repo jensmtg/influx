@@ -1,7 +1,7 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter } from './apiAdapter';
 import InfluxFile from './InfluxFile';
-import { StructuredText } from './StructuredText';
+import { StructuredText } from './domain/structured-text/structured-text';
 import { CONSTANTS } from './constants';
 import { cacheManager, SummaryCacheValue } from './platform/cache/CacheManager';
 

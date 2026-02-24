@@ -5,8 +5,8 @@ import type {
     ParentsIndex,
     ParsedText,
     RootsIndex,
-} from '../types/structured-text';
-import { ModeType, NodeType } from '../types/structured-text';
+} from './types';
+import { ModeType, NodeType } from './types';
 import {
     BULLET_SIGN,
     CALLOUT_HEADER_SIGN,
@@ -16,7 +16,7 @@ import {
     QUOTE_SIGN,
     TABLE_INDENT_INITIAL,
     TABLE_INDENT_SUBSEQUENT,
-} from './structured-text-constants';
+} from './constants';
 import {
     calculateLeadingIndent,
     generateNodeId,
@@ -24,7 +24,7 @@ import {
     isProperBullet,
     lastNonEmptyElement,
     parseMarkdownTableRow,
-} from './structured-text-utils';
+} from './helpers';
 
 export function parseText(text: string): ParsedText {
     const lines = text.split('\n');
