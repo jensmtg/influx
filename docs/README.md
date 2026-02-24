@@ -10,12 +10,12 @@ Obsidian's core backlinks show *that* notes are connected. Influx shows *how* th
 
 Perfect for:
 
-- **Academic research**: Trace ideas and sources across your knowledge base
-- **Knowledge management**: Build interconnected webs of understanding
-- **Creative writing**: Track themes, characters, and plot development
-- **Personal learning**: Discover unexpected connections in your notes
+- **Research notes**: Review surrounding context instead of jumping through files
+- **Knowledge management**: Keep backlinks usable as your vault grows
+- **Writing workflows**: Check linked references without leaving the current note
+- **Focused setups**: Control where Influx appears and which sources are included
 
-This guide covers everything from basic setup to advanced customization.
+This guide covers setup and the settings available in the current plugin.
 
 ## Quick Start
 
@@ -40,22 +40,19 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 ### Layout Settings
 
-- **Layout variant**: `Continous stream` or `Note by note`
-  - *Continous stream*: Better for skimming
-  - *Note by note*: Better source separation
+- **Layout variant**: `Continuous stream` or `Note by note`
 
 - **Show Influx below text**: Place Influx below the note body or at the top
 
-- **Show headers**: Include first heading/frontmatter title from source notes
+- **Show headers**: Show a source title when available
 
 ### Filtering
 
-- **Exclude Files**: Hide backlinks from specific files or folders
-  - *Common exclusions*: Templates, daily notes, archived content
-  - *Example pattern*: `templates/` or `daily-notes/`
+- **Target pages (where Influx is shown)**:
+  - `Default behaviour` + `Exclude pages`/`Include pages` patterns
 
-- **Include Only**: Show backlinks only from selected sources
-  - *Use case*: Focus on specific project folders or research areas
+- **Source notes (where backlinks are gathered from)**:
+  - `Default behaviour` + `Exclude notes`/`Include notes` patterns
 
 - **Require frontmatter key**: Only show Influx on notes with `influx: true`
 - **Collapse all by default**: Start every note with backlink entries collapsed
@@ -73,11 +70,7 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 - List length: `15`
 - Layout variant: `Note by note`
 
-**Benefits**:
-
-- Trace how different papers cite the same sources
-- See the context around citations to understand relevance
-- Discover connections between related concepts across your research notes
+This setup prioritizes recently edited sources and keeps each source grouped.
 
 ### Knowledge Management
 
@@ -87,14 +80,10 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 - Sorting attribute: `FILENAME`
 - Sorting principle: `NEWEST_FIRST`
-- List length: `10`
+- List length: `25`
 - Display location: `Sidebar`
 
-**Benefits**:
-
-- See how your understanding of concepts evolved over time
-- Connect beginner concepts to advanced applications
-- Build a web of understanding that shows relationships, not just links
+This setup gives stable ordering by note name and keeps results visible in one panel.
 
 ### Creative Writing
 
@@ -104,14 +93,10 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 
 - Sorting attribute: `mtime`
 - Sorting principle: `NEWEST_FIRST`
-- List length: `8`
+- List length: `10`
 - Collapse all by default: `Enabled`
 
-**Benefits**:
-
-- Track character traits across different chapters
-- See how plot points connect and build on each other
-- Maintain consistency in themes and motifs throughout your story
+This setup keeps the list compact and reduces initial visual noise.
 
 ## Advanced Features
 
@@ -120,33 +105,30 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 Add custom styles to match your Obsidian theme:
 
 ```css
-/* Make excerpts more subtle */
-.influx-excerpt {
-  font-style: italic;
-  color: var(--text-muted);
+/* Source file row */
+.influx-component .search-result-file-title {
+  font-weight: 600;
 }
 
-/* Highlight the source file */
-.influx-source {
-  font-weight: 600;
-  color: var(--text-accent);
+/* Individual excerpt block */
+.influx-entry {
+  margin-bottom: 0.5rem;
 }
 
 /* Compact spacing for mobile */
 @media (max-width: 768px) {
-  .influx-item {
-    margin-bottom: 0.5rem;
+  .influx-component .search-result-file-matches {
+    margin-left: 0.75rem;
   }
 }
 ```
 
 ### Front Matter Integration
 
-Influx automatically processes links from YAML front matter, allowing you to:
+Influx can include links from front matter when **Include links from front matter properties** is enabled.
 
-- Track metadata connections (tags, categories, projects)
-- See relationships defined in your note properties
-- Discover connections through structured data
+- Use **Front matter properties** to limit processing to specific property names.
+- Leave **Front matter properties** empty to consider links from all front matter properties.
 
 **Example front matter**:
 
@@ -181,18 +163,18 @@ For large vaults or optimal performance:
 - Exclude large folders from indexing
 - Disable live update while editing large notes
 
-## Contributing
-
-Found a bug or have a feature request? Please [open an issue](https://github.com/jensmtg/influx/issues) on GitHub.
-
-See [CONTRIBUTING](CONTRIBUTING.md) for more information.
-
 ## Project Maintainers
 
 **Current Maintainer**: [@semanticdata](https://github.com/semanticdata) (Miguel Pimentel)
 
 **Original Creator**: [@jensmtg](https://github.com/jensmtg) (Jens M Gleditsch)
 
-## Changelog
+## Contributing <!-- {docsify-ignore} -->
 
-See the [Changelog](CHANGELOG.md) for version history and updates.
+Found a bug or have a feature request? Please [open an issue](https://github.com/jensmtg/influx/issues) on GitHub.
+
+See [CONTRIBUTING](/Contributing) for more detailed information.
+
+## Changelog <!-- {docsify-ignore} -->
+
+See the [Changelog](/Changelog) for version history and updates.
