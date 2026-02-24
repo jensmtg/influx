@@ -1,8 +1,8 @@
 import { EditorView, ViewUpdate, ViewPlugin } from "@codemirror/view";
-import { StatefulDecorationSet } from "./StatefulDecorationSet";
-import { statefulDecorations } from "./helpers";
+import { StatefulDecorationSet } from "./stateful-decoration-set";
+import { statefulDecorations } from "./decoration-state";
 import { debounce, editorViewField } from "obsidian";
-import { CONSTANTS } from '../constants';
+import { CONSTANTS } from '../../../constants';
 
 
 const asyncViewPlugin = ViewPlugin.fromClass(

@@ -1,12 +1,12 @@
 import { ItemView, TFile, WorkspaceLeaf, Editor, MarkdownView, MarkdownFileInfo } from 'obsidian';
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
-import InfluxFile from '../domain/backlinks/influx-file';
-import InfluxReactComponent from '../components/ui/InfluxReactComponent';
-import type ObsidianInflux from '../app/InfluxPlugin';
-import { logger } from '../platform/diagnostics/logger';
-import { CONSTANTS } from '../constants';
-import { recordMetric } from '../platform/diagnostics/metrics';
+import InfluxFile from '../../domain/backlinks/influx-file';
+import InfluxReactComponent from '../../ui/influx-react-component';
+import type ObsidianInflux from '../../app/InfluxPlugin';
+import { logger } from '../../platform/diagnostics/logger';
+import { CONSTANTS } from '../../constants';
+import { recordMetric } from '../../platform/diagnostics/metrics';
 
 export class InfluxSidebarView extends ItemView {
 	private currentFile: TFile | null = null;

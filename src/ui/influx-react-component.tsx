@@ -1,15 +1,15 @@
 import * as React from 'react';
-import InfluxFile from '../../domain/backlinks/influx-file';
-import type { ExtendedInlinkingFile } from '../../domain/backlinks/types';
-import { ObsidianInfluxSettings } from '../../types';
-import { CONSTANTS } from '../../constants';
-import { influxUpdates$, InfluxUpdateEvent } from '../../app/events/influx-updates';
-import { CollapsedStateManager } from '../../utils/CollapsedStateManager';
-import { InfluxErrorBoundary } from './InfluxErrorBoundary';
-import MarkdownMount from './MarkdownMount';
-import type ObsidianInflux from '../../app/InfluxPlugin';
-import { debounce } from '../../shared/async/debounce';
-import { recordMetric } from '../../platform/diagnostics/metrics';
+import InfluxFile from '../domain/backlinks/influx-file';
+import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
+import { ObsidianInfluxSettings } from '../types';
+import { CONSTANTS } from '../constants';
+import { influxUpdates$, InfluxUpdateEvent } from '../app/events/influx-updates';
+import { CollapsedStateManager } from './state/collapsed-state-manager';
+import { InfluxErrorBoundary } from './influx-error-boundary';
+import MarkdownMount from './markdown-mount';
+import type ObsidianInflux from '../app/InfluxPlugin';
+import { debounce } from '../shared/async/debounce';
+import { recordMetric } from '../platform/diagnostics/metrics';
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 

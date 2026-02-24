@@ -1,9 +1,9 @@
-import type ObsidianInflux from './app/InfluxPlugin';
+import type ObsidianInflux from '../../app/InfluxPlugin';
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
-import type { ObsidianInfluxSettings } from './types';
-import { logger } from './platform/diagnostics/logger';
-import { validateYamlPropertyNames } from './domain/settings/filtering';
-import { isDebugMode, setDebugMode } from './platform/diagnostics/debug-mode';
+import type { ObsidianInfluxSettings } from '../../types';
+import { logger } from '../../platform/diagnostics/logger';
+import { validateYamlPropertyNames } from '../../domain/settings/filtering';
+import { isDebugMode, setDebugMode } from '../../platform/diagnostics/debug-mode';
 
 type PatternSettingName =
     | 'exclusionPattern'

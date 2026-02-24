@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Component, MarkdownRenderer } from 'obsidian';
-import { logger } from '../../platform/diagnostics/logger';
+import { logger } from '../platform/diagnostics/logger';
 import { normalizeEditorListItems } from './editor-dom-normalization';
 
 interface MarkdownMountProps {

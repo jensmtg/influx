@@ -37,6 +37,7 @@ export default tseslint.config(
 					patterns: [
 						{
 							group: ["**/app/**"],
+							allowTypeImports: true,
 							message: "Features must not import from app.",
 						},
 					],
