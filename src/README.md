@@ -1,6 +1,8 @@
 # Influx Source Architecture
 
-This document defines source-code boundaries for maintainability in 3.0.0+.
+This file defines source-code boundaries for maintainability in 3.0.0+.
+
+For test structure and testing conventions, see `tests/README.md`.
 
 ## Layering
 

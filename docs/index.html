@@ -36,19 +36,20 @@
     window.$docsify = {
       repo: 'jensmtg/influx',
       name: 'Obsidian Influx',
-       nameLink: '#',
+      nameLink: '#/#influx-documentation',
       coverpage: true,
       maxLevel: 2,
       auto2top: true,
       logo: './assets/logo.png',
       skipLink: true,
-      // subMaxLevel: 2,
+      loadSidebar: true,
+      subMaxLevel: 2,
       // search: 'auto',
       alias: {
-        '/CHANGELOG':
+        '/Changelog':
           'https://raw.githubusercontent.com/jensmtg/influx/master/CHANGELOG.md',
-        '/CONTRIBUTING':
-          'https://raw.githubusercontent.com/jensmtg/influx/master/CONTRIBUTING.md',
+        '/Contributing':
+          'https://raw.githubusercontent.com/jensmtg/influx/refs/heads/feat/improve-codebase/CONTRIBUTING.md',
       },
       // keyBindings: {
       //   myCustomBinding: {
