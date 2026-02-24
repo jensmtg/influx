@@ -1,12 +1,12 @@
 import { Decoration, WidgetType, EditorView } from "@codemirror/view";
-import InfluxFile from '../InfluxFile';
+import InfluxFile from '../domain/backlinks/influx-file';
 import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { CONSTANTS } from '../constants';
 import { rootManager } from '../platform/react/RootManager';
 import type ObsidianInflux from '../app/InfluxPlugin';
-import { computeSettingsHash } from '../settings-hash-utils';
+import { computeSettingsHash } from '../domain/settings/settings-hash';
 
 function defineInfluxElement(tagName: string): void {
     if (typeof customElements === 'undefined') {

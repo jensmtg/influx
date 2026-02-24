@@ -5,7 +5,7 @@
 
 import { CachedMetadata } from 'obsidian';
 
-export { compareLinkName } from './link-utils';
+export { compareLinkName } from '../backlinks/link-matching';
 
 export interface ValidationResult {
     valid: string[];

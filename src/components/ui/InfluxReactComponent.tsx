@@ -1,5 +1,5 @@
 import * as React from 'react';
-import InfluxFile from '../../InfluxFile';
+import InfluxFile from '../../domain/backlinks/influx-file';
 import type { ExtendedInlinkingFile } from '../../domain/backlinks/types';
 import { ObsidianInfluxSettings } from '../../types';
 import { CONSTANTS } from '../../constants';

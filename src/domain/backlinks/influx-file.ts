@@ -1,13 +1,13 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
-import { ApiAdapter } from './apiAdapter';
-import type { BacklinksObject, ExtendedInlinkingFile } from './domain/backlinks/types';
-import { InlinkingFile } from './InlinkingFile';
-import { logger } from './platform/diagnostics/logger';
-import { mapWithConcurrency } from './shared/async/concurrency';
-import { CONSTANTS } from './constants';
-import { DEFAULT_SETTINGS } from './types';
-import { recordMetric } from './platform/diagnostics/metrics';
-import { computeSettingsHash } from './settings-hash-utils';
+import { ApiAdapter } from './api-adapter';
+import type { BacklinksObject, ExtendedInlinkingFile } from './types';
+import { InlinkingFile } from './inlinking-file';
+import { logger } from '../../platform/diagnostics/logger';
+import { mapWithConcurrency } from '../../shared/async/concurrency';
+import { CONSTANTS } from '../../constants';
+import { DEFAULT_SETTINGS } from '../../types';
+import { recordMetric } from '../../platform/diagnostics/metrics';
+import { computeSettingsHash } from '../settings/settings-hash';
 
 
 export default class InfluxFile {

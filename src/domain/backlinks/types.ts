@@ -1,4 +1,4 @@
-import type { InlinkingFile } from '../../InlinkingFile';
+import type { InlinkingFile } from './inlinking-file';
 
 export type { BacklinksObject } from '../../types/backlinks';
 

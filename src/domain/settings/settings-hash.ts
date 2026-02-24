@@ -3,7 +3,7 @@
  * Extracted from PreviewManager for testability
  */
 
-import { ObsidianInfluxSettings } from './types';
+import { ObsidianInfluxSettings } from '../../types';
 
 /**
  * Computes a hash string from settings that determines if previews should re-render.

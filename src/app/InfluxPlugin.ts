@@ -1,7 +1,7 @@
 import { Plugin, TAbstractFile, TFile } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from '../settings';
 import { asyncDecoBuilderExt } from '../cm6/asyncViewPlugin';
-import { ApiAdapter } from '../apiAdapter';
+import { ApiAdapter } from '../domain/backlinks/api-adapter';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from '../types';
 import { CONSTANTS } from '../constants';
 import { logger } from '../platform/diagnostics/logger';

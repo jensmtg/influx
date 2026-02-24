@@ -2,7 +2,7 @@ import type ObsidianInflux from './app/InfluxPlugin';
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { ObsidianInfluxSettings } from './types';
 import { logger } from './platform/diagnostics/logger';
-import { validateYamlPropertyNames } from './settings-utils';
+import { validateYamlPropertyNames } from './domain/settings/filtering';
 import { isDebugMode, setDebugMode } from './platform/diagnostics/debug-mode';
 
 type PatternSettingName =

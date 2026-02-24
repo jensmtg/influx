@@ -4,9 +4,9 @@
  */
 
 import { FrontmatterLinkCache, LinkCache, CachedMetadata } from 'obsidian';
-import { ObsidianInfluxSettings } from './types';
-import { logger } from './platform/diagnostics/logger';
-import { compareLinkName } from './link-utils';
+import { ObsidianInfluxSettings } from '../../types';
+import { logger } from '../../platform/diagnostics/logger';
+import { compareLinkName } from './link-matching';
 
 type BacklinksData = Map<string, LinkCache[]> | Record<string, LinkCache[]>;
 type BacklinksContainer = { data: BacklinksData };

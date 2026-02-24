@@ -1,27 +1,32 @@
 import { App, TFile, CachedMetadata, LinkCache, Component } from 'obsidian';
-import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './types';
-import type ObsidianInflux from './app/InfluxPlugin';
-import { logger } from './platform/diagnostics/logger';
-import type { BacklinksObject } from './types/backlinks';
+import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../../types';
+import { logger } from '../../platform/diagnostics/logger';
+import type { BacklinksObject } from '../../types/backlinks';
 import {
     processFrontmatterLinks,
     filterFrontmatterLinksFromBacklinks
-} from './frontmatter-utils';
+} from './frontmatter-links';
 import {
     compareLinkName,
     shouldShowInfluxWithMatcher,
     isIncludableSourceWithMatcher,
     shouldCollapseInfluxWithMatcher,
     type FilterSettings
-} from './settings-utils';
-import { cacheManager } from './platform/cache/CacheManager';
-import { recordMetric } from './platform/diagnostics/metrics';
+} from '../settings/filtering';
+import { cacheManager } from '../../platform/cache/CacheManager';
+import { recordMetric } from '../../platform/diagnostics/metrics';
+
+interface SettingsOwner {
+	data?: {
+		settings?: ObsidianInfluxSettings;
+	};
+}
 
 export class ApiAdapter extends Component {
     app: App;
-    private plugin: ObsidianInflux;
+    private plugin: SettingsOwner;
 
-    constructor(app: App, plugin: ObsidianInflux) {
+    constructor(app: App, plugin: SettingsOwner) {
         super();
         this.app = app;
         this.plugin = plugin;

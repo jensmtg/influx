@@ -1,15 +1,15 @@
 import { editorViewField } from "obsidian";
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
 import { EditorState, Range } from "@codemirror/state";
-import InfluxFile from '../InfluxFile';
+import InfluxFile from '../domain/backlinks/influx-file';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
 import { getPlugin, isPluginUnloading } from '../platform/obsidian/plugin-window-guards';
 import type { MinimalPluginInterface } from '../platform/obsidian/plugin-window-guards';
-import { ApiAdapter } from '../apiAdapter';
+import { ApiAdapter } from '../domain/backlinks/api-adapter';
 import type ObsidianInflux from '../app/InfluxPlugin';
 import { recordMetric } from '../platform/diagnostics/metrics';
-import { computeSettingsHash } from '../settings-hash-utils';
+import { computeSettingsHash } from '../domain/settings/settings-hash';
 
 
 export class StatefulDecorationSet {

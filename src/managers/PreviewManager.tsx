@@ -1,13 +1,13 @@
 import { WorkspaceLeaf, View, TFile, MarkdownPostProcessorContext } from 'obsidian';
-import { ApiAdapter } from '../apiAdapter';
+import { ApiAdapter } from '../domain/backlinks/api-adapter';
 import { rootManager } from '../platform/react/RootManager';
 import { logger } from '../platform/diagnostics/logger';
-import InfluxFile from '../InfluxFile';
+import InfluxFile from '../domain/backlinks/influx-file';
 import InfluxReactComponent from '../components/ui/InfluxReactComponent';
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import type ObsidianInflux from '../app/InfluxPlugin';
-import { computeSettingsHash } from '../settings-hash-utils';
+import { computeSettingsHash } from '../domain/settings/settings-hash';
 import { cacheManager } from '../platform/cache/CacheManager';
 import { recordMetric } from '../platform/diagnostics/metrics';
 import { CONSTANTS } from '../constants';
