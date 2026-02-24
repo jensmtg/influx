@@ -29,6 +29,70 @@ export default tseslint.config(
 		},
 	},
 	{
+		files: ["src/features/**/*.{ts,tsx}"],
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					patterns: [
+						{
+							group: ["**/app/**"],
+							message: "Features must not import from app.",
+						},
+					],
+				},
+			],
+		},
+	},
+	{
+		files: ["src/domain/**/*.{ts,tsx}"],
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					patterns: [
+						{
+							group: ["**/app/**", "**/features/**"],
+							message: "Domain must not import from app or features.",
+						},
+					],
+				},
+			],
+		},
+	},
+	{
+		files: ["src/platform/**/*.{ts,tsx}"],
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					patterns: [
+						{
+							group: ["**/app/**", "**/features/**", "**/domain/**"],
+							message: "Platform must not depend on app, features, or domain.",
+						},
+					],
+				},
+			],
+		},
+	},
+	{
+		files: ["src/shared/**/*.{ts,tsx}"],
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					patterns: [
+						{
+							group: ["**/app/**", "**/features/**", "**/domain/**", "**/platform/**"],
+							message: "Shared must stay dependency-light and avoid app/features/domain/platform imports.",
+						},
+					],
+				},
+			],
+		},
+	},
+	{
 		files: ["**/*.test.ts"],
 		...jest.configs["flat/recommended"],
 		rules: {
