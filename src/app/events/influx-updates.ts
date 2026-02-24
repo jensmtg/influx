@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from '../../platform/diagnostics/logger';
 import { TFile } from 'obsidian';
 
 export type Observer<T> = (data: T) => void | Promise<void>;

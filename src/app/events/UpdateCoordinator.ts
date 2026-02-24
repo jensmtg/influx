@@ -1,5 +1,5 @@
-import { logger } from './logger';
-import { CONSTANTS } from '../constants';
+import { logger } from '../../platform/diagnostics/logger';
+import { CONSTANTS } from '../../constants';
 
 export interface UpdateOperation {
 	id: string;
