@@ -3,9 +3,9 @@ import InfluxFile from '../../../domain/backlinks/influx-file';
 import InfluxReactComponent from '../../../ui/influx-react-component';
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { CONSTANTS } from '../../../constants';
-import { rootManager } from '../../../platform/react/RootManager';
-import type ObsidianInflux from '../../../app/InfluxPlugin';
+import { CONSTANTS } from '../../../config/constants';
+import { rootManager } from '../../../platform/react/root-manager';
+import type ObsidianInflux from '../../../app/influx-plugin';
 import { computeSettingsHash } from '../../../domain/settings/settings-hash';
 
 function defineInfluxElement(tagName: string): void {

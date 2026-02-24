@@ -3,9 +3,9 @@ import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import InfluxFile from '../../domain/backlinks/influx-file';
 import InfluxReactComponent from '../../ui/influx-react-component';
-import type ObsidianInflux from '../../app/InfluxPlugin';
+import type ObsidianInflux from '../../app/influx-plugin';
 import { logger } from '../../platform/diagnostics/logger';
-import { CONSTANTS } from '../../constants';
+import { CONSTANTS } from '../../config/constants';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 
 export class InfluxSidebarView extends ItemView {

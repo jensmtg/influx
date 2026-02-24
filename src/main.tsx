@@ -1,1 +1,1 @@
-export { default } from './app/InfluxPlugin';
+export { default } from './app/influx-plugin';

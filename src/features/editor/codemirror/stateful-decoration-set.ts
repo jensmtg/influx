@@ -7,7 +7,7 @@ import { statefulDecorations } from "./decoration-state";
 import { getPlugin, isPluginUnloading } from '../../../platform/obsidian/plugin-window-guards';
 import type { MinimalPluginInterface } from '../../../platform/obsidian/plugin-window-guards';
 import { ApiAdapter } from '../../../domain/backlinks/api-adapter';
-import type ObsidianInflux from '../../../app/InfluxPlugin';
+import type ObsidianInflux from '../../../app/influx-plugin';
 import { recordMetric } from '../../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../../../domain/settings/settings-hash';
 

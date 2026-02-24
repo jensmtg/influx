@@ -26,8 +26,8 @@ Allowed cross-cutting modules:
 
 ## Naming Rules
 
-- React components: `PascalCase.tsx`
-- Non-React modules: `kebab-case.ts`
+- File names: `kebab-case` for both `.ts` and `.tsx`.
+- Class/type identifiers: `PascalCase` (for example `InfluxSidebarView`, `PreviewManager`).
 - Avoid `.tsx` for files that do not render JSX.
 - Prefer clear role names (`BacklinksService`, `SettingsTab`, `PreviewManager`).
 

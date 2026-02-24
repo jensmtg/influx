@@ -4,7 +4,7 @@ import type { BacklinksObject, ExtendedInlinkingFile } from './types';
 import { InlinkingFile } from './inlinking-file';
 import { logger } from '../../platform/diagnostics/logger';
 import { mapWithConcurrency } from '../../shared/async/concurrency';
-import { CONSTANTS } from '../../constants';
+import { CONSTANTS } from '../../config/constants';
 import { DEFAULT_SETTINGS } from '../../types';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../settings/settings-hash';

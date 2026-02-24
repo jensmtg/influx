@@ -2,12 +2,12 @@ import * as React from 'react';
 import InfluxFile from '../domain/backlinks/influx-file';
 import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
 import { ObsidianInfluxSettings } from '../types';
-import { CONSTANTS } from '../constants';
+import { CONSTANTS } from '../config/constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../app/events/influx-updates';
 import { CollapsedStateManager } from './state/collapsed-state-manager';
 import { InfluxErrorBoundary } from './influx-error-boundary';
 import MarkdownMount from './markdown-mount';
-import type ObsidianInflux from '../app/InfluxPlugin';
+import type ObsidianInflux from '../app/influx-plugin';
 import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
 

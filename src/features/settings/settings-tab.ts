@@ -1,4 +1,4 @@
-import type ObsidianInflux from '../../app/InfluxPlugin';
+import type ObsidianInflux from '../../app/influx-plugin';
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { ObsidianInfluxSettings } from '../../types';
 import { logger } from '../../platform/diagnostics/logger';

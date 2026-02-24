@@ -2,8 +2,8 @@ import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import { ApiAdapter } from './api-adapter';
 import InfluxFile from './influx-file';
 import { StructuredText } from '../structured-text/structured-text';
-import { CONSTANTS } from '../../constants';
-import { cacheManager, SummaryCacheValue } from '../../platform/cache/CacheManager';
+import { CONSTANTS } from '../../config/constants';
+import { cacheManager, SummaryCacheValue } from '../../platform/cache/cache-manager';
 
 
 export class InlinkingFile {

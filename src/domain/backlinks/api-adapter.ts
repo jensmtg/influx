@@ -13,7 +13,7 @@ import {
     shouldCollapseInfluxWithMatcher,
     type FilterSettings
 } from '../settings/filtering';
-import { cacheManager } from '../../platform/cache/CacheManager';
+import { cacheManager } from '../../platform/cache/cache-manager';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 
 interface SettingsOwner {
