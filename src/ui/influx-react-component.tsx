@@ -235,6 +235,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const centered = settings.variant !== 'ROWS';
 	const fontSize = settings.fontSize || 13;
 	const lineHeight = fontSize * 1.5;
+	const centeredTitleStyle = centered
+		? {
+			width: `min(${CONSTANTS.CENTERED_WIDTH_PX}px, 42vw)`,
+			minWidth: '112px',
+			maxWidth: '45%',
+		}
+		: {};
 	const mentionsCountLabel = getLinkedMentionsCountLabel({
 		totalEntryCount: influxFile.totalEntryCount ?? 0,
 		listLimit: settings.listLimit || 0,
@@ -442,7 +449,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 											style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 										>
 											<div className="tree-item-self search-result-file-title"
-												style={centered ? { width: `${CONSTANTS.CENTERED_WIDTH_PX}px`, minWidth: `${CONSTANTS.CENTERED_WIDTH_PX}px` } : {}}>
+												style={centeredTitleStyle}>
 
 
 											<button

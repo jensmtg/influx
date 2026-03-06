@@ -27,6 +27,15 @@ export class RootManager {
 		}, 0);
 	}
 
+	private getAndUnregister(container: HTMLElement): RootInfo | undefined {
+		const info = this.roots.get(container);
+		if (!info) {
+			return undefined;
+		}
+		this.unregister(container);
+		return info;
+	}
+
 	/**
 	 * Register a new React root
 	 */
@@ -97,15 +106,30 @@ export class RootManager {
 	 * Unmount and unregister a specific root
 	 */
 	unmount(container: HTMLElement): void {
-		const info = this.roots.get(container);
+		const info = this.getAndUnregister(container);
 		if (info) {
 			try {
 				info.root.unmount();
 			} catch (e) {
 				logger.error('Failed to unmount root', { error: e, container });
 			}
-			this.unregister(container);
 		}
+	}
+
+	/**
+	 * Unmount asynchronously to avoid React sync-unmount warnings
+	 * when called from render-driven cleanup paths.
+	 */
+	unmountDeferred(container: HTMLElement): void {
+		const info = this.getAndUnregister(container);
+		if (!info) {
+			return;
+		}
+		this.scheduleRootUnmount(info.root, {
+			reason: 'deferred-unmount',
+			type: info.type,
+			filePath: info.filePath,
+		});
 	}
 
 	/**

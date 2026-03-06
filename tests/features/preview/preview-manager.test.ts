@@ -79,7 +79,7 @@ describe('PreviewManager', () => {
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
 
-		const unmountSpy = jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
+		const unmountSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
 		const unmountByPathSpy = jest.spyOn(rootManager, 'unmountByFilePath').mockImplementation(() => {});
 		(globalThis as { window?: Window }).window = {
 			setTimeout,
@@ -117,7 +117,7 @@ describe('PreviewManager', () => {
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
 
-		const unmountSpy = jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
+		const unmountSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
 		const unmountByPathSpy = jest.spyOn(rootManager, 'unmountByFilePath').mockImplementation(() => {});
 
 		await manager.handlePreviewMode(previewRoot, {

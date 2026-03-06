@@ -8,22 +8,30 @@ export interface LogContext {
 class Logger {
 	private prefix = '[Influx]';
 
+	private emit(method: 'debug' | 'info' | 'warn' | 'error', line: string, ctx?: LogContext): void {
+		if (ctx === undefined) {
+			console[method](line);
+			return;
+		}
+		console[method](line, ctx);
+	}
+
 	debug(msg: string, ctx?: LogContext) {
 		if (isDebugMode()) {
-			console.debug(this.fmt('debug', msg), ctx);
+			this.emit('debug', this.fmt('debug', msg), ctx);
 		}
 	}
 
 	info(msg: string, ctx?: LogContext) {
-		console.info(this.fmt('info', msg), ctx);
+		this.emit('info', this.fmt('info', msg), ctx);
 	}
 
 	warn(msg: string, ctx?: LogContext) {
-		console.warn(this.fmt('warn', msg), ctx);
+		this.emit('warn', this.fmt('warn', msg), ctx);
 	}
 
 	error(msg: string, ctx?: LogContext) {
-		console.error(this.fmt('error', msg), ctx);
+		this.emit('error', this.fmt('error', msg), ctx);
 	}
 
 	private fmt(level: LogLevel, msg: string): string {

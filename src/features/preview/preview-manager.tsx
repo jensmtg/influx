@@ -124,7 +124,7 @@ export class PreviewManager {
 		// Clean up only the existing root for this preview container.
 		// This avoids clobbering parallel panes showing the same file.
 		if (existingContainer) {
-			rootManager.unmount(existingContainer);
+			rootManager.unmountDeferred(existingContainer);
 		}
 
 		const influxFile = await InfluxFile.create(path, this.apiAdapter);
@@ -308,7 +308,7 @@ export class PreviewManager {
 
 		innerContainers.forEach((node) => {
 			const htmlNode = node as HTMLElement;
-			rootManager.unmount(htmlNode);
+			rootManager.unmountDeferred(htmlNode);
 			htmlNode.remove();
 		});
 
