@@ -10,85 +10,21 @@ import MarkdownMount from './markdown-mount';
 import type ObsidianInflux from '../app/influx-plugin';
 import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
+import {
+	collectComponentPaths,
+	collectInitialCollapsedPaths,
+	filterComponentsBySearch,
+	getLinkedMentionsCountLabel,
+	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
+	type InfluxRenderMode,
+	shouldProcessInfluxUpdateEvent,
+	VISIBLE_COMPONENTS_CHUNK_BY_MODE,
+} from './influx-react-component-helpers';
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 
 const SEARCH_DEBOUNCE_MS = 400;
 const SEARCH_FOCUS_DELAY_MS = 100;
-type InfluxRenderMode = 'editor' | 'preview' | 'sidebar';
-const INITIAL_VISIBLE_COMPONENTS_BY_MODE: Record<InfluxRenderMode, number> = {
-	editor: 40,
-	preview: 80,
-	sidebar: 80,
-};
-const VISIBLE_COMPONENTS_CHUNK_BY_MODE: Record<InfluxRenderMode, number> = {
-	editor: 30,
-	preview: 50,
-	sidebar: 50,
-};
-
-function collectComponentPaths(components: ExtendedInlinkingFile[]): string[] {
-	return components
-		.map((component) => component.inlinkingFile.file?.path)
-		.filter((path): path is string => path !== undefined);
-}
-
-function collectInitialCollapsedPaths(influxFile: InfluxFile): string[] {
-	if (!influxFile.collapsed || influxFile.components.length === 0) {
-		return [];
-	}
-	return collectComponentPaths(influxFile.components);
-}
-
-const searchTextCache = new WeakMap<ExtendedInlinkingFile, string>();
-
-function getSearchText(item: ExtendedInlinkingFile): string {
-	const cached = searchTextCache.get(item);
-	if (cached) {
-		return cached;
-	}
-	const basename = item.inlinkingFile.file?.basename ?? '';
-	const text = `${basename} ${item.titleText} ${item.summaryMarkdown}`.toLowerCase();
-	searchTextCache.set(item, text);
-	return text;
-}
-
-function filterComponentsBySearch(components: ExtendedInlinkingFile[], searchQuery: string): ExtendedInlinkingFile[] {
-	const normalizedQuery = searchQuery.toLowerCase().trim();
-	if (!normalizedQuery) {
-		return components;
-	}
-
-	return components.filter((item) => getSearchText(item).includes(normalizedQuery));
-}
-
-function getLinkedMentionsCountLabel(params: {
-	totalEntryCount: number;
-	listLimit: number;
-	renderedCount: number;
-	filteredCount: number;
-	hasSearch: boolean;
-}): string {
-	const {
-		totalEntryCount,
-		listLimit,
-		renderedCount,
-		filteredCount,
-		hasSearch,
-	} = params;
-	const hasListLimit = listLimit > 0 && totalEntryCount > listLimit;
-
-	if (hasSearch && hasListLimit) {
-		return `${filteredCount} of ${totalEntryCount}`;
-	}
-	if (hasListLimit) {
-		return `${renderedCount} of ${totalEntryCount}`;
-	}
-	if (hasSearch) {
-		return `${filteredCount} of ${renderedCount}`;
-	}
-	return totalEntryCount.toString();
-}
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
 
@@ -101,7 +37,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const [components, setComponents] = React.useState(influxFile.components);
 	const [inputValue, setInputValue] = React.useState('');
 	const [collapsedManager] = React.useState(() => {
-		return new CollapsedStateManager(collectInitialCollapsedPaths(influxFile));
+		return new CollapsedStateManager(
+			collectInitialCollapsedPaths({
+				collapsed: influxFile.collapsed,
+				components: influxFile.components,
+			})
+		);
 	});
 	const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
 	const [searchQuery, setSearchQuery] = React.useState('');
@@ -267,24 +208,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			if (abortController.signal.aborted) {
 				return;
 			}
-			if (event.op === 'layout-change' || event.op === 'file-open') {
-				return;
-			}
-
 			const currentPath = current.file?.path;
-			if (!currentPath) {
-				return;
-			}
-
-			if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && event.file) {
-				const touchesCurrentFile = event.file.path === currentPath;
-				const affectsBacklinks = current.shouldUpdate(event.file);
-				if (!touchesCurrentFile && !affectsBacklinks) {
-					return;
-				}
-			}
-
-			if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && !event.file) {
+			const affectsBacklinks = event.file ? current.shouldUpdate(event.file) : false;
+			if (!shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks })) {
 				return;
 			}
 
