@@ -360,15 +360,13 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 
 /* Toolbar */
 .influx-component .influx-toolbar {
-	position: sticky;
-	top: 0;
+	position: relative;
 	background: var(--background-primary);
 	padding: var(--size-4-2) var(--size-4-2) var(--size-4-2) var(--size-4-3);
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
 	flex-direction: row;
-	z-index: 1;
 	flex-wrap: wrap;
 	gap: var(--size-4-2);
 }

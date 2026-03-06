@@ -420,7 +420,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					</div>
 
-						<div className="influx-pane" role="region" aria-label="Influx linked mentions">
+						<div className="influx-pane">
 
 						{!isEditorMode && (
 							<button
