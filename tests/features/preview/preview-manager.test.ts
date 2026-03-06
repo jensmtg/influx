@@ -204,4 +204,69 @@ describe('PreviewManager', () => {
 		expect(updatePreviewSpy).toHaveBeenNthCalledWith(1, leafA);
 		expect(updatePreviewSpy).toHaveBeenNthCalledWith(2, leafB);
 	});
+
+	test('updateAllPreviews throttles while in flight, then allows next cycle after settle', async () => {
+		const sharedPath = 'Shared.md';
+		const leafA = {
+			view: {
+				file: { path: sharedPath },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			} as unknown as HTMLDivElement,
+		};
+		const leafB = {
+			view: {
+				file: { path: sharedPath },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			} as unknown as HTMLDivElement,
+		};
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => {
+						cb(leafA);
+						cb(leafB);
+					}),
+				},
+			},
+			updating: new Map<string, number>(),
+		} as any;
+
+		let release: (() => void) | null = null;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest
+			.spyOn(manager, 'updatePreview')
+			.mockImplementation(async () => {
+				await gate;
+			});
+
+		const firstCycle = manager.updateAllPreviews();
+		await Promise.resolve();
+
+		// While first cycle is in flight, same panes should be throttled.
+		await manager.updateAllPreviews();
+		expect(updatePreviewSpy).toHaveBeenCalledTimes(2);
+
+		release?.();
+		await firstCycle;
+
+		// After settle, next cycle should run again for both panes.
+		const doneGate = Promise.resolve();
+		updatePreviewSpy.mockImplementation(async () => {
+			await doneGate;
+		});
+		await manager.updateAllPreviews();
+		expect(updatePreviewSpy).toHaveBeenCalledTimes(4);
+	});
 });
