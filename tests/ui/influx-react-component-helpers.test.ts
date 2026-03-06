@@ -3,6 +3,7 @@ import {
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
 	filterComponentsBySearch,
+	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
 	getNoSearchResultsMessage,
@@ -148,6 +149,32 @@ describe('influx-react-component helpers', () => {
 			expect(getNoSearchResultsMessage('alpha')).toBe('No backlinks match "alpha".');
 			expect(getNoSearchResultsMessage('  alpha beta  ')).toBe('No backlinks match "alpha beta".');
 			expect(getNoSearchResultsMessage('   ')).toBe('No matching backlinks found.');
+		});
+
+		test('getLoadMoreBacklinksLabel reflects remaining amount and chunk size', () => {
+			expect(
+				getLoadMoreBacklinksLabel({
+					visibleCount: 40,
+					totalFilteredCount: 95,
+					chunkSize: 30,
+				})
+			).toBe('Load 30 more backlinks');
+
+			expect(
+				getLoadMoreBacklinksLabel({
+					visibleCount: 80,
+					totalFilteredCount: 95,
+					chunkSize: 50,
+				})
+			).toBe('Load 15 more backlinks');
+
+			expect(
+				getLoadMoreBacklinksLabel({
+					visibleCount: 10,
+					totalFilteredCount: 10,
+					chunkSize: 30,
+				})
+			).toBe('All backlinks loaded');
 		});
 	});
 

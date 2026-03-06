@@ -179,4 +179,48 @@ describe('InfluxSidebarView', () => {
 		expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('A.md');
 		expect((view as any).root.render).not.toHaveBeenCalled();
 	});
+
+	test('handleEditorChange does not render hidden state when request becomes stale', async () => {
+		const { view, plugin, fileA } = createContext();
+		(plugin.api.getShowStatus as jest.Mock).mockImplementation(() => {
+			(view as any).currentUpdateId = 2;
+			return false;
+		});
+
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			show: true,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+			totalEntryCount: 0,
+		};
+		(view as any).abortController = { signal: { aborted: false } };
+		(view as any).currentUpdateId = 1;
+
+		await (view as any).handleEditorChange();
+
+		expect((view as any).root.render).not.toHaveBeenCalled();
+		expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+	});
+
+	test('handleEditorChange suppresses stale error banner when update id changes', async () => {
+		const { view, plugin, fileA } = createContext();
+		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(true);
+
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			show: true,
+			makeInfluxList: jest.fn().mockRejectedValue(new Error('boom')),
+			toEntries: jest.fn().mockReturnValue([]),
+			totalEntryCount: 0,
+		};
+		(view as any).abortController = { signal: { aborted: false } };
+		(view as any).currentUpdateId = 4;
+
+		const pending = (view as any).handleEditorChange();
+		(view as any).currentUpdateId = 5;
+		await pending;
+
+		expect((view as any).root.render).not.toHaveBeenCalled();
+	});
 });

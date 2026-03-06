@@ -115,6 +115,20 @@ export function getNoSearchResultsMessage(searchQuery: string): string {
 	return `No backlinks match "${query}".`;
 }
 
+export function getLoadMoreBacklinksLabel(params: {
+	visibleCount: number;
+	totalFilteredCount: number;
+	chunkSize: number;
+}): string {
+	const { visibleCount, totalFilteredCount, chunkSize } = params;
+	const remaining = Math.max(0, totalFilteredCount - visibleCount);
+	if (remaining === 0) {
+		return 'All backlinks loaded';
+	}
+	const nextCount = Math.min(remaining, Math.max(1, chunkSize));
+	return `Load ${nextCount} more backlinks`;
+}
+
 export function shouldProcessInfluxUpdateEvent(params: {
 	event: InfluxUpdateEvent;
 	currentPath?: string;

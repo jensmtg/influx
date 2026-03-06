@@ -224,6 +224,9 @@ export class InfluxSidebarView extends ItemView {
 			const pipelineStart = performance.now();
 			const shouldShow = this.plugin.api.getShowStatus(this.currentFile);
 			this.influxFile.show = shouldShow;
+			if (signal?.aborted || updateId !== this.currentUpdateId) {
+				return;
+			}
 			if (!shouldShow) {
 				recordMetric({
 					name: 'influx.pipeline.total',
@@ -282,6 +285,9 @@ export class InfluxSidebarView extends ItemView {
 			}
 		} catch (error) {
 			if (signal?.aborted) {
+				return;
+			}
+			if (updateId !== this.currentUpdateId) {
 				return;
 			}
 			logger.error('Failed to handle editor change', { filePath: this.currentFile.path, error });

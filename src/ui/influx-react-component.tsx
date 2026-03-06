@@ -14,6 +14,7 @@ import {
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
 	filterComponentsBySearch,
+	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
 	getNoSearchResultsMessage,
@@ -254,6 +255,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		filteredCount: filteredComponents.length,
 		hasSearch: searchQuery.length > 0,
 	});
+	const loadMoreButtonLabel = getLoadMoreBacklinksLabel({
+		visibleCount,
+		totalFilteredCount: filteredComponents.length,
+		chunkSize: VISIBLE_COMPONENTS_CHUNK_BY_MODE[renderMode],
+	});
 
 	if (!influxFile.show || shownLength === 0) {
 		return null;
@@ -482,14 +488,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<React.Fragment>
 										{autoLoadByObserver && <div ref={loadMoreTriggerRef} style={{ height: 1 }} />}
 										{(!autoLoadByObserver || typeof IntersectionObserver === 'undefined') && (
-											<button
-												className="tree-item-self is-clickable"
-												onClick={() => loadMoreComponents('button')}
-											>
-												Load more backlinks
-											</button>
-										)}
-									</React.Fragment>
+										<button
+											className="tree-item-self is-clickable"
+											onClick={() => loadMoreComponents('button')}
+										>
+											{loadMoreButtonLabel}
+										</button>
+									)}
+								</React.Fragment>
 								)}
 
 
