@@ -103,6 +103,19 @@ body.is-readable-line-width .influx-preview-wrapper {
 	}
 }
 
+/* Keep editor entries full-width. This avoids unintended line-width clamping. */
+.influx-component.influx-component--editor .influx-entries {
+	width: 100%;
+	max-width: 100%;
+}
+
+/* When readable line length is OFF, ensure body cards fully use available width. */
+body:not(.is-readable-line-width) .influx-component--editor .influx-result-body {
+	width: 100%;
+	max-width: 100%;
+	flex: 1 1 auto;
+}
+
 .influx-component .influx-entry {
 	--checkbox-size: var(--influx-font-size, 13px);
 	/* padding-bottom: var(--influx-line-height, 19.5px) !important; */
@@ -362,12 +375,16 @@ body.is-readable-line-width .influx-preview-wrapper {
 
 .influx-component--editor .influx-toolbar {
 	display: grid;
-	grid-template-columns: minmax(160px, 1fr) auto;
+	grid-template-columns: auto minmax(0, 1fr);
 	align-items: center;
 	padding: var(--size-4-2);
 	padding-inline-start: var(--size-4-2);
 	padding-inline-end: var(--size-4-2);
 	gap: var(--size-4-2);
+}
+
+.influx-component--editor .influx-toolbar-actions {
+	justify-self: end;
 }
 
 /* Toolbar icon buttons */
@@ -459,7 +476,10 @@ body.is-readable-line-width .influx-preview-wrapper {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
 	background: var(--background-secondary);
-	max-width: 320px;
+	width: auto;
+	max-width: none;
+	justify-self: start;
+	align-self: start;
 }
 
 .influx-component .influx-summary-row--toolbar:hover {

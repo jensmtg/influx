@@ -311,7 +311,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
 								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
-								title={isSearchExpanded ? 'Close search' : 'Search backlinks'}
 								onClick={toggleSearch}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-search">
@@ -352,7 +351,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
 								aria-label="Cycle list limit"
-								title="Cycle list limit"
 								onClick={() => plugin.cycleListLimit()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-list">
@@ -368,7 +366,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
-								title={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-move-vertical">
@@ -384,7 +381,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
 								aria-label={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
-								title={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
 								onClick={() => plugin.toggleFrontmatterLinks()}
 							>
 								{settings.includeFrontmatterLinks ? (
@@ -405,7 +401,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
 								aria-label="Change sort order"
-								title="Change sort order"
 								onClick={() => plugin.toggleSortOrder()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-sort-asc">
