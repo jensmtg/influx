@@ -82,6 +82,9 @@ describe('InfluxReactComponent render wiring', () => {
 
 		expect(html).toContain('No backlinks found for this note yet.');
 		expect(html).toContain('Linked mentions');
+		expect(html).toContain('<button');
+		expect(html).toContain('aria-label="Search backlinks"');
+		expect(html).toContain('aria-label="Collapse all linked mentions"');
 	});
 
 	test('renders editor load-more button label with exact remaining count', () => {

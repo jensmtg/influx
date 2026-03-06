@@ -279,7 +279,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					<div className="nav-header">
 
 						<div className="nav-buttons-container">
-							<div className="clickable-icon nav-action-button"
+							<button
+								type="button"
+								className="clickable-icon nav-action-button"
 								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
 								onClick={toggleSearch}
 							>
@@ -287,7 +289,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<circle cx="11" cy="11" r="8"></circle>
 									<path d="m21 21-4.3-4.3"></path>
 								</svg>
-							</div>
+							</button>
 							{isSearchExpanded && (
 								<div className={`search-input-wrapper ${isSearchFocused ? 'is-focused' : ''}`}>
 									<input
@@ -304,6 +306,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									/>
 									{searchQuery && (
 										<button
+											type="button"
 											className="search-clear-btn"
 											onClick={() => resetSearch(false)}
 											aria-label="Clear search"
@@ -316,7 +319,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									)}
 								</div>
 							)}
-							<div className="clickable-icon nav-action-button"
+							<button
+								type="button"
+								className="clickable-icon nav-action-button"
 								aria-label="Cycle list limit"
 								onClick={() => plugin.cycleListLimit()}
 							>
@@ -328,8 +333,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<line x1="3" y1="12" x2="3.01" y2="12"></line>
 									<line x1="3" y1="18" x2="3.01" y2="18"></line>
 								</svg>
-							</div>
-							<div className="clickable-icon nav-action-button"
+							</button>
+							<button
+								type="button"
+								className="clickable-icon nav-action-button"
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
@@ -341,8 +348,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<line x1="12" y1="2" x2="12" y2="22">
 									</line>
 								</svg>
-							</div>
-							<div
+							</button>
+							<button
+								type="button"
 								className="clickable-icon nav-action-button"
 								aria-label={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
 								onClick={() => plugin.toggleFrontmatterLinks()}
@@ -360,8 +368,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										<line x1="2" x2="22" y1="2" y2="22"></line>
 									</svg>
 								)}
-							</div>
-							<div className="clickable-icon nav-action-button"
+							</button>
+							<button
+								type="button"
+								className="clickable-icon nav-action-button"
 								aria-label="Change sort order"
 								onClick={() => plugin.toggleSortOrder()}
 							>
@@ -377,16 +387,18 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<path d="M6 18V4">
 									</path>
 								</svg>
-							</div>
+							</button>
 						</div>
 
 					</div>
 
 					<div className="backlink-pane">
 
-						<div
-							onClick={() => toggleAll()}
+						<button
+							type="button"
+							onClick={toggleAll}
 							className="tree-item-self is-clickable"
+							aria-label={toggleAllToOpen ? 'Expand all linked mentions' : 'Collapse all linked mentions'}
 						>
 
 							<div className="tree-item-inner" >
@@ -399,7 +411,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									{mentionsCountLabel}
 								</span>
 							</div>
-						</div>
+						</button>
 
 						<div className="search-result-container" ref={searchResultsContainerRef}>
 
