@@ -29,8 +29,10 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
  */
 export class PreviewManager {
 	private static readonly PREVIEW_ROOT_RETRY_MS = 75;
+	private static readonly POST_PROCESS_REFRESH_DELAY_MS = 80;
 	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
 	private nextLeafContainerId = 1;
+	private postProcessRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 	constructor(
 		private plugin: ObsidianInflux,
@@ -109,6 +111,7 @@ export class PreviewManager {
 		const pipelineStart = performance.now();
 
 		const existingContainer = this.findExistingContainer(previewDiv);
+		this.cleanupDuplicatePreviewWrappers(previewDiv, existingContainer);
 
 		const fileMtime = influxLeaf.view?.file?.stat?.mtime ?? 0;
 		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}`;
@@ -228,76 +231,47 @@ export class PreviewManager {
 			return;
 		}
 
-		logger.debug('[handlePreviewMode] Processing file:', { filePath });
+		logger.debug('[handlePreviewMode] Scheduling preview refresh', { filePath });
+		this.schedulePreviewRefreshForPath(filePath);
+	}
 
-		// Also clean up any orphaned DOM elements (defense-in-depth)
-		this.cleanupPreviewContainers(previewRoot, true);
+	private schedulePreviewRefreshForPath(filePath: string): void {
+		const pending = this.postProcessRefreshTimers.get(filePath);
+		if (pending) {
+			clearTimeout(pending);
+		}
 
-		try {
-			const pipelineStart = performance.now();
-			// Use plugin's apiAdapter to preserve cache and ensure settings are available
-			const influxFile = await InfluxFile.create(filePath, this.apiAdapter);
-			if (!influxFile.show) {
-				recordMetric({
-					name: 'influx.pipeline.total',
-					mode: 'preview',
-					durationMs: performance.now() - pipelineStart,
-					settings,
-					always: true,
-					ctx: {
-						filePath,
-						show: false,
-						listLimit: settings.listLimit || 0,
-						totalEntryCount: 0,
-						renderedCount: 0
-					}
-				});
+		const timer = setTimeout(() => {
+			this.postProcessRefreshTimers.delete(filePath);
+			void this.refreshPreviewLeavesByPath(filePath);
+		}, PreviewManager.POST_PROCESS_REFRESH_DELAY_MS);
+		this.postProcessRefreshTimers.set(filePath, timer);
+	}
+
+	private async refreshPreviewLeavesByPath(filePath: string): Promise<void> {
+		const leaves: WorkspaceLeaf[] = [];
+
+		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
+			const influxLeaf = leaf as InfluxWorkspaceLeaf;
+			const leafPath = influxLeaf.view?.file?.path;
+			if (leafPath !== filePath) {
 				return;
 			}
 
-			await influxFile.makeInfluxList();
-			const renderedComponents = influxFile.toEntries();
-			recordMetric({
-				name: 'influx.pipeline.total',
-				mode: 'preview',
-				durationMs: performance.now() - pipelineStart,
-				settings,
-				always: true,
-				ctx: {
-					filePath,
-					show: influxFile.show,
-					listLimit: settings.listLimit || 0,
-					totalEntryCount: influxFile.totalEntryCount,
-					renderedCount: renderedComponents.length
-				}
-			});
-
-			const influxWrapper = document.createElement('div');
-			influxWrapper.className = CONSTANTS.INFLUX_WRAPPER_CLASS;
-
-			const influxContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
-			influxContainer.id = influxFile.uuid;
-			influxWrapper.appendChild(influxContainer);
-
-			const currentSettings = this.plugin.data.settings;
-			if (currentSettings.influxAtTopOfPage) {
-				previewRoot.insertBefore(influxWrapper, previewRoot.firstChild);
-			} else {
-				previewRoot.appendChild(influxWrapper);
+			const hasPreviewRoot = this.isLeafInPreviewMode(influxLeaf)
+				|| !!influxLeaf.containerEl?.querySelector('.markdown-preview-view');
+			if (!hasPreviewRoot) {
+				return;
 			}
 
-			const anchor = createRoot(influxContainer);
-			rootManager.register(influxContainer, anchor, 'preview', filePath);
-			anchor.render(
-				<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
-			);
-		} catch (error) {
-			logger.error('Failed to render in preview mode', {
-				filePath: context.sourcePath,
-				error,
-				stack: error instanceof Error ? error.stack : undefined,
-			});
-		}
+			leaves.push(leaf);
+		});
+
+		await Promise.all(
+			leaves.map((leaf) => this.updatePreview(leaf).catch((error) => {
+				logger.error('Failed to refresh preview leaf from post-processor', { filePath, error });
+			}))
+		);
 	}
 
 	private cleanupPreviewContainers(container: Element, logCounts = false): void {
@@ -371,14 +345,46 @@ export class PreviewManager {
 		return nested instanceof HTMLElement ? nested : null;
 	}
 
+	private cleanupDuplicatePreviewWrappers(previewDiv: Element, keepContainer: HTMLElement | null): void {
+		const wrappers = previewDiv.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
+		wrappers.forEach((wrapper) => {
+			const container = wrapper.querySelector(
+				`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
+			) as HTMLElement | null;
+
+			if (keepContainer && container === keepContainer) {
+				return;
+			}
+
+			if (container) {
+				rootManager.unmountDeferred(container);
+			}
+			wrapper.remove();
+		});
+	}
+
 	private findExistingContainer(previewDiv: Element): HTMLElement | null {
-		const wrapper = previewDiv.querySelector(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
-		if (!wrapper) {
-			return null;
-		}
-		return wrapper.querySelector(
+		const containers = previewDiv.querySelectorAll(
 			`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
-		) as HTMLElement | null;
+		);
+
+		let fallback: HTMLElement | null = null;
+		let preferred: HTMLElement | null = null;
+		containers.forEach((node) => {
+			const container = node as HTMLElement;
+			if (!fallback) {
+				fallback = container;
+			}
+			if (!preferred && rootManager.has(container)) {
+				preferred = container;
+			}
+		});
+
+		if (preferred) {
+			return preferred;
+		}
+
+		return fallback;
 	}
 
     private computeSettingsHash(): string {

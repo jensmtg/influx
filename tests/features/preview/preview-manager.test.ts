@@ -128,6 +128,52 @@ describe('PreviewManager', () => {
 		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
 
+	test('handlePreviewMode coalesces repeated post-processor calls per file', async () => {
+		jest.useFakeTimers();
+
+		const previewRoot = {
+			classList: {
+				contains: (name: string) => name === 'markdown-preview-view',
+			},
+		} as unknown as HTMLElement;
+
+		const leaf = {
+			view: {
+				file: { path: 'Shared.md' },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			},
+		};
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
+				},
+			},
+			updating: new Map<string, number>(),
+		} as any;
+
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+
+		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
+		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
+		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
+
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+
+		jest.advanceTimersByTime(100);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(updatePreviewSpy).toHaveBeenCalledTimes(1);
+		expect(updatePreviewSpy).toHaveBeenCalledWith(leaf);
+	});
+
 	test('updateAllPreviews throttles repeated updates for same file path', async () => {
 		const nowSpy = jest.spyOn(Date, 'now');
 		nowSpy.mockReturnValue(1000);
