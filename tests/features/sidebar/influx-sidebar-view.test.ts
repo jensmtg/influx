@@ -70,7 +70,7 @@ describe('InfluxSidebarView', () => {
 		expect((InfluxFile as any).create).not.toHaveBeenCalled();
 	});
 
-	test('updateView cancels previous request and renders null when file should not show', async () => {
+	test('updateView cancels previous request and renders empty status when file should not show', async () => {
 		const { view, fileA, fileB } = createContext();
 		const abort = jest.fn();
 		(view as any).abortController = { abort, signal: { aborted: false } };
@@ -86,13 +86,15 @@ describe('InfluxSidebarView', () => {
 
 		expect(abort).toHaveBeenCalledTimes(1);
 		expect((view as any).currentFile).toBe(fileA);
-		expect((view as any).root.render).toHaveBeenCalledWith(null);
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		const lastRendered = renderCalls[renderCalls.length - 1][0];
+		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
 
 		await view.updateView(fileB);
 		expect((InfluxFile as any).create).toHaveBeenCalledWith('B.md', (view as any).plugin.api);
 	});
 
-	test('handleEditorChange clears sidebar render when current file should be hidden', async () => {
+	test('handleEditorChange renders hidden-state message when current file should be hidden', async () => {
 		const { view, plugin, fileA } = createContext();
 		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(false);
 		(view as any).currentFile = fileA;
@@ -106,7 +108,9 @@ describe('InfluxSidebarView', () => {
 		await (view as any).handleEditorChange();
 
 		expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
-		expect((view as any).root.render).toHaveBeenCalledWith(null);
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		const lastRendered = renderCalls[renderCalls.length - 1][0];
+		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
 	});
 
 	test('updateView ignores stale results from an older async update', async () => {
@@ -144,9 +148,34 @@ describe('InfluxSidebarView', () => {
 		await first;
 
 		expect((view as any).currentFile).toBe(fileB);
-		expect((view as any).root.render).toHaveBeenCalledTimes(1);
-		const lastRenderArg = ((view as any).root.render as jest.Mock).mock.calls[0][0];
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		const lastRenderArg = renderCalls[renderCalls.length - 1][0];
 		expect(lastRenderArg.props.influxFile).toBe(influxB);
+	});
+
+	test('updateView renders loading state while awaiting influx file creation', async () => {
+		const { view, fileA } = createContext();
+		let resolveCreate: ((value: unknown) => void) | null = null;
+
+		(InfluxFile as any).create.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveCreate = resolve;
+				})
+		);
+
+		const pending = view.updateView(fileA);
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		expect(renderCalls).toHaveLength(1);
+		expect(renderCalls[0][0].props.className).toContain('influx-sidebar-status--loading');
+
+		resolveCreate?.({
+			show: false,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+			totalEntryCount: 0,
+		});
+		await pending;
 	});
 
 	test('handleEditorChange drops rendering when update id changes mid-flight', async () => {

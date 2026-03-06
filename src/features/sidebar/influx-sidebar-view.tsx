@@ -17,6 +17,17 @@ export class InfluxSidebarView extends ItemView {
 	private currentUpdateId: number = 0;
 	private abortController: AbortController | null = null;
 
+	private renderStatusState(message: string, variant: 'loading' | 'empty' | 'warning' | 'error'): void {
+		if (!this.root) {
+			return;
+		}
+		this.root.render(
+			<div className={`influx-sidebar-status influx-sidebar-status--${variant}`}>
+				{message}
+			</div>
+		);
+	}
+
 	constructor(leaf: WorkspaceLeaf, plugin: ObsidianInflux) {
 		super(leaf);
 		this.plugin = plugin;
@@ -124,6 +135,7 @@ export class InfluxSidebarView extends ItemView {
 
 		this.currentFile = file;
 		this.componentKey = file.path;
+		this.renderStatusState('Loading backlinks...', 'loading');
 
 		try {
 			const pipelineStart = performance.now();
@@ -149,7 +161,7 @@ export class InfluxSidebarView extends ItemView {
 						renderedCount: 0
 					}
 				});
-				this.root?.render(null);
+				this.renderStatusState('No backlinks to show for this note.', 'empty');
 				return;
 			}
 
@@ -197,18 +209,7 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 			logger.error('Failed to update sidebar view', { filePath: file.path, error });
-			// Provide user feedback in UI
-			if (this.root) {
-				this.root.render(
-					<div style={{
-						padding: '1rem',
-						color: 'var(--text-error)',
-						textAlign: 'center'
-					}}>
-						Influx could not load in the sidebar. Try switching notes or reopening the Influx view.
-					</div>
-				);
-			}
+			this.renderStatusState('Influx could not load in the sidebar. Try switching notes or reopening the Influx view.', 'error');
 		}
 	}
 
@@ -242,7 +243,7 @@ export class InfluxSidebarView extends ItemView {
 						renderedCount: 0
 					}
 				});
-				this.root?.render(null);
+				this.renderStatusState('Backlinks are hidden by current settings for this note.', 'empty');
 				return;
 			}
 
@@ -291,7 +292,6 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 			logger.error('Failed to handle editor change', { filePath: this.currentFile.path, error });
-			// Provide user feedback in UI - temporarily show error message
 			if (this.root && this.influxFile) {
 				const currentComponent = (
 					<InfluxReactComponent
@@ -303,13 +303,7 @@ export class InfluxSidebarView extends ItemView {
 				);
 				this.root.render(
 					<div>
-						<div style={{
-							padding: '0.5rem',
-							color: 'var(--text-warning)',
-							fontSize: '0.9em',
-							background: 'var(--background-modifier-hover)',
-							borderBottom: '1px solid var(--background-modifier-border)'
-						}}>
+						<div className="influx-sidebar-status influx-sidebar-status--warning">
 							Influx update failed. Continue editing and it will retry on the next change.
 						</div>
 						{currentComponent}

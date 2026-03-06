@@ -304,6 +304,38 @@ body.is-readable-line-width .influx-preview-wrapper {
 	text-align: center;
 }
 
+.influx-sidebar-status {
+	margin: var(--size-4-2);
+	padding: 0.75rem;
+	border-radius: var(--radius-m);
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+	text-align: center;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+}
+
+.influx-sidebar-status--loading {
+	color: var(--text-faint);
+}
+
+.influx-sidebar-status--empty {
+	border-style: dashed;
+}
+
+.influx-sidebar-status--warning {
+	border-color: var(--text-warning);
+	background: var(--background-modifier-hover);
+	color: var(--text-warning);
+	margin-bottom: 0;
+}
+
+.influx-sidebar-status--error {
+	border-color: var(--text-error);
+	color: var(--text-error);
+}
+
 /* Obsidian-style nav header */
 .influx-component .nav-header {
 	position: sticky;
