@@ -293,6 +293,17 @@ body.is-readable-line-width .influx-preview-wrapper {
 	font-size: var(--font-ui-small);
 }
 
+.influx-component .influx-empty-state {
+	padding: 1.25rem 1.5rem;
+	margin: var(--size-4-2) var(--size-4-2) 0;
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	text-align: center;
+}
+
 /* Obsidian-style nav header */
 .influx-component .nav-header {
 	position: sticky;

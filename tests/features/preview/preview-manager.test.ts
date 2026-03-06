@@ -127,4 +127,38 @@ describe('PreviewManager', () => {
 		expect(unmountSpy).toHaveBeenCalledWith(innerContainer);
 		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
+
+	test('updateAllPreviews throttles repeated updates for same file path', async () => {
+		const nowSpy = jest.spyOn(Date, 'now');
+		nowSpy.mockReturnValue(1000);
+
+		const leaf = {
+			view: {
+				file: { path: 'Scratchpad.md' },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			},
+		};
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
+				},
+			},
+			updating: new Map<string, number>([['Scratchpad.md', 500]]),
+		} as any;
+		const api = {} as any;
+		const manager = new PreviewManager(plugin, api);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+
+		await manager.updateAllPreviews();
+
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		expect(plugin.updating.get('Scratchpad.md')).toBe(500);
+		nowSpy.mockRestore();
+	});
 });

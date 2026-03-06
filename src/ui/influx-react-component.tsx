@@ -14,6 +14,7 @@ import {
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
 	filterComponentsBySearch,
+	getEmptyBacklinksMessage,
 	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
@@ -260,8 +261,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		totalFilteredCount: filteredComponents.length,
 		chunkSize: VISIBLE_COMPONENTS_CHUNK_BY_MODE[renderMode],
 	});
+	const emptyBacklinksMessage = getEmptyBacklinksMessage({
+		totalEntryCount: influxFile.totalEntryCount ?? 0,
+		renderedCount: components.length,
+	});
 
-	if (!influxFile.show || shownLength === 0) {
+	if (!influxFile.show) {
 		return null;
 	}
 
@@ -481,6 +486,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							{filteredComponents.length === 0 && searchQuery && (
 								<div className="no-search-results">
 									{getNoSearchResultsMessage(searchQuery)}
+								</div>
+							)}
+
+							{!searchQuery && shownLength === 0 && (
+								<div className="influx-empty-state">
+									{emptyBacklinksMessage}
 								</div>
 							)}
 

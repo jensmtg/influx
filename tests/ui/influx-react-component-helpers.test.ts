@@ -3,6 +3,7 @@ import {
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
 	filterComponentsBySearch,
+	getEmptyBacklinksMessage,
 	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
@@ -175,6 +176,16 @@ describe('influx-react-component helpers', () => {
 					chunkSize: 30,
 				})
 			).toBe('All backlinks loaded');
+		});
+
+		test('getEmptyBacklinksMessage explains empty and filtered states', () => {
+			expect(getEmptyBacklinksMessage({ totalEntryCount: 0, renderedCount: 0 })).toBe(
+				'No backlinks found for this note yet.'
+			);
+			expect(getEmptyBacklinksMessage({ totalEntryCount: 8, renderedCount: 0 })).toBe(
+				'Backlinks are currently hidden by your filters or settings.'
+			);
+			expect(getEmptyBacklinksMessage({ totalEntryCount: 8, renderedCount: 3 })).toBe('');
 		});
 	});
 

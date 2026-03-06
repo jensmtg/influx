@@ -129,6 +129,20 @@ export function getLoadMoreBacklinksLabel(params: {
 	return `Load ${nextCount} more backlinks`;
 }
 
+export function getEmptyBacklinksMessage(params: {
+	totalEntryCount: number;
+	renderedCount: number;
+}): string {
+	const { totalEntryCount, renderedCount } = params;
+	if (totalEntryCount === 0) {
+		return 'No backlinks found for this note yet.';
+	}
+	if (renderedCount === 0) {
+		return 'Backlinks are currently hidden by your filters or settings.';
+	}
+	return '';
+}
+
 export function shouldProcessInfluxUpdateEvent(params: {
 	event: InfluxUpdateEvent;
 	currentPath?: string;

@@ -205,7 +205,7 @@ export class InfluxSidebarView extends ItemView {
 						color: 'var(--text-error)',
 						textAlign: 'center'
 					}}>
-						Failed to load Influx. Check console for details.
+						Influx could not load in the sidebar. Try switching notes or reopening the Influx view.
 					</div>
 				);
 			}
@@ -310,7 +310,7 @@ export class InfluxSidebarView extends ItemView {
 							background: 'var(--background-modifier-hover)',
 							borderBottom: '1px solid var(--background-modifier-border)'
 						}}>
-							Failed to update Influx. Retrying...
+							Influx update failed. Continue editing and it will retry on the next change.
 						</div>
 						{currentComponent}
 					</div>
