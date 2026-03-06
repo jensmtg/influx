@@ -91,7 +91,7 @@ export class PreviewManager {
 		const container: HTMLDivElement = influxLeaf.containerEl;
 		const path = influxLeaf.view?.file?.path;
 		if (!path) {
-			logger.warn('No file path found for preview');
+			logger.debug('No file path found for preview');
 			return;
 		}
 
@@ -174,9 +174,14 @@ export class PreviewManager {
 			if (info) {
 				anchor = info.root;
 			} else {
-				// Container exists but no tracked root - create new one
-				anchor = createRoot(existingContainer);
-				rootManager.register(existingContainer, anchor, 'preview', path);
+				// Container exists but root is not tracked (possible stale React marker).
+				// Replace node to guarantee a fresh createRoot target.
+				const replacementContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
+				replacementContainer.id = influxFile.uuid;
+				existingContainer.replaceWith(replacementContainer);
+				anchor = createRoot(replacementContainer);
+				rootManager.register(replacementContainer, anchor, 'preview', path);
+				logger.debug('Replaced untracked preview container before root creation', { filePath: path });
 			}
 		} else {
 			// Clean up any orphaned containers and wrappers

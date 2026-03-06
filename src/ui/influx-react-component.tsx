@@ -80,6 +80,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	influxFileRef.current = influxFile;
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
 	const renderMode: InfluxRenderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
+	const isEditorMode = renderMode === 'editor';
 	const autoLoadByObserver = renderMode !== 'editor';
 
 	const filteredComponents = React.useMemo(() => {
@@ -236,6 +237,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const fontSize = settings.fontSize || 13;
 	const lineHeight = fontSize * 1.5;
 	const centeredTitleStyle = centered
+		&& renderMode !== 'editor'
 		? {
 			width: `min(${CONSTANTS.CENTERED_WIDTH_PX}px, 42vw)`,
 			minWidth: '112px',
@@ -265,6 +267,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		totalEntryCount: influxFile.totalEntryCount ?? 0,
 		renderedCount: components.length,
 	});
+	const summaryRowLabel = toggleAllToOpen ? 'Expand all linked mentions' : 'Collapse all linked mentions';
 
 	if (!influxFile.show) {
 		return null;
@@ -275,7 +278,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 				<React.Fragment>
 
 					<div
-						className={`embedded-backlinks influx-component influx-component--${renderMode}`}
+						className={`influx-root influx-component influx-component--${renderMode}`}
 						style={{
 							animation: 'fadeIn .6s',
 							'--influx-font-size': `${fontSize}px`,
@@ -283,13 +286,32 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						} as React.CSSProperties}
 					>
 
-					<div className="nav-header">
+					<div className={`influx-toolbar${isEditorMode ? ' influx-toolbar--editor' : ''}`}>
 
-						<div className="nav-buttons-container">
+						{isEditorMode && (
 							<button
 								type="button"
-								className="clickable-icon nav-action-button"
+								onClick={toggleAll}
+								className="influx-summary-row influx-summary-row--toolbar influx-clickable"
+								aria-label={summaryRowLabel}
+							>
+								<div className="influx-summary-title">
+									Linked mentions
+								</div>
+								<div className="influx-summary-count-wrap">
+									<span className="influx-summary-count" title={mentionsCountTooltip}>
+										{mentionsCountLabel}
+									</span>
+								</div>
+							</button>
+						)}
+
+						<div className="influx-toolbar-actions" role="toolbar" aria-label="Influx actions">
+							<button
+								type="button"
+								className="influx-icon-button influx-toolbar-button"
 								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
+								title={isSearchExpanded ? 'Close search' : 'Search backlinks'}
 								onClick={toggleSearch}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-search">
@@ -298,7 +320,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								</svg>
 							</button>
 							{isSearchExpanded && (
-								<div className={`search-input-wrapper ${isSearchFocused ? 'is-focused' : ''}`}>
+								<div className={`influx-search-wrap ${isSearchFocused ? 'influx-is-focused' : ''}`}>
 									<input
 										ref={searchInputRef}
 										type="text"
@@ -314,7 +336,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									{searchQuery && (
 										<button
 											type="button"
-											className="search-clear-btn"
+											className="influx-search-clear"
 											onClick={() => resetSearch(false)}
 											aria-label="Clear search"
 										>
@@ -328,8 +350,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							)}
 							<button
 								type="button"
-								className="clickable-icon nav-action-button"
+								className="influx-icon-button influx-toolbar-button"
 								aria-label="Cycle list limit"
+								title="Cycle list limit"
 								onClick={() => plugin.cycleListLimit()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-list">
@@ -343,8 +366,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							</button>
 							<button
 								type="button"
-								className="clickable-icon nav-action-button"
+								className="influx-icon-button influx-toolbar-button"
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
+								title={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-move-vertical">
@@ -358,8 +382,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							</button>
 							<button
 								type="button"
-								className="clickable-icon nav-action-button"
+								className="influx-icon-button influx-toolbar-button"
 								aria-label={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
+								title={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
 								onClick={() => plugin.toggleFrontmatterLinks()}
 							>
 								{settings.includeFrontmatterLinks ? (
@@ -378,8 +403,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							</button>
 							<button
 								type="button"
-								className="clickable-icon nav-action-button"
+								className="influx-icon-button influx-toolbar-button"
 								aria-label="Change sort order"
+								title="Change sort order"
 								onClick={() => plugin.toggleSortOrder()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-sort-asc">
@@ -399,39 +425,41 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					</div>
 
-						<div className="backlink-pane">
+						<div className="influx-pane" role="region" aria-label="Influx linked mentions">
 
-						<button
-							type="button"
-							onClick={toggleAll}
-							className="tree-item-self is-clickable"
-							aria-label={toggleAllToOpen ? 'Expand all linked mentions' : 'Collapse all linked mentions'}
-						>
+						{!isEditorMode && (
+							<button
+								type="button"
+								onClick={toggleAll}
+								className="influx-summary-row influx-clickable"
+								aria-label={summaryRowLabel}
+							>
+								<div className="influx-summary-title" >
+									Linked mentions
+								</div>
+								<div className="influx-summary-count-wrap">
+									<span className="influx-summary-count" title={mentionsCountTooltip}>
+										{mentionsCountLabel}
+									</span>
+								</div>
+							</button>
+						)}
 
-							<div className="tree-item-inner" >
-								Linked mentions
-							</div>
+						<div className="influx-results-scroll" ref={searchResultsContainerRef}>
 
 
-							<div className="tree-item-flair-outer">
-								<span className="tree-item-flair" title={mentionsCountTooltip}>
-									{mentionsCountLabel}
-								</span>
-							</div>
-						</button>
-
-						<div className="search-result-container" ref={searchResultsContainerRef}>
-
-
-							<div className="search-results-children" >
+							<div className="influx-results-list" >
 
 								{visibleComponents.map((extended: ExtendedInlinkingFile) => {
 									const filePath = extended.inlinkingFile.file?.path;
-									const fileBasename = extended.inlinkingFile.file?.basename ?? 'unknown';
 
 									if (!filePath) {
 										return null;
 									}
+
+									const fileBasename = extended.inlinkingFile.file?.basename ?? 'unknown';
+									const safePathToken = filePath.replace(/[^a-zA-Z0-9_-]/g, '-');
+									const matchesRegionId = `${influxFile.uuid}-matches-${safePathToken}`;
 
 									const inlinkedCollapsed = collapsedManager.isCollapsed(filePath);
 
@@ -445,41 +473,42 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									return (
 
 										<div key={filePath}
-											className={`tree-item search-result ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
+											className={`influx-result-group ${inlinkedCollapsed ? 'influx-is-collapsed' : ''}`}
 											style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 										>
-											<div className="tree-item-self search-result-file-title"
+											<div className="influx-result-head"
 												style={centeredTitleStyle}>
 
 
 											<button
 												type="button"
-												className="tree-item-icon collapse-icon collapse-icon-button"
+												className="influx-collapse-toggle"
 												onClick={() => doToggle(filePath)}
 												aria-label={inlinkedCollapsed ? `Expand ${fileBasename}` : `Collapse ${fileBasename}`}
 												aria-expanded={!inlinkedCollapsed}
+												aria-controls={matchesRegionId}
 											>
 													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon right-triangle">
 														<path d="M3 8L12 17L21 8"></path>
 													</svg>
 											</button>
 
-											<div className="tree-item-inner">
-												<a
-													data-href={fileBasename}
-													href={fileBasename}
-													className="internal-link"
-													target="_blank"
-													rel="noopener"
+												<div className="influx-result-source">
+													<a
+														data-href={fileBasename}
+														href={fileBasename}
+														className="internal-link influx-internal-link"
+														target="_blank"
+														rel="noopener"
 												>
 													{fileBasename}
 												</a>
+												</div>
 											</div>
-											</div>
-											<div className="search-result-file-matches"
-												style={inlinkedCollapsed ? { display: 'none' }
-													: centered ? { flexGrow: 1 } : {}
-												}>
+											<div className="influx-result-body"
+												id={matchesRegionId}
+												hidden={inlinkedCollapsed}
+												style={centered ? { flexGrow: 1 } : {}}>
 
 														<div className="influx-entries" >
 															{entryHeader}
@@ -500,7 +529,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								})}
 
 							{filteredComponents.length === 0 && searchQuery && (
-								<div className="no-search-results">
+								<div className="influx-no-search-results">
 									{getNoSearchResultsMessage(searchQuery)}
 								</div>
 							)}
@@ -514,9 +543,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								{hasMoreVisible && (
 									<React.Fragment>
 										{autoLoadByObserver && <div ref={loadMoreTriggerRef} style={{ height: 1 }} />}
-										{(!autoLoadByObserver || typeof IntersectionObserver === 'undefined') && (
+									{(!autoLoadByObserver || typeof IntersectionObserver === 'undefined') && (
 										<button
-											className="tree-item-self is-clickable"
+											type="button"
+											className="influx-load-more-btn influx-clickable"
 											onClick={() => loadMoreComponents('button')}
 										>
 											{loadMoreButtonLabel}

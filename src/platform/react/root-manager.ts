@@ -18,9 +18,11 @@ export class RootManager {
 	private unloading = false;
 
 	private scheduleRootUnmount(root: Root, metadata?: Record<string, unknown>): void {
+		logger.debug('Scheduling deferred root unmount', metadata);
 		setTimeout(() => {
 			try {
 				root.unmount();
+				logger.debug('Deferred root unmounted', metadata);
 			} catch (e) {
 				logger.error('Failed to unmount root', { error: e, metadata });
 			}
@@ -57,6 +59,10 @@ export class RootManager {
 		const existing = this.roots.get(container);
 		if (existing) {
 			this.unregister(container);
+			logger.debug('Replacing existing root registration', {
+				type: existing.type,
+				filePath: existing.filePath,
+			});
 			this.scheduleRootUnmount(existing.root, {
 				reason: 'register-replace',
 				type: existing.type,
@@ -108,6 +114,10 @@ export class RootManager {
 	unmount(container: HTMLElement): void {
 		const info = this.getAndUnregister(container);
 		if (info) {
+			logger.debug('Unmounting root synchronously', {
+				type: info.type,
+				filePath: info.filePath,
+			});
 			try {
 				info.root.unmount();
 			} catch (e) {
@@ -125,6 +135,10 @@ export class RootManager {
 		if (!info) {
 			return;
 		}
+		logger.debug('Unmounting root asynchronously', {
+			type: info.type,
+			filePath: info.filePath,
+		});
 		this.scheduleRootUnmount(info.root, {
 			reason: 'deferred-unmount',
 			type: info.type,
