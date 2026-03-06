@@ -29,6 +29,8 @@ type InfluxWorkspaceLeaf = WorkspaceLeaf & {
  */
 export class PreviewManager {
 	private static readonly PREVIEW_ROOT_RETRY_MS = 75;
+	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
+	private nextLeafContainerId = 1;
 
 	constructor(
 		private plugin: ObsidianInflux,
@@ -63,20 +65,21 @@ export class PreviewManager {
 			if (!filePath) {
 				return Promise.resolve();
 			}
+			const updateKey = this.getLeafUpdateKey(influxLeaf, filePath);
 
 			const now = Date.now();
-			const lastUpdate = this.plugin.updating.get(filePath);
+			const lastUpdate = this.plugin.updating.get(updateKey);
 			if (lastUpdate && now - lastUpdate < 1000) {
 				return Promise.resolve();
 			}
-			this.plugin.updating.set(filePath, now);
+			this.plugin.updating.set(updateKey, now);
 
 			return this.updatePreview(leaf)
 				.catch((error) => {
 					logger.error('Failed to update preview', { filePath, error });
 				})
 				.finally(() => {
-					this.plugin.updating.delete(filePath);
+					this.plugin.updating.delete(updateKey);
 				});
 		});
 
@@ -323,6 +326,21 @@ export class PreviewManager {
 		const leafType: string | undefined = leaf.view?.currentMode?.type;
 		const viewMode = leaf.view?.mode;
 		return leafType === 'preview' || viewMode === 'preview';
+	}
+
+	private getLeafUpdateKey(leaf: InfluxWorkspaceLeaf, filePath: string): string {
+		return `${filePath}::${this.getLeafContainerId(leaf.containerEl)}`;
+	}
+
+	private getLeafContainerId(container: HTMLDivElement): number {
+		const existing = this.leafContainerIds.get(container);
+		if (existing) {
+			return existing;
+		}
+		const next = this.nextLeafContainerId;
+		this.nextLeafContainerId += 1;
+		this.leafContainerIds.set(container, next);
+		return next;
 	}
 
 	private async resolvePreviewDiv(container: HTMLElement, allowRetry: boolean): Promise<HTMLElement | null> {

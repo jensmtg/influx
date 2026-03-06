@@ -149,7 +149,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
 				},
 			},
-			updating: new Map<string, number>([['Scratchpad.md', 500]]),
+			updating: new Map<string, number>([['Scratchpad.md::1', 500]]),
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
@@ -158,7 +158,50 @@ describe('PreviewManager', () => {
 		await manager.updateAllPreviews();
 
 		expect(updatePreviewSpy).not.toHaveBeenCalled();
-		expect(plugin.updating.get('Scratchpad.md')).toBe(500);
+		expect(plugin.updating.get('Scratchpad.md::1')).toBe(500);
 		nowSpy.mockRestore();
+	});
+
+	test('updateAllPreviews does not throttle separate panes for the same file path', async () => {
+		const sharedPath = 'Shared.md';
+		const leafA = {
+			view: {
+				file: { path: sharedPath },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			} as unknown as HTMLDivElement,
+		};
+		const leafB = {
+			view: {
+				file: { path: sharedPath },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			} as unknown as HTMLDivElement,
+		};
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => {
+						cb(leafA);
+						cb(leafB);
+					}),
+				},
+			},
+			updating: new Map<string, number>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+
+		await manager.updateAllPreviews();
+
+		expect(updatePreviewSpy).toHaveBeenCalledTimes(2);
+		expect(updatePreviewSpy).toHaveBeenNthCalledWith(1, leafA);
+		expect(updatePreviewSpy).toHaveBeenNthCalledWith(2, leafB);
 	});
 });
