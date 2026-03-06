@@ -392,7 +392,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					</div>
 
-					<div className="backlink-pane">
+						<div className="backlink-pane">
 
 						<button
 							type="button"
@@ -445,13 +445,17 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												style={centered ? { width: `${CONSTANTS.CENTERED_WIDTH_PX}px`, minWidth: `${CONSTANTS.CENTERED_WIDTH_PX}px` } : {}}>
 
 
-												<div className="tree-item-icon collapse-icon"
-													onClick={() => doToggle(filePath)}
-												>
+											<button
+												type="button"
+												className="tree-item-icon collapse-icon collapse-icon-button"
+												onClick={() => doToggle(filePath)}
+												aria-label={inlinkedCollapsed ? `Expand ${fileBasename}` : `Collapse ${fileBasename}`}
+												aria-expanded={!inlinkedCollapsed}
+											>
 													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon right-triangle">
 														<path d="M3 8L12 17L21 8"></path>
 													</svg>
-												</div>
+											</button>
 
 											<div className="tree-item-inner">
 												<a

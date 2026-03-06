@@ -34,6 +34,7 @@ describe('RootManager', () => {
 	});
 
 	afterEach(() => {
+		jest.useRealTimers();
 		rootManager.unmountAll();
 		(globalThis as { document?: Document }).document = originalDocument;
 	});
@@ -140,5 +141,22 @@ describe('RootManager', () => {
 		expect(firstCleaned).toBe(1);
 		expect(secondCleaned).toBe(0);
 		expect(previewRoot.unmount).toHaveBeenCalledTimes(1);
+	});
+
+	test('register replacement defers old root unmount to avoid sync render races', () => {
+		jest.useFakeTimers();
+
+		const container = asHTMLElement(createFakeElement('div'));
+		const originalRoot = createMockRoot();
+		const replacementRoot = createMockRoot();
+
+		rootManager.register(container, originalRoot, 'preview', 'Shared.md');
+		rootManager.register(container, replacementRoot, 'preview', 'Shared.md');
+
+		expect(originalRoot.unmount).not.toHaveBeenCalled();
+		expect(rootManager.get(container)?.root).toBe(replacementRoot);
+
+		jest.runAllTimers();
+		expect(originalRoot.unmount).toHaveBeenCalledTimes(1);
 	});
 });

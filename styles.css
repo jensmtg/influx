@@ -285,6 +285,14 @@ body.is-readable-line-width .influx-preview-wrapper {
 	background-color: var(--background-modifier-hover);
 }
 
+.influx-component .search-clear-btn:focus-visible,
+.influx-component .clickable-icon:focus-visible,
+.influx-component .tree-item-self.is-clickable:focus-visible,
+.influx-component .collapse-icon-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 .influx-component .no-search-results {
 	padding: 1.5rem;
 	text-align: center;
@@ -470,6 +478,13 @@ body.is-readable-line-width .influx-preview-wrapper {
 	transition:
 		color 0.15s ease,
 		background-color 0.15s ease;
+}
+
+.influx-component button.collapse-icon-button {
+	border: 0;
+	background: transparent;
+	padding: 0;
+	font: inherit;
 }
 
 .influx-component .tree-item-icon:hover,

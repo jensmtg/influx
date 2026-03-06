@@ -101,5 +101,6 @@ describe('InfluxReactComponent render wiring', () => {
 		);
 
 		expect(html).toContain('Load 5 more backlinks');
+		expect(html).toContain('aria-label="Collapse Source-1"');
 	});
 });

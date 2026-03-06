@@ -17,6 +17,16 @@ export class RootManager {
 	private filePathIndex = new Map<string, Set<HTMLElement>>();
 	private unloading = false;
 
+	private scheduleRootUnmount(root: Root, metadata?: Record<string, unknown>): void {
+		setTimeout(() => {
+			try {
+				root.unmount();
+			} catch (e) {
+				logger.error('Failed to unmount root', { error: e, metadata });
+			}
+		}, 0);
+	}
+
 	/**
 	 * Register a new React root
 	 */
@@ -33,8 +43,17 @@ export class RootManager {
 			return;
 		}
 
-		// Unmount any existing root for this container
-		this.unmount(container);
+		// Replace any existing root for this container.
+		// Defer unmount to avoid React warning about synchronous unmount while rendering.
+		const existing = this.roots.get(container);
+		if (existing) {
+			this.unregister(container);
+			this.scheduleRootUnmount(existing.root, {
+				reason: 'register-replace',
+				type: existing.type,
+				filePath: existing.filePath,
+			});
+		}
 
 		const info: RootInfo = {
 			root,
