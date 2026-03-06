@@ -247,7 +247,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             .setName('Layout variant')
             .addDropdown((dropdown) => {
                 dropdown
-                    .addOption('CENTER_ALIGNED', 'Continous stream')
+                    .addOption('CENTER_ALIGNED', 'Continuous stream')
                     .addOption('ROWS', 'Note by note')
                     .setValue(this.plugin.data.settings.variant)
                     .onChange(async (value) => {
@@ -325,6 +325,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Default behaviour')
+            .setDesc('Control whether source notes are included by default or only when matching include patterns.')
             .addDropdown((dropdown) => {
                 dropdown
                     .addOption('OPT_OUT', 'Include all notes')
@@ -351,7 +352,7 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
             'sourceInclusionPattern'
         );
 
-        containerEl.createEl('h2', { text: 'In which pages should Influx be collapsed by default?' });
+        containerEl.createEl('h2', { text: 'On which pages should Influx be collapsed by default?' });
 
         new Setting(containerEl)
             .setName('Collapse all by default')

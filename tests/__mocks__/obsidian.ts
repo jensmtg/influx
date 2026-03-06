@@ -46,6 +46,59 @@ export class Component {
 	}
 }
 
+export class PluginSettingTab {
+	app: unknown;
+	plugin: unknown;
+	containerEl: {
+		empty: jest.Mock;
+		createEl: jest.Mock;
+		createDiv: jest.Mock;
+		appendChild: jest.Mock;
+		querySelector: jest.Mock;
+	};
+
+	constructor(app: unknown, plugin: unknown) {
+		this.app = app;
+		this.plugin = plugin;
+		this.containerEl = {
+			empty: jest.fn(),
+			createEl: jest.fn(() => ({
+				appendChild: jest.fn(),
+				querySelector: jest.fn(),
+				createDiv: jest.fn(() => ({ createEl: jest.fn() })),
+			})),
+			createDiv: jest.fn(() => ({ createEl: jest.fn() })),
+			appendChild: jest.fn(),
+			querySelector: jest.fn(),
+		};
+	}
+}
+
+export class ItemView extends Component {
+	containerEl: HTMLElement;
+	protected leaf: unknown;
+	protected app: {
+		workspace: {
+			on: jest.Mock;
+			getActiveFile: jest.Mock;
+		};
+	};
+
+	constructor(leaf: unknown) {
+		super();
+		this.leaf = leaf;
+		this.containerEl = {} as HTMLElement;
+		this.app = {
+			workspace: {
+				on: jest.fn(),
+				getActiveFile: jest.fn(),
+			},
+		};
+	}
+
+	registerEvent = jest.fn();
+}
+
 export const MarkdownRenderer = {
 	renderMarkdown: jest.fn(async (markdown: string, el: HTMLElement) => {
 		el.textContent = markdown;
@@ -60,6 +113,7 @@ export const Setting = jest.fn().mockImplementation(() => {
 		setDesc?: jest.Mock;
 		setHeading?: jest.Mock;
 		addText?: jest.Mock;
+		addTextArea?: jest.Mock;
 		addToggle?: jest.Mock;
 		addDropdown?: jest.Mock;
 		addSlider?: jest.Mock;
@@ -78,12 +132,35 @@ export const Setting = jest.fn().mockImplementation(() => {
 		setValue: jest.Mock;
 		onChange: jest.Mock;
 		onInput: jest.Mock;
+		inputEl: {
+			onblur?: (e: FocusEvent) => void;
+		};
 	}) => void) => {
 		const component = {
 			setPlaceholder: jest.fn().mockReturnThis(),
 			setValue: jest.fn().mockReturnThis(),
 			onChange: jest.fn().mockReturnThis(),
 			onInput: jest.fn().mockReturnThis(),
+			inputEl: {},
+		};
+		cb(component);
+		return settingInstance;
+	});
+
+	settingInstance.addTextArea = jest.fn((cb: (component: {
+		setPlaceholder: jest.Mock;
+		setValue: jest.Mock;
+		inputEl: {
+			setAttr: jest.Mock;
+			onblur?: (e: FocusEvent) => void;
+		};
+	}) => void) => {
+		const component = {
+			setPlaceholder: jest.fn().mockReturnThis(),
+			setValue: jest.fn().mockReturnThis(),
+			inputEl: {
+				setAttr: jest.fn(),
+			},
 		};
 		cb(component);
 		return settingInstance;
@@ -171,6 +248,8 @@ export default {
 	TFile: MockTFile,
 	TAbstractFile: MockTAbstractFile,
 	Component,
+	PluginSettingTab,
+	ItemView,
 	MarkdownRenderer,
 	normalizePath,
 	Setting,
