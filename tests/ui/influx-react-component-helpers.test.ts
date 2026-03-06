@@ -4,6 +4,8 @@ import {
 	collectInitialCollapsedPaths,
 	filterComponentsBySearch,
 	getLinkedMentionsCountLabel,
+	getLinkedMentionsCountTooltip,
+	getNoSearchResultsMessage,
 	getSearchText,
 	makeUpdateEvent,
 	shouldProcessInfluxUpdateEvent,
@@ -118,6 +120,34 @@ describe('influx-react-component helpers', () => {
 			expect(collectComponentPaths(components)).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: true, components })).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: false, components })).toEqual([]);
+		});
+
+		test('getLinkedMentionsCountTooltip provides explicit count context', () => {
+			expect(
+				getLinkedMentionsCountTooltip({
+					totalEntryCount: 20,
+					listLimit: 10,
+					renderedCount: 10,
+					filteredCount: 4,
+					hasSearch: true,
+				})
+			).toBe('4 matching backlinks shown out of 20 total backlinks.');
+
+			expect(
+				getLinkedMentionsCountTooltip({
+					totalEntryCount: 20,
+					listLimit: 10,
+					renderedCount: 10,
+					filteredCount: 10,
+					hasSearch: false,
+				})
+			).toBe('10 backlinks shown out of 20 total backlinks.');
+		});
+
+		test('getNoSearchResultsMessage references the user query when present', () => {
+			expect(getNoSearchResultsMessage('alpha')).toBe('No backlinks match "alpha".');
+			expect(getNoSearchResultsMessage('  alpha beta  ')).toBe('No backlinks match "alpha beta".');
+			expect(getNoSearchResultsMessage('   ')).toBe('No matching backlinks found.');
 		});
 	});
 

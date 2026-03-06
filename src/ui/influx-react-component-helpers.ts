@@ -85,6 +85,36 @@ export function getLinkedMentionsCountLabel(params: {
 	return totalEntryCount.toString();
 }
 
+export function getLinkedMentionsCountTooltip(params: {
+	totalEntryCount: number;
+	renderedCount: number;
+	filteredCount: number;
+	hasSearch: boolean;
+	listLimit: number;
+}): string {
+	const { totalEntryCount, renderedCount, filteredCount, hasSearch, listLimit } = params;
+	const hasListLimit = listLimit > 0 && totalEntryCount > listLimit;
+
+	if (hasSearch && hasListLimit) {
+		return `${filteredCount} matching backlinks shown out of ${totalEntryCount} total backlinks.`;
+	}
+	if (hasListLimit) {
+		return `${renderedCount} backlinks shown out of ${totalEntryCount} total backlinks.`;
+	}
+	if (hasSearch) {
+		return `${filteredCount} matching backlinks out of ${renderedCount} currently loaded backlinks.`;
+	}
+	return `${totalEntryCount} backlinks.`;
+}
+
+export function getNoSearchResultsMessage(searchQuery: string): string {
+	const query = searchQuery.trim();
+	if (!query) {
+		return 'No matching backlinks found.';
+	}
+	return `No backlinks match "${query}".`;
+}
+
 export function shouldProcessInfluxUpdateEvent(params: {
 	event: InfluxUpdateEvent;
 	currentPath?: string;

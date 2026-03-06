@@ -15,6 +15,8 @@ import {
 	collectInitialCollapsedPaths,
 	filterComponentsBySearch,
 	getLinkedMentionsCountLabel,
+	getLinkedMentionsCountTooltip,
+	getNoSearchResultsMessage,
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
 	type InfluxRenderMode,
 	shouldProcessInfluxUpdateEvent,
@@ -245,6 +247,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		filteredCount: filteredComponents.length,
 		hasSearch: searchQuery.length > 0,
 	});
+	const mentionsCountTooltip = getLinkedMentionsCountTooltip({
+		totalEntryCount: influxFile.totalEntryCount ?? 0,
+		listLimit: settings.listLimit || 0,
+		renderedCount: components.length,
+		filteredCount: filteredComponents.length,
+		hasSearch: searchQuery.length > 0,
+	});
 
 	if (!influxFile.show || shownLength === 0) {
 		return null;
@@ -382,7 +391,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 
 							<div className="tree-item-flair-outer">
-								<span className="tree-item-flair">
+								<span className="tree-item-flair" title={mentionsCountTooltip}>
 									{mentionsCountLabel}
 								</span>
 							</div>
@@ -463,11 +472,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									);
 								})}
 
-								{filteredComponents.length === 0 && searchQuery && (
-									<div className="no-search-results">
-										No matching backlinks found
-									</div>
-								)}
+							{filteredComponents.length === 0 && searchQuery && (
+								<div className="no-search-results">
+									{getNoSearchResultsMessage(searchQuery)}
+								</div>
+							)}
 
 								{hasMoreVisible && (
 									<React.Fragment>

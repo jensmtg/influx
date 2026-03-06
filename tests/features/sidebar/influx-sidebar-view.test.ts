@@ -108,4 +108,75 @@ describe('InfluxSidebarView', () => {
 		expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
 		expect((view as any).root.render).toHaveBeenCalledWith(null);
 	});
+
+	test('updateView ignores stale results from an older async update', async () => {
+		const { view, fileA, fileB } = createContext();
+		let resolveA: ((value: unknown) => void) | null = null;
+
+		const influxA = {
+			show: true,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([{ sourcePath: 'A.md' }]),
+			totalEntryCount: 1,
+		};
+		const influxB = {
+			show: true,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([{ sourcePath: 'B.md' }]),
+			totalEntryCount: 1,
+		};
+
+		(InfluxFile as any).create.mockImplementation((path: string) => {
+			if (path === 'A.md') {
+				return new Promise((resolve) => {
+					resolveA = resolve;
+				});
+			}
+			return Promise.resolve(influxB);
+		});
+
+		const first = view.updateView(fileA);
+		await Promise.resolve();
+		const second = view.updateView(fileB);
+		await second;
+
+		resolveA?.(influxA);
+		await first;
+
+		expect((view as any).currentFile).toBe(fileB);
+		expect((view as any).root.render).toHaveBeenCalledTimes(1);
+		const lastRenderArg = ((view as any).root.render as jest.Mock).mock.calls[0][0];
+		expect(lastRenderArg.props.influxFile).toBe(influxB);
+	});
+
+	test('handleEditorChange drops rendering when update id changes mid-flight', async () => {
+		const { view, plugin, fileA } = createContext();
+		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(true);
+
+		let release: (() => void) | null = null;
+		const influxFile = {
+			show: true,
+			makeInfluxList: jest.fn().mockImplementation(
+				() =>
+					new Promise<void>((resolve) => {
+						release = resolve;
+					})
+			),
+			toEntries: jest.fn().mockReturnValue([{ sourcePath: 'A.md' }]),
+			totalEntryCount: 1,
+		};
+
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = influxFile;
+		(view as any).abortController = { signal: { aborted: false } };
+		(view as any).currentUpdateId = 10;
+
+		const pending = (view as any).handleEditorChange();
+		(view as any).currentUpdateId = 11;
+		release?.();
+		await pending;
+
+		expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('A.md');
+		expect((view as any).root.render).not.toHaveBeenCalled();
+	});
 });
