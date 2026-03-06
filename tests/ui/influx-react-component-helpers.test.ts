@@ -2,6 +2,7 @@ import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
 import {
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
+	createInitialSearchUiState,
 	filterComponentsBySearch,
 	getEmptyBacklinksMessage,
 	getLoadMoreBacklinksLabel,
@@ -10,6 +11,7 @@ import {
 	getNoSearchResultsMessage,
 	getSearchText,
 	makeUpdateEvent,
+	reduceSearchUiState,
 	shouldProcessInfluxUpdateEvent,
 } from '@/ui/influx-react-component-helpers';
 
@@ -34,6 +36,50 @@ function entry(params: {
 }
 
 describe('influx-react-component helpers', () => {
+	describe('search ui state transitions', () => {
+		test('toggle expands and focuses, then collapses and unfocuses', () => {
+			const initial = createInitialSearchUiState();
+			const opened = reduceSearchUiState(initial, { type: 'TOGGLE_PANEL' });
+			expect(opened.isSearchExpanded).toBe(true);
+			expect(opened.isSearchFocused).toBe(true);
+
+			const closed = reduceSearchUiState(opened, { type: 'TOGGLE_PANEL' });
+			expect(closed.isSearchExpanded).toBe(false);
+			expect(closed.isSearchFocused).toBe(false);
+		});
+
+		test('input/query/reset flow preserves panel state when clearing', () => {
+			const opened = reduceSearchUiState(createInitialSearchUiState(), { type: 'TOGGLE_PANEL' });
+			const typed = reduceSearchUiState(opened, { type: 'INPUT_CHANGED', value: 'alpha' });
+			const committed = reduceSearchUiState(typed, { type: 'QUERY_COMMITTED', value: 'alpha' });
+
+			expect(committed.inputValue).toBe('alpha');
+			expect(committed.searchQuery).toBe('alpha');
+			expect(committed.isSearchExpanded).toBe(true);
+
+			const cleared = reduceSearchUiState(committed, { type: 'RESET', closePanel: false });
+			expect(cleared.inputValue).toBe('');
+			expect(cleared.searchQuery).toBe('');
+			expect(cleared.isSearchExpanded).toBe(true);
+		});
+
+		test('escape-equivalent reset closes panel and clears state', () => {
+			const state = {
+				inputValue: 'alpha',
+				searchQuery: 'alpha',
+				isSearchExpanded: true,
+				isSearchFocused: true,
+			};
+			const resetClosed = reduceSearchUiState(state, { type: 'RESET', closePanel: true });
+			expect(resetClosed).toEqual({
+				inputValue: '',
+				searchQuery: '',
+				isSearchExpanded: false,
+				isSearchFocused: false,
+			});
+		});
+	});
+
 	describe('search helpers', () => {
 		test('filterComponentsBySearch matches basename, title, and summary case-insensitively', () => {
 			const components = [

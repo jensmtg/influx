@@ -13,6 +13,7 @@ import { recordMetric } from '../platform/diagnostics/metrics';
 import {
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
+	createInitialSearchUiState,
 	filterComponentsBySearch,
 	getEmptyBacklinksMessage,
 	getLoadMoreBacklinksLabel,
@@ -21,6 +22,7 @@ import {
 	getNoSearchResultsMessage,
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
 	type InfluxRenderMode,
+	reduceSearchUiState,
 	shouldProcessInfluxUpdateEvent,
 	VISIBLE_COMPONENTS_CHUNK_BY_MODE,
 } from './influx-react-component-helpers';
@@ -39,7 +41,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	} = props;
 
 	const [components, setComponents] = React.useState(influxFile.components);
-	const [inputValue, setInputValue] = React.useState('');
+	const [searchUi, dispatchSearchUi] = React.useReducer(reduceSearchUiState, undefined, createInitialSearchUiState);
+	const { inputValue, searchQuery, isSearchExpanded, isSearchFocused } = searchUi;
 	const [collapsedManager] = React.useState(() => {
 		return new CollapsedStateManager(
 			collectInitialCollapsedPaths({
@@ -49,9 +52,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		);
 	});
 	const [, forceUpdate] = React.useReducer((x) => x + 1, 0);
-	const [searchQuery, setSearchQuery] = React.useState('');
-	const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
-	const [isSearchFocused, setIsSearchFocused] = React.useState(false);
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
 	const searchResultsContainerRef = React.useRef<HTMLDivElement>(null);
 	const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
@@ -159,7 +159,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const debouncedSetSearchQuery = React.useMemo(
 		() => debounce((value: string) => {
-			setSearchQuery(value);
+			dispatchSearchUi({ type: 'QUERY_COMMITTED', value });
 		}, SEARCH_DEBOUNCE_MS),
 		[]
 	);
@@ -171,18 +171,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}, [debouncedSetSearchQuery]);
 
 	const handleSearchChange = (value: string) => {
-		setInputValue(value);
+		dispatchSearchUi({ type: 'INPUT_CHANGED', value });
 		debouncedSetSearchQuery(value);
 	};
 
 	const resetSearch = (closePanel: boolean) => {
 		debouncedSetSearchQuery.cancel();
-		setInputValue('');
-		setSearchQuery('');
-		if (closePanel) {
-			setIsSearchExpanded(false);
-			setIsSearchFocused(false);
-		}
+		dispatchSearchUi({ type: 'RESET', closePanel });
 	};
 
 	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -192,14 +187,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	};
 
 	const toggleSearch = () => {
-		setIsSearchExpanded(!isSearchExpanded);
-		if (!isSearchExpanded) {
-			setIsSearchFocused(true);
+		const willOpen = !isSearchExpanded;
+		dispatchSearchUi({ type: 'TOGGLE_PANEL' });
+		if (willOpen) {
 			setTimeout(() => {
 				searchInputRef.current?.focus();
 			}, SEARCH_FOCUS_DELAY_MS);
-		} else {
-			setIsSearchFocused(false);
 		}
 	};
 
@@ -304,8 +297,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										placeholder="Search backlinks..."
 										value={inputValue}
 										onChange={(e) => handleSearchChange(e.target.value)}
-										onFocus={() => setIsSearchFocused(true)}
-										onBlur={() => setIsSearchFocused(false)}
+										onFocus={() => dispatchSearchUi({ type: 'FOCUS_CHANGED', focused: true })}
+										onBlur={() => dispatchSearchUi({ type: 'FOCUS_CHANGED', focused: false })}
 										onKeyDown={handleSearchKeyDown}
 										aria-label="Search backlinks"
 									/>

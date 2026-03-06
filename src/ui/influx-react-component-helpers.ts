@@ -4,6 +4,67 @@ import type { InfluxUpdateEvent } from '../app/events/influx-updates';
 
 export type InfluxRenderMode = 'editor' | 'preview' | 'sidebar';
 
+export interface SearchUiState {
+	inputValue: string;
+	searchQuery: string;
+	isSearchExpanded: boolean;
+	isSearchFocused: boolean;
+}
+
+export type SearchUiAction =
+	| { type: 'INPUT_CHANGED'; value: string }
+	| { type: 'QUERY_COMMITTED'; value: string }
+	| { type: 'TOGGLE_PANEL' }
+	| { type: 'FOCUS_CHANGED'; focused: boolean }
+	| { type: 'RESET'; closePanel: boolean };
+
+export function createInitialSearchUiState(): SearchUiState {
+	return {
+		inputValue: '',
+		searchQuery: '',
+		isSearchExpanded: false,
+		isSearchFocused: false,
+	};
+}
+
+export function reduceSearchUiState(state: SearchUiState, action: SearchUiAction): SearchUiState {
+	switch (action.type) {
+		case 'INPUT_CHANGED':
+			return {
+				...state,
+				inputValue: action.value,
+			};
+		case 'QUERY_COMMITTED':
+			return {
+				...state,
+				searchQuery: action.value,
+			};
+		case 'TOGGLE_PANEL': {
+			const nextExpanded = !state.isSearchExpanded;
+			return {
+				...state,
+				isSearchExpanded: nextExpanded,
+				isSearchFocused: nextExpanded,
+			};
+		}
+		case 'FOCUS_CHANGED':
+			return {
+				...state,
+				isSearchFocused: action.focused,
+			};
+		case 'RESET':
+			return {
+				...state,
+				inputValue: '',
+				searchQuery: '',
+				isSearchExpanded: action.closePanel ? false : state.isSearchExpanded,
+				isSearchFocused: action.closePanel ? false : state.isSearchFocused,
+			};
+		default:
+			return state;
+	}
+}
+
 export const INITIAL_VISIBLE_COMPONENTS_BY_MODE: Record<InfluxRenderMode, number> = {
 	editor: 40,
 	preview: 80,
