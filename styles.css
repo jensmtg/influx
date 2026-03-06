@@ -23,8 +23,8 @@ body .markdown-preview-sizer:has(.influx-preview-wrapper) {
 /* Reading mode width alignment */
 .markdown-preview-view .influx-preview-wrapper,
 .markdown-reading-view .influx-preview-wrapper {
-	max-width: var(--file-line-width, 100%);
-	margin-inline: auto;
+	max-width: 100%;
+	margin-inline: 0;
 }
 
 /* Keep wrapper aligned when readable line length is enabled */
@@ -65,6 +65,19 @@ body.is-readable-line-width .influx-preview-wrapper {
 	border-radius: var(--radius-m);
 	border: 1px solid var(--background-modifier-border);
 	box-shadow: none;
+}
+
+/* Reading/preview mode polish */
+.influx-component--preview {
+	margin-top: 1.25em;
+}
+
+.influx-component--preview .influx-results-scroll {
+	padding-top: var(--size-4-1);
+}
+
+.influx-component--preview .influx-result-head {
+	padding-inline-end: var(--size-4-1);
 }
 
 .influx-component .influx-entries {
@@ -109,8 +122,20 @@ body.is-readable-line-width .influx-preview-wrapper {
 	max-width: 100%;
 }
 
+/* Keep preview entries full-width when readable line length is disabled. */
+body:not(.is-readable-line-width) .influx-component.influx-component--preview .influx-entries {
+	width: 100%;
+	max-width: 100%;
+}
+
 /* When readable line length is OFF, ensure body cards fully use available width. */
 body:not(.is-readable-line-width) .influx-component--editor .influx-result-body {
+	width: 100%;
+	max-width: 100%;
+	flex: 1 1 auto;
+}
+
+body:not(.is-readable-line-width) .influx-component--preview .influx-result-body {
 	width: 100%;
 	max-width: 100%;
 	flex: 1 1 auto;
@@ -371,7 +396,8 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 	gap: var(--size-4-2);
 }
 
-.influx-component--editor .influx-toolbar {
+.influx-component--editor .influx-toolbar,
+.influx-component--preview .influx-toolbar {
 	display: grid;
 	grid-template-columns: auto minmax(0, 1fr);
 	align-items: center;
@@ -381,7 +407,12 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 	gap: var(--size-4-2);
 }
 
-.influx-component--editor .influx-toolbar-actions {
+.influx-component--preview .influx-toolbar {
+	padding-block-end: var(--size-4-1);
+}
+
+.influx-component--editor .influx-toolbar-actions,
+.influx-component--preview .influx-toolbar-actions {
 	justify-self: end;
 }
 
@@ -393,9 +424,9 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 	cursor: pointer;
 	color: var(--icon-muted);
 	border-radius: var(--radius-s);
-	width: 28px;
-	height: 28px;
-	min-width: 28px;
+	width: 30px;
+	height: 30px;
+	min-width: 30px;
 	padding: 0;
 	position: relative;
 	transition:
@@ -403,10 +434,15 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 		background-color 0.15s ease;
 }
 
-.influx-component .influx-icon-button .svg-icon {
-	width: 16px;
-	height: 16px;
+.influx-component .influx-icon-button .influx-svg-icon {
+	width: 17px;
+	height: 17px;
 	display: block;
+}
+
+.influx-component .influx-search-clear .influx-svg-icon {
+	width: 14px;
+	height: 14px;
 }
 
 .influx-component button.influx-icon-button {
@@ -537,7 +573,7 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 		background-color 0.15s ease;
 }
 
-.influx-component .influx-collapse-toggle .right-triangle {
+.influx-component .influx-collapse-toggle .influx-svg-icon--collapse-chevron {
 	transform-origin: 50% 50%;
 }
 
@@ -548,7 +584,7 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 }
 
 /* Collapsed state */
-.influx-component .influx-result-group.influx-is-collapsed .influx-collapse-toggle svg {
+.influx-component .influx-result-group.influx-is-collapsed .influx-collapse-toggle .influx-svg-icon {
 	transform: rotate(-90deg);
 }
 
@@ -647,4 +683,8 @@ body:not(.is-readable-line-width) .influx-component--editor .influx-result-body 
 	.influx-result-body {
 	max-width: 95%;
 	margin-inline: auto;
+}
+
+.markdown-preview-sizer.markdown-preview-section {
+	padding-bottom: 0 !important;
 }

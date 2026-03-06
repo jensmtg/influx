@@ -81,6 +81,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
 	const renderMode: InfluxRenderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
 	const isEditorMode = renderMode === 'editor';
+	const showToolbarSummary = renderMode === 'editor' || renderMode === 'preview';
 	const autoLoadByObserver = renderMode !== 'editor';
 
 	const filteredComponents = React.useMemo(() => {
@@ -268,6 +269,23 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		renderedCount: components.length,
 	});
 	const summaryRowLabel = toggleAllToOpen ? 'Expand all linked mentions' : 'Collapse all linked mentions';
+	const renderSummaryRow = (variant: 'toolbar' | 'pane') => (
+		<button
+			type="button"
+			onClick={toggleAll}
+			className={`influx-summary-row influx-clickable${variant === 'toolbar' ? ' influx-summary-row--toolbar' : ''}`}
+			aria-label={summaryRowLabel}
+		>
+			<div className="influx-summary-title">
+				Linked mentions
+			</div>
+			<div className="influx-summary-count-wrap">
+				<span className="influx-summary-count" title={mentionsCountTooltip}>
+					{mentionsCountLabel}
+				</span>
+			</div>
+		</button>
+	);
 
 	if (!influxFile.show) {
 		return null;
@@ -288,23 +306,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					<div className={`influx-toolbar${isEditorMode ? ' influx-toolbar--editor' : ''}`}>
 
-						{isEditorMode && (
-							<button
-								type="button"
-								onClick={toggleAll}
-								className="influx-summary-row influx-summary-row--toolbar influx-clickable"
-								aria-label={summaryRowLabel}
-							>
-								<div className="influx-summary-title">
-									Linked mentions
-								</div>
-								<div className="influx-summary-count-wrap">
-									<span className="influx-summary-count" title={mentionsCountTooltip}>
-										{mentionsCountLabel}
-									</span>
-								</div>
-							</button>
-						)}
+						{showToolbarSummary && renderSummaryRow('toolbar')}
 
 						<div className="influx-toolbar-actions" role="toolbar" aria-label="Influx actions">
 							<button
@@ -313,7 +315,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
 								onClick={toggleSearch}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-search">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--search">
 									<circle cx="11" cy="11" r="8"></circle>
 									<path d="m21 21-4.3-4.3"></path>
 								</svg>
@@ -339,7 +341,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 											onClick={() => resetSearch(false)}
 											aria-label="Clear search"
 										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-x">
+											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--clear">
 												<line x1="18" y1="6" x2="6" y2="18"></line>
 												<line x1="6" y1="6" x2="18" y2="18"></line>
 											</svg>
@@ -353,7 +355,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								aria-label="Cycle list limit"
 								onClick={() => plugin.cycleListLimit()}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-list">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--list">
 									<line x1="8" y1="6" x2="21" y2="6"></line>
 									<line x1="8" y1="12" x2="21" y2="12"></line>
 									<line x1="8" y1="18" x2="21" y2="18"></line>
@@ -368,7 +370,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-move-vertical">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--expand-collapse-all">
 									<polyline points="8 18 12 22 16 18">
 									</polyline>
 									<polyline points="8 6 12 2 16 6">
@@ -384,12 +386,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								onClick={() => plugin.toggleFrontmatterLinks()}
 							>
 								{settings.includeFrontmatterLinks ? (
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-eye">
+									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--eye-on">
 										<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
 										<circle cx="12" cy="12" r="3"></circle>
 									</svg>
 								) : (
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-eye-off">
+									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--eye-off">
 										<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
 										<path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
 										<path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
@@ -403,7 +405,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								aria-label="Change sort order"
 								onClick={() => plugin.toggleSortOrder()}
 							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-sort-asc">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--sort">
 									<path d="M11 5h4">
 									</path>
 									<path d="M11 9h7">
@@ -422,23 +424,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 						<div className="influx-pane">
 
-						{!isEditorMode && (
-							<button
-								type="button"
-								onClick={toggleAll}
-								className="influx-summary-row influx-clickable"
-								aria-label={summaryRowLabel}
-							>
-								<div className="influx-summary-title" >
-									Linked mentions
-								</div>
-								<div className="influx-summary-count-wrap">
-									<span className="influx-summary-count" title={mentionsCountTooltip}>
-										{mentionsCountLabel}
-									</span>
-								</div>
-							</button>
-						)}
+						{!showToolbarSummary && renderSummaryRow('pane')}
 
 						<div className="influx-results-scroll" ref={searchResultsContainerRef}>
 
@@ -483,7 +469,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												aria-expanded={!inlinkedCollapsed}
 												aria-controls={matchesRegionId}
 											>
-													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon right-triangle">
+													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--collapse-chevron">
 														<path d="M3 8L12 17L21 8"></path>
 													</svg>
 											</button>

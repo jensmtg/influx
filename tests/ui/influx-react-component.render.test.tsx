@@ -119,8 +119,26 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).toContain('influx-summary-row--toolbar');
 		expect(html).toContain('influx-result-group');
 		expect(html).toContain('influx-result-body');
+		expect(html).toContain('influx-svg-icon');
 		expect(html).not.toContain('nav-header');
 		expect(html).not.toContain('tree-item-self');
 		expect(html).not.toContain('search-result-file-matches');
+		expect(html).not.toContain('svg-icon lucide-');
+	});
+
+	test('renders preview summary in toolbar instead of pane header row', () => {
+		const components = [makeComponent(1)];
+		const influxFile = makeInfluxFile({ components, totalEntryCount: 1 });
+		const props = {
+			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			preview: true,
+			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
+		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+
+		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+
+		expect(html).toContain('influx-toolbar');
+		expect(html).toContain('influx-summary-row--toolbar');
+		expect(html).not.toContain('class="influx-summary-row influx-clickable"');
 	});
 });
