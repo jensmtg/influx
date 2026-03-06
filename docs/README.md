@@ -156,6 +156,7 @@ For large vaults or optimal performance:
 1. Ensure Influx is enabled in Community Plugins
 2. Check that the current file has incoming links
 3. Verify file indexing is complete in Obsidian
+4. Review source/target include-exclude filters and list limit settings
 
 ### Performance issues
 

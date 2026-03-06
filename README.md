@@ -7,8 +7,9 @@ Transform your Obsidian backlinks from simple links into rich context. **Influx*
 ## Why Influx over core backlinks?
 
 - **Rich context**: See excerpts instead of just link titles
-- **Smart organization**: Groups related content automatically  
-- **Full control**: Customize sorting, layout, and filtering
+- **Smart organization**: Groups related content automatically
+- **Cross-view consistency**: Use Influx in editor, reading view, and sidebar
+- **Full control**: Customize sorting, layout, filtering, and visibility
 - **Research ready**: Perfect for academic work and deep knowledge discovery
 
 Perfect for:
@@ -41,7 +42,7 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 2. Open any note that has backlinks
 3. Scroll to the bottom to see Influx in action
 4. Try clicking on different backlinks to see the context
-5. Explore settings like sort order, list length, filtering, and sidebar mode
+5. Explore controls like search, sorting, list length, collapse/expand, and sidebar mode
 
 **Recommended settings for beginners**:
 
@@ -51,6 +52,13 @@ Once installed and enabled, Influx automatically appears at the bottom of your n
 - **Display location**: `Inline` (switch to `Sidebar` if you prefer one persistent panel)
 
 **📖 Need more help?** Check out our [complete documentation](https://jensmtg.github.io/influx/) for advanced configuration and usage examples.
+
+## Troubleshooting
+
+- **No backlinks shown**: Verify the note actually has incoming links and check your source/target filters
+- **Too many or too few entries**: Adjust `List length` and sorting in Influx settings
+- **Results unexpectedly hidden**: Review inclusion/exclusion patterns and frontmatter link toggle
+- **Reading/Sidebar differences**: Confirm display mode settings in `Settings → Community Plugins → Influx`
 
 ## Community & Support
 
