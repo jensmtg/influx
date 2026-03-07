@@ -9,10 +9,12 @@ import {
 	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
+	getNextVisibleCount,
 	getNoSearchResultsMessage,
 	getSearchText,
 	makeUpdateEvent,
 	reduceSearchUiState,
+	resolveInfluxUpdateEntries,
 	shouldProcessInfluxUpdateEvent,
 } from '@/ui/influx-react-component-helpers';
 
@@ -239,6 +241,24 @@ describe('influx-react-component helpers', () => {
 			).toBe('All backlinks loaded');
 		});
 
+		test('getNextVisibleCount caps appended results at the filtered total', () => {
+			expect(
+				getNextVisibleCount({
+					currentVisibleCount: 40,
+					chunkSize: 30,
+					totalFilteredCount: 95,
+				})
+			).toBe(70);
+
+			expect(
+				getNextVisibleCount({
+					currentVisibleCount: 80,
+					chunkSize: 50,
+					totalFilteredCount: 95,
+				})
+			).toBe(95);
+		});
+
 		test('getEmptyBacklinksMessage explains empty and filtered states', () => {
 			expect(getEmptyBacklinksMessage({ totalEntryCount: 0, renderedCount: 0 })).toBe(
 				'No backlinks found for this note yet.'
@@ -319,6 +339,78 @@ describe('influx-react-component helpers', () => {
 					affectsBacklinks: false,
 				})
 			).toBe(true);
+		});
+
+		test('resolveInfluxUpdateEntries returns fresh entries for relevant updates', async () => {
+			const entries = [entry({ path: 'Source.md', basename: 'Source' })];
+			const current = {
+				file: { path: 'Current.md' },
+				shouldUpdate: jest.fn().mockReturnValue(false),
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn().mockReturnValue(entries),
+			};
+
+			const result = await resolveInfluxUpdateEntries({
+				event: makeUpdateEvent('modify', 'Current.md'),
+				current,
+				seq: 1,
+				getLatestSeq: () => 1,
+				isAborted: () => false,
+			});
+
+			expect(current.makeInfluxList).toHaveBeenCalledTimes(1);
+			expect(result).toBe(entries);
+		});
+
+		test('resolveInfluxUpdateEntries drops stale async results after a newer update wins', async () => {
+			let release: (() => void) | null = null;
+			let latestSeq = 1;
+			const current = {
+				file: { path: 'Current.md' },
+				shouldUpdate: jest.fn().mockReturnValue(true),
+				makeInfluxList: jest.fn().mockImplementation(
+					() =>
+						new Promise<void>((resolve) => {
+							release = resolve;
+						})
+				),
+				toEntries: jest.fn().mockReturnValue([entry({ path: 'Source.md', basename: 'Source' })]),
+			};
+
+			const pending = resolveInfluxUpdateEntries({
+				event: makeUpdateEvent('rename', 'Other.md'),
+				current,
+				seq: 1,
+				getLatestSeq: () => latestSeq,
+				isAborted: () => false,
+			});
+
+			latestSeq = 2;
+			release?.();
+			await expect(pending).resolves.toBeNull();
+			expect(current.toEntries).not.toHaveBeenCalled();
+		});
+
+		test('resolveInfluxUpdateEntries stops after abort and does not read entries', async () => {
+			const current = {
+				file: { path: 'Current.md' },
+				shouldUpdate: jest.fn().mockReturnValue(true),
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn(),
+			};
+			let aborted = false;
+
+			const pending = resolveInfluxUpdateEntries({
+				event: makeUpdateEvent('delete', 'Other.md'),
+				current,
+				seq: 1,
+				getLatestSeq: () => 1,
+				isAborted: () => aborted,
+			});
+
+			aborted = true;
+			await expect(pending).resolves.toBeNull();
+			expect(current.toEntries).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -16,6 +16,7 @@ import {
 	collectInitialCollapsedPaths,
 	createInitialSearchUiState,
 	filterComponentsBySearch,
+	getNextVisibleCount,
 	getEmptyBacklinksMessage,
 	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
@@ -24,7 +25,7 @@ import {
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
 	type InfluxRenderMode,
 	reduceSearchUiState,
-	shouldProcessInfluxUpdateEvent,
+	resolveInfluxUpdateEntries,
 	VISIBLE_COMPONENTS_CHUNK_BY_MODE,
 } from './influx-react-component-helpers';
 
@@ -113,7 +114,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const loadMoreComponents = React.useCallback((trigger: 'observer' | 'button') => {
 		setVisibleCount((count) => {
-			const nextVisibleCount = Math.min(count + VISIBLE_COMPONENTS_CHUNK_BY_MODE[renderMode], filteredComponents.length);
+			const nextVisibleCount = getNextVisibleCount({
+				currentVisibleCount: count,
+				chunkSize: VISIBLE_COMPONENTS_CHUNK_BY_MODE[renderMode],
+				totalFilteredCount: filteredComponents.length,
+			});
 			if (nextVisibleCount !== count) {
 				recordMetric({
 					name: 'influx.ui.virtualize.append',
@@ -207,21 +212,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		const handleUpdate = async (event: InfluxUpdateEvent) => {
 			const seq = ++updateSeqRef.current;
 			const current = influxFileRef.current;
-			if (abortController.signal.aborted) {
-				return;
-			}
-			const currentPath = current.file?.path;
-			const affectsBacklinks = event.file ? current.shouldUpdate(event.file) : false;
-			if (!shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks })) {
-				return;
-			}
-
-			await current.makeInfluxList();
-			if (abortController.signal.aborted) {
-				return;
-			}
-			const newComponents = current.toEntries();
-			if (abortController.signal.aborted || seq !== updateSeqRef.current) {
+			const newComponents = await resolveInfluxUpdateEntries({
+				event,
+				current,
+				seq,
+				getLatestSeq: () => updateSeqRef.current,
+				isAborted: () => abortController.signal.aborted,
+			});
+			if (!newComponents) {
 				return;
 			}
 			setComponents(newComponents);

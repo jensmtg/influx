@@ -83,6 +83,13 @@ export function collectComponentPaths(components: ExtendedInlinkingFile[]): stri
 		.filter((path): path is string => path !== undefined);
 }
 
+export interface InfluxUpdateTarget {
+	file?: { path?: string };
+	shouldUpdate: (file: TFile) => boolean;
+	makeInfluxList: () => Promise<void>;
+	toEntries: () => ExtendedInlinkingFile[];
+}
+
 export function areAllComponentPathsCollapsed(
 	paths: string[],
 	isCollapsed: (path: string) => boolean
@@ -211,6 +218,15 @@ export function getEmptyBacklinksMessage(params: {
 	return '';
 }
 
+export function getNextVisibleCount(params: {
+	currentVisibleCount: number;
+	chunkSize: number;
+	totalFilteredCount: number;
+}): number {
+	const { currentVisibleCount, chunkSize, totalFilteredCount } = params;
+	return Math.min(currentVisibleCount + chunkSize, totalFilteredCount);
+}
+
 export function shouldProcessInfluxUpdateEvent(params: {
 	event: InfluxUpdateEvent;
 	currentPath?: string;
@@ -236,6 +252,32 @@ export function shouldProcessInfluxUpdateEvent(params: {
 	}
 
 	return true;
+}
+
+export async function resolveInfluxUpdateEntries(params: {
+	event: InfluxUpdateEvent;
+	current: InfluxUpdateTarget;
+	seq: number;
+	getLatestSeq: () => number;
+	isAborted: () => boolean;
+}): Promise<ExtendedInlinkingFile[] | null> {
+	const { event, current, seq, getLatestSeq, isAborted } = params;
+	if (isAborted()) {
+		return null;
+	}
+
+	const currentPath = current.file?.path;
+	const affectsBacklinks = event.file ? current.shouldUpdate(event.file) : false;
+	if (!shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks })) {
+		return null;
+	}
+
+	await current.makeInfluxList();
+	if (isAborted() || seq !== getLatestSeq()) {
+		return null;
+	}
+
+	return current.toEntries();
 }
 
 export function makeUpdateEvent(op: string, path?: string): InfluxUpdateEvent {
