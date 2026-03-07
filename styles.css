@@ -44,6 +44,26 @@ body.is-readable-line-width .influx-preview-wrapper {
 
 /* Influx Component (Shared) */
 .influx-component {
+	--influx-surface-bg: var(--background-primary, #ffffff);
+	--influx-surface-muted: var(--background-secondary, rgba(127, 127, 127, 0.08));
+	--influx-surface-subtle: var(--search-result-background, var(--influx-surface-muted));
+	--influx-border-color: var(--background-modifier-border, rgba(127, 127, 127, 0.2));
+	--influx-hover-bg: var(--background-modifier-hover, rgba(127, 127, 127, 0.12));
+	--influx-interactive-hover: var(--interactive-hover, var(--influx-hover-bg));
+	--influx-text-normal: var(--text-normal, currentColor);
+	--influx-text-muted: var(--text-muted, var(--influx-text-normal));
+	--influx-text-faint: var(--text-faint, var(--influx-text-muted));
+	--influx-accent: var(--interactive-accent, var(--text-accent, #4a72ff));
+	--influx-accent-strong: var(--text-accent, var(--influx-accent));
+	--influx-accent-hover: var(--text-accent-hover, var(--influx-accent-strong));
+	--influx-accent-ring: var(--interactive-accent-hover, color-mix(in srgb, var(--influx-accent) 22%, transparent));
+	--influx-icon-muted: var(--icon-muted, var(--influx-text-muted));
+	--influx-icon-hover: var(--icon-color-hover, var(--influx-text-normal));
+	--influx-radius-s: var(--radius-s, 6px);
+	--influx-radius-m: var(--radius-m, 10px);
+	--influx-font-ui-small: var(--font-ui-small, 0.9rem);
+	--influx-font-ui-smaller: var(--font-ui-smaller, 0.8rem);
+	--influx-border-width: var(--border-width, 1px);
 	margin-top: 3em;
 	max-width: 100%;
 }
@@ -62,8 +82,8 @@ body.is-readable-line-width .influx-preview-wrapper {
 }
 
 .influx-component--editor .influx-result-body {
-	border-radius: var(--radius-m);
-	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--influx-radius-m);
+	border: 1px solid var(--influx-border-color);
 	box-shadow: none;
 }
 
@@ -112,7 +132,7 @@ body.is-readable-line-width .influx-preview-wrapper {
 	}
 
 	& mark {
-		background-color: var(--text-highlight-bg);
+		background-color: var(--text-highlight-bg, rgba(255, 230, 128, 0.6));
 	}
 }
 
@@ -277,10 +297,10 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	position: relative;
 	display: flex;
 	align-items: center;
-	background-color: var(--background-modifier-hover);
+	background-color: var(--influx-hover-bg);
 	border-radius: 4px;
 	padding: 0 8px;
-	border: 1px solid var(--background-modifier-border);
+	border: 1px solid var(--influx-border-color);
 	transition:
 		border-color 0.2s,
 		box-shadow 0.2s;
@@ -288,23 +308,23 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-search-wrap.influx-is-focused {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+	border-color: var(--influx-accent);
+	box-shadow: 0 0 0 2px var(--influx-accent-ring);
 }
 
 .influx-component .influx-search-input {
 	flex: 1;
 	background: transparent;
 	border: none;
-	color: var(--text-normal);
-	font-size: var(--font-ui-small);
+	color: var(--influx-text-normal);
+	font-size: var(--influx-font-ui-small);
 	padding: 6px 0;
 	outline: none;
 	min-height: 32px;
 }
 
 .influx-component .influx-search-input::placeholder {
-	color: var(--text-faint);
+	color: var(--influx-text-faint);
 }
 
 .influx-component .influx-search-clear {
@@ -312,7 +332,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border: none;
 	padding: 4px;
 	cursor: pointer;
-	color: var(--text-muted);
+	color: var(--influx-text-muted);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -320,51 +340,51 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-search-clear:hover {
-	color: var(--text-normal);
-	background-color: var(--background-modifier-hover);
+	color: var(--influx-text-normal);
+	background-color: var(--influx-hover-bg);
 }
 
 .influx-component .influx-search-clear:focus-visible,
 .influx-component .influx-icon-button:focus-visible,
 .influx-component .influx-clickable:focus-visible,
 .influx-component .influx-collapse-toggle:focus-visible {
-	outline: 2px solid var(--interactive-accent);
+	outline: 2px solid var(--influx-accent);
 	outline-offset: 1px;
 }
 
 .influx-component .influx-no-search-results {
 	padding: 1.5rem;
 	text-align: center;
-	color: var(--text-muted);
+	color: var(--influx-text-muted);
 	font-style: italic;
-	font-size: var(--font-ui-small);
+	font-size: var(--influx-font-ui-small);
 }
 
 .influx-component .influx-empty-state {
 	padding: 1.25rem 1.5rem;
 	margin: var(--size-4-2) var(--size-4-2) 0;
-	border: 1px dashed var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background: var(--background-secondary);
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
+	border: 1px dashed var(--influx-border-color);
+	border-radius: var(--influx-radius-m);
+	background: var(--influx-surface-muted);
+	color: var(--influx-text-muted);
+	font-size: var(--influx-font-ui-small);
 	text-align: center;
 }
 
 .influx-sidebar-status {
 	margin: var(--size-4-2);
 	padding: 0.75rem;
-	border-radius: var(--radius-m);
-	font-size: var(--font-ui-small);
+	border-radius: var(--influx-radius-m);
+	font-size: var(--influx-font-ui-small);
 	line-height: 1.4;
 	text-align: center;
-	border: 1px solid var(--background-modifier-border);
-	background: var(--background-secondary);
-	color: var(--text-muted);
+	border: 1px solid var(--influx-border-color);
+	background: var(--influx-surface-muted);
+	color: var(--influx-text-muted);
 }
 
 .influx-sidebar-status--loading {
-	color: var(--text-faint);
+	color: var(--influx-text-faint);
 }
 
 .influx-sidebar-status--empty {
@@ -373,7 +393,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-sidebar-status--warning {
 	border-color: var(--text-warning);
-	background: var(--background-modifier-hover);
+	background: var(--influx-hover-bg);
 	color: var(--text-warning);
 	margin-bottom: 0;
 }
@@ -386,7 +406,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 /* Toolbar */
 .influx-component .influx-toolbar {
 	position: relative;
-	background: var(--background-primary);
+	background: var(--influx-surface-bg);
 	padding: var(--size-4-2) var(--size-4-2) var(--size-4-2) var(--size-4-3);
 	display: flex;
 	align-items: center;
@@ -422,8 +442,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	align-items: center;
 	justify-content: center;
 	cursor: pointer;
-	color: var(--icon-muted);
-	border-radius: var(--radius-s);
+	color: var(--influx-icon-muted);
+	border-radius: var(--influx-radius-s);
 	width: 30px;
 	height: 30px;
 	min-width: 30px;
@@ -452,14 +472,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-icon-button:hover {
-	color: var(--icon-color-hover);
-	background-color: var(--interactive-hover);
+	color: var(--influx-icon-hover);
+	background-color: var(--influx-interactive-hover);
 }
 
 /* Backlink pane */
 .influx-component .influx-pane {
-	font-size: var(--font-ui-small);
-	color: var(--text-muted);
+	font-size: var(--influx-font-ui-small);
+	color: var(--influx-text-muted);
 }
 
 /* Tree item base */
@@ -493,7 +513,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-clickable:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--influx-hover-bg);
 }
 
 .influx-component button.influx-summary-row,
@@ -507,9 +527,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-summary-row--toolbar {
 	min-height: 32px;
 	padding-block: var(--size-2-2);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	background: var(--background-secondary);
+	border: 1px solid var(--influx-border-color);
+	border-radius: var(--influx-radius-s);
+	background: var(--influx-surface-muted);
 	width: auto;
 	max-width: none;
 	justify-self: start;
@@ -517,7 +537,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-summary-row--toolbar:hover {
-	background: var(--background-modifier-hover);
+	background: var(--influx-hover-bg);
 }
 
 /* Row title text */
@@ -540,11 +560,11 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	display: inline-flex;
 	align-items: center;
 	background-color: var(--background-secondary);
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+	color: var(--influx-text-muted);
+	font-size: var(--influx-font-ui-smaller);
 	font-weight: var(--font-semibold);
 	padding: var(--size-2-1) var(--size-2-2);
-	border-radius: var(--radius-s);
+	border-radius: var(--influx-radius-s);
 	margin-right: var(--size-2-2);
 	white-space: nowrap;
 }
@@ -564,10 +584,10 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	appearance: none;
 	-webkit-appearance: none;
 	flex: 0 0 auto;
-	color: var(--icon-muted);
+	color: var(--influx-icon-muted);
 	cursor: pointer;
 	line-height: 0;
-	border-radius: var(--radius-s);
+	border-radius: var(--influx-radius-s);
 	transition:
 		color 0.15s ease,
 		background-color 0.15s ease;
@@ -578,9 +598,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-collapse-toggle:hover {
-	color: var(--icon-color-hover);
-	background-color: var(--interactive-hover);
-	border-radius: var(--radius-s);
+	color: var(--influx-icon-hover);
+	background-color: var(--influx-interactive-hover);
+	border-radius: var(--influx-radius-s);
 }
 
 /* Collapsed state */
@@ -608,14 +628,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 /* Search result file matches */
 .influx-component .influx-result-body {
-	font-size: var(--font-ui-small);
+	font-size: var(--influx-font-ui-small);
 	line-height: var(--line-height-tight);
-	background-color: var(--search-result-background);
-	border-radius: var(--radius-s);
+	background-color: var(--influx-surface-subtle);
+	border-radius: var(--influx-radius-s);
 	overflow: hidden;
 	margin: var(--size-4-1) 0 var(--size-4-2);
-	color: var(--text-muted);
-	box-shadow: 0 0 0 var(--border-width) var(--background-modifier-border);
+	color: var(--influx-text-muted);
+	box-shadow: 0 0 0 var(--influx-border-width) var(--influx-border-color);
 	padding: 8px;
 	min-width: 0;
 	max-width: 100%;
@@ -624,13 +644,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 /* Internal links */
 .influx-component .influx-internal-link {
-	color: var(--text-accent);
+	color: var(--influx-accent-strong);
 	text-decoration: none;
 	transition: color 0.15s ease;
 }
 
 .influx-component .influx-internal-link:hover {
-	color: var(--text-accent-hover);
+	color: var(--influx-accent-hover);
 	text-decoration: underline;
 }
 
@@ -665,7 +685,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .workspace-leaf-content[data-type="influx-sidebar-view"] .influx-toolbar {
-	background: var(--background-primary);
+	background: var(--influx-surface-bg);
 	padding: unset;
 	display: flex;
 	justify-content: end;

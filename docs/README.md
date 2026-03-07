@@ -123,6 +123,14 @@ Add custom styles to match your Obsidian theme:
 }
 ```
 
+#### CSS compatibility policy
+
+- Prefer the `influx-` prefixed classes as styling hooks. These are the selectors we aim to keep stable across releases.
+- Treat legacy Obsidian class names as unstable implementation details. If you target them in snippets, expect breakage.
+- Theme snippets should layer on top of Influx classes instead of resetting all descendant styles.
+- Prefer additive overrides such as spacing, border, font size, and color tokens over full layout rewrites.
+- Influx now includes a small fallback token layer for surfaces, borders, accents, and muted text so the UI stays readable when some theme variables are missing.
+
 ### Front Matter Integration
 
 Influx can include links from front matter when **Include links from front matter properties** is enabled.
