@@ -26,5 +26,5 @@ Ideas on what to keep working on before we are happy and ready for the new Influ
 - [x] Decide on CSS compatibility policy and document it. (it's messy right now while we are trying to land on a final design and style) Consider adding fallback styles.
 - [x] Add practical size limits to long-lived caches (`fileCache`, `backlinksCache`, `previewFileHashes`). Right now eviction depends mostly on TTL checks during reads.
 - [x] Consider expanding snippet sanitization in `src/ui/markdown-mount.tsx` if needed. We already neutralize ` ```query`; may also need coverage for things like `dataview` / `dataviewjs`. (Should help improve future inter-plugin compatibility.)
-- [ ] Add a settings-tab display smoke test that exercises the main section wiring after the `display()` refactor. Right now tests only cover `saveSettings()` and frontmatter-property validation.
+- [x] Add a settings-tab display smoke test that exercises the main section wiring after the `display()` refactor. Right now tests only cover `saveSettings()` and frontmatter-property validation.
 - [ ] Start tightening TS nullability (begin with `strictNullChecks`). A lot of core paths still rely on loose null handling.
