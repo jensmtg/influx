@@ -23,8 +23,8 @@ describe('InfluxCacheManager', () => {
         jest.restoreAllMocks();
     });
 
-    describe('file cache', () => {
-        test('stores and retrieves files with normalized/case-insensitive keys', () => {
+	describe('file cache', () => {
+		test('stores and retrieves files with normalized/case-insensitive keys', () => {
             const file = mockTFile('Folder/Test.md', 'Test');
             cache.setFile('Folder/Test.md', file as any);
 
@@ -32,15 +32,30 @@ describe('InfluxCacheManager', () => {
             expect(cache.getFile('missing.md')).toBeNull();
         });
 
-        test('expires stale file entries after ttl', () => {
-            const file = mockTFile('stale.md', 'stale');
-            cache.setFile('stale.md', file as any);
+		test('expires stale file entries after ttl', () => {
+			const file = mockTFile('stale.md', 'stale');
+			cache.setFile('stale.md', file as any);
             const now = Date.now();
             jest.spyOn(Date, 'now').mockReturnValue(now + 6 * 60 * 1000);
 
-            expect(cache.getFile('stale.md')).toBeNull();
-        });
-    });
+			expect(cache.getFile('stale.md')).toBeNull();
+		});
+
+		test('evicts oldest file entries when file cache exceeds size limit', () => {
+			const maxEntries = (InfluxCacheManager as any).FILE_CACHE_MAX_ENTRIES;
+			const now = Date.now();
+			jest.spyOn(Date, 'now').mockImplementation(() => now);
+
+			for (let i = 0; i < maxEntries + 1; i += 1) {
+				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
+				cache.setFile(`File-${i}.md`, mockTFile(`File-${i}.md`, `File-${i}`) as any);
+			}
+
+			expect(cache.getFile('File-0.md')).toBeNull();
+			expect(cache.getFile(`File-${maxEntries}.md`)?.path).toBe(`File-${maxEntries}.md`);
+			expect(cache.getDebugInfo().fileCache.size).toBe(maxEntries);
+		});
+	});
 
     describe('backlinks cache', () => {
         test('stores and retrieves backlinks and expires stale entries', () => {
@@ -65,12 +80,27 @@ describe('InfluxCacheManager', () => {
             expect(cache.getBacklinks('unrelated.md')).not.toBeNull();
         });
 
-        test('source dependency invalidation uses normalized paths', () => {
-            cache.setBacklinks('Target.md', { data: new Map([['Folder\\Source.md', []]]) } as any);
-            cache.invalidateFile('folder/source.md');
-            expect(cache.getBacklinks('target.md')).toBeNull();
-        });
-    });
+		test('source dependency invalidation uses normalized paths', () => {
+			cache.setBacklinks('Target.md', { data: new Map([['Folder\\Source.md', []]]) } as any);
+			cache.invalidateFile('folder/source.md');
+			expect(cache.getBacklinks('target.md')).toBeNull();
+		});
+
+		test('evicts oldest backlinks entries and cleans dependency index when cache exceeds size limit', () => {
+			const maxEntries = (InfluxCacheManager as any).BACKLINKS_CACHE_MAX_ENTRIES;
+			const now = Date.now();
+			for (let i = 0; i < maxEntries + 1; i += 1) {
+				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
+				cache.setBacklinks(`target-${i}.md`, { data: new Map([[`source-${i}.md`, []]]) } as any);
+			}
+
+			expect(cache.getBacklinks('target-0.md')).toBeNull();
+			expect(cache.getDebugInfo().backlinksCache.size).toBe(maxEntries);
+
+			cache.invalidateFile('source-0.md');
+			expect(cache.getDebugInfo().backlinksDependencyIndex.sources).toBe(maxEntries);
+		});
+	});
 
     describe('settings and regex caches', () => {
         test('settings cache get/set works and invalidateSettingsCache clears dependent caches', () => {
@@ -100,7 +130,7 @@ describe('InfluxCacheManager', () => {
         });
     });
 
-    describe('preview hash and settings hash', () => {
+	describe('preview hash and settings hash', () => {
         test('preview file hash supports set/get/invalidate and tracks hit/miss stats', () => {
             cache.setPreviewFileHash('A.md', 'hash-a');
             expect(cache.getPreviewFileHash('a.md')).toBe('hash-a');
@@ -114,12 +144,26 @@ describe('InfluxCacheManager', () => {
             expect(stats.previewHashMisses).toBeGreaterThanOrEqual(2);
         });
 
-        test('settings hash supports set/get', () => {
-            expect(cache.getSettingsHash()).toBeNull();
-            cache.setSettingsHash('abc123');
-            expect(cache.getSettingsHash()).toBe('abc123');
-        });
-    });
+		test('settings hash supports set/get', () => {
+			expect(cache.getSettingsHash()).toBeNull();
+			cache.setSettingsHash('abc123');
+			expect(cache.getSettingsHash()).toBe('abc123');
+		});
+
+		test('evicts oldest preview file hashes when cache exceeds size limit', () => {
+			const maxEntries = (InfluxCacheManager as any).PREVIEW_HASH_CACHE_MAX_ENTRIES;
+			const now = Date.now();
+
+			for (let i = 0; i < maxEntries + 1; i += 1) {
+				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
+				cache.setPreviewFileHash(`Preview-${i}.md`, `hash-${i}`);
+			}
+
+			expect(cache.getPreviewFileHash('Preview-0.md')).toBeUndefined();
+			expect(cache.getPreviewFileHash(`Preview-${maxEntries}.md`)).toBe(`hash-${maxEntries}`);
+			expect(cache.getDebugInfo().previewFileHashes.size).toBe(maxEntries);
+		});
+	});
 
     describe('summary cache', () => {
         test('stores and retrieves summaries with normalized source/target paths', () => {

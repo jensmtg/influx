@@ -28,6 +28,11 @@ export interface RegexCacheEntry {
 	timestamp: number;
 }
 
+interface PreviewHashCacheEntry {
+	hash: string;
+	timestamp: number;
+}
+
 export interface SummaryCacheValue {
 	summary: string;
 	title: string;
@@ -112,7 +117,7 @@ export class InfluxCacheManager {
 	private regexCache = new Map<string, RegexCacheEntry>();
 
 	// File hash cache for preview mode
-	private previewFileHashes = new Map<string, string>();
+	private previewFileHashes = new Map<string, PreviewHashCacheEntry>();
 
 	// Settings hash for preview mode
 	private cachedSettingsHash: string | null = null;
@@ -138,6 +143,9 @@ export class InfluxCacheManager {
 
 	private static readonly SUMMARY_STALE_TIME_MS = 10 * 60 * 1000;
 	private static readonly SUMMARY_CACHE_MAX_ENTRIES = 3000;
+	private static readonly FILE_CACHE_MAX_ENTRIES = 2000;
+	private static readonly BACKLINKS_CACHE_MAX_ENTRIES = 1500;
+	private static readonly PREVIEW_HASH_CACHE_MAX_ENTRIES = 3000;
 
 	// Sentinel for invalid regex patterns
 	private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
@@ -181,6 +189,7 @@ export class InfluxCacheManager {
 			file,
 			timestamp: Date.now()
 		});
+		this.enforceFileCacheLimit();
 	}
 
 	invalidateFile(path: string): void {
@@ -261,6 +270,8 @@ export class InfluxCacheManager {
 		if (normalizedSources.size > 0) {
 			this.backlinksSourcesByTarget.set(normalizedTarget, normalizedSources);
 		}
+
+		this.enforceBacklinksCacheLimit();
 	}
 
 	clearBacklinksCache(): void {
@@ -340,17 +351,21 @@ export class InfluxCacheManager {
 	 * Preview file hash cache methods
 	 */
 	getPreviewFileHash(path: string): string | undefined {
-		const hash = this.previewFileHashes.get(this.normalizePathKey(path));
-		if (hash === undefined) {
+		const entry = this.previewFileHashes.get(this.normalizePathKey(path));
+		if (entry === undefined) {
 			this.stats.previewHashMisses += 1;
 		} else {
 			this.stats.previewHashHits += 1;
 		}
-		return hash;
+		return entry?.hash;
 	}
 
 	setPreviewFileHash(path: string, hash: string): void {
-		this.previewFileHashes.set(this.normalizePathKey(path), hash);
+		this.previewFileHashes.set(this.normalizePathKey(path), {
+			hash,
+			timestamp: Date.now(),
+		});
+		this.enforcePreviewHashCacheLimit();
 	}
 
 	invalidatePreviewFileHash(path: string): void {
@@ -595,6 +610,50 @@ export class InfluxCacheManager {
 			.slice(0, overflow);
 		for (const [cacheKey, entry] of oldestEntries) {
 			this.removeSummaryEntry(cacheKey, entry);
+		}
+	}
+
+	private enforceFileCacheLimit(): void {
+		this.evictOldestEntries(this.fileCache, InfluxCacheManager.FILE_CACHE_MAX_ENTRIES);
+	}
+
+	private enforceBacklinksCacheLimit(): void {
+		const overflow = this.backlinksCache.size - InfluxCacheManager.BACKLINKS_CACHE_MAX_ENTRIES;
+		if (overflow <= 0) {
+			return;
+		}
+
+		const oldestTargets = Array.from(this.backlinksCache.entries())
+			.sort((a, b) => a[1].timestamp - b[1].timestamp)
+			.slice(0, overflow)
+			.map(([targetPath]) => targetPath);
+
+		for (const targetPath of oldestTargets) {
+			this.backlinksCache.delete(targetPath);
+			this.removeDependencyEntriesForTarget(targetPath);
+		}
+	}
+
+	private enforcePreviewHashCacheLimit(): void {
+		this.evictOldestEntries(this.previewFileHashes, InfluxCacheManager.PREVIEW_HASH_CACHE_MAX_ENTRIES);
+	}
+
+	private evictOldestEntries<T extends { timestamp: number }>(
+		cache: Map<string, T>,
+		maxEntries: number
+	): void {
+		const overflow = cache.size - maxEntries;
+		if (overflow <= 0) {
+			return;
+		}
+
+		const oldestKeys = Array.from(cache.entries())
+			.sort((a, b) => a[1].timestamp - b[1].timestamp)
+			.slice(0, overflow)
+			.map(([key]) => key);
+
+		for (const key of oldestKeys) {
+			cache.delete(key);
 		}
 	}
 
