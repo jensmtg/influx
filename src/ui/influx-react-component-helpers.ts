@@ -78,9 +78,7 @@ export const VISIBLE_COMPONENTS_CHUNK_BY_MODE: Record<InfluxRenderMode, number> 
 };
 
 export function collectComponentPaths(components: ExtendedInlinkingFile[]): string[] {
-	return components
-		.map((component) => component.inlinkingFile.file?.path)
-		.filter((path): path is string => path !== undefined);
+	return components.map((component) => component.inlinkingFile.file.path);
 }
 
 export interface InfluxUpdateTarget {
@@ -114,7 +112,7 @@ export function getSearchText(item: ExtendedInlinkingFile): string {
 	if (cached) {
 		return cached;
 	}
-	const basename = item.inlinkingFile.file?.basename ?? '';
+	const basename = item.inlinkingFile.file.basename;
 	const text = `${basename} ${item.titleText} ${item.summaryMarkdown}`.toLowerCase();
 	searchTextCache.set(item, text);
 	return text;

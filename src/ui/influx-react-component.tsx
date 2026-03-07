@@ -96,15 +96,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			mode: renderMode,
 			durationMs: performance.now() - startTime,
 			settings,
-			ctx: {
-				filePath: influxFile.file?.path,
-				componentCount: components.length,
-				filteredCount: filtered.length,
-				queryLength: searchQuery.length,
-			}
-		});
-		return filtered;
-	}, [components, searchQuery, renderMode, settings, influxFile.file?.path]);
+				ctx: {
+					filePath: influxFile.file.path,
+					componentCount: components.length,
+					filteredCount: filtered.length,
+					queryLength: searchQuery.length,
+				}
+			});
+			return filtered;
+	}, [components, searchQuery, renderMode, settings, influxFile.file.path]);
 	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS_BY_MODE[renderMode]);
 	const visibleComponents = React.useMemo(
 		() => filteredComponents.slice(0, visibleCount),
@@ -127,7 +127,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					settings,
 					always: true,
 					ctx: {
-						filePath: influxFile.file?.path,
+						filePath: influxFile.file.path,
 						prevVisibleCount: count,
 						nextVisibleCount,
 						totalFilteredCount: filteredComponents.length,
@@ -137,7 +137,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			}
 			return nextVisibleCount;
 		});
-	}, [filteredComponents.length, renderMode, settings, influxFile.file?.path]);
+	}, [filteredComponents.length, renderMode, settings, influxFile.file.path]);
 
 	React.useEffect(() => {
 		setVisibleCount(Math.min(INITIAL_VISIBLE_COMPONENTS_BY_MODE[renderMode], filteredComponents.length));
@@ -399,13 +399,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							<div className="influx-results-list" >
 
 								{visibleComponents.map((extended: ExtendedInlinkingFile) => {
-									const filePath = extended.inlinkingFile.file?.path;
-
-									if (!filePath) {
-										return null;
-									}
-
-									const fileBasename = extended.inlinkingFile.file?.basename ?? 'unknown';
+								const filePath = extended.inlinkingFile.file.path;
+								const fileBasename = extended.inlinkingFile.file.basename;
 									const safePathToken = filePath.replace(/[^a-zA-Z0-9_-]/g, '-');
 									const matchesRegionId = `${influxFile.uuid}-matches-${safePathToken}`;
 
