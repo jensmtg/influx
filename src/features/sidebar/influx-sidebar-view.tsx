@@ -7,8 +7,10 @@ import type ObsidianInflux from '../../app/influx-plugin';
 import { logger } from '../../platform/diagnostics/logger';
 import { CONSTANTS } from '../../config/constants';
 import { recordMetric } from '../../platform/diagnostics/metrics';
+import { influxUpdates$, InfluxUpdateEvent } from '../../app/events/influx-updates';
 
 export class InfluxSidebarView extends ItemView {
+	private static nextSubscriptionId = 1;
 	private currentFile: TFile | null = null;
 	private influxFile: InfluxFile | null = null;
 	private root: Root | null = null;
@@ -16,6 +18,8 @@ export class InfluxSidebarView extends ItemView {
 	private componentKey: string = 'initial';
 	private currentUpdateId: number = 0;
 	private abortController: AbortController | null = null;
+	private updatesUnsubscribe: (() => void) | null = null;
+	private readonly updatesSubscriptionId = `sidebar-${InfluxSidebarView.nextSubscriptionId++}`;
 
 	private renderStatusState(message: string, variant: 'loading' | 'empty' | 'warning' | 'error'): void {
 		if (!this.root) {
@@ -51,6 +55,7 @@ export class InfluxSidebarView extends ItemView {
 		try {
 			this.root = createRoot(this.containerEl);
 			this.registerFileEvents();
+			this.registerSharedUpdates();
 
 			const activeFile = this.app.workspace.getActiveFile();
 			if (activeFile) {
@@ -79,8 +84,45 @@ export class InfluxSidebarView extends ItemView {
 			this.root = null;
 		}
 
+		this.updatesUnsubscribe?.();
+		this.updatesUnsubscribe = null;
+
 		this.currentFile = null;
 		this.influxFile = null;
+	}
+
+	private registerSharedUpdates(): void {
+		this.updatesUnsubscribe?.();
+		this.updatesUnsubscribe = influxUpdates$.subscribe(this.updatesSubscriptionId, (event) => {
+			void this.handleSharedUpdate(event);
+		});
+	}
+
+	private async handleSharedUpdate(event: InfluxUpdateEvent): Promise<void> {
+		if (!this.currentFile) {
+			return;
+		}
+
+		if (event.op === 'layout-change' || event.op === 'file-open') {
+			return;
+		}
+
+		if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && !event.file) {
+			return;
+		}
+
+		const currentFile = this.currentFile;
+		const touchesCurrentFile = event.file?.path === currentFile.path;
+		const affectsBacklinks = event.file ? (this.influxFile?.shouldUpdate(event.file) ?? false) : false;
+		const shouldRefresh = event.op === 'save-settings' || event.op === 'mode-change'
+			? true
+			: touchesCurrentFile || affectsBacklinks;
+
+		if (!shouldRefresh) {
+			return;
+		}
+
+		await this.updateView(currentFile, { force: true });
 	}
 
 	private registerFileEvents(): void {
@@ -112,12 +154,12 @@ export class InfluxSidebarView extends ItemView {
 		);
 	}
 
-	async updateView(file: TFile): Promise<void> {
+	async updateView(file: TFile, options?: { force?: boolean }): Promise<void> {
 		if (!file) {
 			return;
 		}
 
-		if (file === this.currentFile) {
+		if (!options?.force && file === this.currentFile) {
 			return;
 		}
 

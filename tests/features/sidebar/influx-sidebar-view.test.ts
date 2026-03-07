@@ -2,6 +2,7 @@ import { InfluxSidebarView } from '@/features/sidebar/influx-sidebar-view';
 import { mockTFile } from '../../mocks';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import { createRoot } from 'react-dom/client';
+import { influxUpdates$ } from '@/app/events/influx-updates';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({
@@ -71,6 +72,7 @@ describe('InfluxSidebarView', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		influxUpdates$.unsubscribeAll();
 	});
 
 	test('updateView short-circuits when file is unchanged', async () => {
@@ -280,6 +282,7 @@ describe('InfluxSidebarView', () => {
 
 		expect(createRoot).toHaveBeenCalledWith((view as any).containerEl);
 		expect(registerFileEventsSpy).toHaveBeenCalledTimes(1);
+		expect(influxUpdates$.observerCount).toBe(1);
 		expect(updateViewSpy).toHaveBeenCalledWith(fileA);
 		expect((view as any).root).toBe(createdRoot);
 	});
@@ -305,7 +308,9 @@ describe('InfluxSidebarView', () => {
 		const { view, fileA } = createContext();
 		const abort = jest.fn();
 		const unmount = jest.fn();
+		const updatesUnsubscribe = jest.fn();
 
+		(view as any).updatesUnsubscribe = updatesUnsubscribe;
 		(view as any).abortController = { abort };
 		(view as any).root = { unmount };
 		(view as any).currentFile = fileA;
@@ -315,10 +320,56 @@ describe('InfluxSidebarView', () => {
 
 		expect(abort).toHaveBeenCalledTimes(1);
 		expect(unmount).toHaveBeenCalledTimes(1);
+		expect(updatesUnsubscribe).toHaveBeenCalledTimes(1);
 		expect((view as any).abortController).toBeNull();
 		expect((view as any).root).toBeNull();
 		expect((view as any).currentFile).toBeNull();
 		expect((view as any).influxFile).toBeNull();
+	});
+
+	test('shared update bus refreshes the current sidebar file for relevant global updates', async () => {
+		const { view, fileA } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+
+		await view.onOpen();
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			shouldUpdate: jest.fn().mockReturnValue(false),
+		};
+
+		await influxUpdates$.notify({ op: 'save-settings' });
+
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+	});
+
+	test('shared update bus refreshes when a source-note change affects current backlinks', async () => {
+		const { view, fileA, fileB } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+
+		await view.onOpen();
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			shouldUpdate: jest.fn().mockReturnValue(true),
+		};
+
+		await influxUpdates$.notify({ op: 'rename', file: fileB as any });
+
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+	});
+
+	test('shared update bus ignores irrelevant file updates', async () => {
+		const { view, fileA, fileB } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+
+		await view.onOpen();
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			shouldUpdate: jest.fn().mockReturnValue(false),
+		};
+
+		await influxUpdates$.notify({ op: 'modify', file: fileB as any });
+
+		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true });
 	});
 
 	test('registerFileEvents wires active leaf, file open, and editor change listeners', () => {
