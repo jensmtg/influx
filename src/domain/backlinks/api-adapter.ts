@@ -3,8 +3,7 @@ import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../../types';
 import { logger } from '../../platform/diagnostics/logger';
 import type { BacklinksObject } from '../../types/backlinks';
 import {
-    processFrontmatterLinks,
-    filterFrontmatterLinksFromBacklinks
+	filterFrontmatterLinksFromBacklinks
 } from './frontmatter-links';
 import {
     compareLinkName,
@@ -111,16 +110,9 @@ export class ApiAdapter extends Component {
             );
         }
 
-        const metadata = this.app.metadataCache.getFileCache(file);
-
-        // Process front matter links using the pure function pipeline (only if enabled)
-        if (metadata?.frontmatterLinks && Array.isArray(metadata.frontmatterLinks) && settings.includeFrontmatterLinks) {
-            processFrontmatterLinks(backlinks, metadata.frontmatterLinks, settings);
-        }
-
-        cacheManager.setBacklinks(cacheKey, backlinks);
-        return reportFetchMetric(backlinks);
-    }
+		cacheManager.setBacklinks(cacheKey, backlinks);
+		return reportFetchMetric(backlinks);
+	}
     getSettings(): ObsidianInfluxSettings {
         // Return cached settings to reduce property access overhead
         const cached = cacheManager.getSettings();

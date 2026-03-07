@@ -102,7 +102,7 @@ describe('ApiAdapter', () => {
 		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(false);
 	});
 
-	test('merges target frontmatter links when frontmatter inclusion is enabled', () => {
+	test('does not treat target note frontmatter links as backlinks when frontmatter inclusion is enabled', () => {
 		const { api, file } = createContext({
 			includeFrontmatterLinks: true,
 			frontmatterProperties: ['related'],
@@ -110,8 +110,8 @@ describe('ApiAdapter', () => {
 
 		const backlinks = api.getBacklinks(file);
 
-		expect((backlinks.data as Map<string, LinkCache[]>).has('Reference Note')).toBe(true);
 		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(true);
+		expect((backlinks.data as Map<string, LinkCache[]>).has('Reference Note')).toBe(false);
 	});
 
 	test('honors requireInfluxFrontmatterKey when evaluating show status', () => {
