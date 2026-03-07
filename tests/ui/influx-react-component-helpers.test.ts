@@ -12,10 +12,16 @@ import {
 	getNextVisibleCount,
 	getNoSearchResultsMessage,
 	getSearchText,
+	handleSearchChangeInput,
+	handleSearchKeyPress,
 	makeUpdateEvent,
 	reduceSearchUiState,
+	resetSearchUi,
 	resolveInfluxUpdateEntries,
+	shouldAttachAutoLoadObserver,
+	shouldLoadMoreFromObserver,
 	shouldProcessInfluxUpdateEvent,
+	toggleSearchPanel,
 } from '@/ui/influx-react-component-helpers';
 
 function entry(params: {
@@ -80,6 +86,74 @@ describe('influx-react-component helpers', () => {
 				isSearchExpanded: false,
 				isSearchFocused: false,
 			});
+		});
+
+		test('handleSearchChangeInput updates input immediately and commits debounced query', () => {
+			const dispatch = jest.fn();
+			const commitDebouncedQuery = jest.fn();
+
+			handleSearchChangeInput({
+				value: 'alpha',
+				dispatch,
+				commitDebouncedQuery,
+			});
+
+			expect(dispatch).toHaveBeenCalledWith({ type: 'INPUT_CHANGED', value: 'alpha' });
+			expect(commitDebouncedQuery).toHaveBeenCalledWith('alpha');
+		});
+
+		test('resetSearchUi cancels pending queries before resetting state', () => {
+			const dispatch = jest.fn();
+			const cancelDebouncedQuery = jest.fn();
+
+			resetSearchUi({
+				closePanel: true,
+				dispatch,
+				cancelDebouncedQuery,
+			});
+
+			expect(cancelDebouncedQuery).toHaveBeenCalledTimes(1);
+			expect(dispatch).toHaveBeenCalledWith({ type: 'RESET', closePanel: true });
+		});
+
+		test('toggleSearchPanel only schedules focus when opening', () => {
+			const dispatch = jest.fn();
+			const scheduleFocus = jest.fn();
+			const focusSearchInput = jest.fn();
+
+			toggleSearchPanel({
+				isSearchExpanded: false,
+				dispatch,
+				scheduleFocus,
+				focusDelayMs: 100,
+				focusSearchInput,
+			});
+
+			expect(dispatch).toHaveBeenCalledWith({ type: 'TOGGLE_PANEL' });
+			expect(scheduleFocus).toHaveBeenCalledWith(focusSearchInput, 100);
+
+			dispatch.mockClear();
+			scheduleFocus.mockClear();
+			toggleSearchPanel({
+				isSearchExpanded: true,
+				dispatch,
+				scheduleFocus,
+				focusDelayMs: 100,
+				focusSearchInput,
+			});
+
+			expect(dispatch).toHaveBeenCalledWith({ type: 'TOGGLE_PANEL' });
+			expect(scheduleFocus).not.toHaveBeenCalled();
+		});
+
+		test('handleSearchKeyPress only resets on Escape', () => {
+			const resetSearch = jest.fn();
+
+			handleSearchKeyPress({ key: 'Enter', resetSearch });
+			expect(resetSearch).not.toHaveBeenCalled();
+
+			handleSearchKeyPress({ key: 'Escape', resetSearch });
+			expect(resetSearch).toHaveBeenCalledWith(true);
 		});
 	});
 
@@ -257,6 +331,51 @@ describe('influx-react-component helpers', () => {
 					totalFilteredCount: 95,
 				})
 			).toBe(95);
+		});
+
+		test('shouldAttachAutoLoadObserver only enables observer when all prerequisites are present', () => {
+			expect(
+				shouldAttachAutoLoadObserver({
+					autoLoadByObserver: true,
+					hasMoreVisible: true,
+					hasIntersectionObserver: true,
+					hasTrigger: true,
+				})
+			).toBe(true);
+
+			expect(
+				shouldAttachAutoLoadObserver({
+					autoLoadByObserver: false,
+					hasMoreVisible: true,
+					hasIntersectionObserver: true,
+					hasTrigger: true,
+				})
+			).toBe(false);
+
+			expect(
+				shouldAttachAutoLoadObserver({
+					autoLoadByObserver: true,
+					hasMoreVisible: false,
+					hasIntersectionObserver: true,
+					hasTrigger: true,
+				})
+			).toBe(false);
+		});
+
+		test('shouldLoadMoreFromObserver triggers when any observed entry intersects', () => {
+			expect(
+				shouldLoadMoreFromObserver([
+					{ isIntersecting: false },
+					{ isIntersecting: true },
+				])
+			).toBe(true);
+
+			expect(
+				shouldLoadMoreFromObserver([
+					{ isIntersecting: false },
+					{ isIntersecting: false },
+				])
+			).toBe(false);
 		});
 
 		test('getEmptyBacklinksMessage explains empty and filtered states', () => {

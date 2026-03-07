@@ -22,10 +22,16 @@ import {
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
 	getNoSearchResultsMessage,
+	handleSearchChangeInput,
+	handleSearchKeyPress,
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
 	type InfluxRenderMode,
 	reduceSearchUiState,
+	resetSearchUi,
 	resolveInfluxUpdateEntries,
+	shouldAttachAutoLoadObserver,
+	shouldLoadMoreFromObserver,
+	toggleSearchPanel,
 	VISIBLE_COMPONENTS_CHUNK_BY_MODE,
 } from './influx-react-component-helpers';
 
@@ -144,17 +150,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}, [filteredComponents, renderMode]);
 
 	React.useEffect(() => {
-		if (!autoLoadByObserver || !hasMoreVisible || typeof IntersectionObserver === 'undefined') {
-			return;
-		}
 		const trigger = loadMoreTriggerRef.current;
-		if (!trigger) {
+		if (!shouldAttachAutoLoadObserver({
+			autoLoadByObserver,
+			hasMoreVisible,
+			hasIntersectionObserver: typeof IntersectionObserver !== 'undefined',
+			hasTrigger: trigger !== null,
+		})) {
 			return;
 		}
 
 		const observer = new IntersectionObserver(
 			(entries) => {
-				if (entries.some((entry) => entry.isIntersecting)) {
+				if (shouldLoadMoreFromObserver(entries)) {
 					loadMoreComponents('observer');
 				}
 			},
@@ -181,29 +189,33 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}, [debouncedSetSearchQuery]);
 
 	const handleSearchChange = (value: string) => {
-		dispatchSearchUi({ type: 'INPUT_CHANGED', value });
-		debouncedSetSearchQuery(value);
+		handleSearchChangeInput({
+			value,
+			dispatch: dispatchSearchUi,
+			commitDebouncedQuery: debouncedSetSearchQuery,
+		});
 	};
 
 	const resetSearch = (closePanel: boolean) => {
-		debouncedSetSearchQuery.cancel();
-		dispatchSearchUi({ type: 'RESET', closePanel });
+		resetSearchUi({
+			closePanel,
+			dispatch: dispatchSearchUi,
+			cancelDebouncedQuery: debouncedSetSearchQuery.cancel,
+		});
 	};
 
 	const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === 'Escape') {
-			resetSearch(true);
-		}
+		handleSearchKeyPress({ key: e.key, resetSearch });
 	};
 
 	const toggleSearch = () => {
-		const willOpen = !isSearchExpanded;
-		dispatchSearchUi({ type: 'TOGGLE_PANEL' });
-		if (willOpen) {
-			setTimeout(() => {
-				searchInputRef.current?.focus();
-			}, SEARCH_FOCUS_DELAY_MS);
-		}
+		toggleSearchPanel({
+			isSearchExpanded,
+			dispatch: dispatchSearchUi,
+			scheduleFocus: setTimeout,
+			focusDelayMs: SEARCH_FOCUS_DELAY_MS,
+			focusSearchInput: () => searchInputRef.current?.focus(),
+		});
 	};
 
 	React.useEffect(() => {

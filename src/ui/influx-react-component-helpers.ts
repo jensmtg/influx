@@ -81,6 +81,10 @@ export function collectComponentPaths(components: ExtendedInlinkingFile[]): stri
 	return components.map((component) => component.inlinkingFile.file.path);
 }
 
+export interface SearchFocusScheduler {
+	(callback: () => void, delayMs: number): void;
+}
+
 export interface InfluxUpdateTarget {
 	file?: { path?: string };
 	shouldUpdate: (file: TFile) => boolean;
@@ -223,6 +227,64 @@ export function getNextVisibleCount(params: {
 }): number {
 	const { currentVisibleCount, chunkSize, totalFilteredCount } = params;
 	return Math.min(currentVisibleCount + chunkSize, totalFilteredCount);
+}
+
+export function shouldAttachAutoLoadObserver(params: {
+	autoLoadByObserver: boolean;
+	hasMoreVisible: boolean;
+	hasIntersectionObserver: boolean;
+	hasTrigger: boolean;
+}): boolean {
+	const { autoLoadByObserver, hasMoreVisible, hasIntersectionObserver, hasTrigger } = params;
+	return autoLoadByObserver && hasMoreVisible && hasIntersectionObserver && hasTrigger;
+}
+
+export function shouldLoadMoreFromObserver(entries: ArrayLike<{ isIntersecting: boolean }>): boolean {
+	return Array.from(entries).some((entry) => entry.isIntersecting);
+}
+
+export function handleSearchChangeInput(params: {
+	value: string;
+	dispatch: (action: SearchUiAction) => void;
+	commitDebouncedQuery: (value: string) => void;
+}): void {
+	const { value, dispatch, commitDebouncedQuery } = params;
+	dispatch({ type: 'INPUT_CHANGED', value });
+	commitDebouncedQuery(value);
+}
+
+export function resetSearchUi(params: {
+	closePanel: boolean;
+	dispatch: (action: SearchUiAction) => void;
+	cancelDebouncedQuery: () => void;
+}): void {
+	const { closePanel, dispatch, cancelDebouncedQuery } = params;
+	cancelDebouncedQuery();
+	dispatch({ type: 'RESET', closePanel });
+}
+
+export function toggleSearchPanel(params: {
+	isSearchExpanded: boolean;
+	dispatch: (action: SearchUiAction) => void;
+	scheduleFocus: SearchFocusScheduler;
+	focusDelayMs: number;
+	focusSearchInput: () => void;
+}): void {
+	const { isSearchExpanded, dispatch, scheduleFocus, focusDelayMs, focusSearchInput } = params;
+	const willOpen = !isSearchExpanded;
+	dispatch({ type: 'TOGGLE_PANEL' });
+	if (willOpen) {
+		scheduleFocus(focusSearchInput, focusDelayMs);
+	}
+}
+
+export function handleSearchKeyPress(params: {
+	key: string;
+	resetSearch: (closePanel: boolean) => void;
+}): void {
+	if (params.key === 'Escape') {
+		params.resetSearch(true);
+	}
 }
 
 export function shouldProcessInfluxUpdateEvent(params: {
