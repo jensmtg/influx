@@ -128,6 +128,34 @@ describe('RootManager', () => {
 		expect(rootManager.has(paneANew)).toBe(false);
 	});
 
+	test('unmountByFilePath matches roots across slash and case differences', () => {
+		const editorContainer = asHTMLElement(createFakeElement('div'));
+		const previewContainer = asHTMLElement(createFakeElement('div'));
+		const editorRoot = createMockRoot();
+		const previewRoot = createMockRoot();
+
+		rootManager.register(editorContainer, editorRoot, 'editor', 'Folder\\MixedCase.md');
+		rootManager.register(previewContainer, previewRoot, 'preview', 'folder/mixedcase.md');
+
+		rootManager.unmountByFilePath('FOLDER/mixedcase.md');
+
+		expect(editorRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(previewRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(rootManager.size).toBe(0);
+	});
+
+	test('unregister removes normalized file path index entries', () => {
+		const container = asHTMLElement(createFakeElement('div'));
+		const root = createMockRoot();
+
+		rootManager.register(container, root, 'preview', 'Folder\\CaseTest.md');
+		rootManager.unregister(container);
+		rootManager.unmountByFilePath('folder/casetest.md');
+
+		expect(root.unmount).not.toHaveBeenCalled();
+		expect(rootManager.size).toBe(0);
+	});
+
 	test('cleanupStale is idempotent across repeated layout cleanup passes', () => {
 		const previewContainer = asHTMLElement(createFakeElement('div'));
 		const previewRoot = createMockRoot();

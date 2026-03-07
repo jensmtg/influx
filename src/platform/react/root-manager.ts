@@ -1,3 +1,4 @@
+import { normalizePath } from 'obsidian';
 import { Root } from 'react-dom/client';
 import { logger } from '../diagnostics/logger';
 
@@ -16,6 +17,10 @@ export class RootManager {
 	private roots = new Map<HTMLElement, RootInfo>();
 	private filePathIndex = new Map<string, Set<HTMLElement>>();
 	private unloading = false;
+
+	private normalizePathKey(filePath: string): string {
+		return normalizePath(filePath).toLowerCase();
+	}
 
 	private scheduleRootUnmount(root: Root, metadata?: Record<string, unknown>): void {
 		logger.debug('Scheduling deferred root unmount', metadata);
@@ -82,9 +87,10 @@ export class RootManager {
 		this.roots.set(container, info);
 
 		if (filePath) {
-			const containers = this.filePathIndex.get(filePath) ?? new Set<HTMLElement>();
+			const normalizedPath = this.normalizePathKey(filePath);
+			const containers = this.filePathIndex.get(normalizedPath) ?? new Set<HTMLElement>();
 			containers.add(container);
-			this.filePathIndex.set(filePath, containers);
+			this.filePathIndex.set(normalizedPath, containers);
 		}
 	}
 
@@ -96,11 +102,12 @@ export class RootManager {
 		const info = this.roots.get(container);
 		if (info) {
 			if (info.filePath) {
-				const containers = this.filePathIndex.get(info.filePath);
+				const normalizedPath = this.normalizePathKey(info.filePath);
+				const containers = this.filePathIndex.get(normalizedPath);
 				if (containers) {
 					containers.delete(container);
 					if (containers.size === 0) {
-						this.filePathIndex.delete(info.filePath);
+						this.filePathIndex.delete(normalizedPath);
 					}
 				}
 			}
@@ -170,7 +177,7 @@ export class RootManager {
 	 * Unmount all roots for a specific file path
 	 */
 	unmountByFilePath(filePath: string, type?: RootType): void {
-		const containers = this.filePathIndex.get(filePath);
+		const containers = this.filePathIndex.get(this.normalizePathKey(filePath));
 		if (!containers || containers.size === 0) {
 			return;
 		}
