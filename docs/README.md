@@ -106,19 +106,19 @@ Add custom styles to match your Obsidian theme:
 
 ```css
 /* Source file row */
-.influx-component .search-result-file-title {
+.influx-result-source {
   font-weight: 600;
 }
 
 /* Individual excerpt block */
-.influx-entry {
+.influx-result-body {
   margin-bottom: 0.5rem;
 }
 
 /* Compact spacing for mobile */
 @media (max-width: 768px) {
-  .influx-component .search-result-file-matches {
-    margin-left: 0.75rem;
+  .influx-toolbar {
+    gap: 0.25rem;
   }
 }
 ```
