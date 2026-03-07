@@ -3,7 +3,9 @@ import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '../../types';
 import { logger } from '../../platform/diagnostics/logger';
 import type { BacklinksObject } from '../../types/backlinks';
 import {
-	filterFrontmatterLinksFromBacklinks
+	filterBacklinksByFrontmatterProperties,
+	filterFrontmatterLinksFromBacklinks,
+	validateFrontmatterProperties,
 } from './frontmatter-links';
 import {
     compareLinkName,
@@ -99,16 +101,29 @@ export class ApiAdapter extends Component {
         }
 
         // Filter out frontmatter links if disabled
-        if (!settings.includeFrontmatterLinks) {
-            filterFrontmatterLinksFromBacklinks(
-                backlinks,
-                file.basename,
+		if (!settings.includeFrontmatterLinks) {
+			filterFrontmatterLinksFromBacklinks(
+				backlinks,
+				file.basename,
                 (path: string) => {
                     const tFile = this.getFileByPath(path);
                     return tFile ? this.getMetadata(tFile) : null;
-                }
-            );
-        }
+				}
+			);
+		} else {
+			const allowedProperties = validateFrontmatterProperties(settings.frontmatterProperties);
+			if (allowedProperties.length > 0) {
+				filterBacklinksByFrontmatterProperties(
+					backlinks,
+					file.basename,
+					allowedProperties,
+					(path: string) => {
+						const tFile = this.getFileByPath(path);
+						return tFile ? this.getMetadata(tFile) : null;
+					}
+				);
+			}
+		}
 
 		cacheManager.setBacklinks(cacheKey, backlinks);
 		return reportFetchMetric(backlinks);

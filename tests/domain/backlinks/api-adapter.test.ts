@@ -114,6 +114,34 @@ describe('ApiAdapter', () => {
 		expect((backlinks.data as Map<string, LinkCache[]>).has('Reference Note')).toBe(false);
 	});
 
+	test('filters inbound frontmatter backlinks by configured frontmatter properties', () => {
+		const { api, file, app } = createContext({
+			includeFrontmatterLinks: true,
+			frontmatterProperties: ['citations'],
+		});
+
+		(app.metadataCache.getBacklinksForFile as jest.Mock).mockReturnValue({
+			data: new Map<string, LinkCache[]>([
+				[
+					'Source.md',
+					[
+						{
+							link: 'Target',
+							position: {
+								start: { line: 0, col: 0, offset: 0 },
+								end: { line: 0, col: 10, offset: 10 },
+							},
+						} as LinkCache,
+					],
+				],
+			]),
+		});
+
+		const backlinks = api.getBacklinks(file);
+
+		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(false);
+	});
+
 	test('honors requireInfluxFrontmatterKey when evaluating show status', () => {
 		const { api, file, app, plugin } = createContext({
 			requireInfluxFrontmatterKey: true,

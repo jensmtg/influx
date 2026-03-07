@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from '@/types';
 import {
     validateFrontmatterProperties,
     convertFrontmatterLinkToLinkCache,
+    filterBacklinksByFrontmatterProperties,
     filterFrontmatterLinks,
     mergeConvertedLinksIntoBacklinks,
     processFrontmatterLinks,
@@ -76,8 +77,8 @@ describe('frontmatter-utils', () => {
 
         test('filterFrontmatterLinks filters by key when target properties are provided', () => {
             const links = [fmLink('related', 'A'), fmLink('author', 'B'), fmLink('see_also', 'C')];
-            expect(filterFrontmatterLinks(links, ['related', 'see_also']).map(l => l.link)).toEqual(['A', 'C']);
-            expect(filterFrontmatterLinks(links, []).map(l => l.link)).toEqual(['A', 'B', 'C']);
+            expect(filterFrontmatterLinks(links, ['related', 'see_also']).map((l: FrontmatterLinkCache) => l.link)).toEqual(['A', 'C']);
+            expect(filterFrontmatterLinks(links, []).map((l: FrontmatterLinkCache) => l.link)).toEqual(['A', 'B', 'C']);
         });
     });
 
@@ -191,5 +192,34 @@ describe('frontmatter-utils', () => {
             expect(() => filterFrontmatterLinksFromBacklinks(null as any, 'Target', getMetadata)).not.toThrow();
             expect(() => filterFrontmatterLinksFromBacklinks({} as any, 'Target', getMetadata)).not.toThrow();
         });
+
+		test('keeps only frontmatter backlinks from allowed properties while preserving body links', () => {
+			const backlinks = {
+				data: new Map<string, LinkCache[]>([
+					['RelatedSource.md', [linkAtLine('Target', 0)]],
+					['AuthorSource.md', [linkAtLine('Target', 0)]],
+					['BodySource.md', [linkAtLine('Target', 12)]],
+				]),
+			};
+
+			getMetadata.mockImplementation((path: string) => {
+				if (path === 'RelatedSource.md') {
+					return { frontmatterLinks: [fmLink('related', 'Target')] } as CachedMetadata;
+				}
+				if (path === 'AuthorSource.md') {
+					return { frontmatterLinks: [fmLink('author', 'Target')] } as CachedMetadata;
+				}
+				if (path === 'BodySource.md') {
+					return { frontmatterLinks: [fmLink('related', 'Target')] } as CachedMetadata;
+				}
+				return null;
+			});
+
+			const result = filterBacklinksByFrontmatterProperties(backlinks, 'Target', ['related'], getMetadata);
+
+			expect((result.data as Map<string, LinkCache[]>).has('RelatedSource.md')).toBe(true);
+			expect((result.data as Map<string, LinkCache[]>).has('AuthorSource.md')).toBe(false);
+			expect((result.data as Map<string, LinkCache[]>).has('BodySource.md')).toBe(true);
+		});
     });
 });

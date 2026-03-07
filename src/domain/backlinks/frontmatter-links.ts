@@ -211,6 +211,52 @@ function filterLinksForSource(
     };
 }
 
+function hasAllowedFrontmatterMatch(
+	metadata: CachedMetadata,
+	targetBasename: string,
+	allowedProperties: string[]
+): boolean {
+	if (!metadata?.frontmatterLinks || !Array.isArray(metadata.frontmatterLinks)) {
+		return false;
+	}
+
+	for (const fmLink of metadata.frontmatterLinks) {
+		if (!allowedProperties.includes(fmLink.key || '')) {
+			continue;
+		}
+		const tempLinkCache = { link: fmLink.link } as LinkCache;
+		if (compareLinkName(tempLinkCache, targetBasename)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function filterLinksForAllowedFrontmatterProperties(
+	sourcePath: string,
+	links: LinkCache[],
+	targetBasename: string,
+	allowedProperties: string[],
+	getMetadataFn: (path: string) => CachedMetadata | null
+): { filtered: LinkCache[]; removedCount: number } {
+	const metadata = getMetadataFn(sourcePath);
+	const filtered = links.filter((link: LinkCache) => {
+		if (!isLinkFromFrontmatter(sourcePath, targetBasename, link.position, getMetadataFn)) {
+			return true;
+		}
+		if (!metadata) {
+			return true;
+		}
+		return hasAllowedFrontmatterMatch(metadata, targetBasename, allowedProperties);
+	});
+
+	return {
+		filtered,
+		removedCount: links.length - filtered.length,
+	};
+}
+
 /**
  * Removes front matter links from backlinks by checking source file metadata
  * This correctly identifies frontmatter links even when Obsidian's getBacklinksForFile
@@ -294,6 +340,54 @@ export function filterFrontmatterLinksFromBacklinks(
     });
 
     return backlinks;
+}
+
+export function filterBacklinksByFrontmatterProperties(
+	backlinks: BacklinksContainer,
+	targetBasename: string,
+	allowedProperties: string[],
+	getMetadataFn: (path: string) => CachedMetadata | null
+): BacklinksContainer {
+	if (!backlinks?.data || !Array.isArray(allowedProperties) || allowedProperties.length === 0) {
+		return backlinks;
+	}
+
+	if (backlinks.data instanceof Map) {
+		const dataMap = backlinks.data;
+		for (const [sourcePath, links] of dataMap.entries()) {
+			const { filtered } = filterLinksForAllowedFrontmatterProperties(
+				sourcePath,
+				links,
+				targetBasename,
+				allowedProperties,
+				getMetadataFn
+			);
+			if (filtered.length === 0) {
+				dataMap.delete(sourcePath);
+			} else if (filtered.length !== links.length) {
+				dataMap.set(sourcePath, filtered);
+			}
+		}
+	} else {
+		const dataRecord = backlinks.data;
+		for (const sourcePath in dataRecord) {
+			const links = dataRecord[sourcePath];
+			const { filtered } = filterLinksForAllowedFrontmatterProperties(
+				sourcePath,
+				links,
+				targetBasename,
+				allowedProperties,
+				getMetadataFn
+			);
+			if (filtered.length === 0) {
+				delete dataRecord[sourcePath];
+			} else if (filtered.length !== links.length) {
+				dataRecord[sourcePath] = filtered;
+			}
+		}
+	}
+
+	return backlinks;
 }
 
 /**
