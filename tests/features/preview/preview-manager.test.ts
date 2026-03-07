@@ -174,6 +174,70 @@ describe('PreviewManager', () => {
 		expect(updatePreviewSpy).toHaveBeenCalledWith(leaf);
 	});
 
+	test('dispose clears pending refresh timers before they run', async () => {
+		jest.useFakeTimers();
+
+		const previewRoot = {
+			classList: {
+				contains: (name: string) => name === 'markdown-preview-view',
+			},
+		} as unknown as HTMLElement;
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn(),
+				},
+			},
+			updating: new Map<string, number>(),
+			isUnloading: false,
+		} as any;
+
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshDelay = (PreviewManager as any).POST_PROCESS_REFRESH_DELAY_MS;
+
+		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Dispose.md' } as any);
+		manager.dispose();
+		jest.advanceTimersByTime(refreshDelay + 1);
+		await Promise.resolve();
+
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+	});
+
+	test('handlePreviewMode bails early while plugin is unloading', async () => {
+		jest.useFakeTimers();
+
+		const previewRoot = {
+			classList: {
+				contains: (name: string) => name === 'markdown-preview-view',
+			},
+		} as unknown as HTMLElement;
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn(),
+				},
+			},
+			updating: new Map<string, number>(),
+			isUnloading: true,
+		} as any;
+
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshDelay = (PreviewManager as any).POST_PROCESS_REFRESH_DELAY_MS;
+
+		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Unload.md' } as any);
+		jest.advanceTimersByTime(refreshDelay + 1);
+		await Promise.resolve();
+
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
+	});
+
 	test('updateAllPreviews throttles repeated updates for same file path', async () => {
 		const nowSpy = jest.spyOn(Date, 'now');
 		nowSpy.mockReturnValue(1000);
@@ -206,6 +270,25 @@ describe('PreviewManager', () => {
 		expect(updatePreviewSpy).not.toHaveBeenCalled();
 		expect(plugin.updating.get('Scratchpad.md::1')).toBe(500);
 		nowSpy.mockRestore();
+	});
+
+	test('updateAllPreviews bails early while plugin is unloading', async () => {
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn(),
+				},
+			},
+			updating: new Map<string, number>(),
+			isUnloading: true,
+		} as any;
+
+		const manager = new PreviewManager(plugin, {} as any);
+
+		await manager.updateAllPreviews();
+
+		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 	});
 
 	test('updateAllPreviews does not throttle separate panes for the same file path', async () => {

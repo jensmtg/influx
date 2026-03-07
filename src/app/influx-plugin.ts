@@ -264,11 +264,13 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async onunload() {
+		// Mark plugin as unloading early so async work bails fast.
+		this.isUnloading = true;
+
 		// Cancel all pending update operations
 		updateCoordinator.unload();
 
-		// Mark plugin as unloading (for type guards)
-		this.isUnloading = true;
+		this.previewManager?.dispose();
 
 		// Clean up all React roots on plugin unload
 		rootManager.unmountAll();

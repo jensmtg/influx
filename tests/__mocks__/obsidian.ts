@@ -46,6 +46,27 @@ export class Component {
 	}
 }
 
+export class Plugin extends Component {
+	app: unknown;
+	manifest: { version: string };
+
+	constructor(app: unknown = {}, manifest: { version: string } = { version: 'test-version' }) {
+		super();
+		this.app = app;
+		this.manifest = manifest;
+	}
+
+	loadData = jest.fn(async () => ({}));
+	saveData = jest.fn(async () => undefined);
+	registerEditorExtension = jest.fn();
+	addSettingTab = jest.fn();
+	registerMarkdownPostProcessor = jest.fn();
+	registerView = jest.fn();
+	addRibbonIcon = jest.fn();
+	addCommand = jest.fn();
+	registerEvent = jest.fn((eventRef: unknown) => eventRef);
+}
+
 export class PluginSettingTab {
 	app: unknown;
 	plugin: unknown;
@@ -103,6 +124,14 @@ export const MarkdownRenderer = {
 	renderMarkdown: jest.fn(async (markdown: string, el: HTMLElement) => {
 		el.textContent = markdown;
 	}),
+};
+
+export const editorViewField = Symbol('editorViewField');
+
+export const debounce = <T extends (...args: any[]) => unknown>(fn: T) => {
+	const debounced = ((...args: Parameters<T>) => fn(...args)) as T & { cancel: jest.Mock };
+	debounced.cancel = jest.fn();
+	return debounced;
 };
 
 // Mock Setting fluent API (minimal, without complex UI component mocks)
@@ -248,9 +277,12 @@ export default {
 	TFile: MockTFile,
 	TAbstractFile: MockTAbstractFile,
 	Component,
+	Plugin,
 	PluginSettingTab,
 	ItemView,
 	MarkdownRenderer,
+	editorViewField,
+	debounce,
 	normalizePath,
 	Setting,
 	Notice,

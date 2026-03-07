@@ -33,13 +33,26 @@ export class PreviewManager {
 	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
 	private nextLeafContainerId = 1;
 	private postProcessRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private disposed = false;
 
 	constructor(
 		private plugin: ObsidianInflux,
 		private apiAdapter: ApiAdapter
 	) {}
 
+	dispose(): void {
+		this.disposed = true;
+		for (const timer of this.postProcessRefreshTimers.values()) {
+			clearTimeout(timer);
+		}
+		this.postProcessRefreshTimers.clear();
+	}
+
 	async updateAllPreviews(): Promise<void> {
+		if (this.isInactive()) {
+			return;
+		}
+
 		if (this.plugin.data.settings.showInfluxInSidebar) {
 			this.cleanupAllPreviewRootsAndContainers();
 			return;
@@ -89,6 +102,10 @@ export class PreviewManager {
 	}
 
 	async updatePreview(leaf: WorkspaceLeaf): Promise<void> {
+		if (this.isInactive()) {
+			return;
+		}
+
 		const influxLeaf = leaf as InfluxWorkspaceLeaf;
 		const container: HTMLDivElement = influxLeaf.containerEl;
 		const path = influxLeaf.view?.file?.path;
@@ -215,6 +232,10 @@ export class PreviewManager {
 	}
 
 	async handlePreviewMode(element: HTMLElement, context: MarkdownPostProcessorContext): Promise<void> {
+		if (this.isInactive()) {
+			return;
+		}
+
 		const previewRoot = this.resolvePreviewRoot(element);
 		if (!previewRoot) {
 			return;
@@ -236,12 +257,20 @@ export class PreviewManager {
 	}
 
 	private schedulePreviewRefreshForPath(filePath: string): void {
+		if (this.isInactive()) {
+			return;
+		}
+
 		const pending = this.postProcessRefreshTimers.get(filePath);
 		if (pending) {
 			clearTimeout(pending);
 		}
 
 		const timer = setTimeout(() => {
+			if (this.isInactive()) {
+				this.postProcessRefreshTimers.delete(filePath);
+				return;
+			}
 			this.postProcessRefreshTimers.delete(filePath);
 			void this.refreshPreviewLeavesByPath(filePath);
 		}, PreviewManager.POST_PROCESS_REFRESH_DELAY_MS);
@@ -249,6 +278,10 @@ export class PreviewManager {
 	}
 
 	private async refreshPreviewLeavesByPath(filePath: string): Promise<void> {
+		if (this.isInactive()) {
+			return;
+		}
+
 		const leaves: WorkspaceLeaf[] = [];
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
@@ -299,6 +332,10 @@ export class PreviewManager {
 		document
 			.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`)
 			.forEach((wrapper) => wrapper.remove());
+	}
+
+	private isInactive(): boolean {
+		return this.disposed || this.plugin.isUnloading;
 	}
 
 	private isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
