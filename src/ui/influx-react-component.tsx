@@ -278,7 +278,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			aria-label={summaryRowLabel}
 		>
 			<div className="influx-summary-title">
-				Linked mentions
+				Linked mentions (influx)
 			</div>
 			<div className="influx-summary-count-wrap">
 				<span className="influx-summary-count" title={mentionsCountTooltip}>
@@ -455,8 +455,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									return (
 
 										<div key={filePath}
-											className={`influx-result-group ${inlinkedCollapsed ? 'influx-is-collapsed' : ''}`}
-											style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
+											className={`influx-result-group ${inlinkedCollapsed ? 'influx-is-collapsed' : ''}${centered ? ' influx-result-group--split' : ''}`}
 										>
 											<div className="influx-result-head"
 												style={centeredTitleStyle}>

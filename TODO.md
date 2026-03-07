@@ -18,7 +18,7 @@ Ideas on what to keep working on before we are happy and ready for the new Influ
 - [x] Fix toolbar labels in `src/ui/influx-react-component.tsx`. For example: "Expand all / Collapse all" should always reflect the current collapsed state, including after per-item toggles.
 - [ ] Add lifecycle/integration tests for `src/features/editor/codemirror/async-view-plugin.ts`. We covered `stateful-decoration-set` and widget cleanup, but the wrapper that handles file switches, debounce, hide/show, and destroy cleanup is still basically unguarded.
 - [ ] Add mounted interaction tests for `src/ui/influx-react-component.tsx`. Current coverage is mostly helpers/static render; still missing live `influxUpdates$` subscription behavior, stale async update suppression, search debounce cleanup, and load-more interactions.
-- [ ] Add `onOpen()` / `onClose()` / event-wiring tests for `src/features/sidebar/influx-sidebar-view.tsx`. Current tests cover update races well, but not root lifecycle, event registration, or close-during-work cleanup.
+- [x] Add `onOpen()` / `onClose()` / event-wiring tests for `src/features/sidebar/influx-sidebar-view.tsx`. Current tests cover update races well, but not root lifecycle, event registration, or close-during-work cleanup.
 - [ ] Bring the inline UX back toward `docs/assets/screencap.png`. In particular: restore the quieter note-integrated section header, reduce toolbar/panel feel, and make result rows behave like real two-column source+excerpt note rows again.
 
 ## Finally

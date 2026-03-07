@@ -1,6 +1,7 @@
 import { InfluxSidebarView } from '@/features/sidebar/influx-sidebar-view';
 import { mockTFile } from '../../mocks';
 import InfluxFile from '@/domain/backlinks/influx-file';
+import { createRoot } from 'react-dom/client';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({
@@ -29,6 +30,7 @@ describe('InfluxSidebarView', () => {
 	const createContext = () => {
 		const fileA = mockTFile('A.md', 'A');
 		const fileB = mockTFile('B.md', 'B');
+		const workspaceOn = jest.fn().mockReturnValue(() => {});
 
 		const plugin = {
 			data: {
@@ -40,10 +42,19 @@ describe('InfluxSidebarView', () => {
 				getShowStatus: jest.fn().mockReturnValue(true),
 				invalidateFileCache: jest.fn(),
 			},
+			app: {
+				workspace: {
+					on: workspaceOn,
+					getActiveFile: jest.fn().mockReturnValue(null),
+				},
+			},
 		};
 
 		const leaf = {};
 		const view = new InfluxSidebarView(leaf as any, plugin as any);
+		(view as any).app = plugin.app;
+		(view as any).containerEl = { id: 'sidebar-root' };
+		(view as any).registerEvent = jest.fn();
 		(view as any).root = {
 			render: jest.fn(),
 			unmount: jest.fn(),
@@ -54,6 +65,7 @@ describe('InfluxSidebarView', () => {
 			plugin,
 			fileA,
 			fileB,
+			workspaceOn,
 		};
 	};
 
@@ -251,5 +263,100 @@ describe('InfluxSidebarView', () => {
 		await pending;
 
 		expect((view as any).root.render).not.toHaveBeenCalled();
+	});
+
+	test('onOpen creates a root, registers file events, and updates for the active file', async () => {
+		const { view, plugin, fileA } = createContext();
+		const createdRoot = {
+			render: jest.fn(),
+			unmount: jest.fn(),
+		};
+		const registerFileEventsSpy = jest.spyOn(view as any, 'registerFileEvents').mockImplementation(() => {});
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+		(plugin.app.workspace.getActiveFile as jest.Mock).mockReturnValue(fileA);
+		(createRoot as jest.Mock).mockReturnValue(createdRoot);
+
+		await view.onOpen();
+
+		expect(createRoot).toHaveBeenCalledWith((view as any).containerEl);
+		expect(registerFileEventsSpy).toHaveBeenCalledTimes(1);
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA);
+		expect((view as any).root).toBe(createdRoot);
+	});
+
+	test('onOpen still registers events when there is no active file', async () => {
+		const { view, plugin } = createContext();
+		const createdRoot = {
+			render: jest.fn(),
+			unmount: jest.fn(),
+		};
+		const registerFileEventsSpy = jest.spyOn(view as any, 'registerFileEvents').mockImplementation(() => {});
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+		(plugin.app.workspace.getActiveFile as jest.Mock).mockReturnValue(null);
+		(createRoot as jest.Mock).mockReturnValue(createdRoot);
+
+		await view.onOpen();
+
+		expect(registerFileEventsSpy).toHaveBeenCalledTimes(1);
+		expect(updateViewSpy).not.toHaveBeenCalled();
+	});
+
+	test('onClose aborts pending work, unmounts root, and clears sidebar state', async () => {
+		const { view, fileA } = createContext();
+		const abort = jest.fn();
+		const unmount = jest.fn();
+
+		(view as any).abortController = { abort };
+		(view as any).root = { unmount };
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = { show: true };
+
+		await view.onClose();
+
+		expect(abort).toHaveBeenCalledTimes(1);
+		expect(unmount).toHaveBeenCalledTimes(1);
+		expect((view as any).abortController).toBeNull();
+		expect((view as any).root).toBeNull();
+		expect((view as any).currentFile).toBeNull();
+		expect((view as any).influxFile).toBeNull();
+	});
+
+	test('registerFileEvents wires active leaf, file open, and editor change listeners', () => {
+		const { view, plugin, fileA, workspaceOn } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+		const handleEditorChangeSpy = jest.spyOn(view as any, 'handleEditorChange').mockResolvedValue(undefined);
+
+		(view as any).registerFileEvents();
+
+		expect(workspaceOn).toHaveBeenCalledTimes(3);
+		expect((view as any).registerEvent).toHaveBeenCalledTimes(3);
+
+		const activeLeafHandler = workspaceOn.mock.calls[0][1];
+		activeLeafHandler({ view: { file: fileA } });
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA);
+
+		const fileOpenHandler = workspaceOn.mock.calls[1][1];
+		fileOpenHandler(fileA);
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA);
+
+		(view as any).currentFile = fileA;
+		(plugin.data.settings.liveUpdate as boolean) = true;
+		const editorChangeHandler = workspaceOn.mock.calls[2][1];
+		editorChangeHandler({}, { file: fileA });
+		expect(handleEditorChangeSpy).toHaveBeenCalledTimes(1);
+	});
+
+	test('registerFileEvents ignores editor changes when live update is disabled', () => {
+		const { view, plugin, fileA, workspaceOn } = createContext();
+		const handleEditorChangeSpy = jest.spyOn(view as any, 'handleEditorChange').mockResolvedValue(undefined);
+
+		(view as any).registerFileEvents();
+		(view as any).currentFile = fileA;
+		(plugin.data.settings.liveUpdate as boolean) = false;
+
+		const editorChangeHandler = workspaceOn.mock.calls[2][1];
+		editorChangeHandler({}, { file: fileA });
+
+		expect(handleEditorChangeSpy).not.toHaveBeenCalled();
 	});
 });
