@@ -21,32 +21,41 @@ function splitFencePrefix(line: string): { prefix: string; content: string } {
 	return { prefix, content };
 }
 
+const SANITIZED_FENCE_PATTERN = /^```(query|dataview|dataviewjs)\b/i;
+
+function isSanitizedFenceStart(content: string): boolean {
+	return SANITIZED_FENCE_PATTERN.test(content.trim());
+}
+
 export function prepareMarkdownForInflux(markdown: string): string {
-	if (!markdown || markdown.toLowerCase().indexOf('```query') === -1) {
+	if (!markdown || !/```(query|dataview|dataviewjs)\b/i.test(markdown)) {
 		return markdown;
 	}
 
 	const lines = markdown.split(/\r?\n/);
 	const output: string[] = [];
-	let inQueryFence = false;
+	let inSanitizedFence = false;
 	let fencePrefix = '';
+	let sanitizedFenceLabel = '';
 
 	for (const line of lines) {
 		const { prefix, content } = splitFencePrefix(line);
 		const normalizedContent = content.trim();
 
-		if (!inQueryFence && /^```query\b/i.test(normalizedContent)) {
-			inQueryFence = true;
+		if (!inSanitizedFence && isSanitizedFenceStart(normalizedContent)) {
+			inSanitizedFence = true;
 			fencePrefix = prefix;
+			sanitizedFenceLabel = normalizedContent.slice(3).split(/\s+/, 1)[0].toLowerCase();
 			output.push(`${fencePrefix}\`\`\`text`);
-			output.push(`${fencePrefix}[Influx] query block disabled in backlink snippet`);
+			output.push(`${fencePrefix}[Influx] ${sanitizedFenceLabel} block disabled in backlink snippet`);
 			continue;
 		}
 
-		if (inQueryFence && /^```/.test(normalizedContent)) {
+		if (inSanitizedFence && /^```/.test(normalizedContent)) {
 			output.push(`${fencePrefix}\`\`\``);
-			inQueryFence = false;
+			inSanitizedFence = false;
 			fencePrefix = '';
+			sanitizedFenceLabel = '';
 			continue;
 		}
 
