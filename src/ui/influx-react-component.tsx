@@ -12,6 +12,7 @@ import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
 import {
 	collectComponentPaths,
+	areAllComponentPathsCollapsed,
 	collectInitialCollapsedPaths,
 	createInitialSearchUiState,
 	filterComponentsBySearch,
@@ -68,13 +69,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const doToggle = (path: string) => {
 		collapsedManager.toggle(path);
 	};
+	const componentPaths = React.useMemo(() => collectComponentPaths(components), [components]);
+	const allVisibleComponentsCollapsed = areAllComponentPathsCollapsed(
+		componentPaths,
+		(path) => collapsedManager.isCollapsed(path)
+	);
 
 	const toggleAll = () => {
-		const nowAllCollapsed = collapsedManager.toggleAll(collectComponentPaths(components));
-		setToggleAllToOpen(nowAllCollapsed);
+		collapsedManager.toggleAll(componentPaths);
 	};
-
-	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed);
 
 	const influxFileRef = React.useRef(influxFile);
 	influxFileRef.current = influxFile;
@@ -268,7 +271,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		totalEntryCount: influxFile.totalEntryCount ?? 0,
 		renderedCount: components.length,
 	});
-	const summaryRowLabel = toggleAllToOpen ? 'Expand all linked mentions' : 'Collapse all linked mentions';
+	const summaryRowLabel = allVisibleComponentsCollapsed ? 'Expand all linked mentions' : 'Collapse all linked mentions';
 	const renderSummaryRow = (variant: 'toolbar' | 'pane') => (
 		<button
 			type="button"
@@ -367,7 +370,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							<button
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
-								aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
+								aria-label={allVisibleComponentsCollapsed ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--expand-collapse-all">

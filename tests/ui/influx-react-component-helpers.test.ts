@@ -1,5 +1,6 @@
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
 import {
+	areAllComponentPathsCollapsed,
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
 	createInitialSearchUiState,
@@ -168,6 +169,20 @@ describe('influx-react-component helpers', () => {
 			expect(collectComponentPaths(components)).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: true, components })).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: false, components })).toEqual([]);
+		});
+
+		test('areAllComponentPathsCollapsed reflects per-item collapse state for toolbar labels', () => {
+			expect(
+				areAllComponentPathsCollapsed(['A.md', 'B.md'], (path: string) => path === 'A.md' || path === 'B.md')
+			).toBe(true);
+
+			expect(
+				areAllComponentPathsCollapsed(['A.md', 'B.md'], (path: string) => path === 'A.md')
+			).toBe(false);
+
+			expect(
+				areAllComponentPathsCollapsed([], () => true)
+			).toBe(false);
 		});
 
 		test('getLinkedMentionsCountTooltip provides explicit count context', () => {

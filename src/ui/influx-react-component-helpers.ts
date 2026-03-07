@@ -83,6 +83,13 @@ export function collectComponentPaths(components: ExtendedInlinkingFile[]): stri
 		.filter((path): path is string => path !== undefined);
 }
 
+export function areAllComponentPathsCollapsed(
+	paths: string[],
+	isCollapsed: (path: string) => boolean
+): boolean {
+	return paths.length > 0 && paths.every((path) => isCollapsed(path));
+}
+
 export function collectInitialCollapsedPaths(params: {
 	collapsed: boolean;
 	components: ExtendedInlinkingFile[];
