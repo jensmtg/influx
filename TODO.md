@@ -13,7 +13,7 @@ Ideas on what to keep working on before we are happy and ready for the new Influ
 ## Later
 
 - [x] Normalize `filePath` keys in `src/platform/react/root-manager.ts`. We do this in cache manager already. Should do the same here so case-only renames and slash differences do not leave stale index entries. (as me how I know, lol)
-- [ ] Add a rename/delete stress test that spans editor + preview + sidebar. Recent race fixes are good, but this is the kind of thing that tends to regress quietly. (again, ask me how I know, oof)
+- [x] Add a rename/delete stress test that spans editor + preview + sidebar. Recent race fixes are good, but this is the kind of thing that tends to regress quietly. (again, ask me how I know, oof)
 - [ ] Break up `display()` in `src/features/settings/settings-tab.ts`. It has grown too big for my brain.
 - [ ] Fix toolbar labels in `src/ui/influx-react-component.tsx`. For example: "Expand all / Collapse all" should always reflect the current collapsed state, including after per-item toggles.
 

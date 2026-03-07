@@ -156,6 +156,44 @@ describe('RootManager', () => {
 		expect(rootManager.size).toBe(0);
 	});
 
+	test('rename and delete cleanup removes editor, preview, and sidebar roots across old and new paths', () => {
+		const oldEditor = asHTMLElement(createFakeElement('div'));
+		const oldPreview = asHTMLElement(createFakeElement('div'));
+		const oldSidebar = asHTMLElement(createFakeElement('div'));
+		const newEditor = asHTMLElement(createFakeElement('div'));
+		const newPreview = asHTMLElement(createFakeElement('div'));
+		const newSidebar = asHTMLElement(createFakeElement('div'));
+
+		const oldEditorRoot = createMockRoot();
+		const oldPreviewRoot = createMockRoot();
+		const oldSidebarRoot = createMockRoot();
+		const newEditorRoot = createMockRoot();
+		const newPreviewRoot = createMockRoot();
+		const newSidebarRoot = createMockRoot();
+
+		rootManager.register(oldEditor, oldEditorRoot, 'editor', 'Folder\\Old.md');
+		rootManager.register(oldPreview, oldPreviewRoot, 'preview', 'folder/old.md');
+		rootManager.register(oldSidebar, oldSidebarRoot, 'sidebar', 'FOLDER/OLD.md');
+
+		rootManager.unmountByFilePath('folder/old.md');
+
+		expect(oldEditorRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(oldPreviewRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(oldSidebarRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(rootManager.size).toBe(0);
+
+		rootManager.register(newEditor, newEditorRoot, 'editor', 'Folder\\Renamed.md');
+		rootManager.register(newPreview, newPreviewRoot, 'preview', 'folder/renamed.md');
+		rootManager.register(newSidebar, newSidebarRoot, 'sidebar', 'FOLDER/RENAMED.md');
+
+		rootManager.unmountByFilePath('folder/renamed.md');
+
+		expect(newEditorRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(newPreviewRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(newSidebarRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(rootManager.size).toBe(0);
+	});
+
 	test('cleanupStale is idempotent across repeated layout cleanup passes', () => {
 		const previewContainer = asHTMLElement(createFakeElement('div'));
 		const previewRoot = createMockRoot();
