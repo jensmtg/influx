@@ -142,6 +142,33 @@ describe('ApiAdapter', () => {
 		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(false);
 	});
 
+	test('clones metadata-cache backlinks before filtering so the original object stays untouched', () => {
+		const { api, file, app } = createContext({ includeFrontmatterLinks: false });
+		const originalBacklinks = {
+			data: new Map<string, LinkCache[]>([
+				[
+					'Source.md',
+					[
+						{
+							link: 'Target',
+							position: {
+								start: { line: 0, col: 0, offset: 0 },
+								end: { line: 0, col: 10, offset: 10 },
+							},
+						} as LinkCache,
+					],
+				],
+			]),
+		};
+		(app.metadataCache.getBacklinksForFile as jest.Mock).mockReturnValue(originalBacklinks);
+
+		const backlinks = api.getBacklinks(file);
+
+		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(false);
+		expect((originalBacklinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(true);
+		expect(backlinks.data).not.toBe(originalBacklinks.data);
+	});
+
 	test('honors requireInfluxFrontmatterKey when evaluating show status', () => {
 		const { api, file, app, plugin } = createContext({
 			requireInfluxFrontmatterKey: true,

@@ -27,6 +27,26 @@ export class ApiAdapter extends Component {
     app: App;
     private plugin: SettingsOwner;
 
+    private cloneBacklinks(backlinks: BacklinksObject): BacklinksObject {
+		if (!backlinks?.data) {
+			return { data: new Map() };
+		}
+
+		if (backlinks.data instanceof Map) {
+			return {
+				data: new Map(
+					Array.from(backlinks.data.entries(), ([path, links]) => [path, [...links]])
+				),
+			};
+		}
+
+		return {
+			data: Object.fromEntries(
+				Object.entries(backlinks.data).map(([path, links]) => [path, [...links]])
+			),
+		};
+	}
+
     constructor(app: App, plugin: SettingsOwner) {
         super();
         this.app = app;
@@ -94,7 +114,7 @@ export class ApiAdapter extends Component {
         const metadataCache = this.app.metadataCache as MetadataCacheWithBacklinks;
 
         if (typeof metadataCache?.getBacklinksForFile === 'function') {
-            backlinks = metadataCache.getBacklinksForFile(file);
+			backlinks = this.cloneBacklinks(metadataCache.getBacklinksForFile(file));
         } else {
             logger.warn('getBacklinksForFile not available, returning empty backlinks');
             backlinks = { data: new Map() };
