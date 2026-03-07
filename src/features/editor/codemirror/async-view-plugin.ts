@@ -5,30 +5,28 @@ import { debounce, editorViewField } from "obsidian";
 import { CONSTANTS } from '../../../config/constants';
 
 
-const asyncViewPlugin = ViewPlugin.fromClass(
-    class {
-        statefulDecorationsSet: StatefulDecorationSet;
-        private show: boolean = true;
-        private currentFilePath: string | null = null;
+export class AsyncViewPluginController {
+    statefulDecorationsSet: StatefulDecorationSet;
+    private show: boolean = true;
+    private currentFilePath: string | null = null;
 
-        constructor(view: EditorView) {
-            this.statefulDecorationsSet = new StatefulDecorationSet(view);
-            this.currentFilePath = this.getCurrentFilePath(view);
-            // Start initial decoration computation
-            this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
-        }
+    constructor(view: EditorView) {
+        this.statefulDecorationsSet = new StatefulDecorationSet(view);
+        this.currentFilePath = this.getCurrentFilePath(view);
+        this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
+    }
 
-        hideInflux(view: EditorView) {
-            this.show = false;
-            this.statefulDecorationsSet.updateAsyncDecorations(view.state, false);
-        }
+    hideInflux(view: EditorView) {
+        this.show = false;
+        this.statefulDecorationsSet.updateAsyncDecorations(view.state, false);
+    }
 
-        showInflux(view: EditorView) {
-            this.show = true;
-            this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
-         }
+    showInflux(view: EditorView) {
+        this.show = true;
+        this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
+     }
 
-        update(update: ViewUpdate) {
+    update(update: ViewUpdate) {
 			const newFilePath = this.getCurrentFilePath(update.view);
 			const fileChanged = newFilePath !== this.currentFilePath;
 			this.currentFilePath = newFilePath;
@@ -67,8 +65,9 @@ const asyncViewPlugin = ViewPlugin.fromClass(
 			this.statefulDecorationsSet.cancelPendingUpdates();
 		}
 
-    }
-);
+}
+
+const asyncViewPlugin = ViewPlugin.fromClass(AsyncViewPluginController);
 
 export const asyncDecoBuilderExt = [statefulDecorations.field, asyncViewPlugin]
 

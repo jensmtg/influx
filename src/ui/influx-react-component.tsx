@@ -353,21 +353,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							<button
 								type="button"
 								className="influx-icon-button influx-toolbar-button"
-								aria-label="Cycle list limit"
-								onClick={() => plugin.cycleListLimit()}
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--list">
-									<line x1="8" y1="6" x2="21" y2="6"></line>
-									<line x1="8" y1="12" x2="21" y2="12"></line>
-									<line x1="8" y1="18" x2="21" y2="18"></line>
-									<line x1="3" y1="6" x2="3.01" y2="6"></line>
-									<line x1="3" y1="12" x2="3.01" y2="12"></line>
-									<line x1="3" y1="18" x2="3.01" y2="18"></line>
-								</svg>
-							</button>
-							<button
-								type="button"
-								className="influx-icon-button influx-toolbar-button"
 								aria-label={allVisibleComponentsCollapsed ? 'Expand all' : 'Collapse all'}
 								onClick={() => toggleAll()}
 							>
@@ -380,45 +365,26 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									</line>
 								</svg>
 							</button>
-							<button
-								type="button"
-								className="influx-icon-button influx-toolbar-button"
-								aria-label={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
-								onClick={() => plugin.toggleFrontmatterLinks()}
-							>
-								{settings.includeFrontmatterLinks ? (
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--eye-on">
-										<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-										<circle cx="12" cy="12" r="3"></circle>
+							<details className="influx-toolbar-menu">
+								<summary className="influx-icon-button influx-toolbar-button" aria-label="More Influx actions">
+									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--more">
+										<circle cx="12" cy="12" r="1"></circle>
+										<circle cx="19" cy="12" r="1"></circle>
+										<circle cx="5" cy="12" r="1"></circle>
 									</svg>
-								) : (
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--eye-off">
-										<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
-										<path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
-										<path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
-										<line x1="2" x2="22" y1="2" y2="22"></line>
-									</svg>
-								)}
-							</button>
-							<button
-								type="button"
-								className="influx-icon-button influx-toolbar-button"
-								aria-label="Change sort order"
-								onClick={() => plugin.toggleSortOrder()}
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--sort">
-									<path d="M11 5h4">
-									</path>
-									<path d="M11 9h7">
-									</path>
-									<path d="M11 13h10">
-									</path>
-									<path d="m3 17 3 3 3-3">
-									</path>
-									<path d="M6 18V4">
-									</path>
-								</svg>
-							</button>
+								</summary>
+								<div className="influx-toolbar-menu-panel">
+									<button type="button" className="influx-toolbar-menu-item" onClick={() => plugin.cycleListLimit()}>
+										Cycle list limit
+									</button>
+									<button type="button" className="influx-toolbar-menu-item" onClick={() => plugin.toggleSortOrder()}>
+										Change sort order
+									</button>
+									<button type="button" className="influx-toolbar-menu-item" onClick={() => plugin.toggleFrontmatterLinks()}>
+										{settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
+									</button>
+								</div>
+							</details>
 						</div>
 
 					</div>
