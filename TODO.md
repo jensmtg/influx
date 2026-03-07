@@ -5,9 +5,9 @@ Ideas on what to keep working on before we are happy and ready for the new Influ
 ## Do first
 
 - [ ] Cover the editor pipeline with real tests (`src/features/editor/codemirror/`). It's still the big boi gap. I want tests for file-switch races, cancellation behavior, frontmatter/top insertion, and widget detach cleanup.
-- [ ] Add lifecycle coverage for `src/app/influx-plugin.ts`. Specifically: onload/onunload flow that has been buggy for a few cycles. Consider `window.influxPlugin` wiring + cleanup, root teardown, and update dispatch paths.
-- [ ] Add tests for `src/platform/obsidian/plugin-window-guards.ts`. (little guy but important)
-- [ ] Add `dispose()` to `PreviewManager` and call it on plugin unload. The `postProcessRefreshTimers` map can outlive the active instance. Clear timers and bail early when `plugin.isUnloading` is true.
+- [x] Add lifecycle coverage for `src/app/influx-plugin.ts`. Specifically: onload/onunload flow that has been buggy for a few cycles. Consider `window.influxPlugin` wiring + cleanup, root teardown, and update dispatch paths.
+- [x] Add tests for `src/platform/obsidian/plugin-window-guards.ts`. (little guy but important)
+- [x] Add `dispose()` to `PreviewManager` and call it on plugin unload. The `postProcessRefreshTimers` map can outlive the active instance. Clear timers and bail early when `plugin.isUnloading` is true.
 - [ ] Re-check frontmatter backlink behavior in `src/domain/backlinks/api-adapter.ts`. We currently merge `metadata.frontmatterLinks` from the target note into backlinks. Need to validate this against real Obsidian behavior and lock it with regression tests.
 
 ## Later
