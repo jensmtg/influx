@@ -7,8 +7,8 @@ This directory mirrors the source structure in `src/` to keep ownership and navi
 - `app/`: tests for plugin orchestration and event flows.
 - `features/`: tests for editor/preview/sidebar/settings integrations.
 - `domain/`: tests for backlinks, filtering, and structured-text logic.
-- `platform/`: tests for infrastructure adapters (cache, diagnostics, root tracking).
-- `ui/`: tests for rendering helpers and UI state logic.
+- `platform/`: tests for infrastructure adapters and runtime bridges (cache, diagnostics, root tracking, window/obsidian guards).
+- `ui/`: tests for rendering helpers, update-policy helpers, and UI state logic.
 - `mocks/`: shared test doubles used by multiple suites.
 - `helpers/`: local test utilities (fake DOM, fixtures, builders).
 
@@ -18,6 +18,8 @@ This directory mirrors the source structure in `src/` to keep ownership and navi
 - Prefer `@/` imports for source modules to avoid brittle relative paths after refactors.
 - Keep cross-suite mocks in `tests/mocks/`; avoid redefining global mocks in each file.
 - When moving a source file, move its tests in the same commit or phase.
+- Prefer behavior-focused assertions over brittle snapshots of static markup or internal wiring.
+- When a shared runtime seam moves (for example a platform event bus or window bridge), update the source imports and the affected tests as well.
 
 ## Related Docs
 
