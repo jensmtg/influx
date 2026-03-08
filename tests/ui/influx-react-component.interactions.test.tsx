@@ -190,6 +190,34 @@ describe('InfluxReactComponent mounted interactions', () => {
 		expect(screen.queryByText('Summary Stale')).toBeNull();
 	});
 
+	test('refreshes on delete events even when shouldUpdate no longer matches the removed source path', async () => {
+		let currentComponents = [makeComponent(1, 'Alpha')];
+		const influxFile = makeInfluxFile({
+			components: currentComponents,
+			totalEntryCount: 1,
+			shouldUpdate: () => false,
+			makeInfluxList: async () => {
+				currentComponents = [makeComponent(2, 'Beta')];
+			},
+			toEntries: () => currentComponents,
+		});
+
+		render(
+			<InfluxReactComponent
+				influxFile={influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile']}
+				preview={false}
+				plugin={makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin']}
+			/>
+		);
+
+		await act(async () => {
+			await observerCallback?.({ op: 'delete', file: { path: 'Removed.md' } });
+		});
+
+		expect(screen.getByText('Summary Beta')).toBeTruthy();
+		expect(screen.queryByText('Summary Alpha')).toBeNull();
+	});
+
 	test('filters via debounced search, clears results, and closes on escape', async () => {
 		jest.useFakeTimers();
 		const influxFile = makeInfluxFile({

@@ -170,6 +170,11 @@ export class InfluxSidebarView extends ItemView {
 		}
 
 		const currentFile = this.currentFile;
+		if (event.op === 'rename' || event.op === 'delete') {
+			await this.updateView(currentFile, { force: true });
+			return;
+		}
+
 		const touchesCurrentFile = event.file?.path === currentFile.path;
 		const affectsBacklinks = event.file ? (this.influxFile?.shouldUpdate(event.file) ?? false) : false;
 		const shouldRefresh = event.op === 'save-settings' || event.op === 'mode-change'

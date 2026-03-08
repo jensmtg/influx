@@ -501,7 +501,25 @@ describe('influx-react-component helpers', () => {
 					currentPath: 'Current.md',
 					affectsBacklinks: false,
 				})
-			).toBe(false);
+			).toBe(true);
+		});
+
+		test('rename and delete updates stay relevant even after backlinks no longer report the old source path', () => {
+			expect(
+				shouldProcessInfluxUpdateEvent({
+					event: makeUpdateEvent('rename', 'Elsewhere.md'),
+					currentPath: 'Current.md',
+					affectsBacklinks: false,
+				})
+			).toBe(true);
+
+			expect(
+				shouldProcessInfluxUpdateEvent({
+					event: makeUpdateEvent('delete', 'Elsewhere.md'),
+					currentPath: 'Current.md',
+					affectsBacklinks: false,
+				})
+			).toBe(true);
 		});
 
 		test('shouldProcessInfluxUpdateEvent allows non-file operations by default', () => {

@@ -389,6 +389,21 @@ describe('InfluxSidebarView', () => {
 		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true });
 	});
 
+	test('shared update bus refreshes on delete even when shouldUpdate no longer reports the removed source', async () => {
+		const { view, fileA, fileB } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+
+		await view.onOpen();
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			shouldUpdate: jest.fn().mockReturnValue(false),
+		};
+
+		await influxUpdates$.notify({ op: 'delete', file: fileB as any });
+
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+	});
+
 	test('registerFileEvents wires active leaf, file open, and editor change listeners', () => {
 		const { view, plugin, fileA, workspaceOn } = createContext();
 		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);

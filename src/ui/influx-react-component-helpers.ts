@@ -407,6 +407,10 @@ export function shouldProcessInfluxUpdateEvent(params: {
 			return false;
 		}
 
+		if (event.op === 'rename' || event.op === 'delete') {
+			return true;
+		}
+
 		const touchesCurrentFile = event.file.path === currentPath;
 		return touchesCurrentFile || affectsBacklinks;
 	}
