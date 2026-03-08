@@ -1,4 +1,5 @@
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
+import { InlinkingFile, type InlinkingFileApi } from '@/domain/backlinks/inlinking-file';
 import {
 	areAllComponentPathsCollapsed,
 	collectBasenameCounts,
@@ -30,6 +31,15 @@ import {
 	resolveInfluxUpdateEntries,
 	shouldProcessInfluxUpdateEvent,
 } from '@/ui/influx-update-helpers';
+import { mockTFile } from '../mocks';
+
+function createInlinkingApi(): jest.Mocked<InlinkingFileApi> {
+	return {
+		getMetadata: jest.fn().mockReturnValue(null),
+		readFile: jest.fn(),
+		compareLinkName: jest.fn(),
+	};
+}
 
 function entry(params: {
 	path: string;
@@ -37,18 +47,13 @@ function entry(params: {
 	titleText?: string;
 	summaryMarkdown?: string;
 }): ExtendedInlinkingFile {
+	const inlinkingFile = new InlinkingFile(mockTFile(params.path, params.basename), createInlinkingApi());
 	return {
-		inlinkingFile: {
-			file: {
-				path: params.path,
-				basename: params.basename,
-			},
-			isLinkInTitle: false,
-		},
+		inlinkingFile,
 		titleText: params.titleText ?? '',
 		summaryMarkdown: params.summaryMarkdown ?? '',
 		sourcePath: params.path,
-	} as unknown as ExtendedInlinkingFile;
+	};
 }
 
 describe('influx-react-component helpers', () => {
@@ -287,15 +292,9 @@ describe('influx-react-component helpers', () => {
 		});
 
 		test('collectComponentPaths uses sourcePath instead of reaching back into the raw file path', () => {
-			const components = [
-				{
-					...entry({ path: 'A.md', basename: 'Alpha' }),
-					inlinkingFile: {
-						file: { path: 'stale-A.md', basename: 'Alpha' },
-						isLinkInTitle: false,
-					},
-				},
-			] as unknown as ExtendedInlinkingFile[];
+			const stale = entry({ path: 'A.md', basename: 'Alpha' });
+			stale.inlinkingFile.file = mockTFile('stale-A.md', 'Alpha');
+			const components = [stale];
 
 			expect(collectComponentPaths(components)).toEqual(['A.md']);
 		});

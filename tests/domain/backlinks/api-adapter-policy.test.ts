@@ -34,7 +34,7 @@ describe('ApiAdapterPolicy', () => {
 		expect(cacheManager.getRegex('^Projects/')).toBeInstanceOf(RegExp);
 	});
 
-	test('caches invalid regexes as non-matching sentinels', () => {
+		test('caches invalid regexes as non-matching sentinels', () => {
 		const policy = new ApiAdapterPolicy({
 			data: {
 				settings: {
@@ -44,9 +44,9 @@ describe('ApiAdapterPolicy', () => {
 			},
 		});
 
-		expect(policy.getCollapsedStatus(mockTFile('Broken.md', 'Broken') as any)).toBe(false);
-		expect(cacheManager.getRegex('[broken')).toBeNull();
-	});
+			expect(policy.getCollapsedStatus(mockTFile('Broken.md', 'Broken'))).toBe(false);
+			expect(cacheManager.getRegex('[broken')).toBeNull();
+		});
 
 	test('prefers collapse-all over pattern matching', () => {
 		const policy = new ApiAdapterPolicy({
@@ -59,6 +59,6 @@ describe('ApiAdapterPolicy', () => {
 			},
 		});
 
-		expect(policy.getCollapsedStatus(mockTFile('Any.md', 'Any') as any)).toBe(true);
+		expect(policy.getCollapsedStatus(mockTFile('Any.md', 'Any'))).toBe(true);
 	});
 });

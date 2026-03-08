@@ -1,6 +1,6 @@
 import { ObsidianInfluxSettingsTab } from '@/features/settings/settings-tab';
 import { DEFAULT_SETTINGS } from '@/types';
-import { Setting } from 'obsidian';
+import { App, Setting } from 'obsidian';
 import type { SettingsTabPlugin } from '@/features/settings/settings-tab-plugin';
 
 jest.mock('@/platform/diagnostics/logger', () => ({
@@ -13,6 +13,15 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 }));
 
 describe('ObsidianInfluxSettingsTab', () => {
+	type TestableSettingsTab = ObsidianInfluxSettingsTab & {
+		handleFrontmatterPropertiesBlur: (inputEl: HTMLInputElement) => Promise<void>;
+		applyDisplayModeSetting: (value: string) => Promise<void>;
+	};
+
+	type MockInputEl = Pick<HTMLInputElement, 'value' | 'classList' | 'closest'>;
+	type MockDocumentFragment = Pick<DocumentFragment, 'append'>;
+	type MockDocument = Pick<Document, 'createDocumentFragment' | 'createElement'>;
+
 	const createTab = () => {
 		const plugin: SettingsTabPlugin = {
 			data: {
@@ -32,7 +41,7 @@ describe('ObsidianInfluxSettingsTab', () => {
 			addRibbonIcon: jest.fn(),
 			addCommand: jest.fn(),
 			addStatusBarItem: jest.fn(),
-			app: {} as any,
+			app: {} as App,
 			manifest: { id: 'influx', name: 'Influx', version: 'test', minAppVersion: '1.0.0', description: '', author: '', authorUrl: '', isDesktopOnly: false },
 			loadData: jest.fn(),
 			saveData: jest.fn().mockResolvedValue(undefined),
@@ -51,10 +60,10 @@ describe('ObsidianInfluxSettingsTab', () => {
 			},
 		} as unknown as SettingsTabPlugin;
 
-		const app = {};
+		const app = {} as App;
 		return {
 			plugin,
-			tab: new ObsidianInfluxSettingsTab(app as any, plugin),
+			tab: new ObsidianInfluxSettingsTab(app, plugin) as TestableSettingsTab,
 		};
 	};
 
@@ -80,15 +89,16 @@ describe('ObsidianInfluxSettingsTab', () => {
 			};
 		});
 
-		(global as typeof globalThis & { document: Document }).document = {
-			createDocumentFragment: jest.fn(() => ({ append: jest.fn() } as unknown as DocumentFragment)),
+		const mockDocument: MockDocument = {
+			createDocumentFragment: jest.fn((): MockDocumentFragment => ({ append: jest.fn() })),
 			createElement: jest.fn(() => ({
 				href: '',
 				text: '',
 				classList: { add: jest.fn() },
 				style: {},
 			}))
-		} as unknown as Document;
+		};
+		(global as typeof globalThis & { document: Document }).document = mockDocument as Document;
 
 		try {
 			tab.display();
@@ -128,16 +138,16 @@ describe('ObsidianInfluxSettingsTab', () => {
 			querySelector: jest.fn().mockReturnValue(warningEl),
 			appendChild: jest.fn(),
 		};
-		const inputEl = {
+		const inputEl: MockInputEl = {
 			value: 'related, invalid prop, valid_name, bad-prop!',
 			classList: {
 				add: jest.fn(),
 				remove: jest.fn(),
 			},
 			closest: jest.fn().mockReturnValue(settingContainer),
-		} as any;
+		};
 
-		await (tab as any).handleFrontmatterPropertiesBlur(inputEl);
+		await tab.handleFrontmatterPropertiesBlur(inputEl as HTMLInputElement);
 
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'valid_name']);
 		expect(inputEl.classList.add).toHaveBeenCalledWith('is-invalid');
@@ -157,16 +167,16 @@ describe('ObsidianInfluxSettingsTab', () => {
 			querySelector: jest.fn().mockReturnValue(warningEl),
 			appendChild: jest.fn(),
 		};
-		const inputEl = {
+		const inputEl: MockInputEl = {
 			value: 'related, see_also, references-2',
 			classList: {
 				add: jest.fn(),
 				remove: jest.fn(),
 			},
 			closest: jest.fn().mockReturnValue(settingContainer),
-		} as any;
+		};
 
-		await (tab as any).handleFrontmatterPropertiesBlur(inputEl);
+		await tab.handleFrontmatterPropertiesBlur(inputEl as HTMLInputElement);
 
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'see_also', 'references-2']);
 		expect(inputEl.classList.remove).toHaveBeenCalledWith('is-invalid');
@@ -177,7 +187,7 @@ describe('ObsidianInfluxSettingsTab', () => {
 		const { tab, plugin } = createTab();
 		plugin.saveSettingsByParams.mockResolvedValueOnce(false);
 
-		await (tab as any).applyDisplayModeSetting('sidebar');
+		await tab.applyDisplayModeSetting('sidebar');
 
 		expect(plugin.openSidebar).not.toHaveBeenCalled();
 		expect(plugin.data.settings.showInfluxInSidebar).toBe(false);

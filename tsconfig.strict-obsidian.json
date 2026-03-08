@@ -17,10 +17,13 @@
     "src/domain/backlinks/influx-render-pipeline.ts",
     "src/ui/influx-update-helpers.ts",
     "src/ui/influx-react-component.tsx",
+    "src/ui/influx-react-component-parts.tsx",
+    "src/features/settings/settings-tab.ts",
     "src/features/editor/codemirror/stateful-decoration-async-state.ts",
     "src/features/editor/codemirror/stateful-decoration-set.ts",
     "src/features/editor/codemirror/async-view-plugin.ts",
-    "src/features/editor/codemirror/influx-widget.tsx"
+    "src/features/editor/codemirror/influx-widget.tsx",
+    "src/features/editor/codemirror/influx-widget-lifecycle.ts"
   ],
   "exclude": [
     "tests",
