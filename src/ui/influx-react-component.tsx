@@ -285,22 +285,20 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		renderedCount: components.length,
 	});
 	const summaryRowLabel = allVisibleComponentsCollapsed ? 'Expand all linked mentions' : 'Collapse all linked mentions';
+	const listLimitStateLabel = settings.listLimit ? `${settings.listLimit}` : 'all';
+	const sortStateLabel = settings.sortingPrinciple === 'OLDEST_FIRST' ? 'old' : 'new';
+	const frontmatterStateLabel = settings.includeFrontmatterLinks ? 'on' : 'off';
 	const renderSummaryRow = (variant: 'toolbar' | 'pane') => (
-		<button
-			type="button"
-			onClick={toggleAll}
-			className={`influx-summary-row influx-clickable${variant === 'toolbar' ? ' influx-summary-row--toolbar' : ''}`}
-			aria-label={summaryRowLabel}
-		>
-			<div className="influx-summary-title">
-				Linked mentions (influx)
-			</div>
-			<div className="influx-summary-count-wrap">
+		<div className={`influx-summary-row${variant === 'toolbar' ? ' influx-summary-row--toolbar' : ' influx-summary-row--pane'}`}>
+			<div className="influx-summary-meta">
+				<div className="influx-summary-title">
+					Linked mentions (influx)
+				</div>
 				<span className="influx-summary-count" title={mentionsCountTooltip}>
 					{mentionsCountLabel}
 				</span>
 			</div>
-		</button>
+		</div>
 	);
 
 	if (!influxFile.show) {
@@ -322,13 +320,22 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 					<div className={`influx-toolbar${isEditorMode ? ' influx-toolbar--editor' : ''}`}>
 
-						{showToolbarSummary && renderSummaryRow('toolbar')}
+					{showToolbarSummary && renderSummaryRow('toolbar')}
 
 						<div className="influx-toolbar-actions" role="toolbar" aria-label="Influx actions">
 							<button
 								type="button"
-								className="influx-icon-button influx-toolbar-button"
+								className="influx-summary-action influx-clickable"
+								onClick={toggleAll}
+								aria-label={summaryRowLabel}
+							>
+								{allVisibleComponentsCollapsed ? 'Expand all' : 'Collapse all'}
+							</button>
+							<button
+								type="button"
+								className={`influx-icon-button influx-toolbar-button${isSearchExpanded ? ' is-active' : ''}`}
 								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
+								aria-pressed={isSearchExpanded}
 								onClick={toggleSearch}
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--search">
@@ -379,6 +386,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<line x1="3" y1="12" x2="3.01" y2="12"></line>
 									<line x1="3" y1="18" x2="3.01" y2="18"></line>
 								</svg>
+								<span className="influx-toolbar-button-badge">{listLimitStateLabel}</span>
 							</button>
 							<button
 								type="button"
@@ -393,11 +401,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									<path d="m3 17 3 3 3-3"></path>
 									<path d="M6 18V4"></path>
 								</svg>
+								<span className="influx-toolbar-button-badge">{sortStateLabel}</span>
 							</button>
 							<button
 								type="button"
-								className="influx-icon-button influx-toolbar-button"
+								className={`influx-icon-button influx-toolbar-button${settings.includeFrontmatterLinks ? ' is-active' : ''}`}
 								aria-label={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
+								aria-pressed={settings.includeFrontmatterLinks}
 								onClick={() => plugin.toggleFrontmatterLinks()}
 							>
 								{settings.includeFrontmatterLinks ? (
@@ -413,6 +423,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										<line x1="2" x2="22" y1="2" y2="22"></line>
 									</svg>
 								)}
+								<span className="influx-toolbar-button-badge">{frontmatterStateLabel}</span>
 							</button>
 						</div>
 

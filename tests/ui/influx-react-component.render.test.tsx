@@ -36,6 +36,7 @@ function makeInfluxFile(params: {
 	components: ExtendedInlinkingFile[];
 	totalEntryCount: number;
 	show?: boolean;
+	settings?: Record<string, unknown>;
 }) {
 	return {
 		uuid: 'test-uuid',
@@ -50,8 +51,10 @@ function makeInfluxFile(params: {
 				variant: 'CENTER_ALIGNED',
 				fontSize: 13,
 				listLimit: 0,
+				sortingPrinciple: 'NEWEST_FIRST',
 				entryHeaderVisible: true,
 				includeFrontmatterLinks: true,
+				...params.settings,
 			}),
 		},
 		makeInfluxList: jest.fn().mockResolvedValue(undefined),
@@ -124,6 +127,34 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('tree-item-self');
 		expect(html).not.toContain('search-result-file-matches');
 		expect(html).not.toContain('svg-icon lucide-');
+	});
+
+	test('renders separate summary action and visible toolbar state badges', () => {
+		const components = [makeComponent(1)];
+		const influxFile = makeInfluxFile({
+			components,
+			totalEntryCount: 1,
+			settings: {
+				listLimit: 10,
+				sortingPrinciple: 'OLDEST_FIRST',
+				includeFrontmatterLinks: false,
+			},
+		});
+		const props = {
+			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			preview: false,
+			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
+		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+
+		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+
+		expect(html).toContain('influx-summary-row influx-summary-row--toolbar');
+		expect(html).not.toContain('influx-summary-row influx-clickable');
+		expect(html).toContain('aria-label="Collapse all linked mentions"');
+		expect(html).toContain('>Collapse all<');
+		expect(html).toContain('influx-toolbar-button-badge">10<');
+		expect(html).toContain('influx-toolbar-button-badge">old<');
+		expect(html).toContain('influx-toolbar-button-badge">off<');
 	});
 
 	test('renders source links with full file paths and folder context when basenames collide', () => {
