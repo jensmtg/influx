@@ -1,80 +1,107 @@
 # Contributing
 
-## Setup
+Thanks for taking an interest in Influx.
+
+This is a single-maintainer project, so the easiest contributions to review are small, well-scoped, and tied to a clear bug or improvement. Larger ideas are still welcome, but it helps to open an issue or discussion first so the implementation direction does not drift.
+
+## Prerequisites
+
+- Node `20`
+- npm
+- A local Obsidian vault you can use as a test vault
+
+CI also runs on Node 20 in `.github/workflows/build.yml`.
+
+## Local Setup
 
 ```bash
 npm install
 ```
 
-## Development
+## Development Commands
 
-- **Dev mode**: `npm run dev` (esbuild watch)
-- **Lint**: `npm run lint`
-- **Test**: `npm test`
-- **Build**: `npm run build`
-- **Full validation**: `npm run lint && npm test && npm run build`
-- **Docs**: `npm run serve`
+- `npm run dev` - esbuild watch mode
+- `npm run lint` - lint the codebase
+- `npm test` - run the test suite
+- `npm run build` - type-check and build the plugin bundle
+- `npm run lint && npm test && npm run build` - full validation pass
+- `npm run serve` - local docs preview
+
+## Local Obsidian Workflow
+
+For UI, lifecycle, editor, preview, or sidebar changes, please test in a real Obsidian vault in addition to running automated checks.
+
+Typical setup:
+
+1. Create or pick a local test vault.
+2. Create `.obsidian/plugins/influx/` inside that vault.
+3. Copy or symlink `main.js`, `manifest.json`, and `styles.css` from this repo into that folder.
+4. Run `npm run dev` while you work, or `npm run build` before manual verification.
+5. Reload Obsidian and test the flows your change touches.
+
+Good manual checks usually include:
+
+- editor mode
+- reading view
+- sidebar mode
+- switching between notes
+- settings changes
+- rename or delete behavior if your change affects updates or caching
 
 ## Code Style
 
-- Tabs for indentation (4 spaces)
-- LF line endings
+- Use tabs for indentation.
+- Keep LF line endings.
+- Prefer ASCII unless the file already needs something else.
 
-See [.editorconfig](.editorconfig).
+See `.editorconfig` for the project defaults.
 
-## UI/CSS Conventions
+## UI And CSS Conventions
 
 - Prefer `influx-` prefixed class names for plugin-owned layout and controls.
-- Avoid depending on Obsidian core structural class names for plugin layout behavior.
-- Use semantic interactive elements (`button`, links, labels) and keep `aria-label` values meaningful.
+- Avoid depending on Obsidian core structural class names for layout behavior.
+- Use semantic interactive elements and meaningful `aria-label` values.
+- Favor additive styling hooks over full layout overrides when possible.
 
-## Testing
+## Testing Philosophy
 
 Tests live in `tests/`.
-
-### Testing Philosophy
 
 - Prefer no test over a bad test.
 - Add tests that catch real regressions, not tests that only inflate coverage.
 - Keep tests deterministic, readable, and tied to user-visible or lifecycle-critical behavior.
+- Prefer behavior assertions over implementation-detail assertions.
 
-### Test Types and When to Use Them
+Useful default choices:
 
-- **Helper/unit tests (Node environment)**
-  - Use for pure functions, state transitions, and decision logic.
-  - Fast and stable; default choice for most new logic.
+- Helper and unit tests for pure logic, parsing, matching, and state transitions
+- Feature and lifecycle tests for race conditions, cleanup, view switching, and update coordination
+- Render wiring tests when you need confidence in user-visible empty, loading, or interaction states
 
-- **Render wiring tests (server render)**
-  - Use when you need confidence that key UI text/state wiring is connected correctly.
-  - Good for checking empty/load-more/status outputs without full DOM interaction complexity.
+Try not to keep tests that are mostly snapshots, brittle timing exercises, or wrappers around mocks.
 
-- **Feature/lifecycle tests with mocks**
-  - Use for race conditions, cancellation ordering, stale update protection, and multi-pane behavior.
-  - Focus assertions on outcomes that would represent a real bug if broken.
+Before keeping a test, ask:
 
-### What To Avoid
-
-- Snapshot-heavy tests that do not encode meaningful behavior.
-- Assertions on unstable implementation details.
-- Brittle timing tests without clear lifecycle intent.
-
-### Test Quality Checklist
-
-Before keeping a new test, verify:
-
-1. It would fail on a plausible bug (or did fail before the fix).
-2. It validates an important behavior, not internal noise.
-3. It remains stable across normal refactors.
-4. It is the smallest test that still proves the behavior.
+1. Would this fail on a plausible bug?
+2. Does it protect important behavior?
+3. Will it survive normal refactors?
+4. Is it the smallest test that still proves the point?
 
 ## Pull Requests
 
-Target `master` branch. Include:
-- Description of changes
-- Test updates if applicable
-- Validation output (`npm run lint && npm test && npm run build`)
-- No breaking changes without issue
+Target the `master` branch.
 
-## Issues
+Please include:
 
-Use [bug report](https://github.com/jensmtg/influx/issues/new?template=bug_report.md) or [feature request](https://github.com/jensmtg/influx/issues/new?template=feature_request.md) templates.
+- a short explanation of the problem and the approach
+- test updates when they add real value
+- manual verification notes for UI or lifecycle changes
+- validation output for `npm run lint && npm test && npm run build`
+
+If a change is large, surprising, or breaking, start with an issue or discussion first.
+
+## Issues And Discussions
+
+- Bug reports: https://github.com/jensmtg/influx/issues/new?template=bug_report.md
+- Feature requests: https://github.com/jensmtg/influx/issues/new?template=feature_request.md
+- General discussion: https://github.com/jensmtg/influx/discussions
