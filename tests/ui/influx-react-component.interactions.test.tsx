@@ -5,6 +5,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import InfluxReactComponent from '@/ui/influx-react-component';
 import { influxUpdates$ } from '@/platform/events/influx-updates';
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
+import InfluxFile, { type InfluxFileApi } from '@/domain/backlinks/influx-file';
+import { InlinkingFile, type InlinkingFileApi } from '@/domain/backlinks/inlinking-file';
+import { DEFAULT_SETTINGS } from '@/types';
+import { mockTFile } from '../mocks';
 
 jest.mock('@/ui/markdown-mount', () => ({
 	__esModule: true,
@@ -25,32 +29,61 @@ jest.mock('@/platform/events/influx-updates', () => ({
 	},
 }));
 
+type ComponentProps = React.ComponentProps<typeof InfluxReactComponent>;
+type ComponentPlugin = ComponentProps['plugin'];
+
+function createInlinkingApi(): jest.Mocked<InlinkingFileApi> {
+	return {
+		getMetadata: jest.fn().mockReturnValue(null),
+		readFile: jest.fn(),
+		compareLinkName: jest.fn(),
+	};
+}
+
 function makeComponent(index: number, label?: string): ExtendedInlinkingFile {
 	const basename = label ?? `Source-${index}`;
 	const path = `Folder/${basename}.md`;
+	const inlinkingFile = new InlinkingFile(mockTFile(path, basename), createInlinkingApi());
 	return {
-		inlinkingFile: {
-			file: {
-				path,
-				basename,
-			},
-			isLinkInTitle: false,
-		},
+		inlinkingFile,
 		titleText: `Title ${basename}`,
 		summaryMarkdown: `Summary ${basename}`,
 		sourcePath: path,
-	} as unknown as ExtendedInlinkingFile;
+	};
 }
 
-function makePlugin() {
+function makePlugin(): ComponentPlugin {
 	return {
+		data: { settings: DEFAULT_SETTINGS },
 		cycleListLimit: jest.fn(),
 		toggleFrontmatterLinks: jest.fn(),
 		toggleSortOrder: jest.fn(),
 	};
 }
 
-function makeInfluxFile(params: {
+function createInfluxApi(): jest.Mocked<InfluxFileApi> {
+	return {
+		getFileByPath: jest.fn((path: string) => mockTFile(path, path.split('/').pop()?.replace(/\.md$/, '') ?? 'Target')),
+		getMetadata: jest.fn().mockReturnValue(null),
+		getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
+		getShowStatus: jest.fn().mockReturnValue(true),
+		getCollapsedStatus: jest.fn().mockReturnValue(false),
+		isIncludableSource: jest.fn().mockReturnValue(true),
+		getSettings: jest.fn().mockReturnValue({
+			...DEFAULT_SETTINGS,
+			showInfluxInSidebar: false,
+			variant: 'CENTER_ALIGNED',
+			fontSize: 13,
+			listLimit: 0,
+			entryHeaderVisible: true,
+			includeFrontmatterLinks: true,
+		}),
+		readFile: jest.fn(),
+		compareLinkName: jest.fn(),
+	};
+}
+
+async function makeInfluxFile(params: {
 	uuid?: string;
 	components: ExtendedInlinkingFile[];
 	totalEntryCount: number;
@@ -58,28 +91,17 @@ function makeInfluxFile(params: {
 	shouldUpdate?: (file: { path: string }) => boolean;
 	makeInfluxList?: () => Promise<void>;
 	toEntries?: () => ExtendedInlinkingFile[];
-}) {
-	return {
-		uuid: params.uuid ?? 'test-uuid',
-		file: { path: 'Target.md' },
-		show: params.show ?? true,
-		collapsed: false,
-		components: params.components,
-		totalEntryCount: params.totalEntryCount,
-		api: {
-			getSettings: () => ({
-				showInfluxInSidebar: false,
-				variant: 'CENTER_ALIGNED',
-				fontSize: 13,
-				listLimit: 0,
-				entryHeaderVisible: true,
-				includeFrontmatterLinks: true,
-			}),
-		},
-		makeInfluxList: jest.fn(params.makeInfluxList ?? (async (): Promise<void> => undefined)),
-		toEntries: jest.fn(params.toEntries ?? (() => params.components)),
-		shouldUpdate: jest.fn(params.shouldUpdate ?? (() => false)),
-	};
+}): Promise<ComponentProps['influxFile']> {
+	const influxFile = await InfluxFile.create('Target.md', createInfluxApi());
+	influxFile.uuid = params.uuid ?? 'test-uuid';
+	influxFile.show = params.show ?? true;
+	influxFile.collapsed = false;
+	influxFile.components = params.components;
+	influxFile.totalEntryCount = params.totalEntryCount;
+	jest.spyOn(influxFile, 'makeInfluxList').mockImplementation(params.makeInfluxList ?? (async (): Promise<void> => undefined));
+	jest.spyOn(influxFile, 'toEntries').mockImplementation(params.toEntries ?? (() => params.components));
+	jest.spyOn(influxFile, 'shouldUpdate').mockImplementation(params.shouldUpdate ?? (() => false));
+	return influxFile;
 }
 
 function createDeferred() {
@@ -109,7 +131,7 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 	test('rerenders from live influxUpdates$ events and unsubscribes on unmount', async () => {
 		let currentComponents = [makeComponent(1, 'Alpha')];
-		const influxFile = makeInfluxFile({
+		const influxFile = await makeInfluxFile({
 			components: currentComponents,
 			totalEntryCount: 1,
 			shouldUpdate: () => true,
@@ -121,9 +143,9 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 		const view = render(
 			<InfluxReactComponent
-				influxFile={influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile']}
+				influxFile={influxFile}
 				preview={false}
-				plugin={makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin']}
+				plugin={makePlugin()}
 			/>
 		);
 
@@ -146,7 +168,7 @@ describe('InfluxReactComponent mounted interactions', () => {
 		const latestDeferred = createDeferred();
 		let currentComponents = [makeComponent(1, 'Initial')];
 		let callCount = 0;
-		const influxFile = makeInfluxFile({
+		const influxFile = await makeInfluxFile({
 			components: currentComponents,
 			totalEntryCount: 1,
 			shouldUpdate: () => true,
@@ -165,9 +187,9 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 		render(
 			<InfluxReactComponent
-				influxFile={influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile']}
+				influxFile={influxFile}
 				preview={false}
-				plugin={makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin']}
+				plugin={makePlugin()}
 			/>
 		);
 
@@ -192,7 +214,7 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 	test('refreshes on delete events even when shouldUpdate no longer matches the removed source path', async () => {
 		let currentComponents = [makeComponent(1, 'Alpha')];
-		const influxFile = makeInfluxFile({
+		const influxFile = await makeInfluxFile({
 			components: currentComponents,
 			totalEntryCount: 1,
 			shouldUpdate: () => false,
@@ -204,9 +226,9 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 		render(
 			<InfluxReactComponent
-				influxFile={influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile']}
+				influxFile={influxFile}
 				preview={false}
-				plugin={makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin']}
+				plugin={makePlugin()}
 			/>
 		);
 
@@ -220,16 +242,16 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 	test('filters via debounced search, clears results, and closes on escape', async () => {
 		jest.useFakeTimers();
-		const influxFile = makeInfluxFile({
+		const influxFile = await makeInfluxFile({
 			components: [makeComponent(1, 'Alpha'), makeComponent(2, 'Beta')],
 			totalEntryCount: 2,
 		});
 
 		render(
 			<InfluxReactComponent
-				influxFile={influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile']}
+				influxFile={influxFile}
 				preview={false}
-				plugin={makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin']}
+				plugin={makePlugin()}
 			/>
 		);
 
@@ -261,17 +283,17 @@ describe('InfluxReactComponent mounted interactions', () => {
 		expect(screen.queryByPlaceholderText('Search backlinks...')).toBeNull();
 	});
 
-	test('loads more editor results when the load-more button is clicked', () => {
-		const influxFile = makeInfluxFile({
+	test('loads more editor results when the load-more button is clicked', async () => {
+		const influxFile = await makeInfluxFile({
 			components: Array.from({ length: 45 }, (_, index) => makeComponent(index + 1)),
 			totalEntryCount: 45,
 		});
 
 		render(
 			<InfluxReactComponent
-				influxFile={influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile']}
+				influxFile={influxFile}
 				preview={false}
-				plugin={makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin']}
+				plugin={makePlugin()}
 			/>
 		);
 

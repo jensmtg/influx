@@ -26,8 +26,8 @@ interface InfluxWidgetSpec {
 
 
 export class InfluxWidget extends WidgetType {
-    protected influxFile
-    protected show
+    protected influxFile: InfluxFile
+    protected show: boolean
     protected plugin: InfluxUiPlugin
 	private lifecycle = new InfluxWidgetDomLifecycle()
 
@@ -50,7 +50,7 @@ export class InfluxWidget extends WidgetType {
 		this.lifecycle.cleanup((container) => this.persistMeasuredHeight(container));
     }
 
-    eq(influxWidget: WidgetType) {
+    eq(influxWidget: WidgetType): boolean {
         // Proper comparison to avoid unnecessary re-renders
         // Only recreate if show status or file path changes
         if (!(influxWidget instanceof InfluxWidget)) {
@@ -60,13 +60,13 @@ export class InfluxWidget extends WidgetType {
                this.influxFile?.file?.path === influxWidget.influxFile?.file?.path;
     }
 
-    ignoreEvent(event: Event): boolean {
+    ignoreEvent(_event: Event): boolean {
         // Let CodeMirror handle all events within the widget
         // This allows proper event handling for React components inside the widget
         return true;
     }
 
-	toDOM(view: EditorView) {
+	toDOM(view: EditorView): HTMLElement {
 		const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG)
 		// Use unique ID based on file path to avoid conflicts
 		container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;

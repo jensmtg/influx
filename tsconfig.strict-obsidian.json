@@ -19,7 +19,8 @@
     "src/ui/influx-react-component.tsx",
     "src/features/editor/codemirror/stateful-decoration-async-state.ts",
     "src/features/editor/codemirror/stateful-decoration-set.ts",
-    "src/features/editor/codemirror/async-view-plugin.ts"
+    "src/features/editor/codemirror/async-view-plugin.ts",
+    "src/features/editor/codemirror/influx-widget.tsx"
   ],
   "exclude": [
     "tests",

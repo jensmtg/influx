@@ -2,6 +2,10 @@ import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import InfluxReactComponent from '@/ui/influx-react-component';
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
+import InfluxFile, { type InfluxFileApi } from '@/domain/backlinks/influx-file';
+import { InlinkingFile, type InlinkingFileApi } from '@/domain/backlinks/inlinking-file';
+import { DEFAULT_SETTINGS } from '@/types';
+import { mockTFile } from '../mocks';
 
 jest.mock('@/ui/markdown-mount', () => ({
 	__esModule: true,
@@ -16,55 +20,74 @@ jest.mock('@/platform/diagnostics/metrics', () => ({
 	recordMetric: jest.fn(),
 }));
 
+type ComponentProps = React.ComponentProps<typeof InfluxReactComponent>;
+type ComponentPlugin = ComponentProps['plugin'];
+
+function createInlinkingApi(): jest.Mocked<InlinkingFileApi> {
+	return {
+		getMetadata: jest.fn().mockReturnValue(null),
+		readFile: jest.fn(),
+		compareLinkName: jest.fn(),
+	};
+}
+
 function makeComponent(index: number): ExtendedInlinkingFile {
 	const path = `Folder/Source-${index}.md`;
+	const inlinkingFile = new InlinkingFile(mockTFile(path, `Source-${index}`), createInlinkingApi());
 	return {
-		inlinkingFile: {
-			file: {
-				path,
-				basename: `Source-${index}`,
-			},
-			isLinkInTitle: false,
-		},
+		inlinkingFile,
 		titleText: `Title ${index}`,
 		summaryMarkdown: `Summary ${index}`,
 		sourcePath: path,
-	} as unknown as ExtendedInlinkingFile;
+	};
 }
 
-function makeInfluxFile(params: {
+function createInfluxApi(settings?: Record<string, unknown>): jest.Mocked<InfluxFileApi> {
+	return {
+		getFileByPath: jest.fn((path: string) => mockTFile(path, path.split('/').pop()?.replace(/\.md$/, '') ?? 'Target')),
+		getMetadata: jest.fn().mockReturnValue(null),
+		getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
+		getShowStatus: jest.fn().mockReturnValue(true),
+		getCollapsedStatus: jest.fn().mockReturnValue(false),
+		isIncludableSource: jest.fn().mockReturnValue(true),
+		getSettings: jest.fn().mockReturnValue({
+			...DEFAULT_SETTINGS,
+			showInfluxInSidebar: false,
+			variant: 'CENTER_ALIGNED',
+			fontSize: 13,
+			listLimit: 0,
+			sortingPrinciple: 'NEWEST_FIRST',
+			entryHeaderVisible: true,
+			includeFrontmatterLinks: true,
+			...settings,
+		}),
+		readFile: jest.fn(),
+		compareLinkName: jest.fn(),
+	};
+}
+
+async function makeInfluxFile(params: {
 	components: ExtendedInlinkingFile[];
 	totalEntryCount: number;
 	show?: boolean;
 	settings?: Record<string, unknown>;
-}) {
-	return {
-		uuid: 'test-uuid',
-		file: { path: 'Target.md' },
-		show: params.show ?? true,
-		collapsed: false,
-		components: params.components,
-		totalEntryCount: params.totalEntryCount,
-		api: {
-			getSettings: () => ({
-				showInfluxInSidebar: false,
-				variant: 'CENTER_ALIGNED',
-				fontSize: 13,
-				listLimit: 0,
-				sortingPrinciple: 'NEWEST_FIRST',
-				entryHeaderVisible: true,
-				includeFrontmatterLinks: true,
-				...params.settings,
-			}),
-		},
-		makeInfluxList: jest.fn().mockResolvedValue(undefined),
-		toEntries: jest.fn().mockReturnValue(params.components),
-		shouldUpdate: jest.fn().mockReturnValue(false),
-	};
+}): Promise<ComponentProps['influxFile']> {
+	const api = createInfluxApi(params.settings);
+	const influxFile = await InfluxFile.create('Target.md', api);
+	influxFile.uuid = 'test-uuid';
+	influxFile.show = params.show ?? true;
+	influxFile.collapsed = false;
+	influxFile.components = params.components;
+	influxFile.totalEntryCount = params.totalEntryCount;
+	jest.spyOn(influxFile, 'makeInfluxList').mockResolvedValue(undefined);
+	jest.spyOn(influxFile, 'toEntries').mockReturnValue(params.components);
+	jest.spyOn(influxFile, 'shouldUpdate').mockReturnValue(false);
+	return influxFile;
 }
 
-function makePlugin() {
+function makePlugin(): ComponentPlugin {
 	return {
+		data: { settings: DEFAULT_SETTINGS },
 		cycleListLimit: jest.fn(),
 		toggleFrontmatterLinks: jest.fn(),
 		toggleSortOrder: jest.fn(),
@@ -72,13 +95,13 @@ function makePlugin() {
 }
 
 describe('InfluxReactComponent render wiring', () => {
-	test('renders empty-state message when show=true and there are no visible components', () => {
-		const influxFile = makeInfluxFile({ components: [], totalEntryCount: 0 });
+	test('renders empty-state message when show=true and there are no visible components', async () => {
+		const influxFile = await makeInfluxFile({ components: [], totalEntryCount: 0 });
 		const props = {
-			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			influxFile,
 			preview: false,
-			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
-		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+			plugin: makePlugin(),
+		} satisfies ComponentProps;
 		const html = renderToStaticMarkup(
 			<InfluxReactComponent {...props} />
 		);
@@ -91,14 +114,14 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('title="Search backlinks"');
 	});
 
-	test('renders editor load-more button label with exact remaining count', () => {
+	test('renders editor load-more button label with exact remaining count', async () => {
 		const components = Array.from({ length: 45 }, (_, i) => makeComponent(i + 1));
-		const influxFile = makeInfluxFile({ components, totalEntryCount: 45 });
+		const influxFile = await makeInfluxFile({ components, totalEntryCount: 45 });
 		const props = {
-			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			influxFile,
 			preview: false,
-			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
-		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+			plugin: makePlugin(),
+		} satisfies ComponentProps;
 
 		const html = renderToStaticMarkup(
 			<InfluxReactComponent {...props} />
@@ -108,14 +131,14 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).toContain('Collapse Source-1');
 	});
 
-	test('uses influx-prefixed structural classes for editor layout', () => {
+	test('uses influx-prefixed structural classes for editor layout', async () => {
 		const components = [makeComponent(1)];
-		const influxFile = makeInfluxFile({ components, totalEntryCount: 1 });
+		const influxFile = await makeInfluxFile({ components, totalEntryCount: 1 });
 		const props = {
-			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			influxFile,
 			preview: false,
-			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
-		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+			plugin: makePlugin(),
+		} satisfies ComponentProps;
 
 		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
 
@@ -130,9 +153,9 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('svg-icon lucide-');
 	});
 
-	test('renders icon-only toolbar buttons with hover labels', () => {
+	test('renders icon-only toolbar buttons with hover labels', async () => {
 		const components = [makeComponent(1)];
-		const influxFile = makeInfluxFile({
+		const influxFile = await makeInfluxFile({
 			components,
 			totalEntryCount: 1,
 			settings: {
@@ -142,10 +165,10 @@ describe('InfluxReactComponent render wiring', () => {
 			},
 		});
 		const props = {
-			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			influxFile,
 			preview: false,
-			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
-		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+			plugin: makePlugin(),
+		} satisfies ComponentProps;
 
 		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
 
@@ -161,25 +184,20 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('influx-toolbar-button-badge');
 	});
 
-	test('renders source links with full file paths and folder context when basenames collide', () => {
+	test('renders source links with full file paths and folder context when basenames collide', async () => {
 		const duplicateA = makeComponent(1);
-		const duplicateB = {
-			...makeComponent(2),
-			inlinkingFile: {
-				file: {
-					path: 'Elsewhere/Source-1.md',
-					basename: 'Source-1',
-				},
-				isLinkInTitle: false,
-			},
+		const duplicateBBase = makeComponent(2);
+		duplicateBBase.inlinkingFile.file = mockTFile('Elsewhere/Source-1.md', 'Source-1');
+		const duplicateB: ExtendedInlinkingFile = {
+			...duplicateBBase,
 			sourcePath: 'Elsewhere/Source-1.md',
-		} as unknown as ExtendedInlinkingFile;
-		const influxFile = makeInfluxFile({ components: [duplicateA, duplicateB], totalEntryCount: 2 });
+		};
+		const influxFile = await makeInfluxFile({ components: [duplicateA, duplicateB], totalEntryCount: 2 });
 		const props = {
-			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			influxFile,
 			preview: false,
-			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
-		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+			plugin: makePlugin(),
+		} satisfies ComponentProps;
 
 		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
 
@@ -191,14 +209,14 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('target="_blank"');
 	});
 
-	test('renders preview summary in toolbar instead of pane header row', () => {
+	test('renders preview summary in toolbar instead of pane header row', async () => {
 		const components = [makeComponent(1)];
-		const influxFile = makeInfluxFile({ components, totalEntryCount: 1 });
+		const influxFile = await makeInfluxFile({ components, totalEntryCount: 1 });
 		const props = {
-			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			influxFile,
 			preview: true,
-			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
-		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+			plugin: makePlugin(),
+		} satisfies ComponentProps;
 
 		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
 
