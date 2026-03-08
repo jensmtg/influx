@@ -70,6 +70,7 @@ describe('PreviewManager', () => {
 		const innerContainer = { remove: jest.fn() } as unknown as HTMLElement;
 		const wrapper = { remove: jest.fn() } as unknown as Element;
 		const previewRoot = {
+			remove: jest.fn(),
 			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
 				if (selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
 					return [innerContainer];
@@ -79,9 +80,9 @@ describe('PreviewManager', () => {
 		} as unknown as HTMLElement;
 		let queryCount = 0;
 		const containerEl = {
-			querySelector: jest.fn().mockImplementation(() => {
+			querySelectorAll: jest.fn().mockImplementation(() => {
 				queryCount += 1;
-				return queryCount === 1 ? null : previewRoot;
+				return queryCount === 1 ? [] : [previewRoot];
 			}),
 		} as unknown as HTMLDivElement;
 		const leaf = {
@@ -110,7 +111,7 @@ describe('PreviewManager', () => {
 		jest.advanceTimersByTime(80);
 		await promise;
 
-		expect(containerEl.querySelector).toHaveBeenCalledTimes(2);
+		expect(containerEl.querySelectorAll).toHaveBeenCalledTimes(2);
 		expect(unmountSpy).toHaveBeenCalledWith(innerContainer);
 		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
@@ -336,6 +337,7 @@ describe('PreviewManager', () => {
 			remove: jest.fn(),
 		};
 		const previewRoot = {
+			remove: jest.fn(),
 			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
 				if (selector.startsWith('.')) {
 					return [duplicateWrapper, trackedWrapper];
@@ -349,7 +351,7 @@ describe('PreviewManager', () => {
 				currentMode: { type: 'preview' },
 			},
 			containerEl: {
-				querySelector: jest.fn().mockReturnValue(previewRoot),
+				querySelectorAll: jest.fn().mockReturnValue([previewRoot]),
 			},
 		};
 		const influxFile = {
@@ -408,6 +410,7 @@ describe('PreviewManager', () => {
 			remove: jest.fn(),
 		};
 		const previewRoot = {
+			remove: jest.fn(),
 			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
 				if (selector.startsWith('.')) {
 					return [wrapper];
@@ -421,7 +424,7 @@ describe('PreviewManager', () => {
 				currentMode: { type: 'preview' },
 			},
 			containerEl: {
-				querySelector: jest.fn().mockReturnValue(previewRoot),
+				querySelectorAll: jest.fn().mockReturnValue([previewRoot]),
 			},
 		};
 		const influxFile = {
@@ -462,6 +465,82 @@ describe('PreviewManager', () => {
 		expect(registerSpy).toHaveBeenCalledWith(replacementContainer, freshRoot, 'preview', 'Stale.md');
 		expect(freshRoot.render).toHaveBeenCalledTimes(1);
 		expect(wrapper.remove).not.toHaveBeenCalled();
+	});
+
+	test('updatePreview prefers the visible preview root when stale hidden roots are also present', async () => {
+		const render = jest.fn();
+		const visiblePreviewRoot = {
+			remove: jest.fn(),
+			checkVisibility: jest.fn().mockReturnValue(true),
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (selector.startsWith('.')) {
+					return [];
+				}
+				return [];
+			}),
+			appendChild: jest.fn(),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const hiddenPreviewRoot = {
+			remove: jest.fn(),
+			checkVisibility: jest.fn().mockReturnValue(false),
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (selector.startsWith('.')) {
+					return [];
+				}
+				return [];
+			}),
+			appendChild: jest.fn(),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const leaf = {
+			view: {
+				file: { path: 'Reading.md', stat: { mtime: 321 } },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelectorAll: jest.fn().mockReturnValue([hiddenPreviewRoot, visiblePreviewRoot]),
+			},
+		};
+		const influxFile = {
+			uuid: 'visible-uuid',
+			show: true,
+			totalEntryCount: 5,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		};
+		const wrapper = { appendChild: jest.fn() } as unknown as HTMLElement;
+		const createdContainer = { id: '' } as HTMLElement;
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+
+		(globalThis as { document?: Document }).document = {
+			createElement: jest.fn().mockImplementation((tag: string) => {
+				if (tag === 'div') {
+					return wrapper;
+				}
+				return createdContainer;
+			}),
+		} as unknown as Document;
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(undefined);
+		jest.spyOn(cacheManager, 'setPreviewFileHash').mockImplementation(() => {});
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
+		jest.spyOn(rootManager, 'register').mockImplementation(() => {});
+		(ReactDomClient.createRoot as jest.Mock).mockReturnValue({ render } as any);
+
+		await manager.updatePreview(leaf as any);
+
+		expect(visiblePreviewRoot.appendChild).toHaveBeenCalledWith(wrapper);
+		expect(hiddenPreviewRoot.appendChild).not.toHaveBeenCalled();
+		expect(render).toHaveBeenCalledTimes(1);
 	});
 
 	test('updateAllPreviews skips leaves that already have an active refresh', async () => {

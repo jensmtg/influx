@@ -36,14 +36,58 @@ function getInfluxContainers(container: Element): HTMLElement[] {
 	).filter((node): node is HTMLElement => asHtmlElement(node) !== null);
 }
 
+function getPreviewRootCandidates(container: Element): HTMLElement[] {
+	return Array.from(container.querySelectorAll('.markdown-preview-view')).filter(
+		(node): node is HTMLElement => asHtmlElement(node) !== null
+	);
+}
+
+function isPreviewRootVisible(root: HTMLElement): boolean {
+	const rootWithVisibility = root as HTMLElement & { checkVisibility?: () => boolean };
+	if (typeof rootWithVisibility.checkVisibility === 'function') {
+		return rootWithVisibility.checkVisibility();
+	}
+
+	const ownerWindow = root.ownerDocument?.defaultView;
+	if (ownerWindow?.getComputedStyle) {
+		const computedStyle = ownerWindow.getComputedStyle(root);
+		if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+			return false;
+		}
+	}
+
+	if (typeof root.getClientRects === 'function') {
+		return root.getClientRects().length > 0;
+	}
+
+	return true;
+}
+
+function hasTrackedInfluxRoot(previewRoot: HTMLElement): boolean {
+	return getInfluxContainers(previewRoot).some((container) => rootManager.has(container));
+}
+
 export function isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
 	const leafType: string | undefined = leaf.view?.currentMode?.type;
 	const viewMode = leaf.view?.mode;
 	return leafType === 'preview' || viewMode === 'preview';
 }
 
+export function resolveLeafPreviewRoot(container: Element): HTMLElement | null {
+	const candidates = getPreviewRootCandidates(container);
+	if (candidates.length === 0) {
+		return null;
+	}
+
+	const visibleCandidates = candidates.filter(isPreviewRootVisible);
+	const preferredCandidates = visibleCandidates.length > 0 ? visibleCandidates : candidates;
+
+	const trackedRoot = preferredCandidates.find((candidate) => hasTrackedInfluxRoot(candidate));
+	return trackedRoot ?? preferredCandidates[0] ?? null;
+}
+
 export function leafHasPreviewRoot(leaf: InfluxWorkspaceLeaf): boolean {
-	return isLeafInPreviewMode(leaf) || !!leaf.containerEl?.querySelector('.markdown-preview-view');
+	return isLeafInPreviewMode(leaf) || !!resolveLeafPreviewRoot(leaf.containerEl);
 }
 
 export function resolvePreviewRoot(element: HTMLElement): HTMLElement | null {

@@ -18,6 +18,7 @@ import {
 	leafHasPreviewRoot,
 	type InfluxWorkspaceLeaf,
 	isLeafInPreviewMode,
+	resolveLeafPreviewRoot,
 	resolvePreviewRoot,
 } from './preview-manager-dom';
 
@@ -339,7 +340,7 @@ export class PreviewManager {
 	}
 
 	private async resolvePreviewDiv(container: HTMLElement, allowRetry: boolean): Promise<HTMLElement | null> {
-		const getPreviewDiv = () => container.querySelector('.markdown-preview-view') as HTMLElement | null;
+		const getPreviewDiv = () => resolveLeafPreviewRoot(container);
 		const immediate = getPreviewDiv();
 		if (immediate || !allowRetry) {
 			return immediate;
