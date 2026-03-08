@@ -1,4 +1,10 @@
-import { collectValidBacklinkFiles, sortInfluxSourceFiles } from '@/domain/backlinks/influx-file-build-helpers';
+import {
+	collectValidBacklinkFiles,
+	type InfluxFileBuildApi,
+	sortInfluxSourceFiles,
+} from '@/domain/backlinks/influx-file-build-helpers';
+import type { BacklinksObject } from '@/domain/backlinks/types';
+import { DEFAULT_SETTINGS } from '@/types';
 import { mockTFile } from '../../mocks';
 
 describe('influx-file-build-helpers', () => {
@@ -6,7 +12,7 @@ describe('influx-file-build-helpers', () => {
 		const target = mockTFile('Target.md', 'Target');
 		const sourceA = mockTFile('Folder/SourceA.md', 'SourceA');
 		const sourceB = mockTFile('Folder/SourceB.md', 'SourceB');
-		const api = {
+		const api: jest.Mocked<InfluxFileBuildApi> = {
 			isIncludableSource: jest.fn((path: string) => path !== 'Ignored.md'),
 			getFileByPath: jest.fn((path: string) => {
 				if (path === target.path) return target;
@@ -25,9 +31,9 @@ describe('influx-file-build-helpers', () => {
 					['Folder/SourceB.md', []],
 					['Missing.md', []],
 				]),
-			} as any,
+			} as BacklinksObject,
 			currentFilePath: target.path,
-			api: api as any,
+			api,
 		});
 
 		expect(files).toEqual([sourceA, sourceB]);
@@ -36,7 +42,7 @@ describe('influx-file-build-helpers', () => {
 
 	test('collectValidBacklinkFiles supports object-shaped backlinks data', () => {
 		const source = mockTFile('Folder/Source.md', 'Source');
-		const api = {
+		const api: jest.Mocked<InfluxFileBuildApi> = {
 			isIncludableSource: jest.fn().mockReturnValue(true),
 			getFileByPath: jest.fn((path: string) => (path === source.path ? source : null)),
 		};
@@ -46,9 +52,9 @@ describe('influx-file-build-helpers', () => {
 				data: {
 					'Folder/Source.md': [],
 				},
-			} as any,
+			} as BacklinksObject,
 			currentFilePath: 'Target.md',
-			api: api as any,
+			api,
 		});
 
 		expect(files).toEqual([source]);
@@ -56,7 +62,7 @@ describe('influx-file-build-helpers', () => {
 
 	test('collectValidBacklinkFiles normalizes backlink source paths before lookup and filtering', () => {
 		const source = mockTFile('Folder/Source.md', 'Source');
-		const api = {
+		const api: jest.Mocked<InfluxFileBuildApi> = {
 			isIncludableSource: jest.fn((path: string) => path === 'Folder/Source.md'),
 			getFileByPath: jest.fn((path: string) => (path === 'Folder/Source.md' ? source : null)),
 		};
@@ -66,7 +72,7 @@ describe('influx-file-build-helpers', () => {
 				data: new Map([
 					['Folder\\Source.md', []],
 				]),
-			} as any,
+			} as BacklinksObject,
 			currentFilePath: 'Target.md',
 			api,
 		});
@@ -78,7 +84,7 @@ describe('influx-file-build-helpers', () => {
 
 	test('collectValidBacklinkFiles dedupes normalized duplicate backlink source paths', () => {
 		const source = mockTFile('Folder/Source.md', 'Source');
-		const api = {
+		const api: jest.Mocked<InfluxFileBuildApi> = {
 			isIncludableSource: jest.fn().mockReturnValue(true),
 			getFileByPath: jest.fn((path: string) => (path === 'Folder/Source.md' ? source : null)),
 		};
@@ -89,7 +95,7 @@ describe('influx-file-build-helpers', () => {
 					['Folder/Source.md', []],
 					['Folder\\Source.md', []],
 				]),
-			} as any,
+			} as BacklinksObject,
 			currentFilePath: 'Target.md',
 			api,
 		});
@@ -98,14 +104,15 @@ describe('influx-file-build-helpers', () => {
 		expect(api.getFileByPath).toHaveBeenCalledTimes(1);
 	});
 
-	test('sortInfluxSourceFiles sorts by filename according to configured direction', () => {
+		test('sortInfluxSourceFiles sorts by filename according to configured direction', () => {
 		const bravo = mockTFile('Bravo.md', 'Bravo');
 		const alpha = mockTFile('Alpha.md', 'Alpha');
 
 		const sorted = sortInfluxSourceFiles([bravo, alpha], {
+			...DEFAULT_SETTINGS,
 			sortingAttribute: 'FILENAME',
 			sortingPrinciple: 'OLDEST_FIRST',
-		} as any);
+		});
 
 		expect(sorted).toEqual([alpha, bravo]);
 	});
@@ -117,9 +124,10 @@ describe('influx-file-build-helpers', () => {
 		newer.stat.mtime = 20;
 
 		const sorted = sortInfluxSourceFiles([older, newer], {
+			...DEFAULT_SETTINGS,
 			sortingAttribute: 'mtime',
 			sortingPrinciple: 'NEWEST_FIRST',
-		} as any);
+		});
 
 		expect(sorted).toEqual([newer, older]);
 	});
