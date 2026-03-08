@@ -11,7 +11,7 @@ export class InlinkingFile {
 
     api: ApiAdapter;
     file: TFile;
-    meta: CachedMetadata;
+    meta: CachedMetadata | null;
     content: string;
     title: string;
     titleLineNum: number | undefined;

@@ -29,7 +29,7 @@ export default class InfluxFile {
     uuid: string;
     api: ApiAdapter;
     file: TFile;
-    meta: CachedMetadata;
+    meta: CachedMetadata | null;
     backlinks: BacklinksObject;
     inlinkingFiles: InlinkingFile[];
     components: ExtendedInlinkingFile[];

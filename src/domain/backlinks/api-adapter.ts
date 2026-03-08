@@ -59,7 +59,7 @@ export class ApiAdapter extends Component {
     async readFile(file: TFile): Promise<string> {
         return await this.app.vault.read(file);
     }
-    getMetadata(file: TFile): CachedMetadata {
+    getMetadata(file: TFile): CachedMetadata | null {
         return this.app.metadataCache.getFileCache(file);
     }
     getBacklinks(file: TFile): BacklinksObject {

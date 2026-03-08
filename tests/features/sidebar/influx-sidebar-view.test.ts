@@ -3,6 +3,7 @@ import { mockTFile } from '../../mocks';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import { createRoot } from 'react-dom/client';
 import { influxUpdates$ } from '@/platform/events/influx-updates';
+import type { InfluxSidebarPlugin } from '@/features/sidebar/influx-sidebar-plugin';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({
@@ -46,7 +47,7 @@ describe('InfluxSidebarView', () => {
 		const fileB = mockTFile('B.md', 'B');
 		const workspaceOn = jest.fn().mockReturnValue(() => {});
 
-		const plugin = {
+		const plugin: InfluxSidebarPlugin = {
 			data: {
 				settings: {
 					liveUpdate: true,
@@ -56,16 +57,19 @@ describe('InfluxSidebarView', () => {
 				getShowStatus: jest.fn().mockReturnValue(true),
 				invalidateFileCache: jest.fn(),
 			},
+			cycleListLimit: jest.fn(),
+			toggleSortOrder: jest.fn(),
+			toggleFrontmatterLinks: jest.fn(),
 			app: {
 				workspace: {
 					on: workspaceOn,
 					getActiveFile: jest.fn().mockReturnValue(null),
 				},
 			},
-		};
+		} as unknown as InfluxSidebarPlugin;
 
 		const leaf = {};
-		const view = new InfluxSidebarView(leaf as any, plugin as any);
+		const view = new InfluxSidebarView(leaf as any, plugin);
 		(view as any).app = plugin.app;
 		(view as any).containerEl = { id: 'sidebar-root' };
 		(view as any).registerEvent = jest.fn();

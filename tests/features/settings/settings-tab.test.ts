@@ -1,6 +1,7 @@
 import { ObsidianInfluxSettingsTab } from '@/features/settings/settings-tab';
 import { DEFAULT_SETTINGS } from '@/types';
 import { Setting } from 'obsidian';
+import type { SettingsTabPlugin } from '@/features/settings/settings-tab-plugin';
 
 jest.mock('@/platform/diagnostics/logger', () => ({
 	logger: {
@@ -13,7 +14,7 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 
 describe('ObsidianInfluxSettingsTab', () => {
 	const createTab = () => {
-		const plugin = {
+		const plugin: SettingsTabPlugin = {
 			data: {
 				settings: {
 					...DEFAULT_SETTINGS,
@@ -28,15 +29,32 @@ describe('ObsidianInfluxSettingsTab', () => {
 			triggerUpdates: jest.fn(),
 			openSidebar: jest.fn(),
 			closeSidebar: jest.fn(),
+			addRibbonIcon: jest.fn(),
+			addCommand: jest.fn(),
+			addStatusBarItem: jest.fn(),
+			app: {} as any,
+			manifest: { id: 'influx', name: 'Influx', version: 'test', minAppVersion: '1.0.0', description: '', author: '', authorUrl: '', isDesktopOnly: false },
+			loadData: jest.fn(),
+			saveData: jest.fn().mockResolvedValue(undefined),
+			register: jest.fn(),
+			registerEvent: jest.fn(),
+			registerDomEvent: jest.fn(),
+			registerInterval: jest.fn(),
+			registerEditorExtension: jest.fn(),
+			registerMarkdownPostProcessor: jest.fn(),
+			registerView: jest.fn(),
+			addSettingTab: jest.fn(),
+			onload: jest.fn(),
+			onunload: jest.fn(),
 			api: {
 				invalidateSettingsCache: jest.fn(),
 			},
-		};
+		} as unknown as SettingsTabPlugin;
 
 		const app = {};
 		return {
 			plugin,
-			tab: new ObsidianInfluxSettingsTab(app as any, plugin as any),
+			tab: new ObsidianInfluxSettingsTab(app as any, plugin),
 		};
 	};
 
