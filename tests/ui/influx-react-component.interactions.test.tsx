@@ -218,6 +218,9 @@ describe('InfluxReactComponent mounted interactions', () => {
 			jest.advanceTimersByTime(400);
 		});
 
+		expect(screen.getByText(/Searching source notes, section titles, and excerpts for/i)).toBeTruthy();
+		expect(screen.getByText('Matched in source note, section title, excerpt')).toBeTruthy();
+		expect(screen.getAllByText('Beta', { selector: 'mark' }).length).toBeGreaterThan(0);
 		expect(screen.queryByText('Summary Alpha')).toBeNull();
 		expect(screen.getByText('Summary Beta')).toBeTruthy();
 

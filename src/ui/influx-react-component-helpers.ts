@@ -81,6 +81,14 @@ export function collectComponentPaths(components: ExtendedInlinkingFile[]): stri
 	return components.map((component) => component.inlinkingFile.file.path);
 }
 
+export interface SearchMatchDetails {
+	query: string;
+	matchesBasename: boolean;
+	matchesTitle: boolean;
+	matchesSummary: boolean;
+	reasons: string[];
+}
+
 export function collectBasenameCounts(components: ExtendedInlinkingFile[]): Map<string, number> {
 	const counts = new Map<string, number>();
 	for (const component of components) {
@@ -147,12 +155,83 @@ export function filterComponentsBySearch(
 	components: ExtendedInlinkingFile[],
 	searchQuery: string
 ): ExtendedInlinkingFile[] {
-	const normalizedQuery = searchQuery.toLowerCase().trim();
+	const normalizedQuery = normalizeSearchQuery(searchQuery);
 	if (!normalizedQuery) {
 		return components;
 	}
 
 	return components.filter((item) => getSearchText(item).includes(normalizedQuery));
+}
+
+export function normalizeSearchQuery(searchQuery: string): string {
+	return searchQuery.toLowerCase().trim();
+}
+
+export function getSearchMatchDetails(
+	item: ExtendedInlinkingFile,
+	searchQuery: string
+): SearchMatchDetails | null {
+	const normalizedQuery = normalizeSearchQuery(searchQuery);
+	if (!normalizedQuery) {
+		return null;
+	}
+
+	const matchesBasename = item.inlinkingFile.file.basename.toLowerCase().includes(normalizedQuery);
+	const matchesTitle = (item.titleText ?? '').toLowerCase().includes(normalizedQuery);
+	const matchesSummary = (item.summaryMarkdown ?? '').toLowerCase().includes(normalizedQuery);
+	const reasons: string[] = [];
+
+	if (matchesBasename) {
+		reasons.push('source note');
+	}
+	if (matchesTitle) {
+		reasons.push('section title');
+	}
+	if (matchesSummary) {
+		reasons.push('excerpt');
+	}
+
+	return {
+		query: normalizedQuery,
+		matchesBasename,
+		matchesTitle,
+		matchesSummary,
+		reasons,
+	};
+}
+
+export function splitTextBySearchQuery(
+	text: string,
+	searchQuery: string
+): Array<{ text: string; match: boolean }> {
+	const normalizedQuery = normalizeSearchQuery(searchQuery);
+	if (!text || !normalizedQuery) {
+		return [{ text, match: false }];
+	}
+
+	const lowerText = text.toLowerCase();
+	const segments: Array<{ text: string; match: boolean }> = [];
+	let cursor = 0;
+
+	while (cursor < text.length) {
+		const matchIndex = lowerText.indexOf(normalizedQuery, cursor);
+		if (matchIndex === -1) {
+			segments.push({ text: text.slice(cursor), match: false });
+			break;
+		}
+
+		if (matchIndex > cursor) {
+			segments.push({ text: text.slice(cursor, matchIndex), match: false });
+		}
+
+		segments.push({
+			text: text.slice(matchIndex, matchIndex + normalizedQuery.length),
+			match: true,
+		});
+		cursor = matchIndex + normalizedQuery.length;
+	}
+
+	return segments.length > 0 ? segments : [{ text, match: false }];
 }
 
 export function getLinkedMentionsCountLabel(params: {
@@ -210,7 +289,7 @@ export function getNoSearchResultsMessage(searchQuery: string): string {
 	if (!query) {
 		return 'No matching backlinks found.';
 	}
-	return `No backlinks match "${query}".`;
+	return `No backlinks match "${query}" in source names, section titles, or excerpt text.`;
 }
 
 export function getLoadMoreBacklinksLabel(params: {

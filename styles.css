@@ -360,6 +360,20 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	font-size: var(--influx-font-ui-small);
 }
 
+.influx-component .influx-search-status {
+	margin-bottom: var(--size-2-2);
+	padding: 0 0 var(--size-2-2);
+	color: var(--influx-text-muted);
+	font-size: var(--influx-font-ui-smaller);
+	line-height: 1.45;
+	border-bottom: 1px solid color-mix(in srgb, var(--influx-border-color) 75%, transparent);
+}
+
+.influx-component .influx-search-status-query {
+	color: var(--influx-text-normal);
+	font-weight: 600;
+}
+
 .influx-component .influx-empty-state {
 	padding: 1.25rem 1.5rem;
 	margin: var(--size-4-2) var(--size-4-2) 0;

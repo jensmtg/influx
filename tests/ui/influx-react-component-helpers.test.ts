@@ -10,8 +10,10 @@ import {
 	getLoadMoreBacklinksLabel,
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
+	getSearchMatchDetails,
 	getNextVisibleCount,
 	getNoSearchResultsMessage,
+	normalizeSearchQuery,
 	getSearchText,
 	getSourcePathContext,
 	handleSearchChangeInput,
@@ -23,6 +25,7 @@ import {
 	shouldAttachAutoLoadObserver,
 	shouldLoadMoreFromObserver,
 	shouldProcessInfluxUpdateEvent,
+	splitTextBySearchQuery,
 	toggleSearchPanel,
 } from '@/ui/influx-react-component-helpers';
 
@@ -160,6 +163,10 @@ describe('influx-react-component helpers', () => {
 	});
 
 	describe('search helpers', () => {
+		test('normalizeSearchQuery lowercases and trims user input', () => {
+			expect(normalizeSearchQuery('  ALpha Beta  ')).toBe('alpha beta');
+		});
+
 		test('filterComponentsBySearch matches basename, title, and summary case-insensitively', () => {
 			const components = [
 				entry({ path: 'A.md', basename: 'Alpha', titleText: 'Project Roadmap', summaryMarkdown: 'Milestone one' }),
@@ -192,6 +199,34 @@ describe('influx-react-component helpers', () => {
 
 			expect(first).toBe(second);
 			expect(first).toBe('alpha heading body');
+		});
+
+		test('getSearchMatchDetails explains where the query matched', () => {
+			const component = entry({
+				path: 'A.md',
+				basename: 'Alpha',
+				titleText: 'Project Alpha',
+				summaryMarkdown: 'Notes about alpha rollout',
+			});
+
+			expect(getSearchMatchDetails(component, 'alpha')).toEqual({
+				query: 'alpha',
+				matchesBasename: true,
+				matchesTitle: true,
+				matchesSummary: true,
+				reasons: ['source note', 'section title', 'excerpt'],
+			});
+			expect(getSearchMatchDetails(component, '   ')).toBeNull();
+		});
+
+		test('splitTextBySearchQuery preserves text and marks all matching segments', () => {
+			expect(splitTextBySearchQuery('Alpha beta beta', 'beta')).toEqual([
+				{ text: 'Alpha ', match: false },
+				{ text: 'beta', match: true },
+				{ text: ' ', match: false },
+				{ text: 'beta', match: true },
+			]);
+			expect(splitTextBySearchQuery('Alpha', '   ')).toEqual([{ text: 'Alpha', match: false }]);
 		});
 	});
 
@@ -303,8 +338,8 @@ describe('influx-react-component helpers', () => {
 		});
 
 		test('getNoSearchResultsMessage references the user query when present', () => {
-			expect(getNoSearchResultsMessage('alpha')).toBe('No backlinks match "alpha".');
-			expect(getNoSearchResultsMessage('  alpha beta  ')).toBe('No backlinks match "alpha beta".');
+			expect(getNoSearchResultsMessage('alpha')).toBe('No backlinks match "alpha" in source names, section titles, or excerpt text.');
+			expect(getNoSearchResultsMessage('  alpha beta  ')).toBe('No backlinks match "alpha beta" in source names, section titles, or excerpt text.');
 			expect(getNoSearchResultsMessage('   ')).toBe('No matching backlinks found.');
 		});
 

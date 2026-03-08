@@ -23,10 +23,12 @@ import {
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
 	getNoSearchResultsMessage,
+	getSearchMatchDetails,
 	getSourcePathContext,
 	handleSearchChangeInput,
 	handleSearchKeyPress,
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
+	splitTextBySearchQuery,
 	type InfluxRenderMode,
 	reduceSearchUiState,
 	resetSearchUi,
@@ -39,8 +41,17 @@ import {
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 
-const SEARCH_DEBOUNCE_MS = 400;
+const SEARCH_DEBOUNCE_MS = 250;
 const SEARCH_FOCUS_DELAY_MS = 100;
+
+function renderHighlightedText(text: string, searchQuery: string): React.ReactNode {
+	return splitTextBySearchQuery(text, searchQuery).map((segment, index) => {
+		if (!segment.match) {
+			return <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>;
+		}
+		return <mark key={`${segment.text}-${index}`}>{segment.text}</mark>;
+	});
+}
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
 
@@ -434,6 +445,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						{!showToolbarSummary && renderSummaryRow('pane')}
 
 						<div className="influx-results-scroll" ref={searchResultsContainerRef}>
+							{searchQuery && (
+								<div className="influx-search-status" role="status" aria-live="polite">
+									Searching source notes, section titles, and excerpts for <span className="influx-search-status-query">&quot;{searchQuery.trim()}&quot;</span>
+								</div>
+							)}
 
 
 							<div className="influx-results-list" >
@@ -441,6 +457,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								{visibleComponents.map((extended: ExtendedInlinkingFile) => {
 								const filePath = extended.inlinkingFile.file.path;
 								const fileBasename = extended.inlinkingFile.file.basename;
+								const matchDetails = getSearchMatchDetails(extended, searchQuery);
 								const duplicateName = (basenameCounts.get(fileBasename) ?? 0) > 1;
 								const sourcePathContext = duplicateName ? getSourcePathContext(filePath, fileBasename) : '';
 									const safePathToken = filePath.replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -450,7 +467,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 									const entryHeader = settings.entryHeaderVisible && extended.titleText && !extended.inlinkingFile.isLinkInTitle ? (
 										<h2>
-											<span>{extended.titleText}</span>
+											<span>{renderHighlightedText(extended.titleText, searchQuery)}</span>
 										</h2>
 									) : null;
 
@@ -477,19 +494,26 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 													</svg>
 											</button>
 
-												<div className="influx-result-source">
+											<div className="influx-result-source">
+												<div className="influx-result-source-primary">
 													<a
 														data-href={filePath}
 														href={filePath}
 														className="internal-link influx-internal-link"
-												>
-													{fileBasename}
-												</a>
+													>
+														{renderHighlightedText(fileBasename, searchQuery)}
+													</a>
 													{sourcePathContext && (
 														<span className="influx-result-source-context">{sourcePathContext}</span>
 													)}
 												</div>
+													{matchDetails && matchDetails.reasons.length > 0 && (
+														<div className="influx-result-search-reasons">
+															Matched in {matchDetails.reasons.join(', ')}
+														</div>
+													)}
 											</div>
+										</div>
 											<div className="influx-result-body"
 												id={matchesRegionId}
 												hidden={inlinkedCollapsed}
