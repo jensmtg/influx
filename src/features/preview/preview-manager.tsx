@@ -236,17 +236,21 @@ export class PreviewManager {
 			return;
 		}
 
-		const previewRoot = this.resolvePreviewRoot(element);
-		if (!previewRoot) {
-			return;
-		}
-
 		const filePath = context.sourcePath;
 		if (!filePath) {
 			return;
 		}
 
 		const settings = this.plugin.data.settings;
+
+		const previewRoot = this.resolvePreviewRoot(element);
+		if (!previewRoot) {
+			if (!settings.showInfluxInSidebar) {
+				logger.debug('[handlePreviewMode] Preview root not ready yet; scheduling retry', { filePath });
+				this.schedulePreviewRefreshForPath(filePath);
+			}
+			return;
+		}
 		if (settings.showInfluxInSidebar) {
 			this.cleanupPreviewContainers(previewRoot);
 			return;

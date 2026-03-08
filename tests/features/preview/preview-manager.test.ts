@@ -4,12 +4,22 @@ import { CONSTANTS } from '@/config/constants';
 
 describe('PreviewManager', () => {
 	const originalDocument = (globalThis as { document?: Document }).document;
+	const originalHTMLElement = (globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement;
 	const originalWindow = (globalThis as { window?: Window }).window;
+
+	class MockHTMLElement {
+		classList = { contains: (_name: string) => false };
+		closest = jest.fn().mockReturnValue(null);
+		querySelector = jest.fn().mockReturnValue(null);
+		querySelectorAll = jest.fn().mockReturnValue([]);
+		remove = jest.fn();
+	}
 
 	afterEach(() => {
 		jest.useRealTimers();
 		jest.restoreAllMocks();
 		(globalThis as { document?: Document }).document = originalDocument;
+		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = originalHTMLElement;
 		(globalThis as { window?: Window }).window = originalWindow;
 	});
 
@@ -95,9 +105,11 @@ describe('PreviewManager', () => {
 	});
 
 	test('handlePreviewMode sidebar cleanup is scoped to local preview root', async () => {
-		const innerContainer = { remove: jest.fn() } as unknown as HTMLElement;
+		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
+		const innerContainer = new MockHTMLElement() as unknown as HTMLElement;
+		innerContainer.remove = jest.fn();
 		const wrapper = { remove: jest.fn() } as unknown as Element;
-		const previewRoot = {
+		const previewRoot = Object.assign(new MockHTMLElement(), {
 			classList: {
 				contains: (name: string) => name === 'markdown-preview-view',
 			},
@@ -107,7 +119,7 @@ describe('PreviewManager', () => {
 				}
 				return [wrapper];
 			}),
-		} as unknown as HTMLElement;
+		}) as unknown as HTMLElement;
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: true } },
@@ -130,12 +142,13 @@ describe('PreviewManager', () => {
 
 	test('handlePreviewMode coalesces repeated post-processor calls per file', async () => {
 		jest.useFakeTimers();
+		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
 
-		const previewRoot = {
+		const previewRoot = Object.assign(new MockHTMLElement(), {
 			classList: {
 				contains: (name: string) => name === 'markdown-preview-view',
 			},
-		} as unknown as HTMLElement;
+		}) as unknown as HTMLElement;
 
 		const leaf = {
 			view: {
@@ -174,14 +187,62 @@ describe('PreviewManager', () => {
 		expect(updatePreviewSpy).toHaveBeenCalledWith(leaf);
 	});
 
+	test('handlePreviewMode still schedules refresh when preview root is delayed by later post-processing', async () => {
+		jest.useFakeTimers();
+		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
+
+		const lateElement = Object.assign(new MockHTMLElement(), {
+			classList: {
+				contains: () => false,
+			},
+			closest: jest.fn().mockReturnValue(null),
+			querySelector: jest.fn().mockReturnValue(null),
+		}) as unknown as HTMLElement;
+
+		const leaf = {
+			view: {
+				file: { path: 'QueryHeavy.md' },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			},
+		};
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
+				},
+			},
+			updating: new Map<string, number>(),
+		} as any;
+
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshDelay = (PreviewManager as any).POST_PROCESS_REFRESH_DELAY_MS;
+
+		await manager.handlePreviewMode(lateElement, { sourcePath: 'QueryHeavy.md' } as any);
+
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		jest.advanceTimersByTime(refreshDelay + 1);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(updatePreviewSpy).toHaveBeenCalledTimes(1);
+		expect(updatePreviewSpy).toHaveBeenCalledWith(leaf);
+	});
+
 	test('dispose clears pending refresh timers before they run', async () => {
 		jest.useFakeTimers();
+		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
 
-		const previewRoot = {
+		const previewRoot = Object.assign(new MockHTMLElement(), {
 			classList: {
 				contains: (name: string) => name === 'markdown-preview-view',
 			},
-		} as unknown as HTMLElement;
+		}) as unknown as HTMLElement;
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
@@ -208,12 +269,13 @@ describe('PreviewManager', () => {
 
 	test('handlePreviewMode bails early while plugin is unloading', async () => {
 		jest.useFakeTimers();
+		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
 
-		const previewRoot = {
+		const previewRoot = Object.assign(new MockHTMLElement(), {
 			classList: {
 				contains: (name: string) => name === 'markdown-preview-view',
 			},
-		} as unknown as HTMLElement;
+		}) as unknown as HTMLElement;
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
