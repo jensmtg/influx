@@ -28,9 +28,9 @@ export default class InfluxFile {
 
     uuid: string;
     api: ApiAdapter;
-    file: TFile;
+    file: TFile | null;
     meta: CachedMetadata | null;
-    backlinks: BacklinksObject;
+    backlinks: BacklinksObject | null;
     inlinkingFiles: InlinkingFile[];
     components: ExtendedInlinkingFile[];
     show: boolean;
@@ -167,8 +167,16 @@ export default class InfluxFile {
         settings: typeof DEFAULT_SETTINGS,
         settingsHash: string
     ): Promise<{ inlinkingFiles: InlinkingFile[]; totalEntryCount: number }> {
+        const currentFile = this.file;
+        if (!currentFile) {
+            return {
+                inlinkingFiles: [],
+                totalEntryCount: 0,
+            };
+        }
+
         const startTime = performance.now();
-        this.backlinks = this.api.getBacklinks(this.file);
+        this.backlinks = this.api.getBacklinks(currentFile);
         if (!this.backlinks || !this.backlinks.data) {
             recordMetric({
                 name: 'influx.inlinking.build',
@@ -176,7 +184,7 @@ export default class InfluxFile {
                 durationMs: performance.now() - startTime,
                 settings,
                 ctx: {
-                    filePath: this.file.path,
+                    filePath: currentFile.path,
                     candidateSourceCount: 0,
                     processedSourceCount: 0,
                     listLimit: settings.listLimit || 0,
@@ -192,7 +200,7 @@ export default class InfluxFile {
         const listLimit = settings.listLimit || 0;
         const validFiles = collectValidBacklinkFiles({
             backlinks: this.backlinks,
-            currentFilePath: this.file.path,
+            currentFilePath: currentFile.path,
             api: this.api,
         });
 
@@ -222,7 +230,7 @@ export default class InfluxFile {
             durationMs: performance.now() - startTime,
             settings,
             ctx: {
-                filePath: this.file.path,
+                filePath: currentFile.path,
                 candidateSourceCount: validFiles.length,
                 processedSourceCount: inlinkingFilesNew.length,
                 listLimit,

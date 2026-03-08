@@ -1,5 +1,6 @@
-import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
+import { InlinkingFile, type InlinkingFileApi } from '@/domain/backlinks/inlinking-file';
 import { cacheManager } from '@/platform/cache/cache-manager';
+import type InfluxFile from '@/domain/backlinks/influx-file';
 import { mockTFile } from '../../mocks';
 
 jest.mock('@/platform/diagnostics/logger', () => ({
@@ -26,7 +27,7 @@ describe('InlinkingFile', () => {
 		const sourceFile = mockTFile('Source.md', 'Source');
 		sourceFile.stat.mtime = 1234;
 
-		const mockApi = {
+		const mockApi: InlinkingFileApi = {
 			getMetadata: jest.fn().mockReturnValue({
 				links: [
 					{ position: { start: { line: 1 } }, link: 'Target' },
@@ -43,15 +44,15 @@ describe('InlinkingFile', () => {
 			compareLinkName: jest.fn().mockReturnValue(true),
 		};
 
-		const contextFile = {
+		const contextFile: Pick<InfluxFile, 'file'> = {
 			file: {
 				path: 'Target.md',
 				basename: 'Target',
 			},
-		} as any;
+		};
 
-		const fileA = new InlinkingFile(sourceFile as any, mockApi as any);
-		const fileB = new InlinkingFile(sourceFile as any, mockApi as any);
+		const fileA = new InlinkingFile(sourceFile, mockApi);
+		const fileB = new InlinkingFile(sourceFile, mockApi);
 
 		await Promise.all([
 			fileA.makeSummary(contextFile, 'settings-hash'),
@@ -61,7 +62,7 @@ describe('InlinkingFile', () => {
 		expect(mockApi.readFile).toHaveBeenCalledTimes(1);
 		expect(fileA.summary).toBe(fileB.summary);
 
-		const fileC = new InlinkingFile(sourceFile as any, mockApi as any);
+		const fileC = new InlinkingFile(sourceFile, mockApi);
 		await fileC.makeSummary(contextFile, 'settings-hash');
 		expect(mockApi.readFile).toHaveBeenCalledTimes(1);
 	});

@@ -1,15 +1,21 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
-import { ApiAdapter } from './api-adapter';
+import type { ApiAdapter } from './api-adapter';
 import InfluxFile from './influx-file';
 import { StructuredText } from '../structured-text/structured-text';
 import { CONSTANTS } from '../../config/constants';
 import { cacheManager, SummaryCacheValue } from '../../platform/cache/cache-manager';
 
 
+export interface InlinkingFileApi {
+    getMetadata: ApiAdapter['getMetadata'];
+    readFile: ApiAdapter['readFile'];
+    compareLinkName: ApiAdapter['compareLinkName'];
+}
+
 export class InlinkingFile {
     private static inflightSummaries = new Map<string, Promise<SummaryCacheValue>>();
 
-    api: ApiAdapter;
+    api: InlinkingFileApi;
     file: TFile;
     meta: CachedMetadata | null;
     content: string;
@@ -19,7 +25,7 @@ export class InlinkingFile {
     isLinkInTitle: boolean;
     summary: string;
 
-    constructor(file: TFile, apiAdapter: ApiAdapter) {
+    constructor(file: TFile, apiAdapter: InlinkingFileApi) {
         this.api = apiAdapter
         this.file = file
         this.meta = this.api.getMetadata(this.file)
@@ -68,8 +74,11 @@ export class InlinkingFile {
 
     setTitle() {
         // Priority: frontmatter attribute > first heading > empty string
-        const titleByFrontmatterAttribute = this.meta && this.meta.frontmatter && CONSTANTS.FRONTMATTER_KEY in this.meta.frontmatter ? this.meta.frontmatter[CONSTANTS.FRONTMATTER_KEY] : null
-        const titleByFirstHeader = this.meta.headings?.[0]
+        const frontmatter = this.meta?.frontmatter
+        const titleByFrontmatterAttribute = frontmatter && CONSTANTS.FRONTMATTER_KEY in frontmatter
+            ? frontmatter[CONSTANTS.FRONTMATTER_KEY]
+            : null
+        const titleByFirstHeader = this.meta?.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
         this.titleLineNum = titleByFirstHeader?.position?.start.line ?? undefined;
     }
@@ -97,8 +106,9 @@ export class InlinkingFile {
 
         this.content = await this.api.readFile(this.file)
         const struct = new StructuredText(this.content)
+        const targetBasename = contextFile.file?.basename ?? ''
         const links = this.meta.links
-            ? this.meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
+            ? this.meta.links.filter(link => this.api.compareLinkName(link, targetBasename))
             : []
         const lineNumbersOfLinks = links
             .filter(link => link.position && link.position.start)

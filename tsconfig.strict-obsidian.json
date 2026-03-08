@@ -9,7 +9,8 @@
     "src/features/preview/preview-manager-dom.ts",
     "src/ui/influx-ui-plugin.ts",
     "src/features/settings/settings-tab-plugin.ts",
-    "src/features/sidebar/influx-sidebar-plugin.ts"
+    "src/features/sidebar/influx-sidebar-plugin.ts",
+    "src/domain/backlinks/inlinking-file.ts"
   ],
   "exclude": [
     "tests",
