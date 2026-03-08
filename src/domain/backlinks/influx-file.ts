@@ -1,7 +1,7 @@
 import { TFile, CachedMetadata, normalizePath } from 'obsidian';
-import { ApiAdapter } from './api-adapter';
+import type { ApiAdapter } from './api-adapter';
 import type { BacklinksObject, ExtendedInlinkingFile } from './types';
-import { InlinkingFile } from './inlinking-file';
+import { InlinkingFile, type InlinkingFileApi } from './inlinking-file';
 import { logger } from '../../platform/diagnostics/logger';
 import { mapWithConcurrency } from '../../shared/async/concurrency';
 import { CONSTANTS } from '../../config/constants';
@@ -11,6 +11,14 @@ import { computeSettingsHash } from '../settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
 import { collectValidBacklinkFiles, sortInfluxSourceFiles } from './influx-file-build-helpers';
 
+export interface InfluxFileApi extends InlinkingFileApi {
+    getFileByPath: ApiAdapter['getFileByPath'];
+    getBacklinks: ApiAdapter['getBacklinks'];
+    getShowStatus: ApiAdapter['getShowStatus'];
+    getCollapsedStatus: ApiAdapter['getCollapsedStatus'];
+    isIncludableSource: ApiAdapter['isIncludableSource'];
+    getSettings: ApiAdapter['getSettings'];
+}
 
 export default class InfluxFile {
     private static readonly RECENT_LIST_BUILD_TTL_MS = 1500;
@@ -27,7 +35,7 @@ export default class InfluxFile {
     }>();
 
     uuid: string;
-    api: ApiAdapter;
+    api: InfluxFileApi;
     file: TFile | null;
     meta: CachedMetadata | null;
     backlinks: BacklinksObject | null;
@@ -43,13 +51,13 @@ export default class InfluxFile {
      * Async factory method to create and initialize an InfluxFile.
      * This prevents blocking operations in the constructor.
      */
-    static async create(path: string, apiAdapter: ApiAdapter): Promise<InfluxFile> {
+    static async create(path: string, apiAdapter: InfluxFileApi): Promise<InfluxFile> {
         const influxFile = new InfluxFile(path, apiAdapter);
         await influxFile.initialize();
         return influxFile;
     }
 
-    private constructor(path: string, apiAdapter: ApiAdapter) {
+    private constructor(path: string, apiAdapter: InfluxFileApi) {
         this.uuid = crypto.randomUUID()
         this.api = apiAdapter
         this.file = this.api.getFileByPath(path)

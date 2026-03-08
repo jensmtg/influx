@@ -3,6 +3,11 @@ import type { ApiAdapter } from './api-adapter';
 import type { BacklinksObject } from './types';
 import { DEFAULT_SETTINGS } from '../../types';
 
+export interface InfluxFileBuildApi {
+	getFileByPath: ApiAdapter['getFileByPath'];
+	isIncludableSource: ApiAdapter['isIncludableSource'];
+}
+
 function getBacklinkEntries(backlinks: BacklinksObject): Iterable<[string, unknown]> {
 	if (!backlinks?.data) {
 		return [];
@@ -16,7 +21,7 @@ function getBacklinkEntries(backlinks: BacklinksObject): Iterable<[string, unkno
 export function collectValidBacklinkFiles(params: {
 	backlinks: BacklinksObject;
 	currentFilePath: string;
-	api: ApiAdapter;
+	api: InfluxFileBuildApi;
 }): TFile[] {
 	const { backlinks, currentFilePath, api } = params;
 	const normalizedCurrentPath = normalizePath(currentFilePath);

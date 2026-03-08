@@ -1,6 +1,7 @@
 import { CachedMetadata } from 'obsidian';
-import InfluxFile from '@/domain/backlinks/influx-file';
+import InfluxFile, { type InfluxFileApi } from '@/domain/backlinks/influx-file';
 import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
+import type { BacklinksObject } from '@/domain/backlinks/types';
 import { DEFAULT_SETTINGS } from '@/types';
 import { cacheManager } from '@/platform/cache/cache-manager';
 import { mockTFile } from '../../mocks';
@@ -22,7 +23,7 @@ const makeFile = (path: string) => {
     return file;
 };
 
-const createApiAdapterMock = () => ({
+const createApiAdapterMock = (): jest.Mocked<InfluxFileApi> => ({
     getFileByPath: jest.fn(),
     getMetadata: jest.fn().mockReturnValue({} as CachedMetadata),
     getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
@@ -55,7 +56,7 @@ describe('InfluxFile', () => {
             api.getShowStatus.mockReturnValue(true);
             api.getCollapsedStatus.mockReturnValue(true);
 
-            const influx = await InfluxFile.create('target.md', api as any);
+            const influx = await InfluxFile.create('target.md', api);
 
             expect(influx.file).toBe(file);
             expect(influx.meta).toEqual({ frontmatter: {} });
@@ -67,7 +68,7 @@ describe('InfluxFile', () => {
 
         test('handles missing target file gracefully', async () => {
             api.getFileByPath.mockReturnValue(null);
-            const influx = await InfluxFile.create('missing.md', api as any);
+            const influx = await InfluxFile.create('missing.md', api);
             expect(influx.file).toBeNull();
             expect(influx.meta).toBeNull();
             expect(influx.backlinks).toBeNull();
@@ -77,13 +78,13 @@ describe('InfluxFile', () => {
     describe('shouldUpdate', () => {
         test('returns false when file/backlinks are unavailable', async () => {
             api.getFileByPath.mockReturnValue(null);
-            const noFile = await InfluxFile.create('missing.md', api as any);
+            const noFile = await InfluxFile.create('missing.md', api);
             expect(noFile.shouldUpdate(makeFile('any.md'))).toBe(false);
 
             const file = makeFile('target.md');
             api.getFileByPath.mockReturnValue(file);
             api.getBacklinks.mockReturnValue(null);
-            const noBacklinks = await InfluxFile.create('target.md', api as any);
+            const noBacklinks = await InfluxFile.create('target.md', api);
             expect(noBacklinks.shouldUpdate(makeFile('any.md'))).toBe(false);
         });
 
@@ -97,9 +98,9 @@ describe('InfluxFile', () => {
             async (backlinks, changedPath, expected) => {
                 const file = makeFile('target.md');
                 api.getFileByPath.mockReturnValue(file);
-                api.getBacklinks.mockReturnValue(backlinks as any);
+                api.getBacklinks.mockReturnValue(backlinks as BacklinksObject);
 
-                const influx = await InfluxFile.create('target.md', api as any);
+                const influx = await InfluxFile.create('target.md', api);
 				expect(influx.shouldUpdate(makeFile(changedPath))).toBe(expected);
 			}
 		);
@@ -107,9 +108,9 @@ describe('InfluxFile', () => {
 		test('treats distinct-case backlink source paths as different files', async () => {
 			const file = makeFile('target.md');
 			api.getFileByPath.mockReturnValue(file);
-			api.getBacklinks.mockReturnValue({ data: new Map([['Other.md', [{ link: 'Other.md' }]]]) } as any);
+			api.getBacklinks.mockReturnValue({ data: new Map([['Other.md', [{ link: 'Other.md' }]]]) } as BacklinksObject);
 
-			const influx = await InfluxFile.create('target.md', api as any);
+			const influx = await InfluxFile.create('target.md', api);
 			expect(influx.shouldUpdate(makeFile('other.md'))).toBe(false);
 		});
 
@@ -120,7 +121,7 @@ describe('InfluxFile', () => {
                 .mockReturnValueOnce({ data: new Map([['old.md', []]]) })
                 .mockReturnValueOnce({ data: new Map([['new.md', []]]) });
 
-            const influx = await InfluxFile.create('target.md', api as any);
+            const influx = await InfluxFile.create('target.md', api);
             expect(influx.shouldUpdate(makeFile('new.md'))).toBe(false);
             expect(influx.shouldUpdate(makeFile('new.md'))).toBe(true);
             expect((influx.backlinks?.data as Map<string, unknown>).has('new.md')).toBe(true);
@@ -130,7 +131,7 @@ describe('InfluxFile', () => {
     describe('makeInfluxList', () => {
         test('returns empty list/count when no file or no backlinks', async () => {
             api.getFileByPath.mockReturnValue(null);
-            const noFile = await InfluxFile.create('missing.md', api as any);
+            const noFile = await InfluxFile.create('missing.md', api);
             await noFile.makeInfluxList();
             expect(noFile.inlinkingFiles).toEqual([]);
             expect(noFile.totalEntryCount).toBe(0);
@@ -138,7 +139,7 @@ describe('InfluxFile', () => {
             const file = makeFile('target.md');
             api.getFileByPath.mockReturnValue(file);
             api.getBacklinks.mockReturnValue(null);
-            const noBacklinks = await InfluxFile.create('target.md', api as any);
+            const noBacklinks = await InfluxFile.create('target.md', api);
             await noBacklinks.makeInfluxList();
             expect(noBacklinks.inlinkingFiles).toEqual([]);
             expect(noBacklinks.totalEntryCount).toBe(0);
@@ -168,7 +169,7 @@ describe('InfluxFile', () => {
                 this.summary = 'summary';
             });
 
-            const influx = await InfluxFile.create('target.md', api as any);
+            const influx = await InfluxFile.create('target.md', api);
             await influx.makeInfluxList();
 
             expect(influx.totalEntryCount).toBe(1);
@@ -201,7 +202,7 @@ describe('InfluxFile', () => {
                 this.summary = 'summary';
             });
 
-            const influx = await InfluxFile.create('target-limit.md', api as any);
+            const influx = await InfluxFile.create('target-limit.md', api);
             await influx.makeInfluxList();
 
             expect(influx.totalEntryCount).toBe(2);
@@ -230,8 +231,8 @@ describe('InfluxFile', () => {
                     this.summary = 'summary';
                 });
 
-            const a = await InfluxFile.create('target-dedupe.md', api as any);
-            const b = await InfluxFile.create('target-dedupe.md', api as any);
+			const a = await InfluxFile.create('target-dedupe.md', api);
+			const b = await InfluxFile.create('target-dedupe.md', api);
             await Promise.all([a.makeInfluxList(), b.makeInfluxList()]);
 
             expect(summarySpy).toHaveBeenCalledTimes(1);
@@ -255,8 +256,8 @@ describe('InfluxFile', () => {
                 this.summary = 'summary';
             });
 
-            const a = await InfluxFile.create('target-reuse.md', api as any);
-            const b = await InfluxFile.create('target-reuse.md', api as any);
+			const a = await InfluxFile.create('target-reuse.md', api);
+			const b = await InfluxFile.create('target-reuse.md', api);
             await a.makeInfluxList();
             await b.makeInfluxList();
 
@@ -279,8 +280,8 @@ describe('InfluxFile', () => {
 				this.summary = 'summary';
 			});
 
-			const first = await InfluxFile.create('target-invalidate.md', api as any);
-			const second = await InfluxFile.create('target-invalidate.md', api as any);
+			const first = await InfluxFile.create('target-invalidate.md', api);
+			const second = await InfluxFile.create('target-invalidate.md', api);
 			await first.makeInfluxList();
 			cacheManager.invalidateFile('source-invalidate.md');
 			await second.makeInfluxList();
@@ -295,24 +296,22 @@ describe('InfluxFile', () => {
             const file = makeFile('target.md');
             api.getFileByPath.mockReturnValue(file);
             api.getShowStatus.mockReturnValue(false);
-            const influx = await InfluxFile.create('target.md', api as any);
+            const influx = await InfluxFile.create('target.md', api);
 
             expect(influx.toEntries()).toEqual([]);
         });
 
         test('maps inlinking files into render entries directly', async () => {
             const file = makeFile('target.md');
+            const source = makeFile('source.md');
             api.getFileByPath.mockReturnValue(file);
             api.getShowStatus.mockReturnValue(true);
 
-            const influx = await InfluxFile.create('target.md', api as any);
-            influx.inlinkingFiles = [
-                {
-                    file: { path: 'source.md', basename: 'source' },
-                    title: '  Title  ',
-                    summary: 'Body',
-                } as any,
-            ];
+            const influx = await InfluxFile.create('target.md', api);
+            const inlinkingFile = new InlinkingFile(source, api);
+            inlinkingFile.title = '  Title  ';
+            inlinkingFile.summary = 'Body';
+            influx.inlinkingFiles = [inlinkingFile];
             const result = influx.toEntries();
 
             expect(result).toHaveLength(1);
@@ -321,7 +320,7 @@ describe('InfluxFile', () => {
                 summaryMarkdown: 'Body',
                 sourcePath: 'source.md',
             });
-            expect(influx.components).toEqual(result as any);
+            expect(influx.components).toEqual(result);
         });
     });
 });
