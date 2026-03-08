@@ -75,6 +75,9 @@ body.is-readable-line-width .influx-preview-wrapper {
 	--influx-result-card-bg: color-mix(in srgb, var(--influx-surface-subtle) 34%, transparent);
 	--influx-result-card-bg-editor: color-mix(in srgb, var(--influx-surface-muted) 54%, transparent);
 	--influx-result-card-border: color-mix(in srgb, var(--influx-border-color) 72%, transparent);
+	--influx-entry-block-gap: 4px;
+	--influx-entry-list-indent: 18px;
+	--influx-entry-blockquote-bg: color-mix(in srgb, var(--influx-surface-muted) 48%, transparent);
 	--influx-radius-s: var(--radius-s, 6px);
 	--influx-radius-m: var(--radius-m, 10px);
 	--influx-font-ui-small: var(--font-ui-small, 0.9rem);
@@ -187,49 +190,51 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 		margin-top: calc(-1 * var(--influx-line-height, 19.5px));
 	}
 
-	& ul {
-		margin-top: 0;
-		padding-inline-start: 20px;
+	& :is(ul, ol) {
+		margin-block: 0;
+		padding-inline-start: var(--influx-entry-list-indent);
 	}
 
 	& p {
 		padding-inline-start: 0;
-		margin-block-start: auto;
+		margin: 0;
+	}
+
+	& li {
+		margin-block: 1px;
 	}
 
 	& li p {
-		margin-block-start: calc(
-			-1 * var(--influx-line-height, 19.5px)
-		) !important;
+		margin-block-start: 0 !important;
 	}
 
 	& blockquote {
-		border-left: var(--blockquote-border-thickness) solid;
+		border-left: max(3px, var(--blockquote-border-thickness)) solid;
 		border-left-color: var(--blockquote-border-color);
-		margin-block-start: 0;
+		background: var(--influx-entry-blockquote-bg);
+		border-radius: 0 var(--influx-radius-s) var(--influx-radius-s) 0;
+		margin-block: var(--influx-entry-block-gap) 0;
 		padding-inline-start: calc(var(--influx-line-height, 19.5px) / 2);
+		padding-block: 4px;
 		margin-inline-start: 0;
 		margin-inline-end: 0;
 
 		& p {
-			margin-block-start: calc(
-				-1 * var(--influx-line-height, 19.5px)
-			) !important;
+			margin-block-start: 0 !important;
 		}
 	}
 
 	& .callout {
-		margin-top: 6px !important;
-		margin-left: 1em !important;
-		margin-right: 1em !important;
-		padding-top: var(--size-4-1);
-		padding-bottom: var(--size-4-1);
-		padding-right: var(--size-4-1);
-		padding-left: var(--size-4-2);
+		margin: var(--influx-entry-block-gap) 0 !important;
+		padding-top: var(--size-2-3);
+		padding-bottom: var(--size-2-3);
+		padding-right: var(--size-2-3);
+		padding-left: var(--size-2-2);
+		border-radius: var(--influx-radius-s);
 	}
 
 	& > .callout {
-		margin-left: 0px !important;
+		margin-inline: 0 !important;
 	}
 
 	& .callout-icon {
@@ -238,7 +243,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 		justify-content: center;
 		width: var(--icon-size, 16px);
 		min-width: var(--icon-size, 16px);
-		margin-right: var(--size-2-2);
+		margin-right: var(--size-2-1);
 	}
 
 	& .callout-icon svg {
@@ -250,8 +255,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	& span[data-callout-title] {
 		background-color: rgba(var(--callout-color), 0.1);
 		border-radius: 4px;
-		padding-left: 3px;
-		padding-right: 3px;
+		padding-left: 4px;
+		padding-right: 4px;
 		padding-top: 1px;
 		padding-bottom: 1px;
 		border-left-width: 3px;
@@ -924,8 +929,22 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border-bottom: 0;
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
-	.influx-result-group {
-	grid-template-columns: minmax(96px, min(180px, 30%)) minmax(0, 1fr);
+	.influx-result-group--split {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	row-gap: var(--size-2-1);
+	column-gap: 0;
+}
+
+.workspace-leaf-content[data-type="influx-sidebar-view"]
+	.influx-result-group--split .influx-result-head {
+	padding-inline-end: 0;
+	padding-block-end: 0;
+}
+
+.workspace-leaf-content[data-type="influx-sidebar-view"]
+	.influx-result-group--split .influx-result-body {
+	inline-size: 100%;
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-result-body {
@@ -954,14 +973,21 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 @media (max-width: 700px) {
 	.influx-component .influx-result-group--split,
 	.workspace-leaf-content[data-type="influx-sidebar-view"] .influx-result-group {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--size-2-1);
+		column-gap: 0;
 	}
 
-	.influx-component .influx-toolbar,
-	.influx-component--editor .influx-toolbar,
-	.influx-component--preview .influx-toolbar {
-		grid-template-columns: 1fr;
+	.influx-component .influx-result-group--split .influx-result-head,
+	.workspace-leaf-content[data-type="influx-sidebar-view"] .influx-result-head {
+		padding-inline-end: 0;
+		padding-block-end: 0;
+	}
+
+	.influx-component .influx-result-group--split .influx-result-body,
+	.workspace-leaf-content[data-type="influx-sidebar-view"] .influx-result-body {
+		inline-size: 100%;
 	}
 
 	.influx-component .influx-toolbar-actions {
