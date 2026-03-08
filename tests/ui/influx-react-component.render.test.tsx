@@ -86,8 +86,9 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).toContain('No backlinks found for this note yet.');
 		expect(html).toContain('Linked mentions');
 		expect(html).toContain('<button');
-		expect(html).toContain('aria-label="Search backlinks"');
-		expect(html).toContain('aria-label="Collapse all linked mentions"');
+		expect(html).toContain('Search backlinks');
+		expect(html).toContain('Collapse all linked mentions');
+		expect(html).not.toContain('title="Search backlinks"');
 	});
 
 	test('renders editor load-more button label with exact remaining count', () => {
@@ -104,7 +105,7 @@ describe('InfluxReactComponent render wiring', () => {
 		);
 
 		expect(html).toContain('Load 5 more backlinks');
-		expect(html).toContain('aria-label="Collapse Source-1"');
+		expect(html).toContain('Collapse Source-1');
 	});
 
 	test('uses influx-prefixed structural classes for editor layout', () => {
@@ -129,7 +130,7 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('svg-icon lucide-');
 	});
 
-	test('renders separate summary action and visible toolbar state badges', () => {
+	test('renders icon-only toolbar buttons with hover labels', () => {
 		const components = [makeComponent(1)];
 		const influxFile = makeInfluxFile({
 			components,
@@ -150,11 +151,14 @@ describe('InfluxReactComponent render wiring', () => {
 
 		expect(html).toContain('influx-summary-row influx-summary-row--toolbar');
 		expect(html).not.toContain('influx-summary-row influx-clickable');
-		expect(html).toContain('aria-label="Collapse all linked mentions"');
-		expect(html).toContain('>Collapse all<');
-		expect(html).toContain('influx-toolbar-button-badge">10<');
-		expect(html).toContain('influx-toolbar-button-badge">old<');
-		expect(html).toContain('influx-toolbar-button-badge">off<');
+		expect(html).toContain('Collapse all linked mentions');
+		expect(html).toContain('List limit: 10 backlinks');
+		expect(html).toContain('Sort order: oldest first');
+		expect(html).toContain('Frontmatter links: excluded');
+		expect(html).toContain('influx-control-tooltip');
+		expect(html).not.toContain('title="Collapse all linked mentions"');
+		expect(html).not.toContain('influx-summary-action');
+		expect(html).not.toContain('influx-toolbar-button-badge');
 	});
 
 	test('renders source links with full file paths and folder context when basenames collide', () => {

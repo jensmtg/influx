@@ -281,9 +281,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		renderedCount: components.length,
 	});
 	const summaryRowLabel = allVisibleComponentsCollapsed ? 'Expand all linked mentions' : 'Collapse all linked mentions';
-	const listLimitStateLabel = settings.listLimit ? `${settings.listLimit}` : 'all';
-	const sortStateLabel = settings.sortingPrinciple === 'OLDEST_FIRST' ? 'old' : 'new';
-	const frontmatterStateLabel = settings.includeFrontmatterLinks ? 'on' : 'off';
+	const listLimitHoverLabel = settings.listLimit
+		? `List limit: ${settings.listLimit} backlinks`
+		: 'List limit: all backlinks';
+	const sortHoverLabel =
+		settings.sortingPrinciple === 'OLDEST_FIRST' ? 'Sort order: oldest first' : 'Sort order: newest first';
+	const frontmatterHoverLabel = settings.includeFrontmatterLinks
+		? 'Frontmatter links: included'
+		: 'Frontmatter links: excluded';
 
 	if (!influxFile.show) {
 		return null;
@@ -323,9 +328,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						onCycleListLimit={() => plugin.cycleListLimit()}
 						onToggleSortOrder={() => plugin.toggleSortOrder()}
 						onToggleFrontmatterLinks={() => plugin.toggleFrontmatterLinks()}
-						listLimitStateLabel={listLimitStateLabel}
-						sortStateLabel={sortStateLabel}
-						frontmatterStateLabel={frontmatterStateLabel}
+						listLimitHoverLabel={listLimitHoverLabel}
+						sortHoverLabel={sortHoverLabel}
+						frontmatterHoverLabel={frontmatterHoverLabel}
 						includeFrontmatterLinks={Boolean(settings.includeFrontmatterLinks)}
 					/>
 

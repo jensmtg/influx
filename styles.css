@@ -59,6 +59,11 @@ body.is-readable-line-width .influx-preview-wrapper {
 	--influx-accent-ring: var(--interactive-accent-hover, color-mix(in srgb, var(--influx-accent) 22%, transparent));
 	--influx-icon-muted: var(--icon-muted, var(--influx-text-muted));
 	--influx-icon-hover: var(--icon-color-hover, var(--influx-text-normal));
+	--influx-control-fg: var(--influx-icon-muted);
+	--influx-control-fg-hover: var(--influx-icon-hover);
+	--influx-control-fg-active: var(--influx-accent-strong);
+	--influx-control-bg-hover: transparent;
+	--influx-control-opacity: 0.7;
 	--influx-radius-s: var(--radius-s, 6px);
 	--influx-radius-m: var(--radius-m, 10px);
 	--influx-font-ui-small: var(--font-ui-small, 0.9rem);
@@ -343,22 +348,25 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	padding-block: 4px;
 	padding-inline: 4px;
 	cursor: pointer;
-	color: var(--influx-text-muted);
+	color: var(--influx-control-fg);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border-radius: 4px;
+	border-radius: var(--influx-radius-s);
+	opacity: var(--influx-control-opacity);
+	transition:
+		color 0.15s ease,
+		background-color 0.15s ease,
+		opacity 0.15s ease;
 }
 
 .influx-component .influx-search-clear:hover {
-	color: var(--influx-text-normal);
-	background-color: var(--influx-hover-bg);
+	color: var(--influx-control-fg-hover);
+	background-color: var(--influx-control-bg-hover);
+	opacity: 1;
 }
 
-.influx-component .influx-search-clear:focus-visible,
-.influx-component .influx-icon-button:focus-visible,
-.influx-component .influx-clickable:focus-visible,
-.influx-component .influx-collapse-toggle:focus-visible {
+.influx-component :is(.influx-search-clear, .influx-icon-button, .influx-clickable, .influx-collapse-toggle):focus-visible {
 	outline: 2px solid var(--influx-accent);
 	outline-offset: 1px;
 }
@@ -481,27 +489,41 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 /* Toolbar icon buttons */
-.influx-component .influx-icon-button {
+.influx-component .influx-visually-hidden {
+	position: absolute;
+	inline-size: 1px;
+	block-size: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.influx-component :is(.influx-icon-button, .influx-collapse-toggle) {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
 	cursor: pointer;
-	color: var(--influx-icon-muted);
-  	border-radius: var(--influx-radius-s);
-	inline-size: auto;
-	block-size: 24px;
-	min-inline-size: 24px;
-	padding: 0 5px;
+	color: var(--influx-control-fg);
+	border-radius: var(--influx-radius-s);
+	inline-size: 28px;
+	block-size: 28px;
+	min-inline-size: 28px;
+	padding: 0;
 	position: relative;
+	line-height: 0;
+	appearance: none;
+	-webkit-appearance: none;
 	transition:
 		color 0.15s ease,
 		background-color 0.15s ease,
 		opacity 0.15s ease;
-	opacity: 0.7;
+	opacity: var(--influx-control-opacity);
 }
 
-.influx-component .influx-icon-button .influx-svg-icon {
+.influx-component :is(.influx-icon-button, .influx-collapse-toggle) .influx-svg-icon {
 	inline-size: 14px;
 	block-size: 14px;
 	display: block;
@@ -512,45 +534,74 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	block-size: 13px;
 }
 
-.influx-component button.influx-icon-button {
+.influx-component button:is(.influx-icon-button, .influx-collapse-toggle) {
 	border: 0;
 	background: transparent;
 	font: inherit;
 }
 
-.influx-component .influx-icon-button:hover {
-	color: var(--influx-icon-hover);
-	background-color: color-mix(in srgb, var(--influx-interactive-hover) 28%, transparent);
+.influx-component button.influx-collapse-toggle {
+	margin-inline-end: var(--size-2-2);
+	flex: 0 0 auto;
+}
+
+.influx-component :is(.influx-icon-button, .influx-collapse-toggle):hover {
+	color: var(--influx-control-fg-hover);
+	background-color: var(--influx-control-bg-hover);
 	opacity: 1;
 }
 
 .influx-component .influx-toolbar-button.is-active,
 .influx-component .influx-toolbar-button[aria-pressed='true'] {
-	color: var(--influx-accent-strong);
-	background-color: color-mix(in srgb, var(--influx-accent) 8%, transparent);
+	color: var(--influx-control-fg-active);
+	background-color: var(--influx-control-bg-hover);
 	opacity: 1;
 }
 
-.influx-component .influx-toolbar-button-badge {
+.influx-component .influx-control-tooltip {
+	position: absolute;
+	inset-block-start: calc(100% + 6px);
+	inset-inline-start: 50%;
+	transform: translateX(-50%) translateY(-4px);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-inline-size: 1.3em;
-	padding: 0;
-	border-radius: 0;
-	background: transparent;
-	color: var(--influx-text-faint);
-	font-size: 9px;
+	min-block-size: 24px;
+	padding: 0 8px;
+	border-radius: var(--influx-radius-s);
+	background: color-mix(in srgb, var(--background-primary, var(--influx-surface-muted)) 92%, var(--influx-surface-muted));
+	border: 1px solid color-mix(in srgb, var(--influx-border-color) 80%, transparent);
+	box-shadow: 0 8px 18px color-mix(in srgb, black 14%, transparent);
+	color: var(--influx-text-normal);
+	font-size: var(--influx-font-ui-smaller);
 	font-weight: 600;
-	line-height: 1.5;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
+	line-height: 1;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	z-index: 2;
+	transition:
+		opacity 0.15s ease,
+		transform 0.15s ease;
 }
 
-.influx-component .influx-toolbar-button.is-active .influx-toolbar-button-badge,
-.influx-component .influx-toolbar-button[aria-pressed='true'] .influx-toolbar-button-badge,
-.influx-component .influx-icon-button:hover .influx-toolbar-button-badge {
-	color: var(--influx-accent-strong);
+.influx-component .influx-control-tooltip--side {
+	inset-block-start: 50%;
+	inset-inline-start: calc(100% + 8px);
+	transform: translateY(-50%) translateX(-4px);
+}
+
+.influx-component .influx-icon-button:hover .influx-control-tooltip,
+.influx-component .influx-icon-button:focus-visible .influx-control-tooltip,
+.influx-component .influx-collapse-toggle:hover .influx-control-tooltip,
+.influx-component .influx-collapse-toggle:focus-visible .influx-control-tooltip {
+	opacity: 1;
+	transform: translateX(-50%) translateY(0);
+}
+
+.influx-component .influx-collapse-toggle:hover .influx-control-tooltip--side,
+.influx-component .influx-collapse-toggle:focus-visible .influx-control-tooltip--side {
+	transform: translateY(-50%) translateX(0);
 }
 
 /* Backlink pane */
@@ -667,63 +718,15 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	white-space: nowrap;
 }
 
-.influx-component .influx-summary-action {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 24px;
-	padding: 0 6px;
-	border: 0;
-	border-radius: 0;
-	background: transparent;
-	color: var(--influx-text-muted);
-	font: inherit;
-	font-size: var(--influx-font-ui-smaller);
-	font-weight: 600;
-	line-height: 1;
-	white-space: nowrap;
-	text-align: center;
-	transition:
-		color 0.15s ease,
-		background-color 0.15s ease;
-}
-
-.influx-component .influx-summary-action:hover {
-	color: var(--influx-text-normal);
-}
-
 /* Tree item collapse toggle */
 .influx-component .influx-collapse-toggle {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 18px;
-	min-width: 18px;
-	height: 18px;
-	margin-inline-end: var(--size-2-2);
-	padding: 0;
-	border: 0;
-	background: transparent;
-	appearance: none;
-	-webkit-appearance: none;
-	flex: 0 0 auto;
-	color: var(--influx-icon-muted);
-	cursor: pointer;
-	line-height: 0;
-	border-radius: var(--influx-radius-s);
-	transition:
-		color 0.15s ease,
-		background-color 0.15s ease;
+	inline-size: 28px;
+	min-inline-size: 28px;
+	block-size: 28px;
 }
 
 .influx-component .influx-collapse-toggle .influx-svg-icon--collapse-chevron {
 	transform-origin: 50% 50%;
-}
-
-.influx-component .influx-collapse-toggle:hover {
-	color: var(--influx-icon-hover);
-	background-color: transparent;
-	border-radius: var(--influx-radius-s);
 }
 
 /* Collapsed state */

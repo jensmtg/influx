@@ -41,21 +41,28 @@ function ToolbarIconButton(props: {
 	label: string;
 	onClick: () => void;
 	children: React.ReactNode;
-	badge?: string;
+	hoverLabel?: string;
 	active?: boolean;
 	pressed?: boolean;
 }): React.ReactElement {
-	const { label, onClick, children, badge, active = false, pressed } = props;
+	const { label, onClick, children, hoverLabel, active = false, pressed } = props;
+	const tooltipLabel = hoverLabel ?? label;
+	const labelId = React.useId();
 	return (
 		<button
 			type="button"
 			className={`influx-icon-button influx-toolbar-button${active ? ' is-active' : ''}`}
-			aria-label={label}
+			aria-labelledby={labelId}
 			aria-pressed={pressed}
 			onClick={onClick}
 		>
 			{children}
-			{badge && <span className="influx-toolbar-button-badge">{badge}</span>}
+			<span id={labelId} className="influx-visually-hidden">
+				{label}
+			</span>
+			<span className="influx-control-tooltip" aria-hidden="true">
+				{tooltipLabel}
+			</span>
 		</button>
 	);
 }
@@ -81,9 +88,9 @@ export function InfluxToolbar(props: {
 	onCycleListLimit: () => void;
 	onToggleSortOrder: () => void;
 	onToggleFrontmatterLinks: () => void;
-	listLimitStateLabel: string;
-	sortStateLabel: string;
-	frontmatterStateLabel: string;
+	listLimitHoverLabel: string;
+	sortHoverLabel: string;
+	frontmatterHoverLabel: string;
 	includeFrontmatterLinks: boolean;
 }): React.ReactElement {
 	const {
@@ -107,11 +114,12 @@ export function InfluxToolbar(props: {
 		onCycleListLimit,
 		onToggleSortOrder,
 		onToggleFrontmatterLinks,
-		listLimitStateLabel,
-		sortStateLabel,
-		frontmatterStateLabel,
+		listLimitHoverLabel,
+		sortHoverLabel,
+		frontmatterHoverLabel,
 		includeFrontmatterLinks,
 	} = props;
+	const toolbarLabelId = React.useId();
 
 	return (
 		<div className={`influx-toolbar${isEditorMode ? ' influx-toolbar--editor' : ''}`}>
@@ -123,15 +131,23 @@ export function InfluxToolbar(props: {
 				/>
 			)}
 
-			<div className="influx-toolbar-actions" role="toolbar" aria-label="Influx actions">
-				<button
-					type="button"
-					className="influx-summary-action influx-clickable"
-					onClick={onToggleAll}
-					aria-label={summaryRowLabel}
-				>
-					{allVisibleComponentsCollapsed ? 'Expand all' : 'Collapse all'}
-				</button>
+			<div className="influx-toolbar-actions" role="toolbar" aria-labelledby={toolbarLabelId}>
+				<span id={toolbarLabelId} className="influx-visually-hidden">
+					Influx actions
+				</span>
+				<ToolbarIconButton label={summaryRowLabel} hoverLabel={summaryRowLabel} onClick={onToggleAll}>
+					{allVisibleComponentsCollapsed ? (
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--expand-all">
+							<path d="m7 5 5 5 5-5"></path>
+							<path d="m7 12 5 5 5-5"></path>
+						</svg>
+					) : (
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--collapse-all">
+							<path d="m7 10 5-5 5 5"></path>
+							<path d="m7 17 5-5 5 5"></path>
+						</svg>
+					)}
+				</ToolbarIconButton>
 
 				<ToolbarIconButton
 					label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
@@ -175,7 +191,7 @@ export function InfluxToolbar(props: {
 					</div>
 				)}
 
-				<ToolbarIconButton label="Cycle list limit" onClick={onCycleListLimit} badge={listLimitStateLabel}>
+				<ToolbarIconButton label="Cycle list limit" hoverLabel={listLimitHoverLabel} onClick={onCycleListLimit}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--list">
 						<line x1="8" y1="6" x2="21" y2="6"></line>
 						<line x1="8" y1="12" x2="21" y2="12"></line>
@@ -186,7 +202,7 @@ export function InfluxToolbar(props: {
 					</svg>
 				</ToolbarIconButton>
 
-				<ToolbarIconButton label="Change sort order" onClick={onToggleSortOrder} badge={sortStateLabel}>
+				<ToolbarIconButton label="Change sort order" hoverLabel={sortHoverLabel} onClick={onToggleSortOrder}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--sort">
 						<path d="M11 5h4"></path>
 						<path d="M11 9h7"></path>
@@ -198,8 +214,8 @@ export function InfluxToolbar(props: {
 
 				<ToolbarIconButton
 					label={includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
+					hoverLabel={frontmatterHoverLabel}
 					onClick={onToggleFrontmatterLinks}
-					badge={frontmatterStateLabel}
 					active={includeFrontmatterLinks}
 					pressed={includeFrontmatterLinks}
 				>
@@ -251,6 +267,8 @@ export function InfluxResultGroup(props: {
 
 	const filePath = extended.inlinkingFile.file.path;
 	const fileBasename = extended.inlinkingFile.file.basename;
+	const collapseLabelId = React.useId();
+	const collapseButtonLabel = collapsed ? `Expand ${fileBasename}` : `Collapse ${fileBasename}`;
 	const matchDetails = getSearchMatchDetails(extended, searchQuery);
 	const duplicateName = (basenameCounts.get(fileBasename) ?? 0) > 1;
 	const sourcePathContext = duplicateName ? getSourcePathContext(filePath, fileBasename) : '';
@@ -270,13 +288,19 @@ export function InfluxResultGroup(props: {
 					type="button"
 					className="influx-collapse-toggle"
 					onClick={() => onToggleCollapse(filePath)}
-					aria-label={collapsed ? `Expand ${fileBasename}` : `Collapse ${fileBasename}`}
+					aria-labelledby={collapseLabelId}
 					aria-expanded={!collapsed}
 					aria-controls={matchesRegionId}
 				>
 					<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--collapse-chevron">
 						<path d="M3 8L12 17L21 8"></path>
 					</svg>
+					<span id={collapseLabelId} className="influx-visually-hidden">
+						{collapseButtonLabel}
+					</span>
+					<span className="influx-control-tooltip influx-control-tooltip--side" aria-hidden="true">
+						{collapseButtonLabel}
+					</span>
 				</button>
 
 				<div className="influx-result-source">
