@@ -289,7 +289,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: flex-end;
-	gap: var(--size-4-1);
+	gap: var(--size-2-1) var(--size-2-2);
 	align-items: center;
 	inline-size: auto;
 	min-width: 0;
@@ -307,7 +307,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	align-items: center;
 	background-color: var(--influx-hover-bg);
 	border-radius: 4px;
-	padding: 0 8px;
+	padding-block: 0;
+	padding-inline: 8px;
 	border: 1px solid var(--influx-border-color);
 	transition:
 		border-color 0.2s,
@@ -326,7 +327,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border: none;
 	color: var(--influx-text-normal);
 	font-size: var(--influx-font-ui-small);
-	padding: 6px 0;
+	padding-block: 6px;
+	padding-inline: 0;
 	outline: none;
 	min-height: 32px;
 }
@@ -338,7 +340,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-search-clear {
 	background: none;
 	border: none;
-	padding: 4px;
+	padding-block: 4px;
+	padding-inline: 4px;
 	cursor: pointer;
 	color: var(--influx-text-muted);
 	display: flex;
@@ -824,10 +827,11 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	height: 100%;
 	display: flex;
 	flex-direction: column;
+	padding: 0;
 }
 
 .influx-component--editor .influx-pane {
-	padding-inline: var(--size-4-1);
+	padding-inline: 0;
 }
 
 .influx-component--editor .influx-results-scroll {
@@ -837,6 +841,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .workspace-leaf-content[data-type="influx-sidebar-view"] .influx-pane {
 	flex: 1;
 	overflow-y: auto;
+	padding: 0 var(--size-4-2) var(--size-4-2);
 }
 
 .workspace-leaf-content[data-type="influx-sidebar-view"]
