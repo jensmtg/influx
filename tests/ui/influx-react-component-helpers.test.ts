@@ -18,16 +18,18 @@ import {
 	getSourcePathContext,
 	handleSearchChangeInput,
 	handleSearchKeyPress,
-	makeUpdateEvent,
 	reduceSearchUiState,
 	resetSearchUi,
-	resolveInfluxUpdateEntries,
 	shouldAttachAutoLoadObserver,
 	shouldLoadMoreFromObserver,
-	shouldProcessInfluxUpdateEvent,
 	splitTextBySearchQuery,
 	toggleSearchPanel,
 } from '@/ui/influx-react-component-helpers';
+import {
+	makeUpdateEvent,
+	resolveInfluxUpdateEntries,
+	shouldProcessInfluxUpdateEvent,
+} from '@/ui/influx-update-helpers';
 
 function entry(params: {
 	path: string;

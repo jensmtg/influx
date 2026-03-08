@@ -27,12 +27,12 @@ import {
 	type InfluxRenderMode,
 	reduceSearchUiState,
 	resetSearchUi,
-	resolveInfluxUpdateEntries,
 	shouldAttachAutoLoadObserver,
 	shouldLoadMoreFromObserver,
 	toggleSearchPanel,
 	VISIBLE_COMPONENTS_CHUNK_BY_MODE,
 } from './influx-react-component-helpers';
+import { resolveInfluxUpdateEntries } from './influx-update-helpers';
 import {
 	getCenteredTitleStyle,
 	InfluxResultGroup,
