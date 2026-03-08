@@ -6,8 +6,8 @@ import InfluxReactComponent from '../../ui/influx-react-component';
 import type ObsidianInflux from '../../app/influx-plugin';
 import { logger } from '../../platform/diagnostics/logger';
 import { CONSTANTS } from '../../config/constants';
-import { recordMetric } from '../../platform/diagnostics/metrics';
 import { influxUpdates$, InfluxUpdateEvent } from '../../app/events/influx-updates';
+import { buildInfluxFileForRender, createInfluxFileForRender } from '../../domain/backlinks/influx-render-pipeline';
 
 export class InfluxSidebarView extends ItemView {
 	private static nextSubscriptionId = 1;
@@ -217,29 +217,21 @@ export class InfluxSidebarView extends ItemView {
 		});
 
 		try {
-			const pipelineStart = performance.now();
-			this.influxFile = await InfluxFile.create(file.path, this.plugin.api);
+			const result = await createInfluxFileForRender({
+				filePath: file.path,
+				api: this.plugin.api,
+				mode: 'sidebar',
+				settings: this.plugin.data.settings,
+				shouldAbort: () => signal.aborted || updateId !== this.currentUpdateId,
+			});
 
-			// Check if this update is still current
-			if (signal.aborted || updateId !== this.currentUpdateId) {
+			if (!result) {
 				return;
 			}
 
-			if (!this.influxFile.show) {
-				recordMetric({
-					name: 'influx.pipeline.total',
-					mode: 'sidebar',
-					durationMs: performance.now() - pipelineStart,
-					settings: this.plugin.data.settings,
-					always: true,
-					ctx: {
-						filePath: file.path,
-						show: false,
-						listLimit: this.plugin.data.settings.listLimit || 0,
-						totalEntryCount: 0,
-						renderedCount: 0
-					}
-				});
+			this.influxFile = result.influxFile;
+
+			if (result.hidden) {
 				this.renderStatusState({
 					title: 'Nothing to show for this note yet',
 					detail: 'This note is currently hidden by your Influx rules or has no eligible linked mentions.',
@@ -247,29 +239,6 @@ export class InfluxSidebarView extends ItemView {
 				});
 				return;
 			}
-
-			await this.influxFile.makeInfluxList();
-
-			// Check again before continuing
-			if (signal.aborted || updateId !== this.currentUpdateId) {
-				return;
-			}
-
-			const renderedComponents = this.influxFile.toEntries();
-			recordMetric({
-				name: 'influx.pipeline.total',
-				mode: 'sidebar',
-				durationMs: performance.now() - pipelineStart,
-				settings: this.plugin.data.settings,
-				always: true,
-				ctx: {
-					filePath: file.path,
-					show: this.influxFile.show,
-					listLimit: this.plugin.data.settings.listLimit || 0,
-					totalEntryCount: this.influxFile.totalEntryCount,
-					renderedCount: renderedComponents.length
-				}
-			});
 
 			// Final check before rendering
 			if (signal.aborted || updateId !== this.currentUpdateId) {
@@ -309,27 +278,26 @@ export class InfluxSidebarView extends ItemView {
 		const updateId = this.currentUpdateId;
 
 		try {
-			const pipelineStart = performance.now();
 			const shouldShow = this.plugin.api.getShowStatus(this.currentFile);
 			this.influxFile.show = shouldShow;
 			if (signal?.aborted || updateId !== this.currentUpdateId) {
 				return;
 			}
-			if (!shouldShow) {
-				recordMetric({
-					name: 'influx.pipeline.total',
-					mode: 'sidebar',
-					durationMs: performance.now() - pipelineStart,
-					settings: this.plugin.data.settings,
-					always: true,
-					ctx: {
-						filePath: this.currentFile.path,
-						show: false,
-						listLimit: this.plugin.data.settings.listLimit || 0,
-						totalEntryCount: 0,
-						renderedCount: 0
-					}
-				});
+			if (shouldShow) {
+				this.plugin.api.invalidateFileCache(this.currentFile.path);
+			}
+
+			const result = await buildInfluxFileForRender({
+				influxFile: this.influxFile,
+				filePath: this.currentFile.path,
+				mode: 'sidebar',
+				settings: this.plugin.data.settings,
+				shouldAbort: () => Boolean(signal?.aborted) || updateId !== this.currentUpdateId,
+			});
+			if (!result) {
+				return;
+			}
+			if (result.hidden) {
 				this.renderStatusState({
 					title: 'Linked mentions are hidden for this note',
 					detail: 'Your current filters or show rules are hiding Influx in the sidebar right now.',
@@ -337,29 +305,6 @@ export class InfluxSidebarView extends ItemView {
 				});
 				return;
 			}
-
-			this.plugin.api.invalidateFileCache(this.currentFile.path);
-			await this.influxFile.makeInfluxList();
-
-			if (signal?.aborted || updateId !== this.currentUpdateId) {
-				return;
-			}
-
-			const renderedComponents = this.influxFile.toEntries();
-			recordMetric({
-				name: 'influx.pipeline.total',
-				mode: 'sidebar',
-				durationMs: performance.now() - pipelineStart,
-				settings: this.plugin.data.settings,
-				always: true,
-				ctx: {
-					filePath: this.currentFile.path,
-					show: this.influxFile.show,
-					listLimit: this.plugin.data.settings.listLimit || 0,
-					totalEntryCount: this.influxFile.totalEntryCount,
-					renderedCount: renderedComponents.length
-				}
-			});
 
 			if (signal?.aborted || updateId !== this.currentUpdateId) {
 				return;

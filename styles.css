@@ -438,6 +438,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	color: var(--text-error);
 }
 
+.influx-sidebar-stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	min-height: 0;
+}
+
 /* Toolbar */
 .influx-component .influx-toolbar {
 	position: relative;
@@ -453,13 +460,12 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-component--editor .influx-toolbar,
 .influx-component--preview .influx-toolbar {
-	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
-	align-items: center;
-	padding: var(--size-4-2);
-	padding-inline-start: var(--size-4-2);
-	padding-inline-end: var(--size-4-2);
-	gap: var(--size-4-2);
+	display: flex;
+	align-items: flex-start;
+	justify-content: flex-start;
+	flex-wrap: wrap;
+	padding: var(--size-4-2) 0 var(--size-4-1);
+	gap: var(--size-2-2) var(--size-4-2);
 }
 
 .influx-component--preview .influx-toolbar {
@@ -602,8 +608,16 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	align-self: start;
 }
 
-.influx-component .influx-summary-row--toolbar:hover {
-	background: var(--influx-hover-bg);
+.influx-component .influx-summary-row--pane {
+	padding-block: 0 var(--size-2-2);
+}
+
+.influx-component .influx-summary-meta {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: var(--size-2-1) var(--size-2-2);
+	min-width: 0;
 }
 
 /* Row title text */
@@ -745,6 +759,27 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-internal-link:hover {
 	color: var(--influx-accent-hover);
 	text-decoration: underline;
+}
+
+.influx-component .influx-result-source .influx-internal-link {
+	font-weight: 500;
+}
+
+.influx-component .influx-result-source-context {
+	display: inline-block;
+	color: var(--influx-text-faint);
+	font-size: var(--influx-font-ui-smaller);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-inline-size: 100%;
+}
+
+.influx-component .influx-result-search-reasons {
+	color: var(--influx-text-faint);
+	font-size: 11px;
+	line-height: 1.4;
+	white-space: normal;
 }
 
 /* Sidebar view styles */

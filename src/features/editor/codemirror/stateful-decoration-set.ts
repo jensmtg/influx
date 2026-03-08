@@ -1,15 +1,14 @@
 import { editorViewField } from "obsidian";
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
 import { EditorState, Range } from "@codemirror/state";
-import InfluxFile from '../../../domain/backlinks/influx-file';
 import { influxDecoration } from "./influx-widget";
 import { statefulDecorations } from "./decoration-state";
 import { getPlugin, isPluginUnloading } from '../../../platform/obsidian/plugin-window-guards';
 import type { MinimalPluginInterface } from '../../../platform/obsidian/plugin-window-guards';
 import { ApiAdapter } from '../../../domain/backlinks/api-adapter';
 import type ObsidianInflux from '../../../app/influx-plugin';
-import { recordMetric } from '../../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../../../domain/settings/settings-hash';
+import { createInfluxFileForRender } from '../../../domain/backlinks/influx-render-pipeline';
 
 
 export class StatefulDecorationSet {
@@ -49,52 +48,21 @@ export class StatefulDecorationSet {
 
         // Reuse plugin's api instance instead of creating new one (preserves cache)
         const apiAdapter = plugin.api as ApiAdapter
-        const pipelineStart = performance.now();
 
-        const influxFile = await InfluxFile.create(file.path, apiAdapter)
-        if (!this.isUpdateCurrent(updateId, show)) {
+        const result = await createInfluxFileForRender({
+			filePath: file.path,
+			api: apiAdapter,
+			mode: 'editor',
+			settings,
+			shouldAbort: () => !this.isUpdateCurrent(updateId, show),
+		})
+		if (!result) {
             return null;
         }
-        if (!influxFile.show) {
-            recordMetric({
-                name: 'influx.pipeline.total',
-                mode: 'editor',
-                durationMs: performance.now() - pipelineStart,
-                settings,
-                always: true,
-                ctx: {
-                    filePath: file.path,
-                    show: false,
-                    listLimit: settings.listLimit || 0,
-                    totalEntryCount: 0,
-                    renderedCount: 0,
-                }
-            });
+		const { influxFile } = result
+		if (result.hidden) {
             return Decoration.none;
         }
-
-        await influxFile.makeInfluxList()
-        if (!this.isUpdateCurrent(updateId, show)) {
-            return null;
-        }
-        const renderedComponents = influxFile.toEntries()
-        if (!this.isUpdateCurrent(updateId, show)) {
-            return null;
-        }
-        recordMetric({
-            name: 'influx.pipeline.total',
-            mode: 'editor',
-            durationMs: performance.now() - pipelineStart,
-            settings,
-            always: true,
-            ctx: {
-                filePath: file.path,
-                show: influxFile.show,
-                listLimit: settings.listLimit || 0,
-                totalEntryCount: influxFile.totalEntryCount,
-                renderedCount: renderedComponents.length,
-            }
-        });
 
         const decorations: Range<Decoration>[] = []
 

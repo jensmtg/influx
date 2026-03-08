@@ -2,15 +2,14 @@ import { WorkspaceLeaf, MarkdownPostProcessorContext } from 'obsidian';
 import { ApiAdapter } from '../../domain/backlinks/api-adapter';
 import { rootManager } from '../../platform/react/root-manager';
 import { logger } from '../../platform/diagnostics/logger';
-import InfluxFile from '../../domain/backlinks/influx-file';
 import InfluxReactComponent from '../../ui/influx-react-component';
 import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import type ObsidianInflux from '../../app/influx-plugin';
 import { computeSettingsHash } from '../../domain/settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
-import { recordMetric } from '../../platform/diagnostics/metrics';
 import { CONSTANTS } from '../../config/constants';
+import { createInfluxFileForRender } from '../../domain/backlinks/influx-render-pipeline';
 import {
 	cleanupAllPreviewRootsAndContainers,
 	cleanupDuplicatePreviewWrappers,
@@ -117,8 +116,6 @@ export class PreviewManager {
 			return;
 		}
 
-		const pipelineStart = performance.now();
-
 		const existingContainer = findExistingContainer(previewDiv);
 		cleanupDuplicatePreviewWrappers(previewDiv, existingContainer);
 
@@ -139,42 +136,22 @@ export class PreviewManager {
 			rootManager.unmountDeferred(existingContainer);
 		}
 
-		const influxFile = await InfluxFile.create(path, this.apiAdapter);
-		if (!influxFile.show) {
-			cleanupPreviewContainers(previewDiv);
-			recordMetric({
-				name: 'influx.pipeline.total',
-				mode: 'preview',
-				durationMs: performance.now() - pipelineStart,
-				settings,
-				always: true,
-				ctx: {
-					filePath: path,
-					show: false,
-					listLimit: settings.listLimit || 0,
-					totalEntryCount: 0,
-					renderedCount: 0
-				}
-			});
+		const result = await createInfluxFileForRender({
+			filePath: path,
+			api: this.apiAdapter,
+			mode: 'preview',
+			settings,
+			shouldAbort: () => this.isInactive(),
+		});
+		if (!result) {
 			return;
 		}
 
-		await influxFile.makeInfluxList();
-		const renderedComponents = influxFile.toEntries();
-		recordMetric({
-			name: 'influx.pipeline.total',
-			mode: 'preview',
-			durationMs: performance.now() - pipelineStart,
-			settings,
-			always: true,
-			ctx: {
-				filePath: path,
-				show: influxFile.show,
-				listLimit: settings.listLimit || 0,
-				totalEntryCount: influxFile.totalEntryCount,
-				renderedCount: renderedComponents.length
-			}
-		});
+		const { influxFile } = result;
+		if (result.hidden) {
+			cleanupPreviewContainers(previewDiv);
+			return;
+		}
 
 		cacheManager.setPreviewFileHash(path, fileHash);
 
