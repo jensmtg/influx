@@ -49,7 +49,7 @@ describe('PreviewManager', () => {
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: true } },
 			app: { workspace: { iterateRootLeaves } },
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
@@ -95,7 +95,7 @@ describe('PreviewManager', () => {
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: true } },
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
@@ -135,7 +135,7 @@ describe('PreviewManager', () => {
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: true } },
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
@@ -178,7 +178,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 
 			const manager = new PreviewManager(plugin, {} as any);
@@ -235,7 +235,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 
 		const manager = new PreviewManager(plugin, {} as any);
@@ -270,7 +270,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn(),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 			isUnloading: false,
 		} as any;
 
@@ -303,7 +303,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn(),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 			isUnloading: true,
 		} as any;
 
@@ -363,7 +363,7 @@ describe('PreviewManager', () => {
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
 
@@ -436,7 +436,7 @@ describe('PreviewManager', () => {
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
 
@@ -482,7 +482,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
 				},
 			},
-			updating: new Map<string, number>([['Scratchpad.md::1', 500]]),
+			updating: new Set<string>(['Scratchpad.md::1']),
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
@@ -491,7 +491,7 @@ describe('PreviewManager', () => {
 		await manager.updateAllPreviews();
 
 		expect(updatePreviewSpy).not.toHaveBeenCalled();
-		expect(plugin.updating.get('Scratchpad.md::1')).toBe(500);
+		expect(plugin.updating.has('Scratchpad.md::1')).toBe(true);
 	});
 
 	test('updateAllPreviews bails early while plugin is unloading', async () => {
@@ -502,7 +502,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn(),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 			isUnloading: true,
 		} as any;
 
@@ -544,7 +544,7 @@ describe('PreviewManager', () => {
 					}),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
 		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
@@ -587,7 +587,7 @@ describe('PreviewManager', () => {
 					}),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 
 		let release: (() => void) | null = null;
@@ -641,7 +641,7 @@ describe('PreviewManager', () => {
 					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
 				},
 			},
-			updating: new Map<string, number>(),
+			updating: new Set<string>(),
 		} as any;
 
 		let release: (() => void) | null = null;

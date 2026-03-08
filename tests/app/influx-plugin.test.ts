@@ -216,7 +216,7 @@ describe('ObsidianInflux lifecycle', () => {
 		const dispose = jest.fn();
 
 		(plugin as any).previewManager = { dispose };
-		plugin.updating.set('a', Date.now());
+		plugin.updating.add('a');
 
 		await plugin.onunload();
 

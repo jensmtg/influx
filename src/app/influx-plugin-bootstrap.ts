@@ -10,20 +10,9 @@ import { clearMetrics, getMetrics, summarizeMetrics } from '../platform/diagnost
 import { isDebugMode } from '../platform/diagnostics/debug-mode';
 import { InfluxSidebarView } from '../features/sidebar/influx-sidebar-view';
 import type { PreviewManager } from '../features/preview/preview-manager';
+import type { InfluxDebugHelpers, InfluxWindow } from '../platform/obsidian/influx-window-types';
 
-export type InfluxPluginWindow = Window & {
-	influxPlugin?: unknown;
-	influxDebug?: {
-		getReactRoots: () => unknown;
-		getCache: () => unknown;
-		getUpdates: () => unknown;
-		getMetrics: () => unknown;
-		summarizeMetrics: () => unknown;
-		snapshot: () => unknown;
-		clearMetrics: () => void;
-	};
-	testInfluxReadingView?: () => void;
-};
+export type InfluxPluginWindow = InfluxWindow;
 
 type InfluxPluginLike = Plugin & {
 	manifest: { version: string };
@@ -33,10 +22,43 @@ type InfluxPluginLike = Plugin & {
 	registerEditorExtension: (extension: unknown) => void;
 	addSettingTab: (tab: unknown) => void;
 	registerMarkdownPostProcessor: (processor: (el: HTMLElement, ctx: unknown) => Promise<void> | void) => void;
-	registerView: (type: string, creator: (leaf: unknown) => unknown) => void;
-	addRibbonIcon: (icon: string, title: string, callback: () => void) => void;
-	addCommand: (command: { id: string; name: string; callback: () => void }) => void;
+		registerView: (type: string, creator: (leaf: unknown) => unknown) => void;
+		addRibbonIcon: (icon: string, title: string, callback: () => void) => void;
+		addCommand: (command: { id: string; name: string; callback: () => void }) => void;
 };
+
+function createInfluxDebugHelpers(): InfluxDebugHelpers {
+	return {
+		getReactRoots: () => ({
+			size: rootManager.size,
+			entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
+				id: container.id,
+				inDom,
+				visible: container.offsetParent !== null,
+				type: info.type,
+				filePath: info.filePath,
+			})),
+		}),
+		getCache: () => cacheManager.getDebugInfo(),
+		getUpdates: () => updateCoordinator.getDebugInfo(),
+		getMetrics: () => getMetrics(),
+		summarizeMetrics: () => summarizeMetrics(),
+		snapshot: () => ({
+			ts: Date.now(),
+			metrics: summarizeMetrics(),
+			cache: cacheManager.getDebugInfo(),
+			roots: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
+				id: container.id,
+				inDom,
+				visible: container.offsetParent !== null,
+				type: info.type,
+				filePath: info.filePath,
+			})),
+			updates: updateCoordinator.getDebugInfo(),
+		}),
+		clearMetrics: () => clearMetrics(),
+	};
+}
 
 export function migrateOldElements(): void {
 	const oldWidgets = document.querySelectorAll(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY);
@@ -92,36 +114,7 @@ export function attachWindowDebugHelpers(plugin: InfluxPluginLike, previewManage
 		return;
 	}
 
-	influxWindow.influxDebug = {
-		getReactRoots: () => ({
-			size: rootManager.size,
-			entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
-				id: container.id,
-				inDom,
-				visible: container.offsetParent !== null,
-				type: info.type,
-				filePath: info.filePath,
-			})),
-		}),
-		getCache: () => cacheManager.getDebugInfo(),
-		getUpdates: () => updateCoordinator.getDebugInfo(),
-		getMetrics: () => getMetrics(),
-		summarizeMetrics: () => summarizeMetrics(),
-		snapshot: () => ({
-			ts: Date.now(),
-			metrics: summarizeMetrics(),
-			cache: cacheManager.getDebugInfo(),
-			roots: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
-				id: container.id,
-				inDom,
-				visible: container.offsetParent !== null,
-				type: info.type,
-				filePath: info.filePath,
-			})),
-			updates: updateCoordinator.getDebugInfo(),
-		}),
-		clearMetrics: () => clearMetrics(),
-	};
+	influxWindow.influxDebug = createInfluxDebugHelpers();
 
 	logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
 	influxWindow.testInfluxReadingView = () => {

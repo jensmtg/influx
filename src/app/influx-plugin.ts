@@ -23,7 +23,7 @@ import {
 
 export default class ObsidianInflux extends Plugin {
 
-	updating: Map<string, number> = new Map();
+	updating = new Set<string>();
 	api: ApiAdapter;
 	data: Data;
 	isUnloading = false;

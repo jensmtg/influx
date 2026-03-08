@@ -6,6 +6,7 @@
 import { logger } from '../diagnostics/logger';
 import type { BacklinksObject } from '../../types/backlinks';
 import type { ObsidianInfluxSettings } from '../../types/settings';
+import type { InfluxWindow } from './influx-window-types';
 
 /**
  * Minimal interface for plugin type validation
@@ -19,23 +20,6 @@ export interface MinimalPluginInterface {
 }
 
 /**
- * Window interface extension for Influx plugin
- */
-interface InfluxWindow extends Window {
-	influxPlugin?: MinimalPluginInterface;
-	influxDebug?: {
-		getReactRoots: () => unknown;
-		getCache?: () => unknown;
-		getUpdates?: () => unknown;
-		getMetrics?: () => unknown;
-		summarizeMetrics?: () => unknown;
-		snapshot?: () => unknown;
-		clearMetrics?: () => void;
-	};
-	testInfluxReadingView?: () => void;
-}
-
-/**
  * Safely get the plugin instance from window with type guard
  * Returns null if plugin is not available or invalid
  */
@@ -44,7 +28,7 @@ export function getPlugin(): MinimalPluginInterface | null {
 	const plugin = win.influxPlugin;
 
 	// Runtime validation
-	if (!plugin) {
+	if (!plugin || typeof plugin !== 'object') {
 		return null;
 	}
 
@@ -54,7 +38,7 @@ export function getPlugin(): MinimalPluginInterface | null {
 		return null;
 	}
 
-	return plugin;
+	return plugin as MinimalPluginInterface;
 }
 
 /**

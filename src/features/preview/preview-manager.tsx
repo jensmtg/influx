@@ -78,7 +78,7 @@ export class PreviewManager {
 			if (this.plugin.updating.has(updateKey)) {
 				return Promise.resolve();
 			}
-			this.plugin.updating.set(updateKey, Date.now());
+			this.plugin.updating.add(updateKey);
 
 			return this.updatePreview(leaf)
 				.catch((error) => {
