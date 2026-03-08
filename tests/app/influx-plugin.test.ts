@@ -116,6 +116,7 @@ describe('ObsidianInflux lifecycle', () => {
 	});
 
 	test('onload wires startup globals, registrations, and auto-opens sidebar when enabled', async () => {
+		jest.useFakeTimers();
 		const app = {
 			workspace: {
 				ensureSideLeaf: jest.fn(),
@@ -149,6 +150,42 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(win.influxPlugin).toBe(plugin);
 		expect(win.influxDebug).toBeUndefined();
 		expect(win.testInfluxReadingView).toBeUndefined();
+		jest.useRealTimers();
+	});
+
+	test('onload schedules startup editor and preview refreshes', async () => {
+		jest.useFakeTimers();
+		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
+			refreshAllInfluxEditorViews: jest.Mock;
+		};
+		const app = {
+			workspace: {
+				ensureSideLeaf: jest.fn(),
+				getLeavesOfType: jest.fn().mockReturnValue([]),
+			},
+			vault: {},
+			metadataCache: {},
+		};
+		const plugin = new ObsidianInflux(app as any, {
+			version: 'test-version',
+		} as any);
+		(plugin.loadData as jest.Mock).mockResolvedValue({
+			settings: {
+				showInfluxInSidebar: false,
+			},
+		});
+
+		await plugin.onload();
+		const previewManager = (plugin as any).previewManager;
+		const updateAllPreviews = jest.spyOn(previewManager, 'updateAllPreviews').mockResolvedValue(undefined);
+
+		jest.advanceTimersByTime(160 + 520 + 1400);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(3);
+		expect(updateAllPreviews).toHaveBeenCalledTimes(3);
+		jest.useRealTimers();
 	});
 
 	test('onload exposes debug helpers only when debug mode is enabled', async () => {

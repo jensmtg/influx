@@ -57,6 +57,7 @@ function createUpdate(params: { path: string | null; docChanged?: boolean }): Mo
 describe('AsyncViewPluginController', () => {
 	const updateAsyncDecorations = jest.fn();
 	const cancelPendingUpdates = jest.fn();
+	const invalidateRecentDecorations = jest.fn();
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -65,6 +66,7 @@ describe('AsyncViewPluginController', () => {
 		(StatefulDecorationSet as unknown as jest.Mock).mockImplementation(() => ({
 			updateAsyncDecorations,
 			cancelPendingUpdates,
+			invalidateRecentDecorations,
 		}));
 	});
 
@@ -123,6 +125,7 @@ describe('AsyncViewPluginController', () => {
 		controller.update(createUpdate({ path: 'Same.md', docChanged: true }));
 
 		expect(cancelPendingUpdates).toHaveBeenCalledTimes(1);
+		expect(invalidateRecentDecorations).toHaveBeenCalledTimes(1);
 		expect(updateAsyncDecorations).toHaveBeenCalledWith(expect.anything(), true);
 	});
 

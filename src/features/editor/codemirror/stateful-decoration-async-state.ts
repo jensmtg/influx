@@ -39,6 +39,16 @@ export class StatefulDecorationAsyncState {
 		this.pendingUpdate = null;
 	}
 
+	clearPendingIfCurrent(show: boolean, updateId: number): void {
+		if (this.pendingUpdate?.show === show && this.pendingUpdate?.updateId === updateId) {
+			this.pendingUpdate = null;
+		}
+	}
+
+	clearRecentComputation(): void {
+		this.recentComputation = null;
+	}
+
 	setPendingForTests(request: PendingUpdate | null): void {
 		this.pendingUpdate = request;
 	}
@@ -91,6 +101,14 @@ export class StatefulDecorationAsyncState {
 				this.inflightComputation = null;
 			}
 		}
+	}
+
+	getComputationKey(state: EditorState, show: boolean, plugin: MinimalPluginInterface): string {
+		return this.makeComputationKey(state, show, plugin);
+	}
+
+	matchesComputationKey(key: string, state: EditorState, show: boolean, plugin: MinimalPluginInterface): boolean {
+		return this.makeComputationKey(state, show, plugin) === key;
 	}
 
 	private makeComputationKey(state: EditorState, show: boolean, plugin: MinimalPluginInterface): string {

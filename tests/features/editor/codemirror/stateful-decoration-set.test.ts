@@ -230,6 +230,31 @@ describe('StatefulDecorationSet', () => {
 		expect(computeSpy).toHaveBeenCalledTimes(2);
 	});
 
+	test('keeps a same-key editor computation alive across superseding refreshes', async () => {
+		const state = createState('content', 'ColdStart.md');
+		const view = createView(state);
+		const decorationSet = createDecorationSet(view as MockEditorView);
+		const makeInfluxListDeferred = deferred<void>();
+
+		createInfluxFileMock.mockResolvedValueOnce({
+			show: true,
+			makeInfluxList: jest.fn().mockImplementation(() => makeInfluxListDeferred.promise),
+			toEntries: jest.fn().mockReturnValue([{ id: 'entry-1' }]),
+			totalEntryCount: 1,
+			components: [],
+			collapsed: false,
+			file: { path: 'ColdStart.md' },
+		});
+
+		const firstUpdate = decorationSet.updateAsyncDecorations(state, true);
+		const secondUpdate = decorationSet.updateAsyncDecorations(state, true);
+
+		makeInfluxListDeferred.resolve(undefined);
+		await Promise.all([firstUpdate, secondUpdate]);
+
+		expect(view.dispatch).toHaveBeenCalledTimes(1);
+	});
+
 	test('anchors decorations after closing frontmatter when top-of-page mode is enabled', async () => {
 		const text = ['---', 'title: Example', '---', 'Body text'].join('\n');
 		const expectedAnchor = createDoc(text).line(3).to;

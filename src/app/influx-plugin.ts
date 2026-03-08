@@ -22,11 +22,13 @@ import {
 
 
 export default class ObsidianInflux extends Plugin {
+	private static readonly STARTUP_REFRESH_DELAYS_MS = [160, 520, 1400];
 
 	updating = new Set<string>();
 	api: ApiAdapter;
 	data: Data;
 	isUnloading = false;
+	private startupRefreshTimers: ReturnType<typeof setTimeout>[] = [];
 
 	private eventManager: EventManager;
 	private previewManager: PreviewManager;
@@ -49,6 +51,7 @@ export default class ObsidianInflux extends Plugin {
 		this.previewManager = new PreviewManager(this, this.api);
 		registerPluginUi(this, this.previewManager);
 		attachWindowDebugHelpers(this, this.previewManager);
+		this.scheduleStartupRefreshes();
 	}
 
 	async loadDataInitially() {
@@ -167,6 +170,10 @@ export default class ObsidianInflux extends Plugin {
 	async onunload() {
 		// Mark plugin as unloading early so async work bails fast.
 		this.isUnloading = true;
+		for (const timer of this.startupRefreshTimers) {
+			clearTimeout(timer);
+		}
+		this.startupRefreshTimers = [];
 
 		// Cancel all pending update operations
 		updateCoordinator.unload();
@@ -209,5 +216,18 @@ export default class ObsidianInflux extends Plugin {
 		}).catch(e => {
 			// Error already logged by coordinator
 		});
+	}
+
+	private scheduleStartupRefreshes(): void {
+		this.startupRefreshTimers = ObsidianInflux.STARTUP_REFRESH_DELAYS_MS.map((delay) =>
+			setTimeout(() => {
+				if (this.isUnloading) {
+					return;
+				}
+
+				refreshAllInfluxEditorViews();
+				void this.previewManager.updateAllPreviews();
+			}, delay)
+		);
 	}
 }

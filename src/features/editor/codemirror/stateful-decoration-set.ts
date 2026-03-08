@@ -50,13 +50,14 @@ export class StatefulDecorationSet {
 		}
 
 		const apiAdapter = plugin.api;
+		const computationKey = this.asyncState.getComputationKey(state, show, plugin);
 
 		const result = await createInfluxFileForRender({
 			filePath: file.path,
 			api: apiAdapter,
 			mode: 'editor',
 			settings,
-			shouldAbort: () => !this.isUpdateCurrent(updateId, show),
+			shouldAbort: () => !this.isComputationStillRelevant(computationKey, show, plugin),
 		});
 		if (!result) {
 			return null;
@@ -118,34 +119,34 @@ export class StatefulDecorationSet {
 		const decorations = await this.computeAsyncDecorationsCoalesced(state, show, plugin, currentUpdateId);
 
 		if (!this.editor || !this.editor.state) {
-			this.asyncState.clearPending();
+			this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 			return;
 		}
 
 		if (!this.asyncState.isLatestRequest(show, currentUpdateId)) {
-			this.asyncState.clearPending();
+			this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 			return;
 		}
 
 		const currentPlugin = getPlugin();
 		if (currentPlugin !== plugin) {
-			this.asyncState.clearPending();
+			this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 			return;
 		}
 
 		if (isPluginUnloading()) {
-			this.asyncState.clearPending();
+			this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 			return;
 		}
 
 		// Final check before updating decorations - ensure plugin still active and editor valid
 		if (isPluginUnloading() || !this.editor || !this.editor.state) {
-			this.asyncState.clearPending();
+			this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 			return;
 		}
 
 		if (decorations === null) {
-			this.asyncState.clearPending();
+			this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 			return;
 		}
 
@@ -156,20 +157,41 @@ export class StatefulDecorationSet {
 					effects: [statefulDecorations.update.of(decorations)],
 				});
 			} catch {
-				this.asyncState.clearPending();
+				this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 				return;
 			}
 		}
 
-		this.asyncState.clearPending();
+		this.asyncState.clearPendingIfCurrent(show, currentUpdateId);
 	}
 
 	cancelPendingUpdates(): void {
 		this.asyncState.clearPending();
 	}
 
+	invalidateRecentDecorations(): void {
+		this.asyncState.clearRecentComputation();
+	}
+
 	private isUpdateCurrent(updateId: number, show: boolean): boolean {
 		return this.asyncState.isUpdateCurrent(updateId, show);
+	}
+
+	private isComputationStillRelevant(key: string, show: boolean, plugin: MinimalPluginInterface): boolean {
+		if (!this.editor || !this.editor.state) {
+			return false;
+		}
+
+		if (isPluginUnloading()) {
+			return false;
+		}
+
+		const currentPlugin = getPlugin();
+		if (currentPlugin !== plugin) {
+			return false;
+		}
+
+		return this.asyncState.matchesComputationKey(key, this.editor.state, show, plugin);
 	}
 
 	private async computeAsyncDecorationsCoalesced(

@@ -55,6 +55,7 @@ export class AsyncViewPluginController {
 		 */
 		if (update.docChanged) {
 			this.statefulDecorationsSet.cancelPendingUpdates();
+			this.statefulDecorationsSet.invalidateRecentDecorations();
 			this.debouncedRefresh(update);
 		}
 	}

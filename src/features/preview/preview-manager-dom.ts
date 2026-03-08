@@ -67,27 +67,62 @@ function hasTrackedInfluxRoot(previewRoot: HTMLElement): boolean {
 	return getInfluxContainers(previewRoot).some((container) => rootManager.has(container));
 }
 
+function hasTrackedInfluxRootForFile(previewRoot: HTMLElement, filePath?: string): boolean {
+	if (!filePath) {
+		return false;
+	}
+
+	return getInfluxContainers(previewRoot).some((container) => {
+		const info = rootManager.get(container);
+		return info?.filePath === filePath;
+	});
+}
+
 export function isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
 	const leafType: string | undefined = leaf.view?.currentMode?.type;
 	const viewMode = leaf.view?.mode;
 	return leafType === 'preview' || viewMode === 'preview';
 }
 
-export function resolveLeafPreviewRoot(container: Element): HTMLElement | null {
+function selectPreferredPreviewRoot(candidates: HTMLElement[], filePath?: string): HTMLElement | null {
+	if (candidates.length === 0) {
+		return null;
+	}
+	const preferredCandidates = candidates;
+	const matchingTrackedRoot = preferredCandidates.find((candidate) =>
+		hasTrackedInfluxRootForFile(candidate, filePath)
+	);
+	if (matchingTrackedRoot) {
+		return matchingTrackedRoot;
+	}
+
+	const untrackedRoot = preferredCandidates.find((candidate) => !hasTrackedInfluxRoot(candidate));
+	if (untrackedRoot) {
+		return untrackedRoot;
+	}
+
+	return preferredCandidates[0] ?? null;
+}
+
+export function resolveLeafPreviewRoot(container: Element, filePath?: string): HTMLElement | null {
 	const candidates = getPreviewRootCandidates(container);
 	if (candidates.length === 0) {
 		return null;
 	}
 
 	const visibleCandidates = candidates.filter(isPreviewRootVisible);
-	const preferredCandidates = visibleCandidates.length > 0 ? visibleCandidates : candidates;
+	return selectPreferredPreviewRoot(visibleCandidates.length > 0 ? visibleCandidates : candidates, filePath);
+}
 
-	const trackedRoot = preferredCandidates.find((candidate) => hasTrackedInfluxRoot(candidate));
-	return trackedRoot ?? preferredCandidates[0] ?? null;
+export function resolveVisibleLeafPreviewRoot(container: Element, filePath?: string): HTMLElement | null {
+	return selectPreferredPreviewRoot(
+		getPreviewRootCandidates(container).filter(isPreviewRootVisible),
+		filePath
+	);
 }
 
 export function leafHasPreviewRoot(leaf: InfluxWorkspaceLeaf): boolean {
-	return isLeafInPreviewMode(leaf) || !!resolveLeafPreviewRoot(leaf.containerEl);
+	return isLeafInPreviewMode(leaf) || !!resolveVisibleLeafPreviewRoot(leaf.containerEl, leaf.view?.file?.path);
 }
 
 export function resolvePreviewRoot(element: HTMLElement): HTMLElement | null {
