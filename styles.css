@@ -92,10 +92,6 @@ body.is-readable-line-width .influx-preview-wrapper {
 	margin-top: 2em;
 }
 
-.influx-component--editor .influx-results-scroll {
-	padding-top: var(--size-4-1);
-}
-
 .influx-component--editor .influx-result-head {
 	padding-inline-end: var(--size-4-2);
 }
@@ -112,6 +108,7 @@ body.is-readable-line-width .influx-preview-wrapper {
 	margin-top: 1.25em;
 }
 
+.influx-component--editor .influx-results-scroll,
 .influx-component--preview .influx-results-scroll {
 	padding-top: var(--size-4-1);
 }
@@ -130,26 +127,17 @@ body.is-readable-line-width .influx-preview-wrapper {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
-	padding-left: var(--influx-result-indent);
+	padding-inline-start: var(--influx-result-indent);
 	overflow-wrap: anywhere;
 
-	& h1 {
-		margin-top: 0;
-		margin-bottom: 0;
+	& :is(h1, h2, h3) {
 		font-size: var(--influx-font-size, 13px);
 		line-height: var(--influx-line-height, 19.5px);
 	}
 
-	& h2 {
+	& :is(h1, h2) {
 		margin-top: 0;
 		margin-bottom: 0;
-		font-size: var(--influx-font-size, 13px);
-		line-height: var(--influx-line-height, 19.5px);
-	}
-
-	& h3 {
-		font-size: var(--influx-font-size, 13px);
-		line-height: var(--influx-line-height, 19.5px);
 	}
 
 	& mark {
@@ -158,25 +146,15 @@ body.is-readable-line-width .influx-preview-wrapper {
 }
 
 /* Keep editor entries full-width. This avoids unintended line-width clamping. */
-.influx-component.influx-component--editor .influx-entries {
-	width: 100%;
-	max-width: 100%;
-}
 
-/* Keep preview entries full-width when readable line length is disabled. */
+.influx-component.influx-component--editor .influx-entries,
 body:not(.is-readable-line-width) .influx-component.influx-component--preview .influx-entries {
 	width: 100%;
 	max-width: 100%;
 }
 
 /* When readable line length is OFF, ensure body cards fully use available width. */
-body:not(.is-readable-line-width) .influx-component--editor .influx-result-body {
-	width: 100%;
-	max-width: 100%;
-	flex: 1 1 auto;
-}
-
-body:not(.is-readable-line-width) .influx-component--preview .influx-result-body {
+body:not(.is-readable-line-width) :is(.influx-component--editor, .influx-component--preview) .influx-result-body {
 	width: 100%;
 	max-width: 100%;
 	flex: 1 1 auto;
@@ -209,15 +187,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	}
 
 	& blockquote {
-		border-left: max(3px, var(--blockquote-border-thickness)) solid;
-		border-left-color: var(--blockquote-border-color);
+		border-inline-start: max(3px, var(--blockquote-border-thickness)) solid var(--blockquote-border-color);
 		background: var(--influx-entry-blockquote-bg);
-		border-radius: 0 var(--influx-radius-s) var(--influx-radius-s) 0;
+		border-start-end-radius: var(--influx-radius-s);
+		border-end-end-radius: var(--influx-radius-s);
 		margin-block: var(--influx-entry-block-gap) 0;
 		padding-inline-start: calc(var(--influx-line-height, 19.5px) / 2);
 		padding-block: 4px;
-		margin-inline-start: 0;
-		margin-inline-end: 0;
+		margin-inline: 0;
 
 		& p {
 			margin-block-start: 0 !important;
@@ -226,10 +203,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 	& .callout {
 		margin: var(--influx-entry-block-gap) 0 !important;
-		padding-top: var(--size-2-3);
-		padding-bottom: var(--size-2-3);
-		padding-right: var(--size-2-3);
-		padding-left: var(--size-2-2);
+		padding-block: var(--size-2-3);
+		padding-inline: var(--size-2-2) var(--size-2-3);
 		border-radius: var(--influx-radius-s);
 	}
 
@@ -241,27 +216,25 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: var(--icon-size, 16px);
-		min-width: var(--icon-size, 16px);
-		margin-right: var(--size-2-1);
+		inline-size: var(--icon-size, 16px);
+		min-inline-size: var(--icon-size, 16px);
+		margin-inline-end: var(--size-2-1);
 	}
 
 	& .callout-icon svg {
 		display: block;
-		width: var(--icon-size, 16px);
-		height: var(--icon-size, 16px);
+		inline-size: var(--icon-size, 16px);
+		block-size: var(--icon-size, 16px);
 	}
 
 	& span[data-callout-title] {
 		background-color: rgba(var(--callout-color), 0.1);
 		border-radius: 4px;
-		padding-left: 4px;
-		padding-right: 4px;
-		padding-top: 1px;
-		padding-bottom: 1px;
-		border-left-width: 3px;
-		border-top-left-radius: 2px;
-		border-bottom-left-radius: 2px;
+		padding-block: 1px;
+		padding-inline: 4px;
+		border-inline-start-width: 3px;
+		border-start-start-radius: 2px;
+		border-end-start-radius: 2px;
 
 		& span[data-callout-title-text] {
 			color: rgba(var(--callout-color), 0.9);
@@ -446,7 +419,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border-radius: var(--influx-radius-m);
 	font-size: var(--influx-font-ui-small);
 	line-height: 1.4;
-	text-align: left;
+	text-align: start;
 	border: 1px solid color-mix(in srgb, var(--influx-border-color) 78%, transparent);
 	background: color-mix(in srgb, var(--influx-surface-muted) 42%, transparent);
 	color: var(--influx-text-muted);
@@ -510,14 +483,10 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border-top: 1px solid color-mix(in srgb, var(--influx-border-color) 68%, transparent);
 }
 
+
 .influx-component--editor .influx-toolbar,
 .influx-component--preview .influx-toolbar {
-	display: flex;
-	align-items: flex-start;
 	justify-content: flex-start;
-	flex-wrap: wrap;
-	padding: var(--size-4-1) 0 var(--size-2-2);
-	gap: var(--size-2-1) var(--size-4-2);
 }
 
 .influx-component--preview .influx-toolbar {
@@ -646,12 +615,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	color: var(--influx-text-muted);
 }
 
-/* Tree item base */
 .influx-component .influx-result-group {
 	position: relative;
-}
-
-.influx-component .influx-result-group {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
@@ -686,7 +651,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border: 0;
 	background: transparent;
 	font: inherit;
-	text-align: left;
+	text-align: start;
 }
 
 .influx-component .influx-summary-row--toolbar {
@@ -804,10 +769,6 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	column-gap: var(--size-4-3);
 }
 
-.influx-component .influx-result-group--split .influx-result-head {
-	padding-block: 2px 0;
-}
-
 /* Search result file matches */
 .influx-component .influx-result-body {
 	font-size: var(--influx-font-ui-small);
@@ -823,10 +784,6 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	min-width: 0;
 	max-width: 100%;
 	box-sizing: border-box;
-}
-
-.influx-component .influx-result-group--split .influx-result-body {
-	margin-top: 0;
 }
 
 /* Internal links */
@@ -900,29 +857,19 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .workspace-leaf-content[data-type="influx-sidebar-view"] .influx-toolbar {
-	position: relative;
-	top: auto;
-	z-index: auto;
-	background: transparent;
 	padding: var(--size-4-1) var(--size-4-2) var(--size-2-2);
-	display: flex;
 	justify-content: flex-start;
 	border-top: 0;
 	border-bottom: 0;
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-toolbar-actions {
-	position: unset;
-	top: unset;
 	justify-content: flex-start;
 	margin-inline-start: 0;
 	inline-size: 100%;
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-summary-row--pane {
-	position: relative;
-	top: auto;
-	z-index: auto;
 	padding: var(--size-4-1) 0 var(--size-2-2);
 	margin-bottom: 0;
 	background: transparent;
