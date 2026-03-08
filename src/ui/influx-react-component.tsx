@@ -2,11 +2,9 @@ import * as React from 'react';
 import InfluxFile from '../domain/backlinks/influx-file';
 import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
 import { ObsidianInfluxSettings } from '../types';
-import { CONSTANTS } from '../config/constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../app/events/influx-updates';
 import { CollapsedStateManager } from './state/collapsed-state-manager';
 import { InfluxErrorBoundary } from './influx-error-boundary';
-import MarkdownMount from './markdown-mount';
 import type ObsidianInflux from '../app/influx-plugin';
 import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
@@ -23,12 +21,9 @@ import {
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
 	getNoSearchResultsMessage,
-	getSearchMatchDetails,
-	getSourcePathContext,
 	handleSearchChangeInput,
 	handleSearchKeyPress,
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
-	splitTextBySearchQuery,
 	type InfluxRenderMode,
 	reduceSearchUiState,
 	resetSearchUi,
@@ -38,20 +33,17 @@ import {
 	toggleSearchPanel,
 	VISIBLE_COMPONENTS_CHUNK_BY_MODE,
 } from './influx-react-component-helpers';
+import {
+	getCenteredTitleStyle,
+	InfluxResultGroup,
+	InfluxSummaryRow,
+	InfluxToolbar,
+} from './influx-react-component-parts';
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
 
 const SEARCH_DEBOUNCE_MS = 250;
 const SEARCH_FOCUS_DELAY_MS = 100;
-
-function renderHighlightedText(text: string, searchQuery: string): React.ReactNode {
-	return splitTextBySearchQuery(text, searchQuery).map((segment, index) => {
-		if (!segment.match) {
-			return <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>;
-		}
-		return <mark key={`${segment.text}-${index}`}>{segment.text}</mark>;
-	});
-}
 
 export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
 
@@ -264,14 +256,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const centered = settings.variant !== 'ROWS';
 	const fontSize = settings.fontSize || 13;
 	const lineHeight = fontSize * 1.5;
-	const centeredTitleStyle = centered
-		&& renderMode !== 'editor'
-		? {
-			width: `min(${CONSTANTS.CENTERED_WIDTH_PX}px, 42vw)`,
-			minWidth: '112px',
-			maxWidth: '45%',
-		}
-		: {};
+	const centeredTitleStyle = getCenteredTitleStyle({ centered, renderMode });
 	const mentionsCountLabel = getLinkedMentionsCountLabel({
 		totalEntryCount: influxFile.totalEntryCount ?? 0,
 		listLimit: settings.listLimit || 0,
@@ -299,18 +284,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const listLimitStateLabel = settings.listLimit ? `${settings.listLimit}` : 'all';
 	const sortStateLabel = settings.sortingPrinciple === 'OLDEST_FIRST' ? 'old' : 'new';
 	const frontmatterStateLabel = settings.includeFrontmatterLinks ? 'on' : 'off';
-	const renderSummaryRow = (variant: 'toolbar' | 'pane') => (
-		<div className={`influx-summary-row${variant === 'toolbar' ? ' influx-summary-row--toolbar' : ' influx-summary-row--pane'}`}>
-			<div className="influx-summary-meta">
-				<div className="influx-summary-title">
-					Linked mentions (influx)
-				</div>
-				<span className="influx-summary-count" title={mentionsCountTooltip}>
-					{mentionsCountLabel}
-				</span>
-			</div>
-		</div>
-	);
 
 	if (!influxFile.show) {
 		return null;
@@ -329,120 +302,42 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						} as React.CSSProperties}
 					>
 
-					<div className={`influx-toolbar${isEditorMode ? ' influx-toolbar--editor' : ''}`}>
-
-					{showToolbarSummary && renderSummaryRow('toolbar')}
-
-						<div className="influx-toolbar-actions" role="toolbar" aria-label="Influx actions">
-							<button
-								type="button"
-								className="influx-summary-action influx-clickable"
-								onClick={toggleAll}
-								aria-label={summaryRowLabel}
-							>
-								{allVisibleComponentsCollapsed ? 'Expand all' : 'Collapse all'}
-							</button>
-							<button
-								type="button"
-								className={`influx-icon-button influx-toolbar-button${isSearchExpanded ? ' is-active' : ''}`}
-								aria-label={isSearchExpanded ? 'Close search' : 'Search backlinks'}
-								aria-pressed={isSearchExpanded}
-								onClick={toggleSearch}
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--search">
-									<circle cx="11" cy="11" r="8"></circle>
-									<path d="m21 21-4.3-4.3"></path>
-								</svg>
-							</button>
-							{isSearchExpanded && (
-								<div className={`influx-search-wrap ${isSearchFocused ? 'influx-is-focused' : ''}`}>
-									<input
-										ref={searchInputRef}
-										type="text"
-										className="influx-search-input"
-										placeholder="Search backlinks..."
-										value={inputValue}
-										onChange={(e) => handleSearchChange(e.target.value)}
-										onFocus={() => dispatchSearchUi({ type: 'FOCUS_CHANGED', focused: true })}
-										onBlur={() => dispatchSearchUi({ type: 'FOCUS_CHANGED', focused: false })}
-										onKeyDown={handleSearchKeyDown}
-										aria-label="Search backlinks"
-									/>
-									{searchQuery && (
-										<button
-											type="button"
-											className="influx-search-clear"
-											onClick={() => resetSearch(false)}
-											aria-label="Clear search"
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--clear">
-												<line x1="18" y1="6" x2="6" y2="18"></line>
-												<line x1="6" y1="6" x2="18" y2="18"></line>
-											</svg>
-										</button>
-									)}
-								</div>
-							)}
-							<button
-								type="button"
-								className="influx-icon-button influx-toolbar-button"
-								aria-label="Cycle list limit"
-								onClick={() => plugin.cycleListLimit()}
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--list">
-									<line x1="8" y1="6" x2="21" y2="6"></line>
-									<line x1="8" y1="12" x2="21" y2="12"></line>
-									<line x1="8" y1="18" x2="21" y2="18"></line>
-									<line x1="3" y1="6" x2="3.01" y2="6"></line>
-									<line x1="3" y1="12" x2="3.01" y2="12"></line>
-									<line x1="3" y1="18" x2="3.01" y2="18"></line>
-								</svg>
-								<span className="influx-toolbar-button-badge">{listLimitStateLabel}</span>
-							</button>
-							<button
-								type="button"
-								className="influx-icon-button influx-toolbar-button"
-								aria-label="Change sort order"
-								onClick={() => plugin.toggleSortOrder()}
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--sort">
-									<path d="M11 5h4"></path>
-									<path d="M11 9h7"></path>
-									<path d="M11 13h10"></path>
-									<path d="m3 17 3 3 3-3"></path>
-									<path d="M6 18V4"></path>
-								</svg>
-								<span className="influx-toolbar-button-badge">{sortStateLabel}</span>
-							</button>
-							<button
-								type="button"
-								className={`influx-icon-button influx-toolbar-button${settings.includeFrontmatterLinks ? ' is-active' : ''}`}
-								aria-label={settings.includeFrontmatterLinks ? 'Exclude frontmatter links' : 'Include frontmatter links'}
-								aria-pressed={settings.includeFrontmatterLinks}
-								onClick={() => plugin.toggleFrontmatterLinks()}
-							>
-								{settings.includeFrontmatterLinks ? (
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--eye-on">
-										<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-										<circle cx="12" cy="12" r="3"></circle>
-									</svg>
-								) : (
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--eye-off">
-										<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
-										<path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
-										<path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
-										<line x1="2" x2="22" y1="2" y2="22"></line>
-									</svg>
-								)}
-								<span className="influx-toolbar-button-badge">{frontmatterStateLabel}</span>
-							</button>
-						</div>
-
-					</div>
+					<InfluxToolbar
+						showToolbarSummary={showToolbarSummary}
+						isEditorMode={isEditorMode}
+						mentionsCountLabel={mentionsCountLabel}
+						mentionsCountTooltip={mentionsCountTooltip}
+						summaryRowLabel={summaryRowLabel}
+						allVisibleComponentsCollapsed={allVisibleComponentsCollapsed}
+						onToggleAll={toggleAll}
+						isSearchExpanded={isSearchExpanded}
+						isSearchFocused={isSearchFocused}
+						inputValue={inputValue}
+						searchQuery={searchQuery}
+						searchInputRef={searchInputRef}
+						onToggleSearch={toggleSearch}
+						onSearchChange={handleSearchChange}
+						onSearchFocusChange={(focused) => dispatchSearchUi({ type: 'FOCUS_CHANGED', focused })}
+						onSearchKeyDown={handleSearchKeyDown}
+						onResetSearch={resetSearch}
+						onCycleListLimit={() => plugin.cycleListLimit()}
+						onToggleSortOrder={() => plugin.toggleSortOrder()}
+						onToggleFrontmatterLinks={() => plugin.toggleFrontmatterLinks()}
+						listLimitStateLabel={listLimitStateLabel}
+						sortStateLabel={sortStateLabel}
+						frontmatterStateLabel={frontmatterStateLabel}
+						includeFrontmatterLinks={Boolean(settings.includeFrontmatterLinks)}
+					/>
 
 						<div className="influx-pane">
 
-						{!showToolbarSummary && renderSummaryRow('pane')}
+						{!showToolbarSummary && (
+							<InfluxSummaryRow
+								variant="pane"
+								mentionsCountLabel={mentionsCountLabel}
+								mentionsCountTooltip={mentionsCountTooltip}
+							/>
+						)}
 
 						<div className="influx-results-scroll" ref={searchResultsContainerRef}>
 							{searchQuery && (
@@ -454,88 +349,22 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 							<div className="influx-results-list" >
 
-								{visibleComponents.map((extended: ExtendedInlinkingFile) => {
-								const filePath = extended.inlinkingFile.file.path;
-								const fileBasename = extended.inlinkingFile.file.basename;
-								const matchDetails = getSearchMatchDetails(extended, searchQuery);
-								const duplicateName = (basenameCounts.get(fileBasename) ?? 0) > 1;
-								const sourcePathContext = duplicateName ? getSourcePathContext(filePath, fileBasename) : '';
-									const safePathToken = filePath.replace(/[^a-zA-Z0-9_-]/g, '-');
-									const matchesRegionId = `${influxFile.uuid}-matches-${safePathToken}`;
-
-									const inlinkedCollapsed = collapsedManager.isCollapsed(filePath);
-
-									const entryHeader = settings.entryHeaderVisible && extended.titleText && !extended.inlinkingFile.isLinkInTitle ? (
-										<h2>
-											<span>{renderHighlightedText(extended.titleText, searchQuery)}</span>
-										</h2>
-									) : null;
-
-
-									return (
-
-										<div key={filePath}
-											className={`influx-result-group ${inlinkedCollapsed ? 'influx-is-collapsed' : ''}${centered ? ' influx-result-group--split' : ''}`}
-										>
-											<div className="influx-result-head"
-												style={centeredTitleStyle}>
-
-
-											<button
-												type="button"
-												className="influx-collapse-toggle"
-												onClick={() => doToggle(filePath)}
-												aria-label={inlinkedCollapsed ? `Expand ${fileBasename}` : `Collapse ${fileBasename}`}
-												aria-expanded={!inlinkedCollapsed}
-												aria-controls={matchesRegionId}
-											>
-													<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="influx-svg-icon influx-svg-icon--collapse-chevron">
-														<path d="M3 8L12 17L21 8"></path>
-													</svg>
-											</button>
-
-											<div className="influx-result-source">
-												<div className="influx-result-source-primary">
-													<a
-														data-href={filePath}
-														href={filePath}
-														className="internal-link influx-internal-link"
-													>
-														{renderHighlightedText(fileBasename, searchQuery)}
-													</a>
-													{sourcePathContext && (
-														<span className="influx-result-source-context">{sourcePathContext}</span>
-													)}
-												</div>
-													{matchDetails && matchDetails.reasons.length > 0 && (
-														<div className="influx-result-search-reasons">
-															Matched in {matchDetails.reasons.join(', ')}
-														</div>
-													)}
-											</div>
-										</div>
-											<div className="influx-result-body"
-												id={matchesRegionId}
-												hidden={inlinkedCollapsed}
-												style={centered ? { flexGrow: 1 } : {}}>
-
-														<div className="influx-entries" >
-															{entryHeader}
-																<MarkdownMount
-																	markdown={extended.summaryMarkdown}
-																	sourcePath={extended.sourcePath}
-																	className={`influx-entry ${preview ? 'is-preview' : ''} influx-entry--${renderMode}`}
-																	mode={renderMode}
-																/>
-														</div>
-													</div>
-
-
-										</div>
-
-
-									);
-								})}
+								{visibleComponents.map((extended: ExtendedInlinkingFile) => (
+									<InfluxResultGroup
+										key={extended.inlinkingFile.file.path}
+										extended={extended}
+										basenameCounts={basenameCounts}
+										searchQuery={searchQuery}
+										collapsed={collapsedManager.isCollapsed(extended.inlinkingFile.file.path)}
+										onToggleCollapse={doToggle}
+										centered={centered}
+										centeredTitleStyle={centeredTitleStyle}
+										settings={settings}
+										preview={preview}
+										renderMode={renderMode}
+										influxFileUuid={influxFile.uuid}
+									/>
+								))}
 
 							{filteredComponents.length === 0 && searchQuery && (
 								<div className="influx-no-search-results">
