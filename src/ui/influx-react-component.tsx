@@ -2,7 +2,7 @@ import * as React from 'react';
 import InfluxFile from '../domain/backlinks/influx-file';
 import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
 import { ObsidianInfluxSettings } from '../types';
-import { influxUpdates$, InfluxUpdateEvent } from '../app/events/influx-updates';
+import { influxUpdates$, InfluxUpdateEvent } from '../platform/events/influx-updates';
 import { CollapsedStateManager } from './state/collapsed-state-manager';
 import { InfluxErrorBoundary } from './influx-error-boundary';
 import type ObsidianInflux from '../app/influx-plugin';

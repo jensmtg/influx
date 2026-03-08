@@ -2,7 +2,7 @@ import { InfluxSidebarView } from '@/features/sidebar/influx-sidebar-view';
 import { mockTFile } from '../../mocks';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import { createRoot } from 'react-dom/client';
-import { influxUpdates$ } from '@/app/events/influx-updates';
+import { influxUpdates$ } from '@/platform/events/influx-updates';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({

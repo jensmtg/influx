@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import InfluxReactComponent from '@/ui/influx-react-component';
-import { influxUpdates$ } from '@/app/events/influx-updates';
+import { influxUpdates$ } from '@/platform/events/influx-updates';
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
 
 jest.mock('@/ui/markdown-mount', () => ({
@@ -19,7 +19,7 @@ jest.mock('@/platform/diagnostics/metrics', () => ({
 	recordMetric: jest.fn(),
 }));
 
-jest.mock('@/app/events/influx-updates', () => ({
+jest.mock('@/platform/events/influx-updates', () => ({
 	influxUpdates$: {
 		subscribe: jest.fn(),
 	},

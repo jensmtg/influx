@@ -7,7 +7,7 @@ import { CONSTANTS } from '../config/constants';
 import { logger } from '../platform/diagnostics/logger';
 import { rootManager } from '../platform/react/root-manager';
 import { updateCoordinator } from './events/update-coordinator';
-import { influxUpdates$ } from './events/influx-updates';
+import { influxUpdates$ } from '../platform/events/influx-updates';
 import { EventManager } from './events/event-manager';
 import { PreviewManager } from '../features/preview/preview-manager';
 import { cleanupWindowGlobals } from '../platform/obsidian/plugin-window-guards';

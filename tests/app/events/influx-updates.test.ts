@@ -1,4 +1,4 @@
-import { Observable } from '@/app/events/influx-updates';
+import { Observable } from '@/platform/events/influx-updates';
 import { logger } from '@/platform/diagnostics/logger';
 
 jest.mock('@/platform/diagnostics/logger', () => ({

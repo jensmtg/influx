@@ -1,6 +1,6 @@
 import type { TFile } from 'obsidian';
 import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
-import type { InfluxUpdateEvent } from '../app/events/influx-updates';
+import type { InfluxUpdateEvent } from '../platform/events/influx-updates';
 
 export type InfluxRenderMode = 'editor' | 'preview' | 'sidebar';
 
