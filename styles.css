@@ -64,6 +64,14 @@ body.is-readable-line-width .influx-preview-wrapper {
 	--influx-control-fg-active: var(--influx-accent-strong);
 	--influx-control-bg-hover: transparent;
 	--influx-control-opacity: 0.7;
+	--influx-control-size: 30px;
+	--influx-control-gap: 6px;
+	--influx-focus-ring-stroke: color-mix(in srgb, var(--influx-accent) 62%, var(--influx-border-color));
+	--influx-focus-ring-shadow: 0 0 0 1px var(--influx-focus-ring-stroke);
+	--influx-result-gap: var(--size-2-2);
+	--influx-result-card-padding-block: 8px;
+	--influx-result-card-padding-inline: 10px;
+	--influx-result-indent: 0.875rem;
 	--influx-radius-s: var(--radius-s, 6px);
 	--influx-radius-m: var(--radius-m, 10px);
 	--influx-font-ui-small: var(--font-ui-small, 0.9rem);
@@ -114,7 +122,8 @@ body.is-readable-line-width .influx-preview-wrapper {
 	flex-grow: 1;
 	display: flex;
 	flex-direction: column;
-	padding-left: 1rem;
+	gap: 4px;
+	padding-left: var(--influx-result-indent);
 	overflow-wrap: anywhere;
 
 	& h1 {
@@ -294,7 +303,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	display: flex;
 	flex-wrap: wrap;
 	justify-content: flex-end;
-	gap: var(--size-2-1) var(--size-2-2);
+	gap: var(--influx-control-gap) var(--size-2-2);
 	align-items: center;
 	inline-size: auto;
 	min-width: 0;
@@ -310,20 +319,25 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	position: relative;
 	display: flex;
 	align-items: center;
-	background-color: var(--influx-hover-bg);
-	border-radius: 4px;
+	gap: 4px;
+	background-color: color-mix(in srgb, var(--influx-hover-bg) 72%, transparent);
+	border-radius: var(--influx-radius-s);
 	padding-block: 0;
-	padding-inline: 8px;
-	border: 1px solid var(--influx-border-color);
+	padding-inline: 10px 4px;
+	border: 1px solid color-mix(in srgb, var(--influx-border-color) 85%, transparent);
 	transition:
 		border-color 0.2s,
-		box-shadow 0.2s;
-	min-width: 180px;
+		box-shadow 0.2s,
+		background-color 0.2s;
+	min-width: 188px;
+	min-block-size: var(--influx-control-size);
+	box-sizing: border-box;
 }
 
 .influx-component .influx-search-wrap.influx-is-focused {
-	border-color: var(--influx-accent);
-	box-shadow: 0 0 0 2px var(--influx-accent-ring);
+	border-color: var(--influx-focus-ring-stroke);
+	box-shadow: var(--influx-focus-ring-shadow);
+	background-color: color-mix(in srgb, var(--influx-surface-muted) 44%, transparent);
 }
 
 .influx-component .influx-search-input {
@@ -332,10 +346,12 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border: none;
 	color: var(--influx-text-normal);
 	font-size: var(--influx-font-ui-small);
-	padding-block: 6px;
+	line-height: 1.2;
+	padding-block: 0;
 	padding-inline: 0;
 	outline: none;
-	min-height: 32px;
+	min-height: var(--influx-control-size);
+	margin: 0;
 }
 
 .influx-component .influx-search-input::placeholder {
@@ -345,13 +361,16 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-search-clear {
 	background: none;
 	border: none;
-	padding-block: 4px;
-	padding-inline: 4px;
+	inline-size: calc(var(--influx-control-size) - 6px);
+	block-size: calc(var(--influx-control-size) - 6px);
+	min-inline-size: calc(var(--influx-control-size) - 6px);
+	padding: 0;
 	cursor: pointer;
 	color: var(--influx-control-fg);
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	flex: 0 0 auto;
 	border-radius: var(--influx-radius-s);
 	opacity: var(--influx-control-opacity);
 	transition:
@@ -366,9 +385,17 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	opacity: 1;
 }
 
-.influx-component :is(.influx-search-clear, .influx-icon-button, .influx-clickable, .influx-collapse-toggle):focus-visible {
-	outline: 2px solid var(--influx-accent);
-	outline-offset: 1px;
+.influx-component :is(.influx-search-clear, .influx-icon-button, .influx-collapse-toggle):focus-visible {
+	outline: none;
+	box-shadow: var(--influx-focus-ring-shadow);
+	color: var(--influx-control-fg-hover);
+	opacity: 1;
+	background-color: var(--influx-control-bg-hover);
+}
+
+.influx-component .influx-clickable:focus-visible {
+	outline: 1px solid var(--influx-focus-ring-stroke);
+	outline-offset: 0;
 }
 
 .influx-component .influx-no-search-results {
@@ -508,9 +535,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	cursor: pointer;
 	color: var(--influx-control-fg);
 	border-radius: var(--influx-radius-s);
-	inline-size: 28px;
-	block-size: 28px;
-	min-inline-size: 28px;
+	inline-size: var(--influx-control-size);
+	block-size: var(--influx-control-size);
+	min-inline-size: var(--influx-control-size);
 	padding: 0;
 	position: relative;
 	line-height: 0;
@@ -620,7 +647,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	flex-direction: column;
 	width: 100%;
 	min-width: 0;
-	gap: var(--size-2-2);
+	gap: var(--influx-result-gap);
 }
 
 /* Shared clickable rows */
@@ -629,7 +656,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-load-more-btn {
 	display: flex;
 	align-items: flex-start;
-	padding: var(--size-2-2) 0;
+	padding: var(--size-2-1) 0;
 	cursor: default;
 	position: relative;
 	line-height: var(--line-height-normal);
@@ -654,7 +681,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-summary-row--toolbar {
-	min-height: 28px;
+	min-height: var(--influx-control-size);
 	padding-block: var(--size-2-1);
 	background: transparent;
 	flex: 1 1 220px;
@@ -692,15 +719,19 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 2px;
+	justify-content: center;
+	gap: 3px;
 	white-space: normal;
 	min-width: 0;
+	min-block-size: var(--influx-control-size);
 }
 
 .influx-component .influx-result-source-primary {
 	display: flex;
 	align-items: baseline;
-	gap: var(--size-2-1);
+	flex-wrap: wrap;
+	row-gap: 2px;
+	column-gap: var(--size-2-1);
 	min-width: 0;
 	max-width: 100%;
 }
@@ -720,9 +751,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 /* Tree item collapse toggle */
 .influx-component .influx-collapse-toggle {
-	inline-size: 28px;
-	min-inline-size: 28px;
-	block-size: 28px;
+	inline-size: var(--influx-control-size);
+	min-inline-size: var(--influx-control-size);
+	block-size: var(--influx-control-size);
 }
 
 .influx-component .influx-collapse-toggle .influx-svg-icon--collapse-chevron {
@@ -743,14 +774,17 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-results-list {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-3);
+	gap: calc(var(--influx-result-gap) * 2);
 }
 
 /* Search result file title */
 .influx-component .influx-result-head {
 	flex-shrink: 0;
 	min-width: 0;
-	padding-inline-end: var(--size-4-1);
+	align-items: center;
+	gap: 2px;
+	padding-block: 2px 0;
+	padding-inline-end: var(--size-2-3);
 }
 
 .influx-component .influx-result-group--split {
@@ -761,7 +795,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-result-group--split .influx-result-head {
-	padding-block: var(--size-2-2);
+	padding-block: 2px 0;
 }
 
 /* Search result file matches */
@@ -771,10 +805,10 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	background-color: color-mix(in srgb, var(--influx-surface-subtle) 42%, transparent);
 	border-radius: calc(var(--influx-radius-s) - 1px);
 	overflow: hidden;
-	margin: 0 0 var(--size-2-1);
+	margin: 0;
 	color: var(--influx-text-muted);
 	box-shadow: 0 0 0 1px color-mix(in srgb, var(--influx-border-color) 72%, transparent);
-	padding: 5px 7px;
+	padding: var(--influx-result-card-padding-block) var(--influx-result-card-padding-inline);
 	min-width: 0;
 	max-width: 100%;
 	box-sizing: border-box;
@@ -804,6 +838,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	display: inline-block;
 	color: var(--influx-text-faint);
 	font-size: var(--influx-font-ui-smaller);
+	line-height: 1.35;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -812,8 +847,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-component .influx-result-search-reasons {
 	color: var(--influx-text-faint);
-	font-size: 11px;
-	line-height: 1.4;
+	font-size: var(--influx-font-ui-smaller);
+	line-height: 1.35;
 	white-space: normal;
 }
 
