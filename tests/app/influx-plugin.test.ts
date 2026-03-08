@@ -201,4 +201,47 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(cleanupWindowGlobals).toHaveBeenCalledTimes(1);
 		expect(plugin.updating.size).toBe(0);
 	});
+
+	test('saveSettingsByParams only commits in-memory settings and side effects after persistence succeeds', async () => {
+		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
+			version: 'test-version',
+		} as any);
+		const invalidateSettingsCache = jest.fn();
+		plugin.api = { invalidateSettingsCache } as any;
+		plugin.data = { settings: { sortingPrinciple: 'NEWEST_FIRST', listLimit: 0 } } as any;
+		(plugin.saveData as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+		const onSuccess = jest.fn();
+
+		const failed = await plugin.saveSettingsByParams(
+			{ ...(plugin.data.settings as any), sortingPrinciple: 'OLDEST_FIRST' },
+			{ triggerUpdates: true, onSuccess }
+		);
+
+		expect(failed).toBe(false);
+		expect(plugin.data.settings.sortingPrinciple).toBe('NEWEST_FIRST');
+		expect(invalidateSettingsCache).not.toHaveBeenCalled();
+		expect(onSuccess).not.toHaveBeenCalled();
+		expect(updateCoordinator.schedule).not.toHaveBeenCalled();
+	});
+
+	test('triggerUpdates refreshes open editors on save-settings and previews on non-modify ops', async () => {
+		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
+			refreshAllInfluxEditorViews: jest.Mock;
+		};
+		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
+			version: 'test-version',
+		} as any);
+		const updateAllPreviews = jest.fn().mockResolvedValue(undefined);
+		(plugin as any).previewManager = { updateAllPreviews };
+		(updateCoordinator.schedule as jest.Mock).mockResolvedValue(undefined);
+
+		plugin.triggerUpdates('save-settings');
+
+		expect(updateCoordinator.schedule).toHaveBeenCalledWith('global', 'save-settings', undefined, expect.any(Function));
+		const scheduledTask = (updateCoordinator.schedule as jest.Mock).mock.calls[0][3] as (signal: { aborted: boolean }) => Promise<void>;
+		await scheduledTask({ aborted: false });
+
+		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(1);
+		expect(updateAllPreviews).toHaveBeenCalledTimes(1);
+	});
 });

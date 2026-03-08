@@ -1,7 +1,6 @@
 import type ObsidianInflux from '../../app/influx-plugin';
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { ObsidianInfluxSettings } from '../../types';
-import { logger } from '../../platform/diagnostics/logger';
 import { validateYamlPropertyNames } from '../../domain/settings/filtering';
 import { isDebugMode, setDebugMode } from '../../platform/diagnostics/debug-mode';
 import {
@@ -25,28 +24,37 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         this.plugin = plugin;
     }
 
-    async saveSettings(): Promise<void> {
-        await this.plugin.saveData(this.plugin.data);
-        // Invalidate settings cache to ensure fresh settings are used
-        this.plugin.api.invalidateSettingsCache();
-        this.plugin.triggerUpdates('save-settings');
+    async saveSettings(): Promise<boolean> {
+        return await this.plugin.saveSettingsByParams(this.plugin.data.settings, { triggerUpdates: true });
     }
 
-    private async saveSettingsSafely(): Promise<void> {
-        try {
-            await this.saveSettings();
-        } catch (err) {
-            logger.error('Failed to save settings', { error: err });
-            new Notice('Failed to save settings. Check console for details.');
-        }
-    }
+	private async saveSettingsWithNotice(
+		settings: ObsidianInfluxSettings,
+		options?: { onSuccess?: () => void }
+	): Promise<boolean> {
+		const didSave = await this.plugin.saveSettingsByParams(settings, {
+			triggerUpdates: true,
+			onSuccess: options?.onSuccess,
+		});
+		if (!didSave) {
+			new Notice('Failed to save settings. Check console for details.');
+		}
+		return didSave;
+	}
 
     private async setSetting<K extends keyof ObsidianInfluxSettings>(
         settingName: K,
         value: ObsidianInfluxSettings[K]
     ): Promise<void> {
-        this.plugin.data.settings[settingName] = value;
-        await this.saveSettingsSafely();
+		await this.saveSettingsWithNotice(
+			{ ...this.plugin.data.settings, [settingName]: value },
+		)
+	}
+
+	private async saveFrontmatterProperties(properties: string[]): Promise<void> {
+		await this.saveSettingsWithNotice(
+			{ ...this.plugin.data.settings, frontmatterProperties: properties },
+		);
     }
 
     private createRegexHelpFragment(prefix: string): DocumentFragment {
@@ -123,13 +131,11 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
         if (validationResult.invalid.length > 0) {
             const warningMsg = `Invalid property names: ${validationResult.invalid.join(', ')}. Valid names must start with a letter or underscore and contain only letters, numbers, underscores, and hyphens.`;
             this.showFrontmatterWarning(inputEl, warningMsg);
-            this.plugin.data.settings.frontmatterProperties = validationResult.valid;
+			await this.saveFrontmatterProperties(validationResult.valid);
         } else {
             this.clearFrontmatterWarning(inputEl);
-            this.plugin.data.settings.frontmatterProperties = properties;
+			await this.saveFrontmatterProperties(properties);
         }
-
-        await this.saveSettingsSafely();
     }
 
     /**
@@ -149,16 +155,20 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 		return fragment;
 	}
 
-	private applyDisplayModeSetting(value: string): Promise<void> {
+	private async applyDisplayModeSetting(value: string): Promise<void> {
 		const showInSidebar = value === 'sidebar';
-		this.plugin.data.settings.showInfluxInSidebar = showInSidebar;
-		return this.saveSettingsSafely().then(() => {
-			if (showInSidebar) {
-				this.plugin.openSidebar();
-			} else {
-				this.plugin.closeSidebar();
+		await this.saveSettingsWithNotice(
+			{ ...this.plugin.data.settings, showInfluxInSidebar: showInSidebar },
+			{
+				onSuccess: () => {
+					if (showInSidebar) {
+						this.plugin.openSidebar();
+					} else {
+						this.plugin.closeSidebar();
+					}
+				},
 			}
-		});
+		);
 	}
 
 	private createSettingControlContainer(containerEl: HTMLElement, section: SettingsSectionSpec): HTMLElement {

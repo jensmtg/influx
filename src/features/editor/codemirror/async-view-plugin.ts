@@ -6,15 +6,26 @@ import { CONSTANTS } from '../../../config/constants';
 
 
 export class AsyncViewPluginController {
+	static activeControllers = new Set<AsyncViewPluginController>();
+
     statefulDecorationsSet: StatefulDecorationSet;
     private show: boolean = true;
     private currentFilePath: string | null = null;
+    private view: EditorView;
 
     constructor(view: EditorView) {
+        this.view = view;
         this.statefulDecorationsSet = new StatefulDecorationSet(view);
         this.currentFilePath = this.getCurrentFilePath(view);
+        AsyncViewPluginController.activeControllers.add(this);
         this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
     }
+
+	refreshNow(): void {
+		this.statefulDecorationsSet.cancelPendingUpdates();
+		this.debouncedRefresh?.cancel?.();
+		this.statefulDecorationsSet.updateAsyncDecorations(this.view.state, this.show);
+	}
 
     hideInflux(view: EditorView) {
         this.show = false;
@@ -63,6 +74,7 @@ export class AsyncViewPluginController {
 			this.debouncedRefresh?.cancel?.();
 			// Cancel any pending async updates
 			this.statefulDecorationsSet.cancelPendingUpdates();
+			AsyncViewPluginController.activeControllers.delete(this);
 		}
 
 }
@@ -70,5 +82,11 @@ export class AsyncViewPluginController {
 const asyncViewPlugin = ViewPlugin.fromClass(AsyncViewPluginController);
 
 export const asyncDecoBuilderExt = [statefulDecorations.field, asyncViewPlugin]
+
+export function refreshAllInfluxEditorViews(): void {
+	for (const controller of AsyncViewPluginController.activeControllers) {
+		controller.refreshNow();
+	}
+}
 
 
