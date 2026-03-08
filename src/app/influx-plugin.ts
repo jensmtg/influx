@@ -1,6 +1,4 @@
 import { Plugin, TAbstractFile, TFile } from 'obsidian';
-import { ObsidianInfluxSettingsTab } from '../features/settings/settings-tab';
-import { asyncDecoBuilderExt } from '../features/editor/codemirror/async-view-plugin';
 import { ApiAdapter } from '../domain/backlinks/api-adapter';
 import InfluxFile from '../domain/backlinks/influx-file';
 import { InlinkingFile } from '../domain/backlinks/inlinking-file';
@@ -12,11 +10,14 @@ import { updateCoordinator } from './events/update-coordinator';
 import { influxUpdates$ } from './events/influx-updates';
 import { EventManager } from './events/event-manager';
 import { PreviewManager } from '../features/preview/preview-manager';
-import { InfluxSidebarView } from '../features/sidebar/influx-sidebar-view';
 import { cleanupWindowGlobals } from '../platform/obsidian/plugin-window-guards';
 import { cacheManager } from '../platform/cache/cache-manager';
-import { clearMetrics, getMetrics, summarizeMetrics } from '../platform/diagnostics/metrics';
-import { isDebugMode } from '../platform/diagnostics/debug-mode';
+import {
+	attachWindowDebugHelpers,
+	attachWindowPluginReference,
+	migrateOldElements,
+	registerPluginUi,
+} from './influx-plugin-bootstrap';
 
 
 export default class ObsidianInflux extends Plugin {
@@ -33,116 +34,20 @@ export default class ObsidianInflux extends Plugin {
 		logger.info(`Loading plugin: Influx v${this.manifest.version}`);
 		updateCoordinator.initialize();
 
-		this.migrateOldElements();
+		migrateOldElements();
 
 		this.api = new ApiAdapter(this.app, this);
 		this.data = await this.loadDataInitially();
 
-		// CRITICAL: Set window plugin reference BEFORE registering editor extension
-		// This prevents race condition where CodeMirror extension initializes
-		// and tries to access window.influxPlugin before it's set
-		const influxWindow = window as Window & {
-			influxPlugin?: ObsidianInflux;
-			influxDebug?: {
-				getReactRoots: () => {
-					size: number;
-					entries: Array<{
-						id: string;
-						inDom: boolean;
-						visible: boolean;
-						type: string;
-						filePath?: string;
-					}>;
-				};
-				getCache: () => unknown;
-				getUpdates: () => unknown;
-				getMetrics: () => unknown;
-				summarizeMetrics: () => unknown;
-				snapshot: () => unknown;
-				clearMetrics: () => void;
-			};
-			testInfluxReadingView?: () => void;
-		};
-
-		if (influxWindow.influxPlugin && influxWindow.influxPlugin !== this) {
-			logger.warn('Replacing stale window.influxPlugin reference');
-		}
-		influxWindow.influxPlugin = this;
-
-		this.registerEditorExtension(asyncDecoBuilderExt)
-
-		this.addSettingTab(new ObsidianInfluxSettingsTab(this.app, this));
+		// CRITICAL: Set window plugin reference BEFORE registering editor extension.
+		attachWindowPluginReference(this);
 
 		this.eventManager = new EventManager(this);
 		this.eventManager.register();
 
 		this.previewManager = new PreviewManager(this, this.api);
-
-		// Register Markdown Post Processor for preview/reading mode
-		this.registerMarkdownPostProcessor(this.previewManager.handlePreviewMode.bind(this.previewManager));
-
-		// Register sidebar view
-		this.registerView(CONSTANTS.VIEW_TYPE_SIDEBAR, (leaf) => new InfluxSidebarView(leaf, this));
-
-		// Add ribbon icon to open sidebar
-		this.addRibbonIcon('links-coming-in', 'Open Influx sidebar', () => {
-			this.openSidebar();
-		});
-
-		// Add command to open sidebar
-		this.addCommand({
-			id: 'open-influx-sidebar',
-			name: 'Open Influx sidebar',
-			callback: () => this.openSidebar()
-		});
-
-		// Open sidebar if mode is enabled
-		if (this.data.settings.showInfluxInSidebar) {
-			this.openSidebar();
-		}
-
-		// Expose debug helpers in console.
-		influxWindow.influxDebug = {
-			getReactRoots: () => ({
-				size: rootManager.size,
-				entries: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
-					id: container.id,
-					inDom,
-					visible: container.offsetParent !== null,
-					type: info.type,
-					filePath: info.filePath
-				}))
-			}),
-			getCache: () => cacheManager.getDebugInfo(),
-			getUpdates: () => updateCoordinator.getDebugInfo(),
-			getMetrics: () => getMetrics(),
-			summarizeMetrics: () => summarizeMetrics(),
-			snapshot: () => ({
-				ts: Date.now(),
-				metrics: summarizeMetrics(),
-				cache: cacheManager.getDebugInfo(),
-				roots: rootManager.getDebugInfo().map(({ container, inDom, info }) => ({
-					id: container.id,
-					inDom,
-					visible: container.offsetParent !== null,
-					type: info.type,
-					filePath: info.filePath
-				})),
-				updates: updateCoordinator.getDebugInfo(),
-			}),
-			clearMetrics: () => clearMetrics(),
-		};
-
-		if (isDebugMode()) {
-			logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
-		}
-
-		// Add manual trigger for testing reading view (only in debug mode)
-		if (isDebugMode()) {
-			influxWindow.testInfluxReadingView = () => {
-				this.previewManager.updateAllPreviews();
-			};
-		}
+		registerPluginUi(this, this.previewManager);
+		attachWindowDebugHelpers(this, this.previewManager);
 	}
 
 	async loadDataInitially() {
@@ -151,24 +56,6 @@ export default class ObsidianInflux extends Plugin {
 			settings: Object.assign({}, DEFAULT_SETTINGS, _data?.settings),
 		}
 		return data
-	}
-
-	/**
-	 * Migrate old Influx elements from previous plugin versions
-	 */
-	private migrateOldElements(): void {
-		const oldWidgets = document.querySelectorAll(CONSTANTS.INFLUX_ELEMENT_TAG_LEGACY);
-		const oldContainers = document.querySelectorAll(CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY);
-
-		if (oldWidgets.length > 0 || oldContainers.length > 0) {
-			logger.info('Migrating old Influx elements', {
-				widgets: oldWidgets.length,
-				containers: oldContainers.length
-			});
-
-			oldWidgets.forEach(el => el.remove());
-			oldContainers.forEach(el => el.remove());
-		}
 	}
 
 	async toggleSortOrder(): Promise<void> {
