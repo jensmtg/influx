@@ -24,13 +24,23 @@ describe('InfluxCacheManager', () => {
     });
 
 	describe('file cache', () => {
-		test('stores and retrieves files with normalized/case-insensitive keys', () => {
+		test('stores and retrieves files with normalized path separators', () => {
             const file = mockTFile('Folder/Test.md', 'Test');
             cache.setFile('Folder/Test.md', file as any);
 
-            expect(cache.getFile('folder\\test.md')).toBe(file);
+			expect(cache.getFile('Folder\\Test.md')).toBe(file);
             expect(cache.getFile('missing.md')).toBeNull();
         });
+
+		test('preserves distinct-case file cache keys', () => {
+			const upper = mockTFile('Folder/Test.md', 'Test');
+			const lower = mockTFile('Folder/test.md', 'test');
+			cache.setFile('Folder/Test.md', upper as any);
+			cache.setFile('Folder/test.md', lower as any);
+
+			expect(cache.getFile('Folder/Test.md')).toBe(upper);
+			expect(cache.getFile('Folder/test.md')).toBe(lower);
+		});
 
 		test('expires stale file entries after ttl', () => {
 			const file = mockTFile('stale.md', 'stale');
@@ -80,10 +90,20 @@ describe('InfluxCacheManager', () => {
             expect(cache.getBacklinks('unrelated.md')).not.toBeNull();
         });
 
-		test('source dependency invalidation uses normalized paths', () => {
+		test('source dependency invalidation uses normalized separators', () => {
 			cache.setBacklinks('Target.md', { data: new Map([['Folder\\Source.md', []]]) } as any);
-			cache.invalidateFile('folder/source.md');
-			expect(cache.getBacklinks('target.md')).toBeNull();
+			cache.invalidateFile('Folder/Source.md');
+			expect(cache.getBacklinks('Target.md')).toBeNull();
+		});
+
+		test('distinct-case dependency paths stay independent', () => {
+			cache.setBacklinks('Target.md', { data: new Map([['Folder/Source.md', []]]) } as any);
+			cache.setBacklinks('target.md', { data: new Map([['Folder/source.md', []]]) } as any);
+
+			cache.invalidateFile('Folder/Source.md');
+
+			expect(cache.getBacklinks('Target.md')).toBeNull();
+			expect(cache.getBacklinks('target.md')).not.toBeNull();
 		});
 
 		test('evicts oldest backlinks entries and cleans dependency index when cache exceeds size limit', () => {
@@ -133,11 +153,11 @@ describe('InfluxCacheManager', () => {
 	describe('preview hash and settings hash', () => {
         test('preview file hash supports set/get/invalidate and tracks hit/miss stats', () => {
             cache.setPreviewFileHash('A.md', 'hash-a');
-            expect(cache.getPreviewFileHash('a.md')).toBe('hash-a');
+			expect(cache.getPreviewFileHash('A.md')).toBe('hash-a');
             expect(cache.getPreviewFileHash('missing.md')).toBeUndefined();
 
-            cache.invalidatePreviewFileHash('a.md');
-            expect(cache.getPreviewFileHash('a.md')).toBeUndefined();
+			cache.invalidatePreviewFileHash('A.md');
+			expect(cache.getPreviewFileHash('A.md')).toBeUndefined();
 
             const stats = cache.getDebugInfo().stats;
             expect(stats.previewHashHits).toBeGreaterThanOrEqual(1);
@@ -174,13 +194,31 @@ describe('InfluxCacheManager', () => {
                 isLinkInTitle: true,
             });
 
-            expect(cache.getSummary('folder/source.md', 1000, 'folder/target.md', 'hash')).toEqual({
+			expect(cache.getSummary('Folder/Source.md', 1000, 'Folder/Target.md', 'hash')).toEqual({
                 summary: 'summary',
                 title: 'title',
                 titleLineNum: 2,
                 isLinkInTitle: true,
             });
         });
+
+		test('keeps distinct-case summaries separate', () => {
+			cache.setSummary('Folder/Source.md', 1000, 'Folder/Target.md', 'hash', {
+				summary: 'upper',
+				title: 'upper',
+				titleLineNum: 1,
+				isLinkInTitle: false,
+			});
+			cache.setSummary('Folder/source.md', 1000, 'Folder/target.md', 'hash', {
+				summary: 'lower',
+				title: 'lower',
+				titleLineNum: 2,
+				isLinkInTitle: false,
+			});
+
+			expect(cache.getSummary('Folder/Source.md', 1000, 'Folder/Target.md', 'hash')?.summary).toBe('upper');
+			expect(cache.getSummary('Folder/source.md', 1000, 'Folder/target.md', 'hash')?.summary).toBe('lower');
+		});
 
         test('expires stale summary entries and invalidates by source/target file changes', () => {
             cache.setSummary('source.md', 1000, 'target-a.md', 'hash', {

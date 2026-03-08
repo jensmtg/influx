@@ -128,16 +128,26 @@ describe('RootManager', () => {
 		expect(rootManager.has(paneANew)).toBe(false);
 	});
 
-	test('unmountByFilePath matches roots across slash and case differences', () => {
+	test('unmountByFilePath matches roots across slash differences without collapsing distinct-case paths', () => {
 		const editorContainer = asHTMLElement(createFakeElement('div'));
 		const previewContainer = asHTMLElement(createFakeElement('div'));
+		const distinctCaseContainer = asHTMLElement(createFakeElement('div'));
 		const editorRoot = createMockRoot();
 		const previewRoot = createMockRoot();
+		const distinctCaseRoot = createMockRoot();
 
 		rootManager.register(editorContainer, editorRoot, 'editor', 'Folder\\MixedCase.md');
-		rootManager.register(previewContainer, previewRoot, 'preview', 'folder/mixedcase.md');
+		rootManager.register(previewContainer, previewRoot, 'preview', 'Folder/MixedCase.md');
+		rootManager.register(distinctCaseContainer, distinctCaseRoot, 'preview', 'Folder/mixedcase.md');
 
-		rootManager.unmountByFilePath('FOLDER/mixedcase.md');
+		rootManager.unmountByFilePath('Folder/mixedcase.md');
+
+		expect(editorRoot.unmount).not.toHaveBeenCalled();
+		expect(previewRoot.unmount).not.toHaveBeenCalled();
+		expect(distinctCaseRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(rootManager.has(editorContainer)).toBe(true);
+		expect(rootManager.has(previewContainer)).toBe(true);
+		rootManager.unmountByFilePath('Folder\\MixedCase.md');
 
 		expect(editorRoot.unmount).toHaveBeenCalledTimes(1);
 		expect(previewRoot.unmount).toHaveBeenCalledTimes(1);
@@ -172,10 +182,10 @@ describe('RootManager', () => {
 		const newSidebarRoot = createMockRoot();
 
 		rootManager.register(oldEditor, oldEditorRoot, 'editor', 'Folder\\Old.md');
-		rootManager.register(oldPreview, oldPreviewRoot, 'preview', 'folder/old.md');
-		rootManager.register(oldSidebar, oldSidebarRoot, 'sidebar', 'FOLDER/OLD.md');
+		rootManager.register(oldPreview, oldPreviewRoot, 'preview', 'Folder/Old.md');
+		rootManager.register(oldSidebar, oldSidebarRoot, 'sidebar', 'Folder/Old.md');
 
-		rootManager.unmountByFilePath('folder/old.md');
+		rootManager.unmountByFilePath('Folder/Old.md');
 
 		expect(oldEditorRoot.unmount).toHaveBeenCalledTimes(1);
 		expect(oldPreviewRoot.unmount).toHaveBeenCalledTimes(1);
@@ -183,10 +193,10 @@ describe('RootManager', () => {
 		expect(rootManager.size).toBe(0);
 
 		rootManager.register(newEditor, newEditorRoot, 'editor', 'Folder\\Renamed.md');
-		rootManager.register(newPreview, newPreviewRoot, 'preview', 'folder/renamed.md');
-		rootManager.register(newSidebar, newSidebarRoot, 'sidebar', 'FOLDER/RENAMED.md');
+		rootManager.register(newPreview, newPreviewRoot, 'preview', 'Folder/Renamed.md');
+		rootManager.register(newSidebar, newSidebarRoot, 'sidebar', 'Folder/Renamed.md');
 
-		rootManager.unmountByFilePath('folder/renamed.md');
+		rootManager.unmountByFilePath('Folder/Renamed.md');
 
 		expect(newEditorRoot.unmount).toHaveBeenCalledTimes(1);
 		expect(newPreviewRoot.unmount).toHaveBeenCalledTimes(1);

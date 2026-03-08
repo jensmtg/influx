@@ -18,28 +18,39 @@ describe('CollapsedStateManager', () => {
         (logger.error as jest.Mock).mockClear();
     });
 
-    describe('normalization and initialization', () => {
-        test('normalizes path separators and case', () => {
-            manager.toggle('Test\\Path\\FILE.md');
-            expect(manager.isCollapsed('test/path/file.md')).toBe(true);
-            expect(manager.getAllCollapsed()).toEqual(['test/path/file.md']);
-        });
+	describe('normalization and initialization', () => {
+		test('normalizes path separators while preserving case', () => {
+			manager.toggle('Test\\Path\\FILE.md');
+			expect(manager.isCollapsed('Test/Path/FILE.md')).toBe(true);
+			expect(manager.getAllCollapsed()).toEqual(['Test/Path/FILE.md']);
+		});
 
-        test('constructor deduplicates normalized initial paths', () => {
-            const initialized = new CollapsedStateManager(['path1', 'PATH1', 'Path2']);
-            expect(initialized.getAllCollapsed()).toEqual(['path1', 'path2']);
-        });
-    });
+		test('constructor deduplicates only exact normalized paths', () => {
+			const initialized = new CollapsedStateManager(['Path1', 'Path1', 'Path2']);
+			expect(initialized.getAllCollapsed()).toEqual(['Path1', 'Path2']);
+		});
+
+		test('distinct-case paths remain independent', () => {
+			const initialized = new CollapsedStateManager(['A.md', 'a.md']);
+			expect(initialized.getAllCollapsed()).toEqual(['A.md', 'a.md']);
+		});
+	});
 
     describe('single path toggle', () => {
-        test('toggle returns collapse state and flips membership', () => {
-            expect(manager.isCollapsed('a.md')).toBe(false);
-            expect(manager.toggle('a.md')).toBe(true);
-            expect(manager.isCollapsed('a.md')).toBe(true);
-            expect(manager.toggle('A.md')).toBe(false);
-            expect(manager.isCollapsed('a.md')).toBe(false);
-        });
-    });
+		test('toggle returns collapse state and flips membership for the same normalized path', () => {
+			expect(manager.isCollapsed('a.md')).toBe(false);
+			expect(manager.toggle('a.md')).toBe(true);
+			expect(manager.isCollapsed('a.md')).toBe(true);
+			expect(manager.toggle('a.md')).toBe(false);
+			expect(manager.isCollapsed('a.md')).toBe(false);
+		});
+
+		test('toggle treats distinct-case paths as separate entries', () => {
+			expect(manager.toggle('A.md')).toBe(true);
+			expect(manager.isCollapsed('A.md')).toBe(true);
+			expect(manager.isCollapsed('a.md')).toBe(false);
+		});
+	});
 
     describe('bulk operations', () => {
         test('collapseAll adds all provided paths', () => {

@@ -1,7 +1,7 @@
 import { normalizePath } from 'obsidian';
 
 export function normalizePathKey(path: string): string {
-	return normalizePath(path).toLowerCase();
+	return normalizePath(path);
 }
 
 export function evictOldestEntries<T extends { timestamp: number }>(

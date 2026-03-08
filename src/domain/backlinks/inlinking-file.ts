@@ -75,7 +75,7 @@ export class InlinkingFile {
     }
 
     private makeInflightSummaryKey(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): string {
-        return `${normalizePath(sourcePath).toLowerCase()}|${sourceMtime}|${normalizePath(targetPath).toLowerCase()}|${settingsHash}`
+        return `${normalizePath(sourcePath)}|${sourceMtime}|${normalizePath(targetPath)}|${settingsHash}`
     }
 
     private applySummary(summaryValue: SummaryCacheValue): void {

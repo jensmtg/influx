@@ -97,14 +97,13 @@ export default class InfluxFile {
             return false
         }
 
-        // Normalize paths to handle case-insensitive comparison
-        const normalizedTarget = normalizePath(file.path).toLowerCase();
+        const normalizedTarget = normalizePath(file.path);
         const paths = this.backlinks.data instanceof Map
             ? Array.from(this.backlinks.data.keys())
             : Object.keys(this.backlinks.data);
 
         return paths.some(path =>
-            normalizePath(path).toLowerCase() === normalizedTarget
+            normalizePath(path) === normalizedTarget
         );
     }
 
@@ -160,7 +159,7 @@ export default class InfluxFile {
     }
 
     private makeInflightListBuildKey(path: string, fileMtime: number, settingsHash: string, dependencyRevision: number): string {
-        return `${normalizePath(path).toLowerCase()}|${fileMtime}|${settingsHash}|${dependencyRevision}`;
+        return `${normalizePath(path)}|${fileMtime}|${settingsHash}|${dependencyRevision}`;
     }
 
     private async buildInfluxList(
@@ -190,7 +189,7 @@ export default class InfluxFile {
         }
 
         const listLimit = settings.listLimit || 0;
-        const normalizedCurrentPath = normalizePath(this.file.path).toLowerCase();
+        const normalizedCurrentPath = normalizePath(this.file.path);
 
         const validFiles: TFile[] = []
         // Unify iteration pattern for both Map and Object backlinks data
@@ -199,7 +198,7 @@ export default class InfluxFile {
             : Object.entries(this.backlinks.data);
 
         for (const [pathAsKey] of entries) {
-            const normalizedSourcePath = normalizePath(pathAsKey).toLowerCase();
+            const normalizedSourcePath = normalizePath(pathAsKey);
             if (normalizedSourcePath === normalizedCurrentPath || !this.api.isIncludableSource(pathAsKey)) {
                 continue;
             }

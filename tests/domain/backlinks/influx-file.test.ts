@@ -87,12 +87,12 @@ describe('InfluxFile', () => {
             expect(noBacklinks.shouldUpdate(makeFile('any.md'))).toBe(false);
         });
 
-        test.each([
-            [{ data: new Map([['Other.md', [{ link: 'Other.md' }]]]) }, 'other.md', true],
-            [{ data: { 'Other.md': [{ link: 'Other.md' }] } }, 'other.md', true],
-            [{ data: new Map([['path\\to\\file.md', [{ link: 'path\\to\\file.md' }]]]) }, 'path/to/file.md', true],
-            [{ data: new Map([['other.md', [{ link: 'other.md' }]]]) }, 'missing.md', false],
-        ])(
+		test.each([
+			[{ data: new Map([['Other.md', [{ link: 'Other.md' }]]]) }, 'Other.md', true],
+			[{ data: { 'Other.md': [{ link: 'Other.md' }] } }, 'Other.md', true],
+			[{ data: new Map([['path\\to\\file.md', [{ link: 'path\\to\\file.md' }]]]) }, 'path/to/file.md', true],
+			[{ data: new Map([['other.md', [{ link: 'other.md' }]]]) }, 'missing.md', false],
+		])(
             'matches target path correctly for backlinks shape',
             async (backlinks, changedPath, expected) => {
                 const file = makeFile('target.md');
@@ -100,9 +100,18 @@ describe('InfluxFile', () => {
                 api.getBacklinks.mockReturnValue(backlinks as any);
 
                 const influx = await InfluxFile.create('target.md', api as any);
-                expect(influx.shouldUpdate(makeFile(changedPath))).toBe(expected);
-            }
-        );
+				expect(influx.shouldUpdate(makeFile(changedPath))).toBe(expected);
+			}
+		);
+
+		test('treats distinct-case backlink source paths as different files', async () => {
+			const file = makeFile('target.md');
+			api.getFileByPath.mockReturnValue(file);
+			api.getBacklinks.mockReturnValue({ data: new Map([['Other.md', [{ link: 'Other.md' }]]]) } as any);
+
+			const influx = await InfluxFile.create('target.md', api as any);
+			expect(influx.shouldUpdate(makeFile('other.md'))).toBe(false);
+		});
 
         test('refreshes backlinks from API on every shouldUpdate call', async () => {
             const file = makeFile('target.md');
@@ -135,23 +144,23 @@ describe('InfluxFile', () => {
             expect(noBacklinks.totalEntryCount).toBe(0);
         });
 
-        test('filters self-path and excluded sources, and preserves candidate total count', async () => {
-            const target = makeFile('target.md');
-            const sourceA = makeFile('source-a.md');
-            const sourceB = makeFile('source-b.md');
+			test('filters self-path and excluded sources, and preserves candidate total count', async () => {
+			const target = makeFile('target.md');
+			const sourceA = makeFile('source-a.md');
+			const sourceB = makeFile('source-b.md');
 
-            api.getFileByPath.mockImplementation((path: string) => {
-                if (path.toLowerCase() === 'target.md') return target;
-                if (path === 'source-a.md') return sourceA;
-                if (path === 'source-b.md') return sourceB;
-                return null;
+			api.getFileByPath.mockImplementation((path: string) => {
+				if (path === 'target.md' || path === 'TARGET.md') return target;
+				if (path === 'source-a.md') return sourceA;
+				if (path === 'source-b.md') return sourceB;
+				return null;
             });
-            api.getBacklinks.mockReturnValue({
-                data: new Map([
-                    ['TARGET.md', [{ link: 'TARGET.md' }]],
-                    ['source-a.md', [{ link: 'source-a.md' }]],
-                    ['source-b.md', [{ link: 'source-b.md' }]],
-                ]),
+			api.getBacklinks.mockReturnValue({
+				data: new Map([
+					['target.md', [{ link: 'target.md' }]],
+					['source-a.md', [{ link: 'source-a.md' }]],
+					['source-b.md', [{ link: 'source-b.md' }]],
+				]),
             });
             api.isIncludableSource.mockImplementation((path: string) => path !== 'source-b.md');
 

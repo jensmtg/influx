@@ -19,7 +19,7 @@ export class RootManager {
 	private unloading = false;
 
 	private normalizePathKey(filePath: string): string {
-		return normalizePath(filePath).toLowerCase();
+		return normalizePath(filePath);
 	}
 
 	private scheduleRootUnmount(root: Root, metadata?: Record<string, unknown>): void {

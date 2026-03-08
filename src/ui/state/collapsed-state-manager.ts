@@ -12,7 +12,7 @@ export class CollapsedStateManager {
 	}
 
 	private normalize(path: string): string {
-		return normalizePath(path).toLowerCase();
+		return normalizePath(path);
 	}
 
 	isCollapsed(path: string): boolean {
