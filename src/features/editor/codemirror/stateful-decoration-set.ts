@@ -12,13 +12,12 @@ import { StatefulDecorationAsyncState } from './stateful-decoration-async-state'
 
 
 export class StatefulDecorationSet {
-    editor: EditorView;
-    decoCache: { [cls: string]: Decoration } = Object.create(null);
-    private asyncState = new StatefulDecorationAsyncState();
+	editor: EditorView;
+	private asyncState = new StatefulDecorationAsyncState();
 
-    constructor(editor: EditorView) {
-        this.editor = editor;
-    }
+	constructor(editor: EditorView) {
+		this.editor = editor;
+	}
 
 	async computeAsyncDecorations(state: EditorState, show: boolean, updateId: number): Promise<DecorationSet | null> {
 		const editorField = state.field(editorViewField, false);
@@ -173,8 +172,6 @@ export class StatefulDecorationSet {
 			return;
 		}
 
-		// Update decorations using proper CM6 StateEffect
-		// This ensures update happens within transaction system
 		const decorationField = this.editor.state.field(statefulDecorations.field, false);
 		if (decorationField) {
 			try {
