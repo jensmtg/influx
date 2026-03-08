@@ -153,14 +153,14 @@ export class InfluxSidebarView extends ItemView {
 	private registerFileEvents(): void {
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', (leaf) => {
+				if (!leaf || leaf === this.leaf) {
+					return;
+				}
+
 				const view = leaf?.view;
 				const file = (view as MarkdownView)?.file;
 				if (file && file !== this.currentFile) {
 					this.updateView(file);
-					return;
-				}
-				if (!file) {
-					this.renderIdleState();
 				}
 			})
 		);

@@ -414,15 +414,15 @@ describe('InfluxSidebarView', () => {
 		expect(handleEditorChangeSpy).toHaveBeenCalledTimes(1);
 	});
 
-	test('registerFileEvents clears the sidebar to an idle state when no markdown file is active', () => {
+	test('registerFileEvents clears the sidebar to an idle state when no file is open', () => {
 		const { view, workspaceOn, fileA } = createContext();
 		(view as any).currentFile = fileA;
 		(view as any).influxFile = { show: true };
 
 		(view as any).registerFileEvents();
 
-		const activeLeafHandler = workspaceOn.mock.calls[0][1];
-		activeLeafHandler({ view: {} });
+		const fileOpenHandler = workspaceOn.mock.calls[1][1];
+		fileOpenHandler(null);
 
 		expect((view as any).currentFile).toBeNull();
 		expect((view as any).influxFile).toBeNull();
@@ -430,6 +430,22 @@ describe('InfluxSidebarView', () => {
 		const lastRendered = renderCalls[renderCalls.length - 1][0];
 		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
 		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
+	});
+
+	test('registerFileEvents keeps sidebar content mounted when the sidebar leaf becomes active', () => {
+		const { view, workspaceOn, fileA } = createContext();
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = { show: true };
+		(view as any).leaf = { id: 'sidebar-leaf' };
+
+		(view as any).registerFileEvents();
+
+		const activeLeafHandler = workspaceOn.mock.calls[0][1];
+		activeLeafHandler((view as any).leaf);
+
+		expect((view as any).currentFile).toBe(fileA);
+		expect((view as any).influxFile).toEqual({ show: true });
+		expect((view as any).root.render).not.toHaveBeenCalled();
 	});
 
 	test('registerFileEvents ignores editor changes when live update is disabled', () => {
