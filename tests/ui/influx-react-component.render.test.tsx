@@ -126,6 +126,36 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(html).not.toContain('svg-icon lucide-');
 	});
 
+	test('renders source links with full file paths and folder context when basenames collide', () => {
+		const duplicateA = makeComponent(1);
+		const duplicateB = {
+			...makeComponent(2),
+			inlinkingFile: {
+				file: {
+					path: 'Elsewhere/Source-1.md',
+					basename: 'Source-1',
+				},
+				isLinkInTitle: false,
+			},
+			sourcePath: 'Elsewhere/Source-1.md',
+		} as unknown as ExtendedInlinkingFile;
+		const influxFile = makeInfluxFile({ components: [duplicateA, duplicateB], totalEntryCount: 2 });
+		const props = {
+			influxFile: influxFile as unknown as React.ComponentProps<typeof InfluxReactComponent>['influxFile'],
+			preview: false,
+			plugin: makePlugin() as unknown as React.ComponentProps<typeof InfluxReactComponent>['plugin'],
+		} satisfies React.ComponentProps<typeof InfluxReactComponent>;
+
+		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+
+		expect(html).toContain('data-href="Folder/Source-1.md"');
+		expect(html).toContain('href="Elsewhere/Source-1.md"');
+		expect(html).toContain('influx-result-source-context');
+		expect(html).toContain('>Folder<');
+		expect(html).toContain('>Elsewhere<');
+		expect(html).not.toContain('target="_blank"');
+	});
+
 	test('renders preview summary in toolbar instead of pane header row', () => {
 		const components = [makeComponent(1)];
 		const influxFile = makeInfluxFile({ components, totalEntryCount: 1 });

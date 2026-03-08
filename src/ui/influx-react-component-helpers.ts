@@ -81,6 +81,27 @@ export function collectComponentPaths(components: ExtendedInlinkingFile[]): stri
 	return components.map((component) => component.inlinkingFile.file.path);
 }
 
+export function collectBasenameCounts(components: ExtendedInlinkingFile[]): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const component of components) {
+		const basename = component.inlinkingFile.file.basename;
+		counts.set(basename, (counts.get(basename) ?? 0) + 1);
+	}
+	return counts;
+}
+
+export function getSourcePathContext(filePath: string, basename: string): string {
+	const suffix = `/${basename}.md`;
+	if (filePath.endsWith(suffix)) {
+		return filePath.slice(0, -suffix.length);
+	}
+	const fallbackSuffix = `/${basename}`;
+	if (filePath.endsWith(fallbackSuffix)) {
+		return filePath.slice(0, -fallbackSuffix.length);
+	}
+	return filePath;
+}
+
 export interface SearchFocusScheduler {
 	(callback: () => void, delayMs: number): void;
 }

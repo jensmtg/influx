@@ -1,6 +1,7 @@
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
 import {
 	areAllComponentPathsCollapsed,
+	collectBasenameCounts,
 	collectComponentPaths,
 	collectInitialCollapsedPaths,
 	createInitialSearchUiState,
@@ -12,6 +13,7 @@ import {
 	getNextVisibleCount,
 	getNoSearchResultsMessage,
 	getSearchText,
+	getSourcePathContext,
 	handleSearchChangeInput,
 	handleSearchKeyPress,
 	makeUpdateEvent,
@@ -245,6 +247,23 @@ describe('influx-react-component helpers', () => {
 			expect(collectComponentPaths(components)).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: true, components })).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: false, components })).toEqual([]);
+		});
+
+		test('collectBasenameCounts tracks duplicate source note names for disambiguation', () => {
+			const counts = collectBasenameCounts([
+				entry({ path: 'Folder/A.md', basename: 'A' }),
+				entry({ path: 'Folder2/A.md', basename: 'A' }),
+				entry({ path: 'Folder/B.md', basename: 'B' }),
+			]);
+
+			expect(counts.get('A')).toBe(2);
+			expect(counts.get('B')).toBe(1);
+		});
+
+		test('getSourcePathContext returns folder context without the basename suffix', () => {
+			expect(getSourcePathContext('Folder/Sub/Robin.md', 'Robin')).toBe('Folder/Sub');
+			expect(getSourcePathContext('Folder/Sub/Robin', 'Robin')).toBe('Folder/Sub');
+			expect(getSourcePathContext('Robin.md', 'Robin')).toBe('Robin.md');
 		});
 
 		test('areAllComponentPathsCollapsed reflects per-item collapse state for toolbar labels', () => {

@@ -11,6 +11,7 @@ import type ObsidianInflux from '../app/influx-plugin';
 import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
 import {
+	collectBasenameCounts,
 	collectComponentPaths,
 	areAllComponentPathsCollapsed,
 	collectInitialCollapsedPaths,
@@ -22,6 +23,7 @@ import {
 	getLinkedMentionsCountLabel,
 	getLinkedMentionsCountTooltip,
 	getNoSearchResultsMessage,
+	getSourcePathContext,
 	handleSearchChangeInput,
 	handleSearchKeyPress,
 	INITIAL_VISIBLE_COMPONENTS_BY_MODE,
@@ -76,6 +78,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const doToggle = (path: string) => {
 		collapsedManager.toggle(path);
 	};
+	const basenameCounts = React.useMemo(() => collectBasenameCounts(components), [components]);
 	const componentPaths = React.useMemo(() => collectComponentPaths(components), [components]);
 	const allVisibleComponentsCollapsed = areAllComponentPathsCollapsed(
 		componentPaths,
@@ -427,6 +430,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 								{visibleComponents.map((extended: ExtendedInlinkingFile) => {
 								const filePath = extended.inlinkingFile.file.path;
 								const fileBasename = extended.inlinkingFile.file.basename;
+								const duplicateName = (basenameCounts.get(fileBasename) ?? 0) > 1;
+								const sourcePathContext = duplicateName ? getSourcePathContext(filePath, fileBasename) : '';
 									const safePathToken = filePath.replace(/[^a-zA-Z0-9_-]/g, '-');
 									const matchesRegionId = `${influxFile.uuid}-matches-${safePathToken}`;
 
@@ -463,14 +468,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 												<div className="influx-result-source">
 													<a
-														data-href={fileBasename}
-														href={fileBasename}
+														data-href={filePath}
+														href={filePath}
 														className="internal-link influx-internal-link"
-														target="_blank"
-														rel="noopener"
 												>
 													{fileBasename}
 												</a>
+													{sourcePathContext && (
+														<span className="influx-result-source-context">{sourcePathContext}</span>
+													)}
 												</div>
 											</div>
 											<div className="influx-result-body"
