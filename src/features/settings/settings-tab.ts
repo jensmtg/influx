@@ -14,7 +14,7 @@ import {
 
 const REGEX_HELP_URL =
     'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#writing_a_regular_expression_pattern';
-const PATTERN_PLACEHOLDER = '^templates/\n20\\d\\d\nmenu\nMenu';
+const PATTERN_PLACEHOLDER = '^Templates/\n^Daily/\nProject-.+';
 
 export class ObsidianInfluxSettingsTab extends PluginSettingTab {
     plugin: SettingsTabPlugin;
@@ -57,10 +57,10 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 		);
     }
 
-    private createRegexHelpFragment(prefix: string): DocumentFragment {
-        const fragment = document.createDocumentFragment();
-        fragment.append(prefix + ' ');
-        fragment.append('One pattern per line. See ');
+	private createRegexHelpFragment(prefix: string): DocumentFragment {
+		const fragment = document.createDocumentFragment();
+		fragment.append(prefix + ' ');
+		fragment.append('Matches note paths. Use one pattern per line. Changes are saved when the field loses focus. See ');
 
         const link = document.createElement('a');
         link.href = REGEX_HELP_URL;
@@ -148,8 +148,8 @@ export class ObsidianInfluxSettingsTab extends PluginSettingTab {
 
 	private createFrontmatterPropertiesDescription(): DocumentFragment {
 		const fragment = document.createDocumentFragment();
-		fragment.append('Comma-separated list of front matter property names to include links from. ');
-		fragment.append('Leave blank to include links from all front matter properties. ');
+		fragment.append('Comma-separated list of frontmatter property names to read links from. ');
+		fragment.append('Leave this blank to include links from every frontmatter property. ');
 		fragment.append('Example: "related,see_also,references". ');
 		fragment.append('Valid names: letters, numbers, underscores, hyphens only (no spaces).');
 		return fragment;

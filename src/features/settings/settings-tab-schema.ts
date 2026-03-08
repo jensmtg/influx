@@ -92,7 +92,7 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'dropdown',
 				name: 'Sorting principle',
-				description: 'Order notes in which direction from the top.',
+				description: 'Choose whether newer or older source notes appear first.',
 				setting: 'sortingPrinciple',
 				options: [
 					{ value: 'NEWEST_FIRST', label: 'Newest first' },
@@ -103,7 +103,7 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'dropdown',
 				name: 'Sorting attribute',
-				description: 'Order notes according to which attribute.',
+				description: 'Choose what Influx sorts by before applying the sort direction.',
 				setting: 'sortingAttribute',
 				options: [
 					{ value: 'ctime', label: 'By date created' },
@@ -136,7 +136,7 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'dropdown',
 				name: 'Font size',
-				description: '',
+				description: 'Adjust the text size used inside Influx entries.',
 				setting: 'fontSize',
 				options: [
 					{ value: '16', label: 'Normal' },
@@ -150,7 +150,7 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'dropdown',
 				name: 'Layout variant',
-				description: '',
+				description: 'Choose between a continuous reading flow or a note-by-note stacked layout.',
 				setting: 'variant',
 				options: [
 					{ value: 'CENTER_ALIGNED', label: 'Continuous stream' },
@@ -175,18 +175,18 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 		],
 	},
 	{
-		title: 'Target notes – in which pages should Influx be visible?',
+		title: 'Where Influx appears',
 		fields: [
 			{
 				kind: 'toggle',
 				name: 'Require frontmatter key',
-				description: "Only show Influx on pages that have 'influx: true' in their frontmatter. When enabled, this setting overrides the pattern matching settings below.",
+				description: "Only show Influx on notes that have `influx: true` in frontmatter. This overrides the path rules below.",
 				setting: 'requireInfluxFrontmatterKey',
 			},
 			{
 				kind: 'dropdown',
-				name: 'Default behaviour',
-				description: 'Configure Influx to either be shown on all pages by default - and then define specifically which pages it should be excluded from, or to not be shown on any pages by default - and then define specifically which pages it should be included in.',
+				name: 'Show by default',
+				description: 'Choose whether Influx is visible on all notes unless excluded, or hidden unless included.',
 				setting: 'showBehaviour',
 				options: [
 					{ value: 'OPT_OUT', label: 'Show on all pages' },
@@ -197,24 +197,24 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'patternTextArea',
 				name: 'Exclude pages',
-				description: 'RegExp patterns for pathnames of notes where the Influx component should not be shown.',
+				description: 'Regex rules for note paths where Influx should stay hidden.',
 				setting: 'exclusionPattern',
 			},
 			{
 				kind: 'patternTextArea',
 				name: 'Include pages',
-				description: 'RegExp patterns for pathnames of notes where the Influx component should be shown.',
+				description: 'Regex rules for note paths where Influx should appear.',
 				setting: 'inclusionPattern',
 			},
 		],
 	},
 	{
-		title: 'Source notes – from which notes should Influx gather mentions?',
+		title: 'Which notes count as sources',
 		fields: [
 			{
 				kind: 'dropdown',
-				name: 'Default behaviour',
-				description: 'Control whether source notes are included by default or only when matching include patterns.',
+				name: 'Include by default',
+				description: 'Choose whether all notes count as sources unless excluded, or only notes that match include rules.',
 				setting: 'sourceBehaviour',
 				options: [
 					{ value: 'OPT_OUT', label: 'Include all notes' },
@@ -225,46 +225,46 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'patternTextArea',
 				name: 'Exclude notes',
-				description: 'RegExp patterns for pathnames of notes that should not be shown in any Influx.',
+				description: 'Regex rules for note paths that should never appear as backlink sources.',
 				setting: 'sourceExclusionPattern',
 			},
 			{
 				kind: 'patternTextArea',
 				name: 'Include notes',
-				description: 'RegExp patterns for pathnames of notes that should be shown in Influx in relevant pages.',
+				description: 'Regex rules for note paths that are allowed to appear as backlink sources.',
 				setting: 'sourceInclusionPattern',
 			},
 		],
 	},
 	{
-		title: 'On which pages should Influx be collapsed by default?',
+		title: 'Default collapsed state',
 		fields: [
 			{
 				kind: 'toggle',
 				name: 'Collapse all by default',
-				description: 'Automatically collapse all backlink entries when opening a note. When enabled, this overrides the regex pattern settings below.',
+				description: 'Collapse all backlink entries when a note opens. This overrides the path rules below.',
 				setting: 'collapseAllByDefault',
 			},
 			{
 				kind: 'patternTextArea',
 				name: 'Collapsed in pages',
-				description: 'RegExp patterns for pathnames of notes where the list of backlinked clippings in the Influx component should be collapsed by default.',
+				description: 'Regex rules for note paths where Influx should start collapsed.',
 				setting: 'collapsedPattern',
 			},
 		],
 	},
 	{
-		title: 'Front Matter Link Processing',
+		title: 'Frontmatter links',
 		fields: [
 			{
 				kind: 'toggle',
-				name: 'Include links from front matter properties',
-				description: 'Process Obsidian links found in front matter properties and include them in backlinks.',
+				name: 'Include links from frontmatter properties',
+				description: 'Treat Obsidian links inside frontmatter properties as backlinks too.',
 				setting: 'includeFrontmatterLinks',
 			},
 			{
 				kind: 'frontmatterProperties',
-				name: 'Front matter properties',
+				name: 'Frontmatter properties',
 				description: '',
 			},
 		],

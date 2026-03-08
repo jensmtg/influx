@@ -100,10 +100,10 @@ describe('ObsidianInfluxSettingsTab', () => {
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Display Mode' });
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'General Settings' });
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Styling and layout' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Target notes – in which pages should Influx be visible?' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Source notes – from which notes should Influx gather mentions?' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'On which pages should Influx be collapsed by default?' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Front Matter Link Processing' });
+		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Where Influx appears' });
+		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Which notes count as sources' });
+		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Default collapsed state' });
+		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Frontmatter links' });
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Advanced Diagnostics' });
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('details');
 		expect(detailsEl.createEl).toHaveBeenCalledWith('summary', {
