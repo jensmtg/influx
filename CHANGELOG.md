@@ -8,27 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - Unreleased
 
 ### Added
-- Root lifecycle management through `RootManager`
-- Update scheduling and cancellation through `UpdateCoordinator`
-- Observable-based update notifications for UI components
-- React error boundary and migration helpers
-- Centralized constants, logger utilities, and shared type definitions
+
+- A stronger sidebar workflow for reviewing contextual backlinks outside the note body
+- Search improvements that make large backlink sets easier to scan, including highlighted matches
+- More configurable settings for display, filtering, and frontmatter-link handling
 
 ### Changed
-- Refactored mode-specific behavior into `EventManager` and `PreviewManager`
-- Replaced JSS with `styles.css`
-- Simplified editor and preview rendering paths to avoid fragile HTML string round-tripping
-- Improved cache invalidation with per-file and timestamp-based checks
-- Reduced reliance on ad-hoc globals and duplicated lifecycle code
+
+- The settings UI is cleaner and more maintainable, with the same controls organized through a shared schema
+- Duplicate note names are handled more safely by showing folder context and navigating by real path
+- Inline, reading view, editor, and sidebar rendering now behave more consistently across mode changes
+- Frontmatter links are more accurate and easier to tune for structured-note workflows
 
 ### Fixed
-- Memory leaks in roots, preview cache state, and window-scoped references
-- Race conditions across async updates, mode transitions, and decoration updates
-- Rendering regressions when switching between editor and reading modes
-- Callout rendering issues, including empty SVG icon output during post-processing
-- Cross-platform path comparison and normalization issues
 
-## [2.3.1] - 2025-01-30
+- Refresh issues that could leave editor widgets or open views behind after settings changes
+- Several update, cleanup, and lifecycle edge cases around mode switches, preview roots, and deferred unmounts
+- Backlink filtering bugs involving frontmatter-derived links and shared metadata objects
+- A range of race conditions, stale state problems, and memory leaks that showed up under active editing
+
+## [2.3.1] - 2026-01-30
 
 ### Added
 
@@ -108,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed reading mode not displaying by implementing Markdown Post Processor approach
 - Fixed editor mode not rendering by using global window plugin reference
 - Fixed "Show influx below text" setting for edit and preview modes
-- Fixed O(n²) frontmatter detection algorithm - now uses O(n) CodeMirror native API
+- Fixed O(n^2) frontmatter detection algorithm - now uses O(n) CodeMirror native API
 - Fixed Promise constructor anti-pattern by replacing with proper async/await patterns
 - Fixed React root memory leaks using WeakMap
 - Fixed widget positioning for CodeMirror decorations
@@ -136,7 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
-- Frontmatter detection: O(n²) → O(n)
+- Frontmatter detection: O(n^2) -> O(n)
 - File operations: 50-90% reduction in redundant I/O through caching
 - DOM queries: classList.contains() instead of querySelector()
 - Parallelized markdown rendering with Promise.all
@@ -270,7 +269,7 @@ This update reimplemented part of the core of the Influx plugin - the functions 
 
 ### Contributors
 
-Thanks to @kenlim (Ken Lim) for contributing to development through a pull request!
+Thanks to @kenlim (Ken Lim) for contributing to development through a pull request.
 
 ## [2.1.1] - 2023-02-02
 
