@@ -283,9 +283,13 @@ export default class InfluxFile {
         }
     }
 
-    static clearBuildCachesForTests(): void {
+    static clearBuildCaches(): void {
         InfluxFile.inflightListBuilds.clear();
         InfluxFile.recentListBuilds.clear();
+    }
+
+    static clearBuildCachesForTests(): void {
+        InfluxFile.clearBuildCaches();
     }
     toEntries(): ExtendedInlinkingFile[] {
         this.ensureInitialized();

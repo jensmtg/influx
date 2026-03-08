@@ -14,10 +14,12 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 describe('InlinkingFile', () => {
 	beforeEach(() => {
 		cacheManager.clearAll();
+		InlinkingFile.clearSummaryCachesForTests();
 	});
 
 	afterEach(() => {
 		cacheManager.clearAll();
+		InlinkingFile.clearSummaryCachesForTests();
 	});
 
 	test('should dedupe concurrent summary builds for same source/target/settings', async () => {

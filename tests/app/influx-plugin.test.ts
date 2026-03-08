@@ -3,6 +3,8 @@ import { rootManager } from '@/platform/react/root-manager';
 import { cacheManager } from '@/platform/cache/cache-manager';
 import { updateCoordinator } from '@/app/events/update-coordinator';
 import { cleanupWindowGlobals } from '@/platform/obsidian/plugin-window-guards';
+import InfluxFile from '@/domain/backlinks/influx-file';
+import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
 
 jest.mock('@/platform/react/root-manager', () => ({
 	rootManager: {
@@ -27,6 +29,19 @@ jest.mock('@/app/events/update-coordinator', () => ({
 
 jest.mock('@/platform/obsidian/plugin-window-guards', () => ({
 	cleanupWindowGlobals: jest.fn(),
+}));
+
+jest.mock('@/domain/backlinks/influx-file', () => ({
+	__esModule: true,
+	default: {
+		clearBuildCaches: jest.fn(),
+	},
+}));
+
+jest.mock('@/domain/backlinks/inlinking-file', () => ({
+	InlinkingFile: {
+		clearSummaryCaches: jest.fn(),
+	},
 }));
 
 jest.mock('@/platform/diagnostics/logger', () => ({
@@ -59,6 +74,8 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(dispose).toHaveBeenCalledTimes(1);
 		expect(rootManager.unmountAll).toHaveBeenCalledTimes(1);
 		expect(cacheManager.clearAll).toHaveBeenCalledTimes(1);
+		expect(InfluxFile.clearBuildCaches).toHaveBeenCalledTimes(1);
+		expect(InlinkingFile.clearSummaryCaches).toHaveBeenCalledTimes(1);
 		expect(cleanupWindowGlobals).toHaveBeenCalledTimes(1);
 		expect(plugin.updating.size).toBe(0);
 	});

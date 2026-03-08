@@ -2,6 +2,8 @@ import { Plugin, TAbstractFile, TFile } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from '../features/settings/settings-tab';
 import { asyncDecoBuilderExt } from '../features/editor/codemirror/async-view-plugin';
 import { ApiAdapter } from '../domain/backlinks/api-adapter';
+import InfluxFile from '../domain/backlinks/influx-file';
+import { InlinkingFile } from '../domain/backlinks/inlinking-file';
 import { ObsidianInfluxSettings, DEFAULT_SETTINGS, Data } from '../types';
 import { CONSTANTS } from '../config/constants';
 import { logger } from '../platform/diagnostics/logger';
@@ -278,6 +280,8 @@ export default class ObsidianInflux extends Plugin {
 
 		// Clean up cache
 		cacheManager.clearAll();
+		InfluxFile.clearBuildCaches();
+		InlinkingFile.clearSummaryCaches();
 
 		// Clean up window references to prevent memory leaks
 		cleanupWindowGlobals();

@@ -117,5 +117,13 @@ export class InlinkingFile {
             isLinkInTitle,
         }
     }
+
+	static clearSummaryCaches(): void {
+		InlinkingFile.inflightSummaries.clear();
+	}
+
+	static clearSummaryCachesForTests(): void {
+		InlinkingFile.clearSummaryCaches();
+	}
 }
 
