@@ -19,6 +19,31 @@ export interface MinimalPluginInterface {
 	isUnloading?: boolean;
 }
 
+interface HasBacklinksForFileMethod {
+	getBacklinksForFile: (file: unknown) => BacklinksObject;
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+export function isMinimalPluginInterface(value: unknown): value is MinimalPluginInterface {
+	if (!isObjectRecord(value)) {
+		return false;
+	}
+
+	const data = value.data;
+	const api = value.api;
+	const app = value.app;
+
+	return isObjectRecord(data)
+		&& 'settings' in data
+		&& isObjectRecord(api)
+		&& typeof api.invalidateSettingsCache === 'function'
+		&& isObjectRecord(app)
+		&& 'metadataCache' in app;
+}
+
 /**
  * Safely get the plugin instance from window with type guard
  * Returns null if plugin is not available or invalid
@@ -27,18 +52,11 @@ export function getPlugin(): MinimalPluginInterface | null {
 	const win = window as InfluxWindow;
 	const plugin = win.influxPlugin;
 
-	// Runtime validation
-	if (!plugin || typeof plugin !== 'object') {
+	if (!isMinimalPluginInterface(plugin)) {
 		return null;
 	}
 
-	// Basic structural validation - check for expected properties
-	// This prevents type errors if plugin structure changes
-	if (!('data' in plugin) || !('api' in plugin) || !('app' in plugin)) {
-		return null;
-	}
-
-	return plugin as MinimalPluginInterface;
+	return plugin;
 }
 
 /**
@@ -78,19 +96,15 @@ export function cleanupWindowGlobals(): void {
 /**
  * Type-safe check for Obsidian's getBacklinksForFile method
  */
-export function hasBacklinksForFile(metadataCache: unknown): boolean {
-	if (!metadataCache || typeof metadataCache !== 'object') {
-		return false;
-	}
-
-	return 'getBacklinksForFile' in metadataCache &&
-		typeof (metadataCache as { getBacklinksForFile?: unknown }).getBacklinksForFile === 'function';
+export function hasBacklinksForFile(metadataCache: unknown): metadataCache is HasBacklinksForFileMethod {
+	return isObjectRecord(metadataCache)
+		&& typeof metadataCache.getBacklinksForFile === 'function';
 }
 
 /**
  * Get Obsidian's metadata cache with type safety
  */
-export function getMetadataCacheSafely(app: { metadataCache: unknown }): unknown {
+export function getMetadataCacheSafely(app: { metadataCache?: unknown } | null | undefined): unknown {
 	return app?.metadataCache ?? null;
 }
 
@@ -106,7 +120,7 @@ export function getBacklinksForFileSafely(
 	}
 
 	try {
-		return (metadataCache as { getBacklinksForFile: (file: unknown) => BacklinksObject }).getBacklinksForFile(file);
+		return metadataCache.getBacklinksForFile(file);
 	} catch (error) {
 		// Log error but don't throw - fall back to null
 		logger.warn('Failed to call getBacklinksForFile', { error });

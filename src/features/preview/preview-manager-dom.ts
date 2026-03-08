@@ -14,6 +14,28 @@ export type InfluxWorkspaceLeaf = WorkspaceLeaf & {
 	containerEl: HTMLDivElement;
 };
 
+function asHtmlElement(value: Element | null): HTMLElement | null {
+	if (!value || typeof value !== 'object') {
+		return null;
+	}
+
+	return 'remove' in value || 'replaceWith' in value || 'id' in value
+		? (value as HTMLElement)
+		: null;
+}
+
+function getInfluxContainer(wrapper: Element): HTMLElement | null {
+	return asHtmlElement(
+		wrapper.querySelector(`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`)
+	);
+}
+
+function getInfluxContainers(container: Element): HTMLElement[] {
+	return Array.from(
+		container.querySelectorAll(`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`)
+	).filter((node): node is HTMLElement => asHtmlElement(node) !== null);
+}
+
 export function isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
 	const leafType: string | undefined = leaf.view?.currentMode?.type;
 	const viewMode = leaf.view?.mode;
@@ -48,7 +70,10 @@ export function cleanupPreviewContainers(container: Element, logCounts = false):
 	}
 
 	innerContainers.forEach((node) => {
-		const htmlNode = node as HTMLElement;
+		const htmlNode = asHtmlElement(node);
+		if (!htmlNode) {
+			return;
+		}
 		rootManager.unmountDeferred(htmlNode);
 		htmlNode.remove();
 	});
@@ -66,9 +91,7 @@ export function cleanupAllPreviewRootsAndContainers(): void {
 export function cleanupDuplicatePreviewWrappers(previewDiv: Element, keepContainer: HTMLElement | null): void {
 	const wrappers = previewDiv.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
 	wrappers.forEach((wrapper) => {
-		const container = wrapper.querySelector(
-			`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
-		) as HTMLElement | null;
+		const container = getInfluxContainer(wrapper);
 
 		if (keepContainer && container === keepContainer) {
 			return;
@@ -82,19 +105,16 @@ export function cleanupDuplicatePreviewWrappers(previewDiv: Element, keepContain
 }
 
 export function findExistingContainer(previewDiv: Element): HTMLElement | null {
-	const containers = previewDiv.querySelectorAll(
-		`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
-	);
+	const containers = getInfluxContainers(previewDiv);
 
 	let fallback: HTMLElement | null = null;
 	let preferred: HTMLElement | null = null;
 	containers.forEach((node) => {
-		const container = node as HTMLElement;
 		if (!fallback) {
-			fallback = container;
+			fallback = node;
 		}
-		if (!preferred && rootManager.has(container)) {
-			preferred = container;
+		if (!preferred && rootManager.has(node)) {
+			preferred = node;
 		}
 	});
 

@@ -4,6 +4,7 @@ import {
 	getMetadataCacheSafely,
 	getPlugin,
 	hasBacklinksForFile,
+	isMinimalPluginInterface,
 	isPluginUnloading,
 } from '../../../src/platform/obsidian/plugin-window-guards';
 import { logger } from '../../../src/platform/diagnostics/logger';
@@ -60,6 +61,24 @@ describe('plugin-window-guards', () => {
 		expect(getPlugin()).toBeNull();
 	});
 
+	test('isMinimalPluginInterface validates the minimum runtime bridge shape', () => {
+		expect(
+			isMinimalPluginInterface({
+				data: { settings: {} },
+				api: { invalidateSettingsCache: jest.fn() },
+				app: { metadataCache: {} },
+			})
+		).toBe(true);
+
+		expect(
+			isMinimalPluginInterface({
+				data: {},
+				api: { invalidateSettingsCache: jest.fn() },
+				app: { metadataCache: {} },
+			})
+		).toBe(false);
+	});
+
 	test('isPluginUnloading returns true when plugin is missing or flagged unloading', () => {
 		setWindow({} as TestWindow);
 		expect(isPluginUnloading()).toBe(true);
@@ -107,6 +126,7 @@ describe('plugin-window-guards', () => {
 	test('getMetadataCacheSafely returns metadata cache or null', () => {
 		expect(getMetadataCacheSafely({ metadataCache: { ok: true } })).toEqual({ ok: true });
 		expect(getMetadataCacheSafely({ metadataCache: null })).toBeNull();
+		expect(getMetadataCacheSafely(undefined)).toBeNull();
 	});
 
 	test('getBacklinksForFileSafely returns null when method is unavailable', () => {
