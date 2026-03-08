@@ -1,12 +1,15 @@
-import { TFile, normalizePath } from 'obsidian';
+import { TFile } from 'obsidian';
 import { ObsidianInfluxSettings } from '../../types/settings';
 import { logger } from '../diagnostics/logger';
 import type { BacklinksObject } from '../../types/backlinks';
-
-/**
- * Centralized cache management for Influx plugin
- * Consolidates all caches into a single, coherent system
- */
+import { CacheStats, createEmptyCacheStats, resetCacheStats } from './cache-stats';
+import {
+	BacklinksCacheStore,
+	FileCacheStore,
+	PreviewHashCacheStore,
+	SummaryCacheStore,
+	type SummaryCacheValue,
+} from './cache-stores';
 
 export interface FileCacheEntry {
 	file: TFile;
@@ -28,42 +31,8 @@ export interface RegexCacheEntry {
 	timestamp: number;
 }
 
-interface PreviewHashCacheEntry {
-	hash: string;
-	timestamp: number;
-}
+export { SummaryCacheValue };
 
-export interface SummaryCacheValue {
-	summary: string;
-	title: string;
-	titleLineNum: number | undefined;
-	isLinkInTitle: boolean;
-}
-
-interface SummaryCacheEntry extends SummaryCacheValue {
-	timestamp: number;
-	sourcePath: string;
-	targetPath: string;
-}
-
-export interface CacheStats {
-	fileHits: number;
-	fileMisses: number;
-	backlinksHits: number;
-	backlinksMisses: number;
-	settingsHits: number;
-	settingsMisses: number;
-	regexHits: number;
-	regexMisses: number;
-	previewHashHits: number;
-	previewHashMisses: number;
-	summaryHits: number;
-	summaryMisses: number;
-}
-
-/**
- * Debug information structure
- */
 export interface CacheDebugInfo {
 	fileCache: {
 		size: number;
@@ -100,54 +69,21 @@ export interface CacheDebugInfo {
 export class InfluxCacheManager {
 	private static instance: InfluxCacheManager;
 
-	// File lookups by path
-	private fileCache = new Map<string, FileCacheEntry>();
+	private readonly stats: CacheStats = createEmptyCacheStats();
+	private readonly fileCacheStore = new FileCacheStore(this.stats, InfluxCacheManager.FILE_CACHE_MAX_ENTRIES, 5 * 60 * 1000);
+	private readonly backlinksCacheStore = new BacklinksCacheStore(this.stats, InfluxCacheManager.BACKLINKS_CACHE_MAX_ENTRIES, 2 * 60 * 1000);
+	private readonly previewHashCacheStore = new PreviewHashCacheStore(this.stats, InfluxCacheManager.PREVIEW_HASH_CACHE_MAX_ENTRIES);
+	private readonly summaryCacheStore = new SummaryCacheStore(this.stats, InfluxCacheManager.SUMMARY_CACHE_MAX_ENTRIES, InfluxCacheManager.SUMMARY_STALE_TIME_MS);
 
-	// Backlinks results by file path
-	private backlinksCache = new Map<string, BacklinksCacheEntry>();
-	// Source path (normalized) -> cached backlink target paths that depend on it
-	private backlinksTargetsBySource = new Map<string, Set<string>>();
-	// Cached backlink target path -> normalized source paths it currently depends on
-	private backlinksSourcesByTarget = new Map<string, Set<string>>();
-
-	// Settings cache
 	private settingsCache: SettingsCacheEntry | null = null;
-
-	// Regex pattern cache
 	private regexCache = new Map<string, RegexCacheEntry>();
-
-	// File hash cache for preview mode
-	private previewFileHashes = new Map<string, PreviewHashCacheEntry>();
-
-	// Settings hash for preview mode
 	private cachedSettingsHash: string | null = null;
-
-	// Summary cache for expensive per-source summary generation
-	private summaryCache = new Map<string, SummaryCacheEntry>();
-	private summaryKeysBySource = new Map<string, Set<string>>();
-	private summaryKeysByTarget = new Map<string, Set<string>>();
-	private stats: CacheStats = {
-		fileHits: 0,
-		fileMisses: 0,
-		backlinksHits: 0,
-		backlinksMisses: 0,
-		settingsHits: 0,
-		settingsMisses: 0,
-		regexHits: 0,
-		regexMisses: 0,
-		previewHashHits: 0,
-		previewHashMisses: 0,
-		summaryHits: 0,
-		summaryMisses: 0,
-	};
 
 	private static readonly SUMMARY_STALE_TIME_MS = 10 * 60 * 1000;
 	private static readonly SUMMARY_CACHE_MAX_ENTRIES = 3000;
 	private static readonly FILE_CACHE_MAX_ENTRIES = 2000;
 	private static readonly BACKLINKS_CACHE_MAX_ENTRIES = 1500;
 	private static readonly PREVIEW_HASH_CACHE_MAX_ENTRIES = 3000;
-
-	// Sentinel for invalid regex patterns
 	private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
 
 	private constructor() {}
@@ -159,131 +95,46 @@ export class InfluxCacheManager {
 		return InfluxCacheManager.instance;
 	}
 
-	/**
-	 * File cache methods
-	 */
 	getFile(path: string): TFile | null {
-		const key = this.normalizePathKey(path);
-		const entry = this.fileCache.get(key);
-		if (!entry) {
-			this.stats.fileMisses += 1;
-			return null;
-		}
-
-		// Check if cache entry is stale (5 minutes)
-		const STALE_TIME = 5 * 60 * 1000;
-		if (Date.now() - entry.timestamp > STALE_TIME) {
-			this.fileCache.delete(key);
-			this.stats.fileMisses += 1;
-			logger.debug('File cache expired', { path });
-			return null;
-		}
-
-		this.stats.fileHits += 1;
-		return entry.file;
+		return this.fileCacheStore.get(path);
 	}
 
 	setFile(path: string, file: TFile): void {
-		const key = this.normalizePathKey(path);
-		this.fileCache.set(key, {
-			file,
-			timestamp: Date.now()
-		});
-		this.enforceFileCacheLimit();
+		this.fileCacheStore.set(path, file);
 	}
 
 	invalidateFile(path: string): void {
-		const normalizedPath = this.normalizePathKey(path);
-		const dependentTargets = Array.from(this.backlinksTargetsBySource.get(normalizedPath) ?? []);
+		this.fileCacheStore.invalidate(path);
+		this.backlinksCacheStore.invalidateTarget(path);
+		this.previewHashCacheStore.invalidate(path);
+		this.summaryCacheStore.invalidateSource(path);
+		this.summaryCacheStore.invalidateTarget(path);
 
-		this.fileCache.delete(normalizedPath);
-		this.backlinksCache.delete(normalizedPath);
-		this.previewFileHashes.delete(normalizedPath);
-		this.removeDependencyEntriesForTarget(normalizedPath);
-		this.backlinksTargetsBySource.delete(normalizedPath);
-		this.removeSummaryEntriesForSource(normalizedPath);
-		this.removeSummaryEntriesForTarget(normalizedPath);
-
+		const dependentTargets = this.backlinksCacheStore.invalidateSource(path);
 		for (const targetPath of dependentTargets) {
-			if (targetPath === normalizedPath) {
-				continue;
-			}
-			this.backlinksCache.delete(targetPath);
-			this.previewFileHashes.delete(targetPath);
-			this.removeDependencyEntriesForTarget(targetPath);
-			this.removeSummaryEntriesForTarget(targetPath);
+			this.previewHashCacheStore.invalidate(targetPath);
+			this.summaryCacheStore.invalidateTarget(targetPath);
 		}
 
 		logger.debug('File cache invalidated', { path });
 	}
 
 	clearFileCache(): void {
-		this.fileCache.clear();
-		logger.info('File cache cleared');
+		this.fileCacheStore.clear();
 	}
 
-	/**
-	 * Backlinks cache methods
-	 */
 	getBacklinks(path: string): BacklinksObject | null {
-		const key = this.normalizePathKey(path);
-		const entry = this.backlinksCache.get(key);
-		if (!entry) {
-			this.stats.backlinksMisses += 1;
-			return null;
-		}
-
-		// Check if cache entry is stale (2 minutes)
-		const STALE_TIME = 2 * 60 * 1000;
-		if (Date.now() - entry.timestamp > STALE_TIME) {
-			this.backlinksCache.delete(key);
-			this.stats.backlinksMisses += 1;
-			logger.debug('Backlinks cache expired', { path });
-			return null;
-		}
-
-		this.stats.backlinksHits += 1;
-		return entry.backlinks;
+		return this.backlinksCacheStore.get(path);
 	}
 
 	setBacklinks(path: string, backlinks: BacklinksObject): void {
-		const normalizedTarget = this.normalizePathKey(path);
-		this.removeDependencyEntriesForTarget(normalizedTarget);
-
-		this.backlinksCache.set(normalizedTarget, {
-			backlinks,
-			timestamp: Date.now()
-		});
-
-		const sourcePaths = this.extractBacklinksSourcePaths(backlinks);
-		const normalizedSources = new Set<string>();
-
-		for (const sourcePath of sourcePaths) {
-			const normalizedSource = this.normalizePathKey(sourcePath);
-			if (normalizedSource === normalizedTarget) {
-				continue;
-			}
-			normalizedSources.add(normalizedSource);
-			(this.backlinksTargetsBySource.get(normalizedSource) ?? this.createAndSet(this.backlinksTargetsBySource, normalizedSource)).add(normalizedTarget);
-		}
-
-		if (normalizedSources.size > 0) {
-			this.backlinksSourcesByTarget.set(normalizedTarget, normalizedSources);
-		}
-
-		this.enforceBacklinksCacheLimit();
+		this.backlinksCacheStore.set(path, backlinks);
 	}
 
 	clearBacklinksCache(): void {
-		this.backlinksCache.clear();
-		this.backlinksTargetsBySource.clear();
-		this.backlinksSourcesByTarget.clear();
-		logger.info('Backlinks cache cleared');
+		this.backlinksCacheStore.clear();
 	}
 
-	/**
-	 * Settings cache methods
-	 */
 	getSettings(): ObsidianInfluxSettings | null {
 		if (!this.settingsCache) {
 			this.stats.settingsMisses += 1;
@@ -296,7 +147,7 @@ export class InfluxCacheManager {
 	setSettings(settings: ObsidianInfluxSettings): void {
 		this.settingsCache = {
 			settings,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		};
 		logger.debug('Settings cached');
 	}
@@ -310,9 +161,6 @@ export class InfluxCacheManager {
 		logger.info('Settings cache invalidated');
 	}
 
-	/**
-	 * Regex cache methods
-	 */
 	getRegex(pattern: string): RegExp | null | undefined {
 		const entry = this.regexCache.get(pattern);
 		if (!entry) {
@@ -321,24 +169,20 @@ export class InfluxCacheManager {
 		}
 
 		this.stats.regexHits += 1;
-		if (entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL) {
-			return null;
-		}
-
-		return entry.regex;
+		return entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL ? null : entry.regex;
 	}
 
 	setRegex(pattern: string, regex: RegExp): void {
 		this.regexCache.set(pattern, {
 			regex,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		});
 	}
 
 	setInvalidRegex(pattern: string): void {
 		this.regexCache.set(pattern, {
 			regex: InfluxCacheManager.INVALID_REGEX_SENTINEL,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		});
 	}
 
@@ -347,39 +191,22 @@ export class InfluxCacheManager {
 		logger.info('Regex cache cleared');
 	}
 
-	/**
-	 * Preview file hash cache methods
-	 */
 	getPreviewFileHash(path: string): string | undefined {
-		const entry = this.previewFileHashes.get(this.normalizePathKey(path));
-		if (entry === undefined) {
-			this.stats.previewHashMisses += 1;
-		} else {
-			this.stats.previewHashHits += 1;
-		}
-		return entry?.hash;
+		return this.previewHashCacheStore.get(path);
 	}
 
 	setPreviewFileHash(path: string, hash: string): void {
-		this.previewFileHashes.set(this.normalizePathKey(path), {
-			hash,
-			timestamp: Date.now(),
-		});
-		this.enforcePreviewHashCacheLimit();
+		this.previewHashCacheStore.set(path, hash);
 	}
 
 	invalidatePreviewFileHash(path: string): void {
-		this.previewFileHashes.delete(this.normalizePathKey(path));
+		this.previewHashCacheStore.invalidate(path);
 	}
 
 	clearPreviewFileHashes(): void {
-		this.previewFileHashes.clear();
-		logger.info('Preview file hashes cleared');
+		this.previewHashCacheStore.clear();
 	}
 
-	/**
-	 * Settings hash cache methods
-	 */
 	getSettingsHash(): string | null {
 		return this.cachedSettingsHash;
 	}
@@ -388,30 +215,8 @@ export class InfluxCacheManager {
 		this.cachedSettingsHash = hash;
 	}
 
-	/**
-	 * Summary cache methods
-	 */
 	getSummary(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): SummaryCacheValue | null {
-		const cacheKey = this.makeSummaryCacheKey(sourcePath, sourceMtime, targetPath, settingsHash);
-		const entry = this.summaryCache.get(cacheKey);
-		if (!entry) {
-			this.stats.summaryMisses += 1;
-			return null;
-		}
-
-		if (Date.now() - entry.timestamp > InfluxCacheManager.SUMMARY_STALE_TIME_MS) {
-			this.removeSummaryEntry(cacheKey, entry);
-			this.stats.summaryMisses += 1;
-			return null;
-		}
-
-		this.stats.summaryHits += 1;
-		return {
-			summary: entry.summary,
-			title: entry.title,
-			titleLineNum: entry.titleLineNum,
-			isLinkInTitle: entry.isLinkInTitle,
-		};
+		return this.summaryCacheStore.get(sourcePath, sourceMtime, targetPath, settingsHash);
 	}
 
 	setSummary(
@@ -421,263 +226,44 @@ export class InfluxCacheManager {
 		settingsHash: string,
 		value: SummaryCacheValue
 	): void {
-		const normalizedSource = this.normalizePathKey(sourcePath);
-		const normalizedTarget = this.normalizePathKey(targetPath);
-		const cacheKey = this.makeSummaryCacheKey(sourcePath, sourceMtime, targetPath, settingsHash);
-		const existing = this.summaryCache.get(cacheKey);
-		if (existing) {
-			this.removeSummaryEntry(cacheKey, existing);
-		}
-
-		this.summaryCache.set(cacheKey, {
-			...value,
-			timestamp: Date.now(),
-			sourcePath: normalizedSource,
-			targetPath: normalizedTarget,
-		});
-
-		(this.summaryKeysBySource.get(normalizedSource) ?? this.createAndSet(this.summaryKeysBySource, normalizedSource)).add(cacheKey);
-		(this.summaryKeysByTarget.get(normalizedTarget) ?? this.createAndSet(this.summaryKeysByTarget, normalizedTarget)).add(cacheKey);
-		this.enforceSummaryCacheLimit();
+		this.summaryCacheStore.set(sourcePath, sourceMtime, targetPath, settingsHash, value);
 	}
 
 	clearSummaryCache(): void {
-		this.summaryCache.clear();
-		this.summaryKeysBySource.clear();
-		this.summaryKeysByTarget.clear();
-		logger.info('Summary cache cleared');
+		this.summaryCacheStore.clear();
 	}
 
-	/**
-	 * Clear all caches
-	 */
 	clearAll(): void {
-		this.fileCache.clear();
-		this.backlinksCache.clear();
-		this.backlinksTargetsBySource.clear();
-		this.backlinksSourcesByTarget.clear();
+		this.fileCacheStore.clear();
+		this.backlinksCacheStore.clear();
 		this.settingsCache = null;
 		this.regexCache.clear();
-		this.previewFileHashes.clear();
+		this.previewHashCacheStore.clear();
 		this.cachedSettingsHash = null;
-		this.summaryCache.clear();
-		this.summaryKeysBySource.clear();
-		this.summaryKeysByTarget.clear();
-		this.resetStats();
+		this.summaryCacheStore.clear();
+		resetCacheStats(this.stats);
 		logger.info('All caches cleared');
 	}
 
-	/**
-	 * Get debug information
-	 */
 	getDebugInfo(): CacheDebugInfo {
 		return {
-			fileCache: {
-				size: this.fileCache.size,
-				entries: Array.from(this.fileCache.entries()).map(([path, entry]) => ({
-					path,
-					age: Date.now() - entry.timestamp
-				}))
-			},
-			backlinksCache: {
-				size: this.backlinksCache.size,
-				entries: Array.from(this.backlinksCache.entries()).map(([path, entry]) => ({
-					path,
-					age: Date.now() - entry.timestamp
-				}))
-			},
+			fileCache: this.fileCacheStore.getDebugInfo(),
+			backlinksCache: this.backlinksCacheStore.getDebugInfo(),
 			settingsCache: {
 				cached: !!this.settingsCache,
-				age: this.settingsCache ? Date.now() - this.settingsCache.timestamp : 0
+				age: this.settingsCache ? Date.now() - this.settingsCache.timestamp : 0,
 			},
 			regexCache: {
 				size: this.regexCache.size,
 				invalid: Array.from(this.regexCache.entries())
 					.filter(([_, entry]) => entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL)
-					.map(([pattern]) => pattern)
+					.map(([pattern]) => pattern),
 			},
-			backlinksDependencyIndex: {
-				sources: this.backlinksTargetsBySource.size,
-				targets: this.backlinksSourcesByTarget.size
-			},
-			previewFileHashes: {
-				size: this.previewFileHashes.size
-			},
-			summaryCache: {
-				size: this.summaryCache.size,
-				sources: this.summaryKeysBySource.size,
-				targets: this.summaryKeysByTarget.size,
-			},
+			backlinksDependencyIndex: this.backlinksCacheStore.getDependencyDebugInfo(),
+			previewFileHashes: this.previewHashCacheStore.getDebugInfo(),
+			summaryCache: this.summaryCacheStore.getDebugInfo(),
 			stats: { ...this.stats },
 		};
-	}
-
-	private normalizePathKey(path: string): string {
-		return normalizePath(path).toLowerCase();
-	}
-
-	private extractBacklinksSourcePaths(backlinks: BacklinksObject): string[] {
-		if (!backlinks?.data) {
-			return [];
-		}
-		return backlinks.data instanceof Map
-			? Array.from(backlinks.data.keys())
-			: Object.keys(backlinks.data);
-	}
-
-	private removeDependencyEntriesForTarget(targetPath: string): void {
-		const sources = this.backlinksSourcesByTarget.get(targetPath);
-		if (!sources) {
-			return;
-		}
-
-		for (const sourcePath of sources) {
-			const targets = this.backlinksTargetsBySource.get(sourcePath);
-			if (!targets) {
-				continue;
-			}
-			targets.delete(targetPath);
-			if (targets.size === 0) {
-				this.backlinksTargetsBySource.delete(sourcePath);
-			}
-		}
-
-		this.backlinksSourcesByTarget.delete(targetPath);
-	}
-
-	private makeSummaryCacheKey(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): string {
-		const normalizedSource = this.normalizePathKey(sourcePath);
-		const normalizedTarget = this.normalizePathKey(targetPath);
-		return `${normalizedSource}|${sourceMtime}|${normalizedTarget}|${settingsHash}`;
-	}
-
-	private removeSummaryEntriesForSource(sourcePath: string): void {
-		const keys = this.summaryKeysBySource.get(sourcePath);
-		if (!keys) {
-			return;
-		}
-		for (const key of Array.from(keys)) {
-			const entry = this.summaryCache.get(key);
-			if (!entry) {
-				continue;
-			}
-			this.removeSummaryEntry(key, entry);
-		}
-	}
-
-	private removeSummaryEntriesForTarget(targetPath: string): void {
-		const keys = this.summaryKeysByTarget.get(targetPath);
-		if (!keys) {
-			return;
-		}
-		for (const key of Array.from(keys)) {
-			const entry = this.summaryCache.get(key);
-			if (!entry) {
-				continue;
-			}
-			this.removeSummaryEntry(key, entry);
-		}
-	}
-
-	private removeSummaryEntry(cacheKey: string, entry: SummaryCacheEntry): void {
-		this.summaryCache.delete(cacheKey);
-
-		const sourceKeys = this.summaryKeysBySource.get(entry.sourcePath);
-		if (sourceKeys) {
-			sourceKeys.delete(cacheKey);
-			if (sourceKeys.size === 0) {
-				this.summaryKeysBySource.delete(entry.sourcePath);
-			}
-		}
-
-		const targetKeys = this.summaryKeysByTarget.get(entry.targetPath);
-		if (targetKeys) {
-			targetKeys.delete(cacheKey);
-			if (targetKeys.size === 0) {
-				this.summaryKeysByTarget.delete(entry.targetPath);
-			}
-		}
-	}
-
-	private enforceSummaryCacheLimit(): void {
-		const overflow = this.summaryCache.size - InfluxCacheManager.SUMMARY_CACHE_MAX_ENTRIES;
-		if (overflow <= 0) {
-			return;
-		}
-
-		const oldestEntries = Array.from(this.summaryCache.entries())
-			.sort((a, b) => a[1].timestamp - b[1].timestamp)
-			.slice(0, overflow);
-		for (const [cacheKey, entry] of oldestEntries) {
-			this.removeSummaryEntry(cacheKey, entry);
-		}
-	}
-
-	private enforceFileCacheLimit(): void {
-		this.evictOldestEntries(this.fileCache, InfluxCacheManager.FILE_CACHE_MAX_ENTRIES);
-	}
-
-	private enforceBacklinksCacheLimit(): void {
-		const overflow = this.backlinksCache.size - InfluxCacheManager.BACKLINKS_CACHE_MAX_ENTRIES;
-		if (overflow <= 0) {
-			return;
-		}
-
-		const oldestTargets = Array.from(this.backlinksCache.entries())
-			.sort((a, b) => a[1].timestamp - b[1].timestamp)
-			.slice(0, overflow)
-			.map(([targetPath]) => targetPath);
-
-		for (const targetPath of oldestTargets) {
-			this.backlinksCache.delete(targetPath);
-			this.removeDependencyEntriesForTarget(targetPath);
-		}
-	}
-
-	private enforcePreviewHashCacheLimit(): void {
-		this.evictOldestEntries(this.previewFileHashes, InfluxCacheManager.PREVIEW_HASH_CACHE_MAX_ENTRIES);
-	}
-
-	private evictOldestEntries<T extends { timestamp: number }>(
-		cache: Map<string, T>,
-		maxEntries: number
-	): void {
-		const overflow = cache.size - maxEntries;
-		if (overflow <= 0) {
-			return;
-		}
-
-		const oldestKeys = Array.from(cache.entries())
-			.sort((a, b) => a[1].timestamp - b[1].timestamp)
-			.slice(0, overflow)
-			.map(([key]) => key);
-
-		for (const key of oldestKeys) {
-			cache.delete(key);
-		}
-	}
-
-	private resetStats(): void {
-		this.stats = {
-			fileHits: 0,
-			fileMisses: 0,
-			backlinksHits: 0,
-			backlinksMisses: 0,
-			settingsHits: 0,
-			settingsMisses: 0,
-			regexHits: 0,
-			regexMisses: 0,
-			previewHashHits: 0,
-			previewHashMisses: 0,
-			summaryHits: 0,
-			summaryMisses: 0,
-		};
-	}
-
-	private createAndSet<K, V>(map: Map<K, Set<V>>, key: K): Set<V> {
-		const value = new Set<V>();
-		map.set(key, value);
-		return value;
 	}
 }
 
