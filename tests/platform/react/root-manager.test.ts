@@ -225,4 +225,49 @@ describe('RootManager', () => {
 		jest.runAllTimers();
 		expect(originalRoot.unmount).toHaveBeenCalledTimes(1);
 	});
+
+	test('deferred unmount from a stale pane does not touch a re-registered replacement during re-enable cycles', () => {
+		jest.useFakeTimers();
+
+		const oldContainer = asHTMLElement(createFakeElement('div'));
+		const replacementContainer = asHTMLElement(createFakeElement('div'));
+		const oldRoot = createMockRoot();
+		const replacementRoot = createMockRoot();
+
+		rootManager.register(oldContainer, oldRoot, 'preview', 'Shared.md');
+		rootManager.unmountDeferred(oldContainer);
+		rootManager.register(replacementContainer, replacementRoot, 'preview', 'Shared.md');
+
+		expect(rootManager.has(oldContainer)).toBe(false);
+		expect(rootManager.get(replacementContainer)?.root).toBe(replacementRoot);
+		expect(oldRoot.unmount).not.toHaveBeenCalled();
+		expect(replacementRoot.unmount).not.toHaveBeenCalled();
+
+		jest.runOnlyPendingTimers();
+
+		expect(oldRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(replacementRoot.unmount).not.toHaveBeenCalled();
+		expect(rootManager.get(replacementContainer)?.root).toBe(replacementRoot);
+	});
+
+	test('register calls that happen during unmountAll are rejected and immediately unmounted', () => {
+		const existingContainer = asHTMLElement(createFakeElement('div'));
+		const lateContainer = asHTMLElement(createFakeElement('div'));
+		const lateRoot = createMockRoot();
+		const existingRoot = {
+			render: jest.fn(),
+			unmount: jest.fn(() => {
+				rootManager.register(lateContainer, lateRoot, 'preview', 'Late.md');
+			}),
+		} as unknown as Root;
+
+		rootManager.register(existingContainer, existingRoot, 'preview', 'Existing.md');
+
+		rootManager.unmountAll();
+
+		expect(existingRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(lateRoot.unmount).toHaveBeenCalledTimes(1);
+		expect(rootManager.size).toBe(0);
+		expect(rootManager.has(lateContainer)).toBe(false);
+	});
 });
