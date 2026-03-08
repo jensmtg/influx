@@ -54,6 +54,50 @@ describe('influx-file-build-helpers', () => {
 		expect(files).toEqual([source]);
 	});
 
+	test('collectValidBacklinkFiles normalizes backlink source paths before lookup and filtering', () => {
+		const source = mockTFile('Folder/Source.md', 'Source');
+		const api = {
+			isIncludableSource: jest.fn((path: string) => path === 'Folder/Source.md'),
+			getFileByPath: jest.fn((path: string) => (path === 'Folder/Source.md' ? source : null)),
+		};
+
+		const files = collectValidBacklinkFiles({
+			backlinks: {
+				data: new Map([
+					['Folder\\Source.md', []],
+				]),
+			} as any,
+			currentFilePath: 'Target.md',
+			api,
+		});
+
+		expect(files).toEqual([source]);
+		expect(api.isIncludableSource).toHaveBeenCalledWith('Folder/Source.md');
+		expect(api.getFileByPath).toHaveBeenCalledWith('Folder/Source.md');
+	});
+
+	test('collectValidBacklinkFiles dedupes normalized duplicate backlink source paths', () => {
+		const source = mockTFile('Folder/Source.md', 'Source');
+		const api = {
+			isIncludableSource: jest.fn().mockReturnValue(true),
+			getFileByPath: jest.fn((path: string) => (path === 'Folder/Source.md' ? source : null)),
+		};
+
+		const files = collectValidBacklinkFiles({
+			backlinks: {
+				data: new Map([
+					['Folder/Source.md', []],
+					['Folder\\Source.md', []],
+				]),
+			} as any,
+			currentFilePath: 'Target.md',
+			api,
+		});
+
+		expect(files).toEqual([source]);
+		expect(api.getFileByPath).toHaveBeenCalledTimes(1);
+	});
+
 	test('sortInfluxSourceFiles sorts by filename according to configured direction', () => {
 		const bravo = mockTFile('Bravo.md', 'Bravo');
 		const alpha = mockTFile('Alpha.md', 'Alpha');

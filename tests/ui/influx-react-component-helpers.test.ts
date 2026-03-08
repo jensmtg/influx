@@ -286,6 +286,20 @@ describe('influx-react-component helpers', () => {
 			expect(collectInitialCollapsedPaths({ collapsed: false, components })).toEqual([]);
 		});
 
+		test('collectComponentPaths uses sourcePath instead of reaching back into the raw file path', () => {
+			const components = [
+				{
+					...entry({ path: 'A.md', basename: 'Alpha' }),
+					inlinkingFile: {
+						file: { path: 'stale-A.md', basename: 'Alpha' },
+						isLinkInTitle: false,
+					},
+				},
+			] as unknown as ExtendedInlinkingFile[];
+
+			expect(collectComponentPaths(components)).toEqual(['A.md']);
+		});
+
 		test('collectBasenameCounts tracks duplicate source note names for disambiguation', () => {
 			const counts = collectBasenameCounts([
 				entry({ path: 'Folder/A.md', basename: 'A' }),
@@ -553,6 +567,33 @@ describe('influx-react-component helpers', () => {
 
 			expect(current.makeInfluxList).toHaveBeenCalledTimes(1);
 			expect(result).toBe(entries);
+		});
+
+		test('resolveInfluxUpdateEntries refreshes visibility and returns empty entries when the note becomes hidden', async () => {
+			const current = {
+				file: { path: 'Current.md' },
+				show: true,
+				shouldUpdate: jest.fn().mockReturnValue(false),
+				refreshVisibility: jest.fn(function (this: { show: boolean }) {
+					this.show = false;
+					return this.show;
+				}),
+				makeInfluxList: jest.fn(),
+				toEntries: jest.fn(),
+			};
+
+			const result = await resolveInfluxUpdateEntries({
+				event: makeUpdateEvent('save-settings'),
+				current,
+				seq: 1,
+				getLatestSeq: () => 1,
+				isAborted: () => false,
+			});
+
+			expect(current.refreshVisibility).toHaveBeenCalledTimes(1);
+			expect(current.makeInfluxList).not.toHaveBeenCalled();
+			expect(current.toEntries).not.toHaveBeenCalled();
+			expect(result).toEqual([]);
 		});
 
 		test('resolveInfluxUpdateEntries drops stale async results after a newer update wins', async () => {

@@ -79,7 +79,7 @@ export function InfluxToolbar(props: {
 	isSearchFocused: boolean;
 	inputValue: string;
 	searchQuery: string;
-	searchInputRef: React.RefObject<HTMLInputElement>;
+	searchInputRef: React.RefObject<HTMLInputElement | null>;
 	onToggleSearch: () => void;
 	onSearchChange: (value: string) => void;
 	onSearchFocusChange: (focused: boolean) => void;
@@ -265,7 +265,7 @@ export function InfluxResultGroup(props: {
 		influxFileUuid,
 	} = props;
 
-	const filePath = extended.inlinkingFile.file.path;
+	const filePath = extended.sourcePath;
 	const fileBasename = extended.inlinkingFile.file.basename;
 	const collapseLabelId = React.useId();
 	const collapseButtonLabel = collapsed ? `Expand ${fileBasename}` : `Collapse ${fileBasename}`;

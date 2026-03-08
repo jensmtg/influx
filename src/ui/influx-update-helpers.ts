@@ -3,8 +3,10 @@ import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
 import type { InfluxUpdateEvent } from '../platform/events/influx-updates';
 
 export interface InfluxUpdateTarget {
-	file?: { path?: string };
+	file?: { path?: string } | null;
+	show?: boolean;
 	shouldUpdate: (file: TFile) => boolean;
+	refreshVisibility?: () => boolean;
 	makeInfluxList: () => Promise<void>;
 	toEntries: () => ExtendedInlinkingFile[];
 }
@@ -56,6 +58,11 @@ export async function resolveInfluxUpdateEntries(params: {
 	const affectsBacklinks = event.file ? current.shouldUpdate(event.file) : false;
 	if (!shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks })) {
 		return null;
+	}
+
+	const visibleAfterRefresh = current.refreshVisibility?.() ?? current.show;
+	if (visibleAfterRefresh === false) {
+		return [];
 	}
 
 	await current.makeInfluxList();

@@ -10,10 +10,13 @@
     "src/ui/influx-ui-plugin.ts",
     "src/features/settings/settings-tab-plugin.ts",
     "src/features/sidebar/influx-sidebar-plugin.ts",
+    "src/features/sidebar/influx-sidebar-view.tsx",
     "src/domain/backlinks/inlinking-file.ts",
     "src/domain/backlinks/influx-file.ts",
     "src/domain/backlinks/influx-file-build-helpers.ts",
-    "src/domain/backlinks/influx-render-pipeline.ts"
+    "src/domain/backlinks/influx-render-pipeline.ts",
+    "src/ui/influx-update-helpers.ts",
+    "src/ui/influx-react-component.tsx"
   ],
   "exclude": [
     "tests",

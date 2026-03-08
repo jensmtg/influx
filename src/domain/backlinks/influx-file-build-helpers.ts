@@ -26,15 +26,20 @@ export function collectValidBacklinkFiles(params: {
 	const { backlinks, currentFilePath, api } = params;
 	const normalizedCurrentPath = normalizePath(currentFilePath);
 	const validFiles: TFile[] = [];
+	const seenSourcePaths = new Set<string>();
 
 	for (const [pathAsKey] of getBacklinkEntries(backlinks)) {
 		const normalizedSourcePath = normalizePath(pathAsKey);
-		if (normalizedSourcePath === normalizedCurrentPath || !api.isIncludableSource(pathAsKey)) {
+		if (normalizedSourcePath === normalizedCurrentPath || !api.isIncludableSource(normalizedSourcePath)) {
+			continue;
+		}
+		if (seenSourcePaths.has(normalizedSourcePath)) {
 			continue;
 		}
 
-		const file = api.getFileByPath(pathAsKey);
+		const file = api.getFileByPath(normalizedSourcePath);
 		if (file !== null) {
+			seenSourcePaths.add(normalizedSourcePath);
 			validFiles.push(file);
 		}
 	}

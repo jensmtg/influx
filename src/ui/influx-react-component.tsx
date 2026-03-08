@@ -45,7 +45,7 @@ interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, 
 const SEARCH_DEBOUNCE_MS = 250;
 const SEARCH_FOCUS_DELAY_MS = 100;
 
-export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement {
+export default function InfluxReactComponent(props: InfluxReactComponentProps): React.ReactElement | null {
 
 	const {
 		influxFile,
@@ -95,6 +95,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const influxFileRef = React.useRef(influxFile);
 	influxFileRef.current = influxFile;
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings();
+	const targetFilePath = influxFile.file?.path ?? 'unknown';
 	const renderMode: InfluxRenderMode = settings.showInfluxInSidebar ? 'sidebar' : preview ? 'preview' : 'editor';
 	const isEditorMode = renderMode === 'editor';
 	const showToolbarSummary = renderMode === 'editor' || renderMode === 'preview';
@@ -109,14 +110,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			durationMs: performance.now() - startTime,
 			settings,
 				ctx: {
-					filePath: influxFile.file.path,
+					filePath: targetFilePath,
 					componentCount: components.length,
 					filteredCount: filtered.length,
 					queryLength: searchQuery.length,
 				}
 			});
 			return filtered;
-	}, [components, searchQuery, renderMode, settings, influxFile.file.path]);
+	}, [components, searchQuery, renderMode, settings, targetFilePath]);
 	const [visibleCount, setVisibleCount] = React.useState(INITIAL_VISIBLE_COMPONENTS_BY_MODE[renderMode]);
 	const visibleComponents = React.useMemo(
 		() => filteredComponents.slice(0, visibleCount),
@@ -139,7 +140,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					settings,
 					always: true,
 					ctx: {
-						filePath: influxFile.file.path,
+						filePath: targetFilePath,
 						prevVisibleCount: count,
 						nextVisibleCount,
 						totalFilteredCount: filteredComponents.length,
@@ -149,7 +150,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			}
 			return nextVisibleCount;
 		});
-	}, [filteredComponents.length, renderMode, settings, influxFile.file.path]);
+	}, [filteredComponents.length, renderMode, settings, targetFilePath]);
 
 	React.useEffect(() => {
 		setVisibleCount(Math.min(INITIAL_VISIBLE_COMPONENTS_BY_MODE[renderMode], filteredComponents.length));
@@ -163,6 +164,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			hasIntersectionObserver: typeof IntersectionObserver !== 'undefined',
 			hasTrigger: trigger !== null,
 		})) {
+			return;
+		}
+		if (!trigger) {
 			return;
 		}
 
@@ -354,14 +358,14 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 							<div className="influx-results-list" >
 
-								{visibleComponents.map((extended: ExtendedInlinkingFile) => (
-									<InfluxResultGroup
-										key={extended.inlinkingFile.file.path}
-										extended={extended}
-										basenameCounts={basenameCounts}
-										searchQuery={searchQuery}
-										collapsed={collapsedManager.isCollapsed(extended.inlinkingFile.file.path)}
-										onToggleCollapse={doToggle}
+							{visibleComponents.map((extended: ExtendedInlinkingFile) => (
+								<InfluxResultGroup
+									key={extended.sourcePath}
+									extended={extended}
+									basenameCounts={basenameCounts}
+									searchQuery={searchQuery}
+									collapsed={collapsedManager.isCollapsed(extended.sourcePath)}
+									onToggleCollapse={doToggle}
 										centered={centered}
 										centeredTitleStyle={centeredTitleStyle}
 										settings={settings}

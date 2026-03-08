@@ -75,16 +75,27 @@ export default class InfluxFile {
      * Initialize InfluxFile with metadata, backlinks, and show status.
      * This is called by factory method to avoid blocking in the constructor.
      */
-    private async initialize(): Promise<void> {
-        if (!this.file) {
-            this.initialized = true;
-            return;
-        }
-        this.meta = this.api.getMetadata(this.file)
-        this.show = this.api.getShowStatus(this.file)
-        this.collapsed = this.api.getCollapsedStatus(this.file)
-        this.initialized = true;
-    }
+	private async initialize(): Promise<void> {
+		if (!this.file) {
+			this.initialized = true;
+			return;
+		}
+		this.meta = this.api.getMetadata(this.file)
+		this.refreshVisibility()
+		this.initialized = true;
+	}
+
+	refreshVisibility(): boolean {
+		if (!this.file) {
+			this.show = false
+			this.collapsed = false
+			return this.show
+		}
+
+		this.show = this.api.getShowStatus(this.file)
+		this.collapsed = this.api.getCollapsedStatus(this.file)
+		return this.show
+	}
 
     /**
      * Ensure InfluxFile is properly initialized before use.
@@ -118,16 +129,14 @@ export default class InfluxFile {
 
     async makeInfluxList() {
         this.ensureInitialized();
-        if (!this.file) {
-            this.inlinkingFiles = [];
-            this.totalEntryCount = 0;
-            return;
-        }
+		if (!this.file) {
+			this.inlinkingFiles = [];
+			this.totalEntryCount = 0;
+			return;
+		}
 
-        const settings = typeof (this.api as { getSettings?: () => typeof DEFAULT_SETTINGS }).getSettings === 'function'
-            ? this.api.getSettings()
-            : DEFAULT_SETTINGS;
-        const settingsHash = computeSettingsHash(settings);
+		const settings = this.api.getSettings();
+		const settingsHash = computeSettingsHash(settings);
         const dependencyRevision = cacheManager.getDependencyRevision();
         const buildKey = this.makeInflightListBuildKey(this.file.path, this.file.stat?.mtime ?? 0, settingsHash, dependencyRevision);
 

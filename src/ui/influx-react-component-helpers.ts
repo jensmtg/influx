@@ -76,7 +76,7 @@ export const VISIBLE_COMPONENTS_CHUNK_BY_MODE: Record<InfluxRenderMode, number> 
 };
 
 export function collectComponentPaths(components: ExtendedInlinkingFile[]): string[] {
-	return components.map((component) => component.inlinkingFile.file.path);
+	return components.map((component) => component.sourcePath);
 }
 
 export interface SearchMatchDetails {

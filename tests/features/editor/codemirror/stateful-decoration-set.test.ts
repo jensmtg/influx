@@ -7,6 +7,7 @@ import InfluxFile from '@/domain/backlinks/influx-file';
 import { ApiAdapter } from '@/domain/backlinks/api-adapter';
 import { getPlugin, isPluginUnloading } from '@/platform/obsidian/plugin-window-guards';
 import { cacheManager } from '@/platform/cache/cache-manager';
+import type { EditorView } from '@codemirror/view';
 
 jest.mock('@/domain/backlinks/influx-file', () => ({
 	__esModule: true,
@@ -87,6 +88,17 @@ function createView(state: EditorState) {
 	};
 }
 
+type MockEditorView = Pick<EditorView, 'state' | 'dispatch'>;
+type TestableDecorationSet = StatefulDecorationSet & {
+	computeAsyncDecorations: (state: EditorState, show: boolean, updateId: number) => Promise<Decoration | any>;
+	computeAsyncDecorationsCoalesced: (state: EditorState, show: boolean, plugin: ReturnType<typeof createPlugin>, updateId: number) => Promise<any>;
+	pendingUpdate: { show: boolean; updateId: number } | null;
+};
+
+function createDecorationSet(view: MockEditorView): TestableDecorationSet {
+	return new StatefulDecorationSet(view as EditorView) as TestableDecorationSet;
+}
+
 function createPlugin(overrides?: Record<string, unknown>) {
 	const api = Object.assign(Object.create(ApiAdapter.prototype), {
 		invalidateSettingsCache: jest.fn(),
@@ -137,12 +149,12 @@ describe('StatefulDecorationSet', () => {
 		const firstState = createState('first file', 'First.md');
 		const secondState = createState('second file', 'Second.md');
 		const view = createView(secondState);
-		const decorationSet = new StatefulDecorationSet(view as any);
+		const decorationSet = createDecorationSet(view as MockEditorView);
 
 		const staleResult = deferred<any>();
 		const freshResult = Decoration.none;
 		jest
-			.spyOn(decorationSet as any, 'computeAsyncDecorationsCoalesced')
+			.spyOn(decorationSet, 'computeAsyncDecorationsCoalesced')
 			.mockReturnValueOnce(staleResult.promise)
 			.mockResolvedValueOnce(freshResult);
 
@@ -159,9 +171,9 @@ describe('StatefulDecorationSet', () => {
 	test('bails without dispatch when plugin starts unloading before async work finishes', async () => {
 		const state = createState('content', 'Unload.md');
 		const view = createView(state);
-		const decorationSet = new StatefulDecorationSet(view as any);
+		const decorationSet = createDecorationSet(view as MockEditorView);
 
-		jest.spyOn(decorationSet as any, 'computeAsyncDecorationsCoalesced').mockResolvedValue(Decoration.none);
+		jest.spyOn(decorationSet, 'computeAsyncDecorationsCoalesced').mockResolvedValue(Decoration.none);
 		isPluginUnloadingMock.mockReturnValueOnce(false).mockReturnValueOnce(true).mockReturnValue(true);
 
 		await decorationSet.updateAsyncDecorations(state, true);
@@ -172,9 +184,9 @@ describe('StatefulDecorationSet', () => {
 	test('does not dispatch Decoration.none when async compute returns null', async () => {
 		const state = createState('content', 'Transient.md');
 		const view = createView(state);
-		const decorationSet = new StatefulDecorationSet(view as any);
+		const decorationSet = createDecorationSet(view as MockEditorView);
 
-		jest.spyOn(decorationSet as any, 'computeAsyncDecorationsCoalesced').mockResolvedValue(null);
+		jest.spyOn(decorationSet, 'computeAsyncDecorationsCoalesced').mockResolvedValue(null);
 
 		await decorationSet.updateAsyncDecorations(state, true);
 
@@ -184,15 +196,15 @@ describe('StatefulDecorationSet', () => {
 	test('recomputes after a transient null result instead of caching it', async () => {
 		const state = createState('content', 'Retry.md');
 		const view = createView(state);
-		const decorationSet = new StatefulDecorationSet(view as any);
-		const computeSpy = jest.spyOn(decorationSet as any, 'computeAsyncDecorations');
+		const decorationSet = createDecorationSet(view as MockEditorView);
+		const computeSpy = jest.spyOn(decorationSet, 'computeAsyncDecorations');
 
 		computeSpy.mockResolvedValueOnce(null).mockResolvedValueOnce(Decoration.none);
 
-		(decorationSet as any).pendingUpdate = { show: true, updateId: 1 };
-		const first = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 1);
-		(decorationSet as any).pendingUpdate = { show: true, updateId: 2 };
-		const second = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
+		decorationSet.pendingUpdate = { show: true, updateId: 1 };
+		const first = await decorationSet.computeAsyncDecorationsCoalesced(state, true, createPlugin(), 1);
+		decorationSet.pendingUpdate = { show: true, updateId: 2 };
+		const second = await decorationSet.computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
 
 		expect(first).toBeNull();
 		expect(second).toBe(Decoration.none);
@@ -202,16 +214,16 @@ describe('StatefulDecorationSet', () => {
 	test('recomputes after dependency invalidation even when file state is unchanged', async () => {
 		const state = createState('content', 'Dependency.md');
 		const view = createView(state);
-		const decorationSet = new StatefulDecorationSet(view as any);
-		const computeSpy = jest.spyOn(decorationSet as any, 'computeAsyncDecorations');
+		const decorationSet = createDecorationSet(view as MockEditorView);
+		const computeSpy = jest.spyOn(decorationSet, 'computeAsyncDecorations');
 
 		computeSpy.mockResolvedValue(Decoration.none);
 
-		(decorationSet as any).pendingUpdate = { show: true, updateId: 1 };
-		const first = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 1);
+		decorationSet.pendingUpdate = { show: true, updateId: 1 };
+		const first = await decorationSet.computeAsyncDecorationsCoalesced(state, true, createPlugin(), 1);
 		cacheManager.invalidateFile('Source.md');
-		(decorationSet as any).pendingUpdate = { show: true, updateId: 2 };
-		const second = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
+		decorationSet.pendingUpdate = { show: true, updateId: 2 };
+		const second = await decorationSet.computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
 
 		expect(first).toBe(Decoration.none);
 		expect(second).toBe(Decoration.none);
@@ -220,25 +232,26 @@ describe('StatefulDecorationSet', () => {
 
 	test('anchors decorations after closing frontmatter when top-of-page mode is enabled', async () => {
 		const text = ['---', 'title: Example', '---', 'Body text'].join('\n');
+		const expectedAnchor = createDoc(text).line(3).to;
 		const state = createState(text, 'Frontmatter.md');
 		const view = createView(state);
-		const decorationSet = new StatefulDecorationSet(view as any);
-		(decorationSet as any).pendingUpdate = { show: true, updateId: 1 };
+		const decorationSet = createDecorationSet(view as MockEditorView);
+		decorationSet.pendingUpdate = { show: true, updateId: 1 };
 		getPluginMock.mockReturnValue(createPlugin({ influxAtTopOfPage: true }));
 
 		const decorations = await decorationSet.computeAsyncDecorations(state, true, 1);
 		const ranges: number[] = [];
 		decorations?.between(0, state.doc.length, (from: number) => ranges.push(from));
 
-		expect(ranges).toEqual([(state.doc as any).line(3).to]);
+		expect(ranges).toEqual([expectedAnchor]);
 	});
 
-	test('anchors decorations at the document end when top-of-page mode is disabled', async () => {
+		test('anchors decorations at the document end when top-of-page mode is disabled', async () => {
 		const text = ['---', 'title: Example', '---', 'Body text'].join('\n');
 		const state = createState(text, 'Bottom.md');
 		const view = createView(state);
-		const decorationSet = new StatefulDecorationSet(view as any);
-		(decorationSet as any).pendingUpdate = { show: true, updateId: 1 };
+		const decorationSet = createDecorationSet(view as MockEditorView);
+		decorationSet.pendingUpdate = { show: true, updateId: 1 };
 
 		const decorations = await decorationSet.computeAsyncDecorations(state, true, 1);
 		const ranges: number[] = [];
