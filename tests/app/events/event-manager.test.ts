@@ -11,6 +11,8 @@ describe('EventManager', () => {
     let eventManager: EventManager;
     let plugin: any;
 
+	const makeLeaf = (view: Record<string, unknown>) => ({ view });
+
     beforeEach(() => {
         plugin = {
             app: {
@@ -121,6 +123,15 @@ describe('EventManager', () => {
     });
 
     describe('mode change metrics', () => {
+		test('detectMode classifies preview, source, live, markdown fallback, and non-markdown leaves', () => {
+			expect((eventManager as any).detectMode(makeLeaf({ currentMode: { type: 'preview' } }))).toBe('preview');
+			expect((eventManager as any).detectMode(makeLeaf({ currentMode: { type: 'live' } }))).toBe('editor');
+			expect((eventManager as any).detectMode(makeLeaf({ mode: 'source' }))).toBe('editor');
+			expect((eventManager as any).detectMode(makeLeaf({ getViewType: () => 'markdown' }))).toBe('editor');
+			expect((eventManager as any).detectMode(makeLeaf({ getViewType: () => 'canvas' }))).toBe('other');
+			expect((eventManager as any).detectMode(null)).toBeNull();
+		});
+
         test('records metric only when detected mode actually changes', () => {
             const markdownLeaf = {
                 view: {
@@ -189,5 +200,42 @@ describe('EventManager', () => {
             (eventManager as any).handleActiveLeafChange(otherLeaf);
             expect(plugin.triggerUpdates).not.toHaveBeenCalled();
         });
+
+		test('treats reading-like preview leaves as renderable and ignores plain-object files for refresh payloads', () => {
+			const readingLeaf = {
+				view: {
+					currentMode: { type: 'preview' },
+					file: { path: 'Reading.md' },
+					getViewType: () => 'markdown',
+				},
+			};
+			const livePreviewLeaf = {
+				view: {
+					currentMode: { type: 'live' },
+					file: mockTFile('Reading.md', 'Reading'),
+					getViewType: () => 'markdown',
+				},
+			};
+			const otherLeaf = {
+				view: {
+					getViewType: () => 'graph',
+				},
+			};
+
+			(eventManager as any).handleActiveLeafChange(otherLeaf);
+			expect(plugin.triggerUpdates).not.toHaveBeenCalled();
+
+			(recordMetric as jest.Mock).mockClear();
+			(eventManager as any).handleActiveLeafChange(readingLeaf);
+			expect(recordMetric).toHaveBeenCalledWith(
+				expect.objectContaining({
+					ctx: expect.objectContaining({ fromMode: 'other', toMode: 'preview' }),
+				})
+			);
+			expect(plugin.triggerUpdates).not.toHaveBeenCalled();
+
+			(eventManager as any).handleActiveLeafChange(livePreviewLeaf);
+			expect(plugin.triggerUpdates).toHaveBeenCalledWith('mode-change', livePreviewLeaf.view.file);
+		});
     });
 });
