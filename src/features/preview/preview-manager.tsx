@@ -75,12 +75,10 @@ export class PreviewManager {
 			}
 			const updateKey = this.getLeafUpdateKey(influxLeaf, filePath);
 
-			const now = Date.now();
-			const lastUpdate = this.plugin.updating.get(updateKey);
-			if (lastUpdate && now - lastUpdate < 1000) {
+			if (this.plugin.updating.has(updateKey)) {
 				return Promise.resolve();
 			}
-			this.plugin.updating.set(updateKey, now);
+			this.plugin.updating.set(updateKey, Date.now());
 
 			return this.updatePreview(leaf)
 				.catch((error) => {

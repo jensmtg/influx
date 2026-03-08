@@ -464,10 +464,7 @@ describe('PreviewManager', () => {
 		expect(wrapper.remove).not.toHaveBeenCalled();
 	});
 
-	test('updateAllPreviews throttles repeated updates for same file path', async () => {
-		const nowSpy = jest.spyOn(Date, 'now');
-		nowSpy.mockReturnValue(1000);
-
+	test('updateAllPreviews skips leaves that already have an active refresh', async () => {
 		const leaf = {
 			view: {
 				file: { path: 'Scratchpad.md' },
@@ -495,7 +492,6 @@ describe('PreviewManager', () => {
 
 		expect(updatePreviewSpy).not.toHaveBeenCalled();
 		expect(plugin.updating.get('Scratchpad.md::1')).toBe(500);
-		nowSpy.mockRestore();
 	});
 
 	test('updateAllPreviews bails early while plugin is unloading', async () => {
@@ -623,5 +619,52 @@ describe('PreviewManager', () => {
 		});
 		await manager.updateAllPreviews();
 		expect(updatePreviewSpy).toHaveBeenCalledTimes(4);
+	});
+
+	test('updateAllPreviews still throttles an in-flight leaf after more than one second passes', async () => {
+		const nowSpy = jest.spyOn(Date, 'now');
+		const sharedPath = 'Slow.md';
+		const leaf = {
+			view: {
+				file: { path: sharedPath },
+				currentMode: { type: 'preview' },
+			},
+			containerEl: {
+				querySelector: jest.fn(),
+			} as unknown as HTMLDivElement,
+		};
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
+				},
+			},
+			updating: new Map<string, number>(),
+		} as any;
+
+		let release: (() => void) | null = null;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockImplementation(async () => {
+			await gate;
+		});
+
+		nowSpy.mockReturnValue(1000);
+		const firstCycle = manager.updateAllPreviews();
+		await Promise.resolve();
+
+		nowSpy.mockReturnValue(2500);
+		await manager.updateAllPreviews();
+
+		expect(updatePreviewSpy).toHaveBeenCalledTimes(1);
+
+		release?.();
+		await firstCycle;
+		nowSpy.mockRestore();
 	});
 });
