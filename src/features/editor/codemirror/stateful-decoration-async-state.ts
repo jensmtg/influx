@@ -16,7 +16,7 @@ interface InflightComputation {
 
 interface RecentComputation {
 	key: string;
-	decorations: DecorationSet | null;
+	decorations: DecorationSet;
 	timestamp: number;
 }
 
