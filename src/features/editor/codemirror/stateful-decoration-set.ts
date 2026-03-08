@@ -7,19 +7,14 @@ import { getPlugin, isPluginUnloading } from '../../../platform/obsidian/plugin-
 import type { MinimalPluginInterface } from '../../../platform/obsidian/plugin-window-guards';
 import { ApiAdapter } from '../../../domain/backlinks/api-adapter';
 import type ObsidianInflux from '../../../app/influx-plugin';
-import { computeSettingsHash } from '../../../domain/settings/settings-hash';
 import { createInfluxFileForRender } from '../../../domain/backlinks/influx-render-pipeline';
+import { StatefulDecorationAsyncState } from './stateful-decoration-async-state';
 
 
 export class StatefulDecorationSet {
-    private static readonly RECENT_COMPUTE_TTL_MS = 5000;
-
     editor: EditorView;
     decoCache: { [cls: string]: Decoration } = Object.create(null);
-    pendingUpdate: { show: boolean; updateId: number } | null = null;
-    private updateId: number = 0;
-    private inflightComputation: { key: string; promise: Promise<DecorationSet | null> } | null = null;
-    private recentComputation: { key: string; decorations: DecorationSet | null; timestamp: number } | null = null;
+    private asyncState = new StatefulDecorationAsyncState();
 
     constructor(editor: EditorView) {
         this.editor = editor;
@@ -125,8 +120,8 @@ export class StatefulDecorationSet {
         }
 
         // Store pending request for cancellation
-        const currentUpdateId = ++this.updateId;
-        this.pendingUpdate = { show, updateId: currentUpdateId };
+        const request = this.asyncState.beginUpdate(show);
+        const currentUpdateId = request.updateId;
 
         // Compute decorations using the state at call time.
         // Coalesce duplicate in-flight builds for the same file/state/settings.
@@ -135,32 +130,32 @@ export class StatefulDecorationSet {
         // Early exit if plugin or editor was destroyed during async computation
         // This prevents updating a destroyed editor
         if (!this.editor || !this.editor.state) {
-            this.pendingUpdate = null;
+            this.asyncState.clearPending();
             return;
         }
 
         // Check if this update is still the most recent request
-        if (this.pendingUpdate?.show !== show || this.pendingUpdate?.updateId !== currentUpdateId) {
-            this.pendingUpdate = null;
+        if (!this.asyncState.isLatestRequest(show, currentUpdateId)) {
+            this.asyncState.clearPending();
             return;
         }
 
         // Revalidate plugin instance still active (after async operation)
         const currentPlugin = getPlugin();
         if (currentPlugin !== plugin) {
-            this.pendingUpdate = null;
+            this.asyncState.clearPending();
             return;
         }
 
         // Check if plugin is now unloading (after async operation)
         if (isPluginUnloading()) {
-            this.pendingUpdate = null;
+            this.asyncState.clearPending();
             return;
         }
 
         // Final check before updating decorations - ensure plugin still active and editor valid
         if (isPluginUnloading() || !this.editor || !this.editor.state) {
-            this.pendingUpdate = null;
+            this.asyncState.clearPending();
             return;
         }
 
@@ -177,7 +172,7 @@ export class StatefulDecorationSet {
             }
         }
 
-        this.pendingUpdate = null;
+        this.asyncState.clearPending();
     }
 
     /**
@@ -185,19 +180,11 @@ export class StatefulDecorationSet {
      * Call this when you know the editor state will change soon
      */
     cancelPendingUpdates(): void {
-        this.pendingUpdate = null;
+        this.asyncState.clearPending();
     }
 
     private isUpdateCurrent(updateId: number, show: boolean): boolean {
-        return this.pendingUpdate?.updateId === updateId && this.pendingUpdate?.show === show;
-    }
-
-    private makeComputationKey(state: EditorState, show: boolean, plugin: MinimalPluginInterface): string {
-        const field = state.field(editorViewField, false);
-        const filePath = field?.file?.path ?? '';
-        const fileMtime = field?.file?.stat?.mtime ?? 0;
-        const settingsHash = computeSettingsHash(plugin.data.settings);
-        return `${filePath}|${fileMtime}|${show ? 1 : 0}|${settingsHash}`;
+        return this.asyncState.isUpdateCurrent(updateId, show);
     }
 
     private async computeAsyncDecorationsCoalesced(
@@ -206,32 +193,19 @@ export class StatefulDecorationSet {
         plugin: MinimalPluginInterface,
         updateId: number
     ): Promise<DecorationSet | null> {
-        const key = this.makeComputationKey(state, show, plugin);
-        const recent = this.recentComputation;
-        if (recent && recent.key === key && Date.now() - recent.timestamp <= StatefulDecorationSet.RECENT_COMPUTE_TTL_MS) {
-            return recent.decorations;
-        }
-
-        const inflight = this.inflightComputation;
-        if (inflight && inflight.key === key) {
-            return await inflight.promise;
-        }
-
-        const promise = this.computeAsyncDecorations(state, show, updateId);
-        this.inflightComputation = { key, promise };
-
-        try {
-            const decorations = await promise;
-            this.recentComputation = {
-                key,
-                decorations,
-                timestamp: Date.now(),
-            };
-            return decorations;
-        } finally {
-            if (this.inflightComputation?.key === key) {
-                this.inflightComputation = null;
-            }
-        }
+        return await this.asyncState.getCoalescedDecorations({
+			state,
+			show,
+			plugin,
+			compute: () => this.computeAsyncDecorations(state, show, updateId),
+		});
     }
+
+	set pendingUpdate(value: { show: boolean; updateId: number } | null) {
+		this.asyncState.setPendingForTests(value);
+	}
+
+	get pendingUpdate(): { show: boolean; updateId: number } | null {
+		return this.asyncState.getPendingForTests();
+	}
 }
