@@ -72,6 +72,9 @@ body.is-readable-line-width .influx-preview-wrapper {
 	--influx-result-card-padding-block: 8px;
 	--influx-result-card-padding-inline: 10px;
 	--influx-result-indent: 0.875rem;
+	--influx-result-card-bg: color-mix(in srgb, var(--influx-surface-subtle) 34%, transparent);
+	--influx-result-card-bg-editor: color-mix(in srgb, var(--influx-surface-muted) 54%, transparent);
+	--influx-result-card-border: color-mix(in srgb, var(--influx-border-color) 72%, transparent);
 	--influx-radius-s: var(--radius-s, 6px);
 	--influx-radius-m: var(--radius-m, 10px);
 	--influx-font-ui-small: var(--font-ui-small, 0.9rem);
@@ -96,7 +99,8 @@ body.is-readable-line-width .influx-preview-wrapper {
 
 .influx-component--editor .influx-result-body {
 	border-radius: var(--influx-radius-m);
-	border: 1px solid var(--influx-border-color);
+	border-color: color-mix(in srgb, var(--influx-result-card-border) 90%, var(--influx-border-color));
+	background-color: var(--influx-result-card-bg-editor);
 	box-shadow: none;
 }
 
@@ -728,12 +732,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-component .influx-result-source-primary {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	flex-wrap: wrap;
 	row-gap: 2px;
 	column-gap: var(--size-2-1);
 	min-width: 0;
 	max-width: 100%;
+	line-height: 1.3;
 }
 
 /* Count badge */
@@ -802,12 +807,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-result-body {
 	font-size: var(--influx-font-ui-small);
 	line-height: var(--line-height-tight);
-	background-color: color-mix(in srgb, var(--influx-surface-subtle) 42%, transparent);
+	background-color: var(--influx-result-card-bg);
+	border: 1px solid var(--influx-result-card-border);
 	border-radius: calc(var(--influx-radius-s) - 1px);
 	overflow: hidden;
 	margin: 0;
 	color: var(--influx-text-muted);
-	box-shadow: 0 0 0 1px color-mix(in srgb, var(--influx-border-color) 72%, transparent);
+	box-shadow: none;
 	padding: var(--influx-result-card-padding-block) var(--influx-result-card-padding-inline);
 	min-width: 0;
 	max-width: 100%;
@@ -831,24 +837,28 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-result-source .influx-internal-link {
-	font-weight: 500;
+	font-weight: 600;
+	line-height: 1.3;
+	text-decoration-thickness: from-font;
+	text-underline-offset: 0.14em;
 }
 
 .influx-component .influx-result-source-context {
 	display: inline-block;
-	color: var(--influx-text-faint);
+	color: color-mix(in srgb, var(--influx-text-muted) 78%, var(--influx-text-faint));
 	font-size: var(--influx-font-ui-smaller);
 	line-height: 1.35;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-inline-size: 100%;
+	max-inline-size: min(100%, 36ch);
 }
 
 .influx-component .influx-result-search-reasons {
 	color: var(--influx-text-faint);
 	font-size: var(--influx-font-ui-smaller);
 	line-height: 1.35;
+	margin-top: 1px;
 	white-space: normal;
 }
 
