@@ -8,6 +8,7 @@ import { CONSTANTS } from '../../config/constants';
 import { DEFAULT_SETTINGS } from '../../types';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../settings/settings-hash';
+import { cacheManager } from '../../platform/cache/cache-manager';
 
 
 export default class InfluxFile {
@@ -119,7 +120,8 @@ export default class InfluxFile {
             ? this.api.getSettings()
             : DEFAULT_SETTINGS;
         const settingsHash = computeSettingsHash(settings);
-        const buildKey = this.makeInflightListBuildKey(this.file.path, this.file.stat?.mtime ?? 0, settingsHash);
+        const dependencyRevision = cacheManager.getDependencyRevision();
+        const buildKey = this.makeInflightListBuildKey(this.file.path, this.file.stat?.mtime ?? 0, settingsHash, dependencyRevision);
 
         const recent = InfluxFile.recentListBuilds.get(buildKey);
         if (recent && Date.now() - recent.timestamp <= InfluxFile.RECENT_LIST_BUILD_TTL_MS) {
@@ -157,8 +159,8 @@ export default class InfluxFile {
         }
     }
 
-    private makeInflightListBuildKey(path: string, fileMtime: number, settingsHash: string): string {
-        return `${normalizePath(path).toLowerCase()}|${fileMtime}|${settingsHash}`;
+    private makeInflightListBuildKey(path: string, fileMtime: number, settingsHash: string, dependencyRevision: number): string {
+        return `${normalizePath(path).toLowerCase()}|${fileMtime}|${settingsHash}|${dependencyRevision}`;
     }
 
     private async buildInfluxList(

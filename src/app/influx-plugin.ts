@@ -199,11 +199,11 @@ export default class ObsidianInflux extends Plugin {
 				file: file instanceof TFile ? file : undefined
 			});
 
-			if (!signal.aborted && (op === 'save-settings' || op === 'file-open' || op === 'mode-change')) {
+			if (!signal.aborted && (op === 'save-settings' || op === 'file-open' || op === 'mode-change' || op === 'modify' || op === 'rename' || op === 'delete')) {
 				refreshAllInfluxEditorViews();
 			}
 
-			if (!signal.aborted && op !== 'modify') {
+			if (!signal.aborted) {
 				await this.previewManager.updateAllPreviews();
 			}
 		}).catch(e => {

@@ -5,6 +5,7 @@ import { StatefulDecorationSet } from '@/features/editor/codemirror/stateful-dec
 import { statefulDecorations } from '@/features/editor/codemirror/decoration-state';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import { getPlugin, isPluginUnloading } from '@/platform/obsidian/plugin-window-guards';
+import { cacheManager } from '@/platform/cache/cache-manager';
 
 jest.mock('@/domain/backlinks/influx-file', () => ({
 	__esModule: true,
@@ -106,6 +107,7 @@ describe('StatefulDecorationSet', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		cacheManager.clearAll();
 		getPluginMock.mockReturnValue(createPlugin());
 		isPluginUnloadingMock.mockReturnValue(false);
 		createInfluxFileMock.mockResolvedValue({
@@ -117,6 +119,10 @@ describe('StatefulDecorationSet', () => {
 			collapsed: false,
 			file: { path: 'Test.md' },
 		});
+	});
+
+	afterEach(() => {
+		cacheManager.clearAll();
 	});
 
 	test('applies only the most recent async decoration result after a file switch', async () => {
@@ -181,6 +187,25 @@ describe('StatefulDecorationSet', () => {
 		const second = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
 
 		expect(first).toBeNull();
+		expect(second).toBe(Decoration.none);
+		expect(computeSpy).toHaveBeenCalledTimes(2);
+	});
+
+	test('recomputes after dependency invalidation even when file state is unchanged', async () => {
+		const state = createState('content', 'Dependency.md');
+		const view = createView(state);
+		const decorationSet = new StatefulDecorationSet(view as any);
+		const computeSpy = jest.spyOn(decorationSet as any, 'computeAsyncDecorations');
+
+		computeSpy.mockResolvedValue(Decoration.none);
+
+		(decorationSet as any).pendingUpdate = { show: true, updateId: 1 };
+		const first = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 1);
+		cacheManager.invalidateFile('Source.md');
+		(decorationSet as any).pendingUpdate = { show: true, updateId: 2 };
+		const second = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
+
+		expect(first).toBe(Decoration.none);
 		expect(second).toBe(Decoration.none);
 		expect(computeSpy).toHaveBeenCalledTimes(2);
 	});

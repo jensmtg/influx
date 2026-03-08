@@ -2,6 +2,7 @@ import { CachedMetadata } from 'obsidian';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
 import { DEFAULT_SETTINGS } from '@/types';
+import { cacheManager } from '@/platform/cache/cache-manager';
 import { mockTFile } from '../../mocks';
 
 jest.mock('@/platform/diagnostics/logger', () => ({
@@ -36,11 +37,13 @@ describe('InfluxFile', () => {
 
     beforeEach(() => {
         InfluxFile.clearBuildCachesForTests();
+        cacheManager.clearAll();
         api = createApiAdapterMock();
     });
 
     afterEach(() => {
         InfluxFile.clearBuildCachesForTests();
+        cacheManager.clearAll();
         jest.restoreAllMocks();
     });
 
@@ -251,6 +254,31 @@ describe('InfluxFile', () => {
             expect(summarySpy).toHaveBeenCalledTimes(1);
             summarySpy.mockRestore();
         });
+
+		test('does not reuse a recent list build after a dependent source invalidation', async () => {
+			const target = makeFile('target-invalidate.md');
+			const source = makeFile('source-invalidate.md');
+			api.getFileByPath.mockImplementation((path: string) => {
+				if (path === 'target-invalidate.md') return target;
+				if (path === 'source-invalidate.md') return source;
+				return null;
+			});
+			api.getMetadata.mockReturnValue({ links: [], headings: [], frontmatter: null } as CachedMetadata);
+			api.getBacklinks.mockReturnValue({ data: new Map([['source-invalidate.md', [{ link: 'source-invalidate.md' }]]]) });
+
+			const summarySpy = jest.spyOn(InlinkingFile.prototype, 'makeSummary').mockImplementation(async function () {
+				this.summary = 'summary';
+			});
+
+			const first = await InfluxFile.create('target-invalidate.md', api as any);
+			const second = await InfluxFile.create('target-invalidate.md', api as any);
+			await first.makeInfluxList();
+			cacheManager.invalidateFile('source-invalidate.md');
+			await second.makeInfluxList();
+
+			expect(summarySpy).toHaveBeenCalledTimes(2);
+			summarySpy.mockRestore();
+		});
     });
 
     describe('toEntries', () => {

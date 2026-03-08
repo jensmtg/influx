@@ -3,6 +3,7 @@ import type { DecorationSet } from '@codemirror/view';
 import { computeSettingsHash } from '../../../domain/settings/settings-hash';
 import { editorViewField } from 'obsidian';
 import type { MinimalPluginInterface } from '../../../platform/obsidian/plugin-window-guards';
+import { cacheManager } from '../../../platform/cache/cache-manager';
 
 interface PendingUpdate {
 	show: boolean;
@@ -97,6 +98,7 @@ export class StatefulDecorationAsyncState {
 		const filePath = field?.file?.path ?? '';
 		const fileMtime = field?.file?.stat?.mtime ?? 0;
 		const settingsHash = computeSettingsHash(plugin.data.settings);
-		return `${filePath}|${fileMtime}|${show ? 1 : 0}|${settingsHash}`;
+		const dependencyRevision = cacheManager.getDependencyRevision();
+		return `${filePath}|${fileMtime}|${show ? 1 : 0}|${settingsHash}|${dependencyRevision}`;
 	}
 }

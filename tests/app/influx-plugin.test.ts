@@ -224,7 +224,7 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(updateCoordinator.schedule).not.toHaveBeenCalled();
 	});
 
-	test('triggerUpdates refreshes open editors on file-open, mode-change, and save-settings', async () => {
+	test('triggerUpdates refreshes open editors and previews for file, mode, and dependency-changing operations', async () => {
 		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
 			refreshAllInfluxEditorViews: jest.Mock;
 		};
@@ -252,7 +252,19 @@ describe('ObsidianInflux lifecycle', () => {
 		const modeChangeTask = (updateCoordinator.schedule as jest.Mock).mock.calls[2][3] as (signal: { aborted: boolean }) => Promise<void>;
 		await modeChangeTask({ aborted: false });
 
-		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(3);
-		expect(updateAllPreviews).toHaveBeenCalledTimes(3);
+		plugin.triggerUpdates('modify');
+		const modifyTask = (updateCoordinator.schedule as jest.Mock).mock.calls[3][3] as (signal: { aborted: boolean }) => Promise<void>;
+		await modifyTask({ aborted: false });
+
+		plugin.triggerUpdates('rename');
+		const renameTask = (updateCoordinator.schedule as jest.Mock).mock.calls[4][3] as (signal: { aborted: boolean }) => Promise<void>;
+		await renameTask({ aborted: false });
+
+		plugin.triggerUpdates('delete');
+		const deleteTask = (updateCoordinator.schedule as jest.Mock).mock.calls[5][3] as (signal: { aborted: boolean }) => Promise<void>;
+		await deleteTask({ aborted: false });
+
+		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(6);
+		expect(updateAllPreviews).toHaveBeenCalledTimes(6);
 	});
 });

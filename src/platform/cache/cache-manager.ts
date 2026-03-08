@@ -78,6 +78,7 @@ export class InfluxCacheManager {
 	private settingsCache: SettingsCacheEntry | null = null;
 	private regexCache = new Map<string, RegexCacheEntry>();
 	private cachedSettingsHash: string | null = null;
+	private dependencyRevision = 0;
 
 	private static readonly SUMMARY_STALE_TIME_MS = 10 * 60 * 1000;
 	private static readonly SUMMARY_CACHE_MAX_ENTRIES = 3000;
@@ -104,6 +105,7 @@ export class InfluxCacheManager {
 	}
 
 	invalidateFile(path: string): void {
+		this.dependencyRevision += 1;
 		this.fileCacheStore.invalidate(path);
 		this.backlinksCacheStore.invalidateTarget(path);
 		this.previewHashCacheStore.invalidate(path);
@@ -152,6 +154,7 @@ export class InfluxCacheManager {
 	}
 
 	invalidateSettingsCache(): void {
+		this.dependencyRevision += 1;
 		this.settingsCache = null;
 		this.cachedSettingsHash = null;
 		this.clearRegexCache();
@@ -214,6 +217,10 @@ export class InfluxCacheManager {
 		this.cachedSettingsHash = hash;
 	}
 
+	getDependencyRevision(): number {
+		return this.dependencyRevision;
+	}
+
 	getSummary(sourcePath: string, sourceMtime: number, targetPath: string, settingsHash: string): SummaryCacheValue | null {
 		return this.summaryCacheStore.get(sourcePath, sourceMtime, targetPath, settingsHash);
 	}
@@ -239,6 +246,7 @@ export class InfluxCacheManager {
 		this.regexCache.clear();
 		this.previewHashCacheStore.clear();
 		this.cachedSettingsHash = null;
+		this.dependencyRevision = 0;
 		this.summaryCacheStore.clear();
 		resetCacheStats(this.stats);
 		logger.info('All caches cleared');
