@@ -38,6 +38,11 @@ const linkAtLine = (link: string, line: number): LinkCache => ({
     },
 } as LinkCache);
 
+const linkWithoutPosition = (link: string): LinkCache => ({
+	link,
+	original: `[[${link}]]`,
+} as LinkCache);
+
 describe('frontmatter-utils', () => {
     describe('property gates', () => {
         test('validateFrontmatterProperties keeps only non-empty strings', () => {
@@ -188,6 +193,52 @@ describe('frontmatter-utils', () => {
             expect((missingMeta.data as Map<string, LinkCache[]>).get('Source.md')).toHaveLength(1);
         });
 
+		test('removes missing-position backlinks when metadata says the target came from frontmatter', () => {
+			const backlinks = {
+				data: new Map<string, LinkCache[]>([
+					['Source.md', [linkWithoutPosition('Folder/Target.md#Section')]],
+				]),
+			};
+			getMetadata.mockReturnValue({
+				frontmatterLinks: [
+					{
+						key: 'related',
+						link: 'Folder/Target.md#Section',
+						displayText: 'Alias',
+						original: '[[Folder/Target.md#Section|Alias]]',
+					} as FrontmatterLinkCache,
+				],
+			} as CachedMetadata);
+
+			const result = filterFrontmatterLinksFromBacklinks(backlinks, 'Target', getMetadata);
+			expect((result.data as Map<string, LinkCache[]>).has('Source.md')).toBe(false);
+		});
+
+		test('removes frontmatter links but preserves body links from the same source when path and alias forms mix', () => {
+			const backlinks = {
+				data: new Map<string, LinkCache[]>([
+					['Source.md', [linkAtLine('Folder/Target.md#Section', 1), linkAtLine('Target', 14)]],
+				]),
+			};
+			getMetadata.mockReturnValue({
+				frontmatterLinks: [
+					{
+						key: 'related',
+						link: 'Folder/Target.md#Section',
+						displayText: 'Alias',
+						original: '[[Folder/Target.md#Section|Alias]]',
+					} as FrontmatterLinkCache,
+				],
+				frontmatterPosition: {
+					start: { line: 0, col: 0, offset: 0 },
+					end: { line: 6, col: 0, offset: 0 },
+				},
+			} as CachedMetadata);
+
+			const result = filterFrontmatterLinksFromBacklinks(backlinks, 'Target', getMetadata);
+			expect((result.data as Map<string, LinkCache[]>).get('Source.md')).toEqual([linkAtLine('Target', 14)]);
+		});
+
         test('handles nullish backlinks container safely', () => {
             expect(() => filterFrontmatterLinksFromBacklinks(null as any, 'Target', getMetadata)).not.toThrow();
             expect(() => filterFrontmatterLinksFromBacklinks({} as any, 'Target', getMetadata)).not.toThrow();
@@ -220,6 +271,43 @@ describe('frontmatter-utils', () => {
 			expect((result.data as Map<string, LinkCache[]>).has('RelatedSource.md')).toBe(true);
 			expect((result.data as Map<string, LinkCache[]>).has('AuthorSource.md')).toBe(false);
 			expect((result.data as Map<string, LinkCache[]>).has('BodySource.md')).toBe(true);
+		});
+
+		test('treats alias and path-style frontmatter links as matches for allowed properties', () => {
+			const backlinks = {
+				data: new Map<string, LinkCache[]>([
+					['AliasSource.md', [linkAtLine('Folder/Target.md#Section', 0)]],
+				]),
+			};
+
+			getMetadata.mockReturnValue({
+				frontmatterLinks: [
+					{
+						key: 'related',
+						link: 'Folder/Target.md#Section',
+						displayText: 'Alias',
+						original: '[[Folder/Target.md#Section|Alias]]',
+					} as FrontmatterLinkCache,
+				],
+			} as CachedMetadata);
+
+			const result = filterBacklinksByFrontmatterProperties(backlinks, 'Target', ['related'], getMetadata);
+			expect((result.data as Map<string, LinkCache[]>).get('AliasSource.md')).toHaveLength(1);
+		});
+
+		test('conservatively keeps duplicate target backlinks when the same target appears in both allowed and disallowed frontmatter properties', () => {
+			const backlinks = {
+				data: new Map<string, LinkCache[]>([
+					['Source.md', [linkAtLine('Target', 0), linkAtLine('Target', 1)]],
+				]),
+			};
+
+			getMetadata.mockReturnValue({
+				frontmatterLinks: [fmLink('related', 'Target'), fmLink('author', 'Target')],
+			} as CachedMetadata);
+
+			const result = filterBacklinksByFrontmatterProperties(backlinks, 'Target', ['related'], getMetadata);
+			expect((result.data as Map<string, LinkCache[]>).get('Source.md')).toHaveLength(2);
 		});
     });
 });
