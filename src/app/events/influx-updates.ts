@@ -8,6 +8,7 @@ export class Observable<T> {
 	private isNotifying = false;
 	private isInsideObserverCallback = false;
 	private pendingData: T | undefined;
+	private currentData: T | undefined;
 
 	subscribe(id: string, observer: Observer<T>): () => void {
 		this.observers.set(id, observer);
@@ -20,9 +21,9 @@ export class Observable<T> {
 
 	async notify(data: T): Promise<void> {
 		if (this.isNotifying) {
-			// Prevent re-entrant notify loops from within observers.
-			if (!this.isInsideObserverCallback) {
-				// Coalesce to the latest pending payload.
+			// Coalesce to the latest pending payload while avoiding trivial
+			// self-reentrant loops that just re-emit the exact in-flight value.
+			if (!(this.isInsideObserverCallback && Object.is(data, this.currentData))) {
 				this.pendingData = data;
 			}
 			return;
@@ -32,11 +33,13 @@ export class Observable<T> {
 		try {
 			let nextData: T | undefined = data;
 			while (nextData !== undefined) {
+				this.currentData = nextData;
 				this.pendingData = undefined;
 				await this.notifyObservers(nextData);
 				nextData = this.pendingData;
 			}
 		} finally {
+			this.currentData = undefined;
 			this.pendingData = undefined;
 			this.isInsideObserverCallback = false;
 			this.isNotifying = false;

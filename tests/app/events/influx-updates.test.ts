@@ -50,19 +50,37 @@ describe('Observable', () => {
             expect(asyncObserver).toHaveBeenCalledWith('payload');
         });
 
-        test('notify prevents nested re-entrant notify calls from inside observers', async () => {
-            const seen: string[] = [];
-            const observer = jest.fn().mockImplementation(async (value: string) => {
-                seen.push(value);
-                await observable.notify('nested');
-            });
-            observable.subscribe('o', observer);
+		test('notify delivers nested re-entrant payloads after the current observer pass', async () => {
+			const seen: string[] = [];
+			const observer = jest.fn().mockImplementation(async (value: string) => {
+				seen.push(value);
+				if (value === 'outer') {
+					await observable.notify('nested');
+				}
+			});
+			observable.subscribe('o', observer);
 
-            await observable.notify('outer');
+			await observable.notify('outer');
 
-            expect(seen).toEqual(['outer']);
-            expect(observer).toHaveBeenCalledTimes(1);
-        });
+			expect(seen).toEqual(['outer', 'nested']);
+			expect(observer).toHaveBeenCalledTimes(2);
+		});
+
+		test('notify suppresses trivial self-reentrant repeats of the exact in-flight payload', async () => {
+			const sharedPayload = { op: 'outer' };
+			const objectObservable = new Observable<{ op: string }>();
+			const seen: Array<{ op: string }> = [];
+			const observer = jest.fn().mockImplementation((value: { op: string }) => {
+				seen.push(value);
+				void objectObservable.notify(value);
+			});
+			objectObservable.subscribe('o', observer as unknown as (data: { op: string }) => void);
+
+			await objectObservable.notify(sharedPayload);
+
+			expect(seen).toEqual([sharedPayload]);
+			expect(observer).toHaveBeenCalledTimes(1);
+		});
 
         test('notify coalesces concurrent external notifications to the latest payload', async () => {
             const seen: string[] = [];
