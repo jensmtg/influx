@@ -629,11 +629,26 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	white-space: nowrap;
 }
 
-/* Count badge */
-.influx-component .influx-summary-count-wrap {
+.influx-component .influx-summary-title {
+	font-weight: var(--font-semibold, 600);
+	color: var(--influx-text-normal);
+}
+
+.influx-component .influx-result-source {
 	display: flex;
-	align-items: center;
-	margin-left: var(--size-4-2);
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	white-space: normal;
+	min-width: 0;
+}
+
+.influx-component .influx-result-source-primary {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-2-1);
+	min-width: 0;
+	max-width: 100%;
 }
 
 .influx-component .influx-summary-count {
@@ -731,6 +746,18 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-result-head {
 	flex-shrink: 0;
 	min-width: 0;
+	padding-inline-end: var(--size-4-1);
+}
+
+.influx-component .influx-result-group--split {
+	display: grid;
+	grid-template-columns: minmax(110px, min(240px, 28%)) minmax(0, 1fr);
+	align-items: start;
+	column-gap: var(--size-4-2);
+}
+
+.influx-component .influx-result-group--split .influx-result-head {
+	padding-block: var(--size-2-2);
 }
 
 /* Search result file matches */
@@ -822,6 +849,19 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	.influx-toolbar-actions {
 	position: unset;
 	top: unset;
+	justify-content: flex-start;
+	margin-inline-start: 0;
+	inline-size: 100%;
+}
+.workspace-leaf-content[data-type="influx-sidebar-view"]
+	.influx-summary-row--pane {
+	position: sticky;
+	top: 0;
+	z-index: 4;
+	padding: var(--size-4-2) 0 var(--size-2-2);
+	margin-bottom: var(--size-2-1);
+	background: linear-gradient(180deg, var(--influx-surface-bg), color-mix(in srgb, var(--influx-surface-bg) 94%, transparent));
+	border-bottom: 1px solid color-mix(in srgb, var(--influx-border-color) 70%, transparent);
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-result-group {
