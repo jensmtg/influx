@@ -16,7 +16,9 @@
     "src/domain/backlinks/influx-file-build-helpers.ts",
     "src/domain/backlinks/influx-render-pipeline.ts",
     "src/ui/influx-update-helpers.ts",
-    "src/ui/influx-react-component.tsx"
+    "src/ui/influx-react-component.tsx",
+    "src/features/editor/codemirror/stateful-decoration-async-state.ts",
+    "src/features/editor/codemirror/stateful-decoration-set.ts"
   ],
   "exclude": [
     "tests",
