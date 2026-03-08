@@ -244,24 +244,30 @@ export class PreviewManager {
 		this.schedulePreviewRefreshAttempt(filePath, runId, 0);
 	}
 
+	private clearScheduledRefresh(filePath: string, clearRun = false): void {
+		this.postProcessRefreshTimers.delete(filePath);
+		if (clearRun) {
+			this.postProcessRefreshRuns.delete(filePath);
+		}
+	}
+
 	private schedulePreviewRefreshAttempt(filePath: string, runId: number, delayIndex: number): void {
 		const delay = PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS[delayIndex];
 		const timer = setTimeout(() => {
 			if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
-				this.postProcessRefreshTimers.delete(filePath);
+				this.clearScheduledRefresh(filePath);
 				return;
 			}
 
 			void this.refreshPreviewLeavesByPath(filePath).finally(() => {
 				if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
-					this.postProcessRefreshTimers.delete(filePath);
+					this.clearScheduledRefresh(filePath);
 					return;
 				}
 
 				const nextDelayIndex = delayIndex + 1;
 				if (nextDelayIndex >= PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS.length) {
-					this.postProcessRefreshTimers.delete(filePath);
-					this.postProcessRefreshRuns.delete(filePath);
+					this.clearScheduledRefresh(filePath, true);
 					return;
 				}
 
@@ -277,27 +283,28 @@ export class PreviewManager {
 			return;
 		}
 
-		const leaves: WorkspaceLeaf[] = [];
-
-		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
-			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			const leafPath = influxLeaf.view?.file?.path;
-			if (leafPath !== filePath) {
-				return;
-			}
-
-			if (!leafHasPreviewRoot(influxLeaf)) {
-				return;
-			}
-
-			leaves.push(leaf);
-		});
+		const leaves = this.getPreviewLeavesByPath(filePath);
 
 		await Promise.all(
 			leaves.map((leaf) => this.updatePreview(leaf).catch((error) => {
 				logger.error('Failed to refresh preview leaf from post-processor', { filePath, error });
 			}))
 		);
+	}
+
+	private getPreviewLeavesByPath(filePath: string): WorkspaceLeaf[] {
+		const leaves: WorkspaceLeaf[] = [];
+
+		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
+			const influxLeaf = leaf as InfluxWorkspaceLeaf;
+			if (influxLeaf.view?.file?.path !== filePath || !leafHasPreviewRoot(influxLeaf)) {
+				return;
+			}
+
+			leaves.push(leaf);
+		});
+
+		return leaves;
 	}
 
 	private isInactive(): boolean {
@@ -329,14 +336,11 @@ export class PreviewManager {
 		await new Promise((resolve) => window.setTimeout(resolve, PreviewManager.PREVIEW_ROOT_RETRY_MS));
 		return getPreviewDiv();
 	}
-
-
-    private computeSettingsHash(): string {
-        // Return cached hash if available
-        const cached = cacheManager.getSettingsHash();
-        if (cached) {
-            return cached;
-        }
+	private computeSettingsHash(): string {
+		const cached = cacheManager.getSettingsHash();
+		if (cached) {
+			return cached;
+		}
 
 		const hashString = computeSettingsHash(this.plugin.data.settings);
 		cacheManager.setSettingsHash(hashString);

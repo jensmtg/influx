@@ -46,6 +46,28 @@ export class InfluxSidebarView extends ItemView {
 		this.componentKey = 'initial';
 	}
 
+	private cancelPendingUpdate(): void {
+		if (this.abortController) {
+			this.abortController.abort();
+			this.abortController = null;
+		}
+	}
+
+	private renderInfluxComponent(): React.ReactElement | null {
+		if (!this.influxFile) {
+			return null;
+		}
+
+		return (
+			<InfluxReactComponent
+				key={this.componentKey}
+				influxFile={this.influxFile}
+				preview={true}
+				plugin={this.plugin}
+			/>
+		);
+	}
+
 	private renderIdleState(): void {
 		this.clearCurrentState();
 		this.renderStatusState({
@@ -94,11 +116,7 @@ export class InfluxSidebarView extends ItemView {
 	async onClose(): Promise<void> {
 		logger.info('InfluxSidebarView closed');
 
-		// Cancel any pending updates
-		if (this.abortController) {
-			this.abortController.abort();
-			this.abortController = null;
-		}
+		this.cancelPendingUpdate();
 
 		if (this.root) {
 			try {
@@ -198,12 +216,8 @@ export class InfluxSidebarView extends ItemView {
 
 		logger.debug('Updating Influx sidebar view', { filePath: file.path });
 
-		// Cancel any previous ongoing update
-		if (this.abortController) {
-			this.abortController.abort();
-		}
+		this.cancelPendingUpdate();
 
-		// Create new abort controller for this update
 		this.abortController = new AbortController();
 		const signal = this.abortController.signal;
 		const updateId = ++this.currentUpdateId;
@@ -246,14 +260,10 @@ export class InfluxSidebarView extends ItemView {
 			}
 
 			if (this.root) {
-				this.root.render(
-					<InfluxReactComponent
-						key={this.componentKey}
-						influxFile={this.influxFile}
-						preview={true}
-						plugin={this.plugin}
-					/>
-				);
+				const component = this.renderInfluxComponent();
+				if (component) {
+					this.root.render(component);
+				}
 			}
 		} catch (error) {
 			// Don't log errors if this operation was aborted
@@ -311,14 +321,10 @@ export class InfluxSidebarView extends ItemView {
 			}
 
 			if (this.root) {
-				this.root.render(
-					<InfluxReactComponent
-						key={this.componentKey}
-						influxFile={this.influxFile}
-						preview={true}
-						plugin={this.plugin}
-					/>
-				);
+				const component = this.renderInfluxComponent();
+				if (component) {
+					this.root.render(component);
+				}
 			}
 		} catch (error) {
 			if (signal?.aborted) {
@@ -329,14 +335,10 @@ export class InfluxSidebarView extends ItemView {
 			}
 			logger.error('Failed to handle editor change', { filePath: this.currentFile.path, error });
 			if (this.root && this.influxFile) {
-				const currentComponent = (
-					<InfluxReactComponent
-						key={this.componentKey}
-						influxFile={this.influxFile}
-						preview={true}
-						plugin={this.plugin}
-					/>
-				);
+				const currentComponent = this.renderInfluxComponent();
+				if (!currentComponent) {
+					return;
+				}
 				this.root.render(
 					<div className="influx-sidebar-stack">
 						<div className="influx-sidebar-status influx-sidebar-status--warning">
