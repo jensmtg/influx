@@ -398,13 +398,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-sidebar-status {
 	margin: var(--size-4-2);
-	padding: 0.95rem 1rem;
-	border-radius: calc(var(--influx-radius-m) + 2px);
+	padding: 0.8rem 0.95rem;
+	border-radius: var(--influx-radius-m);
 	font-size: var(--influx-font-ui-small);
 	line-height: 1.4;
 	text-align: left;
-	border: 1px solid var(--influx-border-color);
-	background: linear-gradient(180deg, color-mix(in srgb, var(--influx-surface-muted) 88%, transparent), var(--influx-surface-bg));
+	border: 1px solid color-mix(in srgb, var(--influx-border-color) 78%, transparent);
+	background: color-mix(in srgb, var(--influx-surface-muted) 42%, transparent);
 	color: var(--influx-text-muted);
 }
 
@@ -433,13 +433,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	color: var(--influx-text-faint);
 }
 
-.influx-sidebar-status--empty {
-	border-style: dashed;
-}
-
 .influx-sidebar-status--warning {
 	border-color: var(--text-warning);
-	background: color-mix(in srgb, var(--text-warning) 10%, var(--influx-surface-bg));
+	background: color-mix(in srgb, var(--text-warning) 7%, transparent);
 	color: var(--text-warning);
 	margin-bottom: 0;
 }
@@ -459,15 +455,15 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 /* Toolbar */
 .influx-component .influx-toolbar {
 	position: relative;
-	background: var(--influx-surface-bg);
-	padding: var(--size-4-2) 0 var(--size-4-1);
+	background: transparent;
+	padding: var(--size-4-1) 0 var(--size-2-2);
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
 	flex-direction: row;
 	flex-wrap: wrap;
-	gap: var(--size-2-2) var(--size-4-2);
-	border-top: 1px solid var(--influx-border-color);
+	gap: var(--size-2-1) var(--size-4-2);
+	border-top: 1px solid color-mix(in srgb, var(--influx-border-color) 68%, transparent);
 }
 
 .influx-component--editor .influx-toolbar,
@@ -476,8 +472,8 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	align-items: flex-start;
 	justify-content: flex-start;
 	flex-wrap: wrap;
-	padding: var(--size-4-2) 0 var(--size-4-1);
-	gap: var(--size-2-2) var(--size-4-2);
+	padding: var(--size-4-1) 0 var(--size-2-2);
+	gap: var(--size-2-1) var(--size-4-2);
 }
 
 .influx-component--preview .influx-toolbar {
@@ -502,7 +498,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 		color 0.15s ease,
 		background-color 0.15s ease,
 		opacity 0.15s ease;
-	opacity: 0.82;
+	opacity: 0.7;
 }
 
 .influx-component .influx-icon-button .influx-svg-icon {
@@ -524,14 +520,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-component .influx-icon-button:hover {
 	color: var(--influx-icon-hover);
-	background-color: color-mix(in srgb, var(--influx-interactive-hover) 55%, transparent);
+	background-color: color-mix(in srgb, var(--influx-interactive-hover) 28%, transparent);
 	opacity: 1;
 }
 
 .influx-component .influx-toolbar-button.is-active,
 .influx-component .influx-toolbar-button[aria-pressed='true'] {
 	color: var(--influx-accent-strong);
-	background-color: color-mix(in srgb, var(--influx-accent) 14%, transparent);
+	background-color: color-mix(in srgb, var(--influx-accent) 8%, transparent);
 	opacity: 1;
 }
 
@@ -539,23 +535,22 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-inline-size: 1.8em;
-	padding: 0 0.4em;
-	border-radius: 999px;
-	background: color-mix(in srgb, var(--influx-surface-muted) 88%, transparent);
+	min-inline-size: 1.3em;
+	padding: 0;
+	border-radius: 0;
+	background: transparent;
 	color: var(--influx-text-faint);
-	font-size: 10px;
-	font-weight: 700;
+	font-size: 9px;
+	font-weight: 600;
 	line-height: 1.5;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.06em;
 	text-transform: uppercase;
 }
 
 .influx-component .influx-toolbar-button.is-active .influx-toolbar-button-badge,
 .influx-component .influx-toolbar-button[aria-pressed='true'] .influx-toolbar-button-badge,
 .influx-component .influx-icon-button:hover .influx-toolbar-button-badge {
-	background: color-mix(in srgb, var(--influx-accent) 18%, transparent);
-	color: var(--influx-text-normal);
+	color: var(--influx-accent-strong);
 }
 
 /* Backlink pane */
@@ -677,9 +672,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	align-items: center;
 	justify-content: center;
 	min-height: 24px;
-	padding: 0 10px;
-	border: 1px solid var(--influx-border-color);
-	border-radius: 999px;
+	padding: 0 6px;
+	border: 0;
+	border-radius: 0;
 	background: transparent;
 	color: var(--influx-text-muted);
 	font: inherit;
@@ -690,13 +685,11 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	text-align: center;
 	transition:
 		color 0.15s ease,
-		background-color 0.15s ease,
-		border-color 0.15s ease;
+		background-color 0.15s ease;
 }
 
 .influx-component .influx-summary-action:hover {
 	color: var(--influx-text-normal);
-	border-color: color-mix(in srgb, var(--influx-accent) 24%, var(--influx-border-color));
 }
 
 /* Tree item collapse toggle */
@@ -747,7 +740,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-results-list {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-2);
+	gap: var(--size-4-3);
 }
 
 /* Search result file title */
@@ -759,9 +752,9 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-component .influx-result-group--split {
 	display: grid;
-	grid-template-columns: minmax(110px, min(240px, 28%)) minmax(0, 1fr);
+	grid-template-columns: minmax(118px, min(240px, 26%)) minmax(0, 1fr);
 	align-items: start;
-	column-gap: var(--size-4-2);
+	column-gap: var(--size-4-3);
 }
 
 .influx-component .influx-result-group--split .influx-result-head {
@@ -772,13 +765,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-result-body {
 	font-size: var(--influx-font-ui-small);
 	line-height: var(--line-height-tight);
-	background-color: var(--influx-surface-subtle);
-	border-radius: var(--influx-radius-s);
+	background-color: color-mix(in srgb, var(--influx-surface-subtle) 42%, transparent);
+	border-radius: calc(var(--influx-radius-s) - 1px);
 	overflow: hidden;
 	margin: 0 0 var(--size-2-1);
 	color: var(--influx-text-muted);
-	box-shadow: 0 0 0 var(--influx-border-width) var(--influx-border-color);
-	padding: 6px 8px;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--influx-border-color) 72%, transparent);
+	padding: 5px 7px;
 	min-width: 0;
 	max-width: 100%;
 	box-sizing: border-box;
@@ -854,16 +847,15 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .workspace-leaf-content[data-type="influx-sidebar-view"] .influx-toolbar {
-	position: sticky;
-	top: 0;
-	z-index: 5;
-	background: linear-gradient(180deg, var(--influx-surface-bg), color-mix(in srgb, var(--influx-surface-bg) 92%, transparent));
-	padding: var(--size-4-2) var(--size-4-2) var(--size-4-1);
+	position: relative;
+	top: auto;
+	z-index: auto;
+	background: transparent;
+	padding: var(--size-4-1) var(--size-4-2) var(--size-2-2);
 	display: flex;
 	justify-content: flex-start;
 	border-top: 0;
-	border-bottom: 1px solid color-mix(in srgb, var(--influx-border-color) 82%, transparent);
-	backdrop-filter: blur(8px);
+	border-bottom: 0;
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-toolbar-actions {
@@ -875,13 +867,13 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-summary-row--pane {
-	position: sticky;
-	top: 0;
-	z-index: 4;
-	padding: var(--size-4-2) 0 var(--size-2-2);
-	margin-bottom: var(--size-2-1);
-	background: linear-gradient(180deg, var(--influx-surface-bg), color-mix(in srgb, var(--influx-surface-bg) 94%, transparent));
-	border-bottom: 1px solid color-mix(in srgb, var(--influx-border-color) 70%, transparent);
+	position: relative;
+	top: auto;
+	z-index: auto;
+	padding: var(--size-4-1) 0 var(--size-2-2);
+	margin-bottom: 0;
+	background: transparent;
+	border-bottom: 0;
 }
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-result-group {
@@ -900,10 +892,10 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .workspace-leaf-content[data-type="influx-sidebar-view"]
 	.influx-search-status {
 	margin-inline: 0;
-	border-radius: var(--influx-radius-m);
-	background: color-mix(in srgb, var(--influx-surface-muted) 72%, transparent);
+	border-radius: calc(var(--influx-radius-m) - 1px);
+	background: color-mix(in srgb, var(--influx-surface-muted) 38%, transparent);
 	padding: 0.85rem 1rem;
-	border: 1px solid color-mix(in srgb, var(--influx-border-color) 82%, transparent);
+	border: 1px solid color-mix(in srgb, var(--influx-border-color) 70%, transparent);
 }
 
 .workspace-leaf-content[data-type="influx-sidebar-view"]
