@@ -11,7 +11,9 @@
     "src/features/settings/settings-tab-plugin.ts",
     "src/features/sidebar/influx-sidebar-plugin.ts",
     "src/domain/backlinks/inlinking-file.ts",
-    "src/domain/backlinks/influx-file.ts"
+    "src/domain/backlinks/influx-file.ts",
+    "src/domain/backlinks/influx-file-build-helpers.ts",
+    "src/domain/backlinks/influx-render-pipeline.ts"
   ],
   "exclude": [
     "tests",

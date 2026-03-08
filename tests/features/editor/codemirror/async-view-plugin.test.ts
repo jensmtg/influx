@@ -1,4 +1,5 @@
 import { editorViewField } from 'obsidian';
+import type { EditorView, ViewUpdate } from '@codemirror/view';
 import { AsyncViewPluginController, refreshAllInfluxEditorViews } from '@/features/editor/codemirror/async-view-plugin';
 import { StatefulDecorationSet } from '@/features/editor/codemirror/stateful-decoration-set';
 
@@ -6,7 +7,10 @@ jest.mock('@/features/editor/codemirror/stateful-decoration-set', () => ({
 	StatefulDecorationSet: jest.fn(),
 }));
 
-function createView(path: string | null) {
+type MockEditorView = Pick<EditorView, 'state'>;
+type MockViewUpdate = Pick<ViewUpdate, 'view' | 'docChanged'>;
+
+function createView(path: string | null): MockEditorView {
 	return {
 		state: {
 			field: jest.fn((field: unknown) => {
@@ -16,7 +20,7 @@ function createView(path: string | null) {
 				return null;
 			}),
 		},
-	} as any;
+	};
 }
 
 function createMutableView(initialPath: string | null) {
@@ -29,7 +33,7 @@ function createMutableView(initialPath: string | null) {
 	};
 }
 
-function createViewProxy(getPath: () => string | null) {
+function createViewProxy(getPath: () => string | null): MockEditorView {
 	return {
 		state: {
 			field: jest.fn((field: unknown) => {
@@ -40,14 +44,14 @@ function createViewProxy(getPath: () => string | null) {
 				return null;
 			}),
 		},
-	} as any;
+	};
 }
 
-function createUpdate(params: { path: string | null; docChanged?: boolean }) {
+function createUpdate(params: { path: string | null; docChanged?: boolean }): MockViewUpdate {
 	return {
 		view: createView(params.path),
 		docChanged: params.docChanged ?? false,
-	} as any;
+	};
 }
 
 describe('AsyncViewPluginController', () => {
@@ -67,14 +71,14 @@ describe('AsyncViewPluginController', () => {
 	test('starts initial decoration computation for the current file', () => {
 		const view = createView('Initial.md');
 
-		new AsyncViewPluginController(view);
+		new AsyncViewPluginController(view as EditorView);
 
 		expect(StatefulDecorationSet).toHaveBeenCalledWith(view);
 		expect(updateAsyncDecorations).toHaveBeenCalledWith(view.state, true);
 	});
 
 	test('refreshes immediately and cancels pending work when the editor file changes', () => {
-		const controller = new AsyncViewPluginController(createView('Old.md'));
+		const controller = new AsyncViewPluginController(createView('Old.md') as EditorView);
 
 		jest.clearAllMocks();
 		controller.update(createUpdate({ path: 'New.md', docChanged: false }));
@@ -87,7 +91,7 @@ describe('AsyncViewPluginController', () => {
 		jest.useFakeTimers();
 		const { view, setPath } = createMutableView(null);
 
-		new AsyncViewPluginController(view);
+		new AsyncViewPluginController(view as EditorView);
 		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
 
 		setPath('Recovered.md');
@@ -102,7 +106,7 @@ describe('AsyncViewPluginController', () => {
 		jest.useFakeTimers();
 		const view = createView('Stabilize.md');
 
-		new AsyncViewPluginController(view);
+		new AsyncViewPluginController(view as EditorView);
 		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
 
 		jest.advanceTimersByTime(121);
@@ -113,7 +117,7 @@ describe('AsyncViewPluginController', () => {
 	});
 
 	test('refreshes same-file document changes after canceling pending updates', () => {
-		const controller = new AsyncViewPluginController(createView('Same.md'));
+		const controller = new AsyncViewPluginController(createView('Same.md') as EditorView);
 
 		jest.clearAllMocks();
 		controller.update(createUpdate({ path: 'Same.md', docChanged: true }));

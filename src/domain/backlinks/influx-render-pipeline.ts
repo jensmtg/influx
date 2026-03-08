@@ -1,6 +1,6 @@
 import type { ObsidianInfluxSettings } from '../../types/settings';
 import { recordMetric, type MetricMode } from '../../platform/diagnostics/metrics';
-import { ApiAdapter } from './api-adapter';
+import type { InfluxFileApi } from './influx-file';
 import InfluxFile from './influx-file';
 import type { ExtendedInlinkingFile } from './types';
 
@@ -98,7 +98,7 @@ export async function buildInfluxFileForRender(
 }
 
 export async function createInfluxFileForRender(
-	params: SharedPipelineParams & { api: ApiAdapter }
+	params: SharedPipelineParams & { api: InfluxFileApi }
 ): Promise<InfluxRenderPipelineResult | null> {
 	const { api, filePath, mode, settings, shouldAbort } = params;
 	const startedAt = performance.now();

@@ -1,5 +1,8 @@
 import { InfluxWidget } from '@/features/editor/codemirror/influx-widget';
 import { rootManager } from '@/platform/react/root-manager';
+import type { EditorView } from '@codemirror/view';
+import type InfluxFile from '@/domain/backlinks/influx-file';
+import type { InfluxUiPlugin } from '@/ui/influx-ui-plugin';
 
 jest.mock('@/platform/react/root-manager', () => ({
 	rootManager: {
@@ -26,6 +29,7 @@ jest.mock('@/domain/settings/settings-hash', () => ({
 type MockContainer = {
 	id: string;
 	offsetHeight: number;
+	isConnected: boolean;
 	addEventListener: jest.Mock;
 	removeEventListener: jest.Mock;
 	listeners: Record<string, EventListener>;
@@ -36,6 +40,7 @@ function createContainer(offsetHeight = 320): MockContainer {
 	return {
 		id: '',
 		offsetHeight,
+		isConnected: true,
 		listeners,
 		addEventListener: jest.fn((name: string, handler: EventListener) => {
 			listeners[name] = handler;
@@ -46,7 +51,10 @@ function createContainer(offsetHeight = 320): MockContainer {
 	};
 }
 
-function createPlugin() {
+type WidgetInfluxFile = Pick<InfluxFile, 'file' | 'components' | 'collapsed'>;
+type MockEditorView = Pick<EditorView, 'state'>;
+
+function createPlugin(): InfluxUiPlugin {
 	return {
 		data: {
 			settings: {
@@ -55,15 +63,22 @@ function createPlugin() {
 				inclusionPattern: new Set(),
 			},
 		},
-	} as any;
+		cycleListLimit: jest.fn(async () => {}),
+		toggleSortOrder: jest.fn(async () => {}),
+		toggleFrontmatterLinks: jest.fn(async () => {}),
+	};
 }
 
-function createInfluxFile(path = 'Widget.md') {
+function createInfluxFile(path = 'Widget.md'): WidgetInfluxFile {
 	return {
 		file: { path },
 		components: [],
 		collapsed: false,
-	} as any;
+	};
+}
+
+function createEditorView(): MockEditorView {
+	return { state: {} };
 }
 
 describe('InfluxWidget', () => {
@@ -90,7 +105,7 @@ describe('InfluxWidget', () => {
 
 	test('registers the editor root and unmounts it when the widget stays disconnected', () => {
 		const container = createContainer();
-		(container as any).isConnected = false;
+		container.isConnected = false;
 		(document.createElement as jest.Mock).mockReturnValue(container);
 
 		const widget = new InfluxWidget({
@@ -99,7 +114,7 @@ describe('InfluxWidget', () => {
 			plugin: createPlugin(),
 		});
 
-		widget.toDOM({ state: {} } as any);
+		widget.toDOM(createEditorView() as EditorView);
 		container.listeners.disconnected?.(new Event('disconnected'));
 		jest.runAllTimers();
 
@@ -115,7 +130,6 @@ describe('InfluxWidget', () => {
 
 	test('does not unmount when the widget reconnects after a transient disconnect', () => {
 		const container = createContainer();
-		(container as any).isConnected = true;
 		(document.createElement as jest.Mock).mockReturnValue(container);
 
 		const widget = new InfluxWidget({
@@ -124,7 +138,7 @@ describe('InfluxWidget', () => {
 			plugin: createPlugin(),
 		});
 
-		widget.toDOM({ state: {} } as any);
+		widget.toDOM(createEditorView() as EditorView);
 		container.listeners.disconnected?.(new Event('disconnected'));
 		jest.runAllTimers();
 
@@ -144,9 +158,9 @@ describe('InfluxWidget', () => {
 			plugin: createPlugin(),
 		});
 
-		widget.toDOM({ state: {} } as any);
+		widget.toDOM(createEditorView() as EditorView);
 		const firstHandler = firstContainer.listeners.disconnected;
-		widget.toDOM({ state: {} } as any);
+		widget.toDOM(createEditorView() as EditorView);
 
 		expect(firstContainer.removeEventListener).toHaveBeenCalledWith('disconnected', firstHandler);
 	});
@@ -161,10 +175,10 @@ describe('InfluxWidget', () => {
 		const disconnect = jest.fn();
 		const disconnectedHandler = jest.fn();
 
-		(widget as any).currentContainer = { offsetHeight: 320 };
-		(widget as any).currentDOMContainer = { removeEventListener };
-		(widget as any).resizeObserver = { disconnect };
-		(widget as any).disconnectedHandler = disconnectedHandler;
+		widget.currentContainer = { offsetHeight: 320 } as HTMLElement;
+		widget.currentDOMContainer = { removeEventListener } as unknown as HTMLElement;
+		widget.resizeObserver = { disconnect } as ResizeObserver;
+		widget.disconnectedHandler = disconnectedHandler;
 
 		widget.destroy();
 
