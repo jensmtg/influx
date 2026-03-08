@@ -7,6 +7,7 @@ import InfluxFile from '@/domain/backlinks/influx-file';
 import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
 import { EventManager } from '@/app/events/event-manager';
 import { PreviewManager } from '@/features/preview/preview-manager';
+import { isDebugMode } from '@/platform/diagnostics/debug-mode';
 
 jest.mock('@/platform/react/root-manager', () => ({
 	rootManager: {
@@ -146,6 +147,33 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(app.workspace.ensureSideLeaf).toHaveBeenCalledWith('influx-sidebar-view', 'right', { active: true });
 		const win = globalThis.window as any;
 		expect(win.influxPlugin).toBe(plugin);
+		expect(win.influxDebug).toBeUndefined();
+		expect(win.testInfluxReadingView).toBeUndefined();
+	});
+
+	test('onload exposes debug helpers only when debug mode is enabled', async () => {
+		(isDebugMode as jest.Mock).mockReturnValue(true);
+		const app = {
+			workspace: {
+				ensureSideLeaf: jest.fn(),
+				getLeavesOfType: jest.fn().mockReturnValue([]),
+			},
+			vault: {},
+			metadataCache: {},
+		};
+		const plugin = new ObsidianInflux(app as any, {
+			version: 'test-version',
+		} as any);
+		(plugin.loadData as jest.Mock).mockResolvedValue({
+			settings: {
+				showInfluxInSidebar: false,
+			},
+		});
+
+		await plugin.onload();
+
+		const win = globalThis.window as any;
+		expect(win.influxPlugin).toBe(plugin);
 		expect(win.influxDebug).toEqual(
 			expect.objectContaining({
 				getCache: expect.any(Function),
@@ -153,6 +181,7 @@ describe('ObsidianInflux lifecycle', () => {
 				snapshot: expect.any(Function),
 			})
 		);
+		expect(win.testInfluxReadingView).toEqual(expect.any(Function));
 	});
 
 	test('onload replaces a stale window plugin reference and skips sidebar auto-open when disabled', async () => {

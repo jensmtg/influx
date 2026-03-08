@@ -82,6 +82,16 @@ export function registerPluginUi(plugin: InfluxPluginLike, previewManager: Previ
 
 export function attachWindowDebugHelpers(plugin: InfluxPluginLike, previewManager: PreviewManager): void {
 	const influxWindow = window as InfluxPluginWindow;
+	if (!isDebugMode()) {
+		if (influxWindow.influxDebug) {
+			delete influxWindow.influxDebug;
+		}
+		if (influxWindow.testInfluxReadingView) {
+			delete influxWindow.testInfluxReadingView;
+		}
+		return;
+	}
+
 	influxWindow.influxDebug = {
 		getReactRoots: () => ({
 			size: rootManager.size,
@@ -113,10 +123,8 @@ export function attachWindowDebugHelpers(plugin: InfluxPluginLike, previewManage
 		clearMetrics: () => clearMetrics(),
 	};
 
-	if (isDebugMode()) {
-		logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
-		influxWindow.testInfluxReadingView = () => {
-			void previewManager.updateAllPreviews();
-		};
-	}
+	logger.debug('Debug mode enabled. Use window.influxDebug to inspect.');
+	influxWindow.testInfluxReadingView = () => {
+		void previewManager.updateAllPreviews();
+	};
 }

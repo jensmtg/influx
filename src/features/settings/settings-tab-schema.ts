@@ -282,7 +282,7 @@ export const SETTINGS_SECTIONS: SettingsSectionSpec[] = [
 			{
 				kind: 'toggle',
 				name: 'Enable performance metrics',
-				description: 'Captures minimal timing metrics and includes them in debug logs and window.influxDebug.getMetrics().',
+				description: 'Captures minimal timing metrics and includes them in debug logs and in `window.influxDebug.getMetrics()` when debug mode is enabled.',
 				setting: 'metricsEnabled',
 			},
 		],
