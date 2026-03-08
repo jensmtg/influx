@@ -12,6 +12,7 @@ import { EventManager } from './events/event-manager';
 import { PreviewManager } from '../features/preview/preview-manager';
 import { cleanupWindowGlobals } from '../platform/obsidian/plugin-window-guards';
 import { cacheManager } from '../platform/cache/cache-manager';
+import { refreshAllInfluxEditorViews } from '../features/editor/codemirror/async-view-plugin';
 import {
 	attachWindowDebugHelpers,
 	attachWindowPluginReference,
@@ -62,17 +63,13 @@ export default class ObsidianInflux extends Plugin {
 		const oldOrder = this.data.settings.sortingPrinciple;
 		const newOrder = oldOrder === 'NEWEST_FIRST' ? 'OLDEST_FIRST' : 'NEWEST_FIRST';
 		logger.debug('Toggle sort order', { oldOrder, newOrder });
-		this.data.settings.sortingPrinciple = newOrder;
-		await this.saveSettingsByParams({ ...this.data.settings, "sortingPrinciple": newOrder });
-		this.triggerUpdates('save-settings');
+		await this.saveSettingsByParams({ ...this.data.settings, sortingPrinciple: newOrder }, { triggerUpdates: true });
 	}
 
 	async toggleFrontmatterLinks(): Promise<void> {
 		const newValue = !this.data.settings.includeFrontmatterLinks;
 		logger.debug('Toggle frontmatter links', { newValue });
-		this.data.settings.includeFrontmatterLinks = newValue;
-		await this.saveSettingsByParams({ ...this.data.settings, "includeFrontmatterLinks": newValue });
-		this.triggerUpdates('save-settings');
+		await this.saveSettingsByParams({ ...this.data.settings, includeFrontmatterLinks: newValue }, { triggerUpdates: true });
 	}
 
 	async cycleListLimit(): Promise<void> {
@@ -85,9 +82,7 @@ export default class ObsidianInflux extends Plugin {
 		const newLimit = limits[nextIndex];
 
 		logger.debug('Cycle list limit', { oldLimit: currentLimit, newLimit });
-		this.data.settings.listLimit = newLimit;
-		await this.saveSettingsByParams({ ...this.data.settings, "listLimit": newLimit });
-		this.triggerUpdates('save-settings');
+		await this.saveSettingsByParams({ ...this.data.settings, listLimit: newLimit }, { triggerUpdates: true });
 	}
 
 	openSidebar() {
@@ -100,13 +95,30 @@ export default class ObsidianInflux extends Plugin {
 		});
 	}
 
-	async saveSettingsByParams(settings: ObsidianInfluxSettings) {
+	async saveSettingsByParams(
+		settings: ObsidianInfluxSettings,
+		options?: {
+			triggerUpdates?: boolean;
+			onSuccess?: () => void;
+			onFailure?: (error: unknown) => void;
+		}
+	): Promise<boolean> {
 		logger.debug('Saving settings', { sortingPrinciple: settings.sortingPrinciple });
-		await this.saveData({ ...this.data, settings: settings });
-		this.api.invalidateSettingsCache();
-		// Don't call triggerUpdates here - let the calling code decide if an update is needed
-		// This prevents duplicate update triggers when called from settings.tsx
-		logger.debug('Settings saved and cache invalidated');
+		try {
+			await this.saveData({ ...this.data, settings });
+			this.data = { ...this.data, settings };
+			this.api.invalidateSettingsCache();
+			options?.onSuccess?.();
+			if (options?.triggerUpdates) {
+				this.triggerUpdates('save-settings');
+			}
+			logger.debug('Settings saved and cache invalidated');
+			return true;
+		} catch (error) {
+			logger.error('Failed to save settings', { error });
+			options?.onFailure?.(error);
+			return false;
+		}
 	}
 
 	/**
@@ -186,6 +198,10 @@ export default class ObsidianInflux extends Plugin {
 				op,
 				file: file instanceof TFile ? file : undefined
 			});
+
+			if (!signal.aborted && op === 'save-settings') {
+				refreshAllInfluxEditorViews();
+			}
 
 			if (!signal.aborted && op !== 'modify') {
 				await this.previewManager.updateAllPreviews();

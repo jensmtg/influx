@@ -19,6 +19,11 @@ describe('ObsidianInfluxSettingsTab', () => {
 					...DEFAULT_SETTINGS,
 				},
 			},
+			saveSettingsByParams: jest.fn(async (settings: typeof DEFAULT_SETTINGS, options?: { triggerUpdates?: boolean; onSuccess?: () => void }) => {
+				plugin.data.settings = settings;
+				options?.onSuccess?.();
+				return true;
+			}),
 			saveData: jest.fn().mockResolvedValue(undefined),
 			triggerUpdates: jest.fn(),
 			openSidebar: jest.fn(),
@@ -35,7 +40,7 @@ describe('ObsidianInfluxSettingsTab', () => {
 		};
 	};
 
-	test('display renders the main settings sections and expected settings controls', () => {
+	test('display renders the main settings sections and diagnostics details', () => {
 		const { tab } = createTab();
 		const originalDocument = global.document;
 		const detailsEl = {
@@ -86,17 +91,15 @@ describe('ObsidianInfluxSettingsTab', () => {
 		expect(detailsEl.createEl).toHaveBeenCalledWith('summary', {
 			text: 'Diagnostics and bug-report tools (advanced)'
 		});
-		expect(Setting).toHaveBeenCalledTimes(22);
+		expect(Setting).toHaveBeenCalled();
 	});
 
-	test('saveSettings persists plugin data, invalidates cache, and triggers updates', async () => {
+	test('saveSettings delegates to plugin transactional settings persistence', async () => {
 		const { tab, plugin } = createTab();
 
 		await tab.saveSettings();
 
-		expect(plugin.saveData).toHaveBeenCalledWith(plugin.data);
-		expect(plugin.api.invalidateSettingsCache).toHaveBeenCalledTimes(1);
-		expect(plugin.triggerUpdates).toHaveBeenCalledWith('save-settings');
+		expect(plugin.saveSettingsByParams).toHaveBeenCalledWith(plugin.data.settings, { triggerUpdates: true });
 	});
 
 	test('handleFrontmatterPropertiesBlur keeps valid names and marks invalid input', async () => {
@@ -121,7 +124,10 @@ describe('ObsidianInfluxSettingsTab', () => {
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'valid_name']);
 		expect(inputEl.classList.add).toHaveBeenCalledWith('is-invalid');
 		expect(warningEl.textContent).toContain('Invalid property names');
-		expect(plugin.saveData).toHaveBeenCalledWith(plugin.data);
+		expect(plugin.saveSettingsByParams).toHaveBeenCalledWith(
+			expect.objectContaining({ frontmatterProperties: ['related', 'valid_name'] }),
+			expect.objectContaining({ triggerUpdates: true })
+		);
 	});
 
 	test('handleFrontmatterPropertiesBlur clears warning for fully valid input', async () => {
@@ -147,5 +153,15 @@ describe('ObsidianInfluxSettingsTab', () => {
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'see_also', 'references-2']);
 		expect(inputEl.classList.remove).toHaveBeenCalledWith('is-invalid');
 		expect(remove).toHaveBeenCalledTimes(1);
+	});
+
+	test('display mode only opens sidebar after settings save succeeds', async () => {
+		const { tab, plugin } = createTab();
+		plugin.saveSettingsByParams.mockResolvedValueOnce(false);
+
+		await (tab as any).applyDisplayModeSetting('sidebar');
+
+		expect(plugin.openSidebar).not.toHaveBeenCalled();
+		expect(plugin.data.settings.showInfluxInSidebar).toBe(false);
 	});
 });

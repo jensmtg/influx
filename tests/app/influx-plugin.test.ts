@@ -85,6 +85,7 @@ jest.mock('@/features/settings/settings-tab', () => ({
 
 jest.mock('@/features/editor/codemirror/async-view-plugin', () => ({
 	asyncDecoBuilderExt: { name: 'async-deco-builder-ext' },
+	refreshAllInfluxEditorViews: jest.fn(),
 }));
 
 jest.mock('@/platform/diagnostics/logger', () => ({

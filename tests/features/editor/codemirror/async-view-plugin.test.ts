@@ -1,5 +1,5 @@
 import { editorViewField } from 'obsidian';
-import { AsyncViewPluginController } from '@/features/editor/codemirror/async-view-plugin';
+import { AsyncViewPluginController, refreshAllInfluxEditorViews } from '@/features/editor/codemirror/async-view-plugin';
 import { StatefulDecorationSet } from '@/features/editor/codemirror/stateful-decoration-set';
 
 jest.mock('@/features/editor/codemirror/stateful-decoration-set', () => ({
@@ -32,6 +32,7 @@ describe('AsyncViewPluginController', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		AsyncViewPluginController.activeControllers.clear();
 		(StatefulDecorationSet as unknown as jest.Mock).mockImplementation(() => ({
 			updateAsyncDecorations,
 			cancelPendingUpdates,
@@ -88,5 +89,21 @@ describe('AsyncViewPluginController', () => {
 
 		expect(cancelPendingUpdates).toHaveBeenCalledTimes(2);
 		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
+	});
+
+	test('refreshAllInfluxEditorViews refreshes every active controller and stops after destroy', () => {
+		const first = new AsyncViewPluginController(createView('One.md'));
+		const second = new AsyncViewPluginController(createView('Two.md'));
+
+		jest.clearAllMocks();
+		refreshAllInfluxEditorViews();
+		expect(updateAsyncDecorations).toHaveBeenCalledTimes(2);
+
+		jest.clearAllMocks();
+		first.destroy();
+		refreshAllInfluxEditorViews();
+		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
+
+		second.destroy();
 	});
 });
