@@ -1,4 +1,4 @@
-import { WorkspaceLeaf, View, TFile, MarkdownPostProcessorContext } from 'obsidian';
+import { WorkspaceLeaf, MarkdownPostProcessorContext } from 'obsidian';
 import { ApiAdapter } from '../../domain/backlinks/api-adapter';
 import { rootManager } from '../../platform/react/root-manager';
 import { logger } from '../../platform/diagnostics/logger';
@@ -11,17 +11,16 @@ import { computeSettingsHash } from '../../domain/settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 import { CONSTANTS } from '../../config/constants';
-
-type InfluxView = View & {
-	file?: TFile;
-	currentMode?: { type: string };
-	mode?: string;
-};
-
-type InfluxWorkspaceLeaf = WorkspaceLeaf & {
-	view?: InfluxView;
-	containerEl: HTMLDivElement;
-};
+import {
+	cleanupAllPreviewRootsAndContainers,
+	cleanupDuplicatePreviewWrappers,
+	cleanupPreviewContainers,
+	findExistingContainer,
+	leafHasPreviewRoot,
+	type InfluxWorkspaceLeaf,
+	isLeafInPreviewMode,
+	resolvePreviewRoot,
+} from './preview-manager-dom';
 
 /**
  * Manages Influx plugin rendering in preview mode. Handles container creation,
@@ -54,7 +53,7 @@ export class PreviewManager {
 		}
 
 		if (this.plugin.data.settings.showInfluxInSidebar) {
-			this.cleanupAllPreviewRootsAndContainers();
+			cleanupAllPreviewRootsAndContainers();
 			return;
 		}
 
@@ -62,14 +61,7 @@ export class PreviewManager {
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			const leafType: string = influxLeaf.view?.currentMode?.type;
-			const viewMode = influxLeaf.view?.mode;
-			const isPreviewMode = leafType === 'preview' || viewMode === 'preview';
-			const hasPreviewRoot = isPreviewMode
-				? true
-				: !!influxLeaf.containerEl?.querySelector('.markdown-preview-view');
-
-			if (hasPreviewRoot) {
+			if (leafHasPreviewRoot(influxLeaf)) {
 				previewLeaves.push(leaf);
 			}
 		});
@@ -115,20 +107,20 @@ export class PreviewManager {
 		}
 
 		const settings = this.plugin.data.settings;
-		const previewDiv = await this.resolvePreviewDiv(container, this.isLeafInPreviewMode(influxLeaf));
+		const previewDiv = await this.resolvePreviewDiv(container, isLeafInPreviewMode(influxLeaf));
 		if (!previewDiv) {
 			logger.debug('Preview root not ready for leaf', { filePath: path });
 			return;
 		}
 		if (settings.showInfluxInSidebar) {
-			this.cleanupPreviewContainers(previewDiv);
+			cleanupPreviewContainers(previewDiv);
 			return;
 		}
 
 		const pipelineStart = performance.now();
 
-		const existingContainer = this.findExistingContainer(previewDiv);
-		this.cleanupDuplicatePreviewWrappers(previewDiv, existingContainer);
+		const existingContainer = findExistingContainer(previewDiv);
+		cleanupDuplicatePreviewWrappers(previewDiv, existingContainer);
 
 		const fileMtime = influxLeaf.view?.file?.stat?.mtime ?? 0;
 		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}`;
@@ -149,7 +141,7 @@ export class PreviewManager {
 
 		const influxFile = await InfluxFile.create(path, this.apiAdapter);
 		if (!influxFile.show) {
-			this.cleanupPreviewContainers(previewDiv);
+			cleanupPreviewContainers(previewDiv);
 			recordMetric({
 				name: 'influx.pipeline.total',
 				mode: 'preview',
@@ -205,7 +197,7 @@ export class PreviewManager {
 			}
 		} else {
 			// Clean up any orphaned containers and wrappers
-			this.cleanupPreviewContainers(previewDiv);
+			cleanupPreviewContainers(previewDiv);
 
 			// Create new container
 			const influxWrapper = document.createElement('div');
@@ -243,7 +235,7 @@ export class PreviewManager {
 
 		const settings = this.plugin.data.settings;
 
-		const previewRoot = this.resolvePreviewRoot(element);
+		const previewRoot = resolvePreviewRoot(element);
 		if (!previewRoot) {
 			if (!settings.showInfluxInSidebar) {
 				logger.debug('[handlePreviewMode] Preview root not ready yet; scheduling retry', { filePath });
@@ -252,7 +244,7 @@ export class PreviewManager {
 			return;
 		}
 		if (settings.showInfluxInSidebar) {
-			this.cleanupPreviewContainers(previewRoot);
+			cleanupPreviewContainers(previewRoot);
 			return;
 		}
 
@@ -295,9 +287,7 @@ export class PreviewManager {
 				return;
 			}
 
-			const hasPreviewRoot = this.isLeafInPreviewMode(influxLeaf)
-				|| !!influxLeaf.containerEl?.querySelector('.markdown-preview-view');
-			if (!hasPreviewRoot) {
+			if (!leafHasPreviewRoot(influxLeaf)) {
 				return;
 			}
 
@@ -311,41 +301,8 @@ export class PreviewManager {
 		);
 	}
 
-	private cleanupPreviewContainers(container: Element, logCounts = false): void {
-		const wrappers = container.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
-		const innerContainers = container.querySelectorAll(
-			`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
-		);
-
-		if (logCounts) {
-			logger.debug('[handlePreviewMode] Found existing wrappers:', { count: wrappers.length });
-			logger.debug('[handlePreviewMode] Found orphaned containers:', { count: innerContainers.length });
-		}
-
-		innerContainers.forEach((node) => {
-			const htmlNode = node as HTMLElement;
-			rootManager.unmountDeferred(htmlNode);
-			htmlNode.remove();
-		});
-
-		wrappers.forEach((wrapper) => wrapper.remove());
-	}
-
-	private cleanupAllPreviewRootsAndContainers(): void {
-		rootManager.unmountByType('preview');
-		document
-			.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`)
-			.forEach((wrapper) => wrapper.remove());
-	}
-
 	private isInactive(): boolean {
 		return this.disposed || this.plugin.isUnloading;
-	}
-
-	private isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
-		const leafType: string | undefined = leaf.view?.currentMode?.type;
-		const viewMode = leaf.view?.mode;
-		return leafType === 'preview' || viewMode === 'preview';
 	}
 
 	private getLeafUpdateKey(leaf: InfluxWorkspaceLeaf, filePath: string): string {
@@ -374,59 +331,6 @@ export class PreviewManager {
 		return getPreviewDiv();
 	}
 
-	private resolvePreviewRoot(element: HTMLElement): HTMLElement | null {
-		if (element.classList.contains('markdown-preview-view')) {
-			return element;
-		}
-		const closest = element.closest('.markdown-preview-view');
-		if (closest instanceof HTMLElement) {
-			return closest;
-		}
-		const nested = element.querySelector('.markdown-preview-view');
-		return nested instanceof HTMLElement ? nested : null;
-	}
-
-	private cleanupDuplicatePreviewWrappers(previewDiv: Element, keepContainer: HTMLElement | null): void {
-		const wrappers = previewDiv.querySelectorAll(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
-		wrappers.forEach((wrapper) => {
-			const container = wrapper.querySelector(
-				`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
-			) as HTMLElement | null;
-
-			if (keepContainer && container === keepContainer) {
-				return;
-			}
-
-			if (container) {
-				rootManager.unmountDeferred(container);
-			}
-			wrapper.remove();
-		});
-	}
-
-	private findExistingContainer(previewDiv: Element): HTMLElement | null {
-		const containers = previewDiv.querySelectorAll(
-			`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`
-		);
-
-		let fallback: HTMLElement | null = null;
-		let preferred: HTMLElement | null = null;
-		containers.forEach((node) => {
-			const container = node as HTMLElement;
-			if (!fallback) {
-				fallback = container;
-			}
-			if (!preferred && rootManager.has(container)) {
-				preferred = container;
-			}
-		});
-
-		if (preferred) {
-			return preferred;
-		}
-
-		return fallback;
-	}
 
     private computeSettingsHash(): string {
         // Return cached hash if available
