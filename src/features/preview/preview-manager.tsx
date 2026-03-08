@@ -124,11 +124,7 @@ export class PreviewManager {
 		const fileMtime = influxLeaf.view?.file?.stat?.mtime ?? 0;
 		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}`;
 
-		if (
-			existingContainer &&
-			cacheManager.getPreviewFileHash(path) === fileHash &&
-			rootManager.has(existingContainer)
-		) {
+		if (this.hasFreshPreviewRoot(path, fileHash, existingContainer)) {
 			return;
 		}
 
@@ -156,46 +152,7 @@ export class PreviewManager {
 		}
 
 		cacheManager.setPreviewFileHash(path, fileHash);
-
-		let anchor: Root | undefined;
-
-		if (existingContainer) {
-			// Reuse existing container
-			const info = rootManager.get(existingContainer);
-			if (info) {
-				anchor = info.root;
-			} else {
-				// Container exists but root is not tracked (possible stale React marker).
-				// Replace node to guarantee a fresh createRoot target.
-				const replacementContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
-				replacementContainer.id = influxFile.uuid;
-				existingContainer.replaceWith(replacementContainer);
-				anchor = createRoot(replacementContainer);
-				rootManager.register(replacementContainer, anchor, 'preview', path);
-				logger.debug('Replaced untracked preview container before root creation', { filePath: path });
-			}
-		} else {
-			// Clean up any orphaned containers and wrappers
-			cleanupPreviewContainers(previewDiv);
-
-			// Create new container
-			const influxWrapper = document.createElement('div');
-			influxWrapper.className = CONSTANTS.INFLUX_WRAPPER_CLASS;
-
-			const influxContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
-			influxContainer.id = influxFile.uuid;
-			influxWrapper.appendChild(influxContainer);
-
-			const currentSettings = this.plugin.data.settings;
-			if (currentSettings.influxAtTopOfPage) {
-				previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
-			} else {
-				previewDiv.appendChild(influxWrapper);
-			}
-
-			anchor = createRoot(influxContainer);
-			rootManager.register(influxContainer, anchor, 'preview', path);
-		}
+		const anchor = this.getOrCreatePreviewRoot(previewDiv, path, influxFile.uuid, existingContainer);
 
 		anchor.render(
 			<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
@@ -305,6 +262,63 @@ export class PreviewManager {
 		});
 
 		return leaves;
+	}
+
+	private hasFreshPreviewRoot(
+		filePath: string,
+		fileHash: string,
+		existingContainer: HTMLElement | null
+	): boolean {
+		return Boolean(
+			existingContainer &&
+			cacheManager.getPreviewFileHash(filePath) === fileHash &&
+			rootManager.has(existingContainer)
+		);
+	}
+
+	private getOrCreatePreviewRoot(
+		previewDiv: HTMLElement,
+		filePath: string,
+		containerId: string,
+		existingContainer: HTMLElement | null
+	): Root {
+		if (existingContainer) {
+			const info = rootManager.get(existingContainer);
+			if (info) {
+				return info.root;
+			}
+
+			const replacementContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
+			replacementContainer.id = containerId;
+			existingContainer.replaceWith(replacementContainer);
+			const root = createRoot(replacementContainer);
+			rootManager.register(replacementContainer, root, 'preview', filePath);
+			logger.debug('Replaced untracked preview container before root creation', { filePath });
+			return root;
+		}
+
+		cleanupPreviewContainers(previewDiv);
+		const previewContainer = this.createPreviewContainer(previewDiv, containerId);
+		const root = createRoot(previewContainer);
+		rootManager.register(previewContainer, root, 'preview', filePath);
+		return root;
+	}
+
+	private createPreviewContainer(previewDiv: HTMLElement, containerId: string): HTMLElement {
+		const influxWrapper = document.createElement('div');
+		influxWrapper.className = CONSTANTS.INFLUX_WRAPPER_CLASS;
+
+		const influxContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
+		influxContainer.id = containerId;
+		influxWrapper.appendChild(influxContainer);
+
+		if (this.plugin.data.settings.influxAtTopOfPage) {
+			previewDiv.insertBefore(influxWrapper, previewDiv.firstChild);
+		} else {
+			previewDiv.appendChild(influxWrapper);
+		}
+
+		return influxContainer;
 	}
 
 	private isInactive(): boolean {

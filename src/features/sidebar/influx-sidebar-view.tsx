@@ -68,6 +68,21 @@ export class InfluxSidebarView extends ItemView {
 		);
 	}
 
+	private renderCurrentInflux(): void {
+		if (!this.root) {
+			return;
+		}
+
+		const component = this.renderInfluxComponent();
+		if (component) {
+			this.root.render(component);
+		}
+	}
+
+	private isCurrentUpdateAborted(signal: AbortSignal | undefined, updateId: number): boolean {
+		return Boolean(signal?.aborted) || updateId !== this.currentUpdateId;
+	}
+
 	private renderIdleState(): void {
 		this.clearCurrentState();
 		this.renderStatusState({
@@ -254,19 +269,12 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
-			// Final check before rendering
-			if (signal.aborted || updateId !== this.currentUpdateId) {
+			if (this.isCurrentUpdateAborted(signal, updateId)) {
 				return;
 			}
 
-			if (this.root) {
-				const component = this.renderInfluxComponent();
-				if (component) {
-					this.root.render(component);
-				}
-			}
+			this.renderCurrentInflux();
 		} catch (error) {
-			// Don't log errors if this operation was aborted
 			if (signal.aborted) {
 				return;
 			}
@@ -290,7 +298,7 @@ export class InfluxSidebarView extends ItemView {
 		try {
 			const shouldShow = this.plugin.api.getShowStatus(this.currentFile);
 			this.influxFile.show = shouldShow;
-			if (signal?.aborted || updateId !== this.currentUpdateId) {
+			if (this.isCurrentUpdateAborted(signal, updateId)) {
 				return;
 			}
 			if (shouldShow) {
@@ -316,16 +324,11 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
-			if (signal?.aborted || updateId !== this.currentUpdateId) {
+			if (this.isCurrentUpdateAborted(signal, updateId)) {
 				return;
 			}
 
-			if (this.root) {
-				const component = this.renderInfluxComponent();
-				if (component) {
-					this.root.render(component);
-				}
-			}
+			this.renderCurrentInflux();
 		} catch (error) {
 			if (signal?.aborted) {
 				return;
