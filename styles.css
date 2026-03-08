@@ -397,6 +397,27 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	color: var(--influx-text-muted);
 }
 
+.influx-sidebar-status-eyebrow {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--influx-text-faint);
+	margin-bottom: 0.35rem;
+}
+
+.influx-sidebar-status-title {
+	font-size: 0.95rem;
+	font-weight: 600;
+	color: var(--influx-text-normal);
+}
+
+.influx-sidebar-status-detail {
+	margin-top: 0.3rem;
+	color: var(--influx-text-muted);
+	line-height: 1.45;
+}
+
 .influx-sidebar-status--loading {
 	color: var(--influx-text-faint);
 }
@@ -487,7 +508,38 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-component .influx-icon-button:hover {
 	color: var(--influx-icon-hover);
-	background-color: var(--influx-interactive-hover);
+	background-color: color-mix(in srgb, var(--influx-interactive-hover) 55%, transparent);
+	opacity: 1;
+}
+
+.influx-component .influx-toolbar-button.is-active,
+.influx-component .influx-toolbar-button[aria-pressed='true'] {
+	color: var(--influx-accent-strong);
+	background-color: color-mix(in srgb, var(--influx-accent) 14%, transparent);
+	opacity: 1;
+}
+
+.influx-component .influx-toolbar-button-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-inline-size: 1.8em;
+	padding: 0 0.4em;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--influx-surface-muted) 88%, transparent);
+	color: var(--influx-text-faint);
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.5;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.influx-component .influx-toolbar-button.is-active .influx-toolbar-button-badge,
+.influx-component .influx-toolbar-button[aria-pressed='true'] .influx-toolbar-button-badge,
+.influx-component .influx-icon-button:hover .influx-toolbar-button-badge {
+	background: color-mix(in srgb, var(--influx-accent) 18%, transparent);
+	color: var(--influx-text-normal);
 }
 
 /* Backlink pane */
@@ -581,6 +633,33 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	border-radius: var(--influx-radius-s);
 	margin-right: var(--size-2-2);
 	white-space: nowrap;
+}
+
+.influx-component .influx-summary-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 24px;
+	padding: 0 10px;
+	border: 1px solid var(--influx-border-color);
+	border-radius: 999px;
+	background: transparent;
+	color: var(--influx-text-muted);
+	font: inherit;
+	font-size: var(--influx-font-ui-smaller);
+	font-weight: 600;
+	line-height: 1;
+	white-space: nowrap;
+	text-align: center;
+	transition:
+		color 0.15s ease,
+		background-color 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.influx-component .influx-summary-action:hover {
+	color: var(--influx-text-normal);
+	border-color: color-mix(in srgb, var(--influx-accent) 24%, var(--influx-border-color));
 }
 
 /* Tree item collapse toggle */
