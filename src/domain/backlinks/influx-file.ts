@@ -9,6 +9,7 @@ import { DEFAULT_SETTINGS } from '../../types';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
+import { collectValidBacklinkFiles, sortInfluxSourceFiles } from './influx-file-build-helpers';
 
 
 export default class InfluxFile {
@@ -189,45 +190,14 @@ export default class InfluxFile {
         }
 
         const listLimit = settings.listLimit || 0;
-        const normalizedCurrentPath = normalizePath(this.file.path);
-
-        const validFiles: TFile[] = []
-        // Unify iteration pattern for both Map and Object backlinks data
-        const entries = this.backlinks.data instanceof Map
-            ? this.backlinks.data.entries()
-            : Object.entries(this.backlinks.data);
-
-        for (const [pathAsKey] of entries) {
-            const normalizedSourcePath = normalizePath(pathAsKey);
-            if (normalizedSourcePath === normalizedCurrentPath || !this.api.isIncludableSource(pathAsKey)) {
-                continue;
-            }
-            const file = this.api.getFileByPath(pathAsKey)
-            if (file !== null) {
-                validFiles.push(file)
-            }
-        }
+        const validFiles = collectValidBacklinkFiles({
+            backlinks: this.backlinks,
+            currentFilePath: this.file.path,
+            api: this.api,
+        });
 
         const totalEntryCount = validFiles.length;
-
-        const flip = settings.sortingPrinciple === 'NEWEST_FIRST' ? -1 : 1;
-        const sortAttr = settings.sortingAttribute === 'mtime' ? 'mtime' : 'ctime';
-
-        const sortedFiles = [...validFiles].sort((a, b) => {
-            if (settings.sortingAttribute === 'FILENAME') {
-                const aName = a.basename || '';
-                const bName = b.basename || '';
-                if (aName < bName) return -1 * flip;
-                if (aName > bName) return 1 * flip;
-                return 0;
-            }
-
-            const aTime = a.stat?.[sortAttr] || 0;
-            const bTime = b.stat?.[sortAttr] || 0;
-            if (aTime < bTime) return -1 * flip;
-            if (aTime > bTime) return 1 * flip;
-            return 0;
-        });
+        const sortedFiles = sortInfluxSourceFiles(validFiles, settings);
         const filesToProcess = listLimit > 0 ? sortedFiles.slice(0, listLimit) : sortedFiles;
 
         const processed = await mapWithConcurrency(
