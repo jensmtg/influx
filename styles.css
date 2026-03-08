@@ -291,6 +291,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	justify-content: flex-end;
 	gap: var(--size-4-1);
 	align-items: center;
+	inline-size: auto;
+	min-width: 0;
+	margin-inline-start: auto;
+	padding-inline-start: 0;
+}
+
+.influx-component .influx-toolbar-actions[role='toolbar'] {
+	margin-block-start: 0;
 }
 
 .influx-component .influx-search-wrap {
@@ -428,7 +436,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 
 .influx-sidebar-status--warning {
 	border-color: var(--text-warning);
-	background: var(--influx-hover-bg);
+	background: color-mix(in srgb, var(--text-warning) 10%, var(--influx-surface-bg));
 	color: var(--text-warning);
 	margin-bottom: 0;
 }
@@ -449,13 +457,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-toolbar {
 	position: relative;
 	background: var(--influx-surface-bg);
-	padding: var(--size-4-2) var(--size-4-2) var(--size-4-2) var(--size-4-3);
+	padding: var(--size-4-2) 0 var(--size-4-1);
 	display: flex;
-	align-items: center;
-	justify-content: flex-end;
+	align-items: flex-start;
+	justify-content: space-between;
 	flex-direction: row;
 	flex-wrap: wrap;
-	gap: var(--size-4-2);
+	gap: var(--size-2-2) var(--size-4-2);
+	border-top: 1px solid var(--influx-border-color);
 }
 
 .influx-component--editor .influx-toolbar,
@@ -564,6 +573,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 	flex-direction: column;
 	width: 100%;
 	min-width: 0;
+	gap: var(--size-2-2);
 }
 
 /* Shared clickable rows */
@@ -572,7 +582,7 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 .influx-component .influx-load-more-btn {
 	display: flex;
 	align-items: flex-start;
-	padding: var(--size-4-1) var(--size-4-2);
+	padding: var(--size-2-2) 0;
 	cursor: default;
 	position: relative;
 	line-height: var(--line-height-normal);
@@ -597,12 +607,11 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .influx-component .influx-summary-row--toolbar {
-	min-height: 32px;
-	padding-block: var(--size-2-2);
-	border: 1px solid var(--influx-border-color);
-	border-radius: var(--influx-radius-s);
-	background: var(--influx-surface-muted);
-	width: auto;
+	min-height: 28px;
+	padding-block: var(--size-2-1);
+	background: transparent;
+	flex: 1 1 220px;
+	min-width: 0;
 	max-width: none;
 	justify-self: start;
 	align-self: start;
@@ -840,8 +849,14 @@ body:not(.is-readable-line-width) .influx-component--preview .influx-result-body
 }
 
 .workspace-leaf-content[data-type="influx-sidebar-view"] .influx-toolbar {
-	background: var(--influx-surface-bg);
-	padding: unset;
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	justify-content: flex-start;
+	border-top: 0;
+	border-bottom: 1px solid color-mix(in srgb, var(--influx-border-color) 82%, transparent);
+	backdrop-filter: blur(8px);
+	padding: var(--size-4-2) var(--size-4-2) var(--size-4-1);
 	display: flex;
 	justify-content: end;
 }
