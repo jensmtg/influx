@@ -6,7 +6,7 @@ import InfluxReactComponent from '../../ui/influx-react-component';
 import type ObsidianInflux from '../../app/influx-plugin';
 import { logger } from '../../platform/diagnostics/logger';
 import { CONSTANTS } from '../../config/constants';
-import { influxUpdates$, InfluxUpdateEvent } from '../../app/events/influx-updates';
+import { influxUpdates$, InfluxUpdateEvent } from '../../platform/events/influx-updates';
 import { buildInfluxFileForRender, createInfluxFileForRender } from '../../domain/backlinks/influx-render-pipeline';
 
 export class InfluxSidebarView extends ItemView {

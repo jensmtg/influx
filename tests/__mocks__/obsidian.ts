@@ -128,8 +128,8 @@ export const MarkdownRenderer = {
 
 export const editorViewField = Symbol('editorViewField');
 
-export const debounce = <T extends (...args: any[]) => unknown>(fn: T) => {
-	const debounced = ((...args: Parameters<T>) => fn(...args)) as T & { cancel: jest.Mock };
+export const debounce = <Args extends unknown[], Result>(fn: (...args: Args) => Result) => {
+	const debounced = ((...args: Args) => fn(...args)) as ((...args: Args) => Result) & { cancel: jest.Mock };
 	debounced.cancel = jest.fn();
 	return debounced;
 };

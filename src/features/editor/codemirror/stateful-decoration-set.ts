@@ -153,6 +153,8 @@ export class StatefulDecorationSet {
 					effects: [statefulDecorations.update.of(decorations)],
 				});
 			} catch {
+				this.asyncState.clearPending();
+				return;
 			}
 		}
 

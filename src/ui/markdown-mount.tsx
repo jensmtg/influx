@@ -36,7 +36,6 @@ export function prepareMarkdownForInflux(markdown: string): string {
 	const output: string[] = [];
 	let inSanitizedFence = false;
 	let fencePrefix = '';
-	let sanitizedFenceLabel = '';
 
 	for (const line of lines) {
 		const { prefix, content } = splitFencePrefix(line);
@@ -45,7 +44,7 @@ export function prepareMarkdownForInflux(markdown: string): string {
 		if (!inSanitizedFence && isSanitizedFenceStart(normalizedContent)) {
 			inSanitizedFence = true;
 			fencePrefix = prefix;
-			sanitizedFenceLabel = normalizedContent.slice(3).split(/\s+/, 1)[0].toLowerCase();
+			const sanitizedFenceLabel = normalizedContent.slice(3).split(/\s+/, 1)[0].toLowerCase();
 			output.push(`${fencePrefix}\`\`\`text`);
 			output.push(`${fencePrefix}[Influx] ${sanitizedFenceLabel} block disabled in backlink snippet`);
 			continue;
@@ -55,7 +54,6 @@ export function prepareMarkdownForInflux(markdown: string): string {
 			output.push(`${fencePrefix}\`\`\``);
 			inSanitizedFence = false;
 			fencePrefix = '';
-			sanitizedFenceLabel = '';
 			continue;
 		}
 
