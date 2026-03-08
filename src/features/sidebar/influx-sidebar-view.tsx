@@ -21,15 +21,38 @@ export class InfluxSidebarView extends ItemView {
 	private updatesUnsubscribe: (() => void) | null = null;
 	private readonly updatesSubscriptionId = `sidebar-${InfluxSidebarView.nextSubscriptionId++}`;
 
-	private renderStatusState(message: string, variant: 'loading' | 'empty' | 'warning' | 'error'): void {
+	private renderStatusState(params: {
+		title: string;
+		detail?: string;
+		variant: 'loading' | 'empty' | 'warning' | 'error';
+	}): void {
 		if (!this.root) {
 			return;
 		}
 		this.root.render(
-			<div className={`influx-sidebar-status influx-sidebar-status--${variant}`}>
-				{message}
+			<div className={`influx-sidebar-status influx-sidebar-status--${params.variant}`}>
+				<div className="influx-sidebar-status-eyebrow">Influx</div>
+				<div className="influx-sidebar-status-title">{params.title}</div>
+				{params.detail && (
+					<div className="influx-sidebar-status-detail">{params.detail}</div>
+				)}
 			</div>
 		);
+	}
+
+	private clearCurrentState(): void {
+		this.currentFile = null;
+		this.influxFile = null;
+		this.componentKey = 'initial';
+	}
+
+	private renderIdleState(): void {
+		this.clearCurrentState();
+		this.renderStatusState({
+			title: 'Open a note to explore linked mentions',
+			detail: 'Influx will keep this sidebar focused on the active markdown note.',
+			variant: 'empty',
+		});
 	}
 
 	constructor(leaf: WorkspaceLeaf, plugin: ObsidianInflux) {
@@ -60,6 +83,8 @@ export class InfluxSidebarView extends ItemView {
 			const activeFile = this.app.workspace.getActiveFile();
 			if (activeFile) {
 				await this.updateView(activeFile);
+			} else {
+				this.renderIdleState();
 			}
 		} catch (error) {
 			logger.error('Failed to open InfluxSidebarView', { error });
@@ -132,6 +157,10 @@ export class InfluxSidebarView extends ItemView {
 				const file = (view as MarkdownView)?.file;
 				if (file && file !== this.currentFile) {
 					this.updateView(file);
+					return;
+				}
+				if (!file) {
+					this.renderIdleState();
 				}
 			})
 		);
@@ -140,6 +169,10 @@ export class InfluxSidebarView extends ItemView {
 			this.app.workspace.on('file-open', (file) => {
 				if (file && file !== this.currentFile) {
 					this.updateView(file);
+					return;
+				}
+				if (!file) {
+					this.renderIdleState();
 				}
 			})
 		);
@@ -177,7 +210,11 @@ export class InfluxSidebarView extends ItemView {
 
 		this.currentFile = file;
 		this.componentKey = file.path;
-		this.renderStatusState('Loading backlinks...', 'loading');
+		this.renderStatusState({
+			title: 'Loading linked mentions',
+			detail: `Scanning backlinks for ${file.basename}.`,
+			variant: 'loading',
+		});
 
 		try {
 			const pipelineStart = performance.now();
@@ -203,7 +240,11 @@ export class InfluxSidebarView extends ItemView {
 						renderedCount: 0
 					}
 				});
-				this.renderStatusState('No backlinks to show for this note.', 'empty');
+				this.renderStatusState({
+					title: 'Nothing to show for this note yet',
+					detail: 'This note is currently hidden by your Influx rules or has no eligible linked mentions.',
+					variant: 'empty',
+				});
 				return;
 			}
 
@@ -251,7 +292,11 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 			logger.error('Failed to update sidebar view', { filePath: file.path, error });
-			this.renderStatusState('Influx could not load in the sidebar. Try switching notes or reopening the Influx view.', 'error');
+			this.renderStatusState({
+				title: 'Influx could not load this sidebar view',
+				detail: 'Try switching notes, then reopen the Influx sidebar if the problem sticks around.',
+				variant: 'error',
+			});
 		}
 	}
 
@@ -285,7 +330,11 @@ export class InfluxSidebarView extends ItemView {
 						renderedCount: 0
 					}
 				});
-				this.renderStatusState('Backlinks are hidden by current settings for this note.', 'empty');
+				this.renderStatusState({
+					title: 'Linked mentions are hidden for this note',
+					detail: 'Your current filters or show rules are hiding Influx in the sidebar right now.',
+					variant: 'empty',
+				});
 				return;
 			}
 
@@ -344,9 +393,11 @@ export class InfluxSidebarView extends ItemView {
 					/>
 				);
 				this.root.render(
-					<div>
+					<div className="influx-sidebar-stack">
 						<div className="influx-sidebar-status influx-sidebar-status--warning">
-							Influx update failed. Continue editing and it will retry on the next change.
+							<div className="influx-sidebar-status-eyebrow">Influx</div>
+							<div className="influx-sidebar-status-title">Sidebar refresh failed</div>
+							<div className="influx-sidebar-status-detail">Keep editing and Influx will retry on the next relevant change.</div>
 						</div>
 						{currentComponent}
 					</div>

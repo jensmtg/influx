@@ -28,6 +28,19 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 }));
 
 describe('InfluxSidebarView', () => {
+	const getRenderedText = (node: any): string => {
+		if (node == null || typeof node === 'boolean') {
+			return '';
+		}
+		if (typeof node === 'string' || typeof node === 'number') {
+			return String(node);
+		}
+		if (Array.isArray(node)) {
+			return node.map((child) => getRenderedText(child)).join(' ');
+		}
+		return getRenderedText(node.props?.children);
+	};
+
 	const createContext = () => {
 		const fileA = mockTFile('A.md', 'A');
 		const fileB = mockTFile('B.md', 'B');
@@ -302,6 +315,10 @@ describe('InfluxSidebarView', () => {
 
 		expect(registerFileEventsSpy).toHaveBeenCalledTimes(1);
 		expect(updateViewSpy).not.toHaveBeenCalled();
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		const lastRendered = renderCalls[renderCalls.length - 1][0];
+		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
+		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
 	});
 
 	test('onClose aborts pending work, unmounts root, and clears sidebar state', async () => {
@@ -397,6 +414,24 @@ describe('InfluxSidebarView', () => {
 		expect(handleEditorChangeSpy).toHaveBeenCalledTimes(1);
 	});
 
+	test('registerFileEvents clears the sidebar to an idle state when no markdown file is active', () => {
+		const { view, workspaceOn, fileA } = createContext();
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = { show: true };
+
+		(view as any).registerFileEvents();
+
+		const activeLeafHandler = workspaceOn.mock.calls[0][1];
+		activeLeafHandler({ view: {} });
+
+		expect((view as any).currentFile).toBeNull();
+		expect((view as any).influxFile).toBeNull();
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		const lastRendered = renderCalls[renderCalls.length - 1][0];
+		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
+		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
+	});
+
 	test('registerFileEvents ignores editor changes when live update is disabled', () => {
 		const { view, plugin, fileA, workspaceOn } = createContext();
 		const handleEditorChangeSpy = jest.spyOn(view as any, 'handleEditorChange').mockResolvedValue(undefined);
@@ -409,5 +444,28 @@ describe('InfluxSidebarView', () => {
 		editorChangeHandler({}, { file: fileA });
 
 		expect(handleEditorChangeSpy).not.toHaveBeenCalled();
+	});
+
+	test('handleEditorChange warning banner keeps structured title and retry detail', async () => {
+		const { view, plugin, fileA } = createContext();
+		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(true);
+
+		(view as any).currentFile = fileA;
+		(view as any).influxFile = {
+			show: true,
+			makeInfluxList: jest.fn().mockRejectedValue(new Error('boom')),
+			toEntries: jest.fn().mockReturnValue([]),
+			totalEntryCount: 0,
+		};
+		(view as any).abortController = { signal: { aborted: false } };
+		(view as any).currentUpdateId = 4;
+
+		await (view as any).handleEditorChange();
+
+		const renderCalls = ((view as any).root.render as jest.Mock).mock.calls;
+		const lastRendered = renderCalls[renderCalls.length - 1][0];
+		expect(lastRendered.props.className).toBe('influx-sidebar-stack');
+		expect(getRenderedText(lastRendered)).toContain('Sidebar refresh failed');
+		expect(getRenderedText(lastRendered)).toContain('Keep editing and Influx will retry');
 	});
 });
