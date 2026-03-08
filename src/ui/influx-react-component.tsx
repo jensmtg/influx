@@ -5,9 +5,9 @@ import { ObsidianInfluxSettings } from '../types';
 import { influxUpdates$, InfluxUpdateEvent } from '../platform/events/influx-updates';
 import { CollapsedStateManager } from './state/collapsed-state-manager';
 import { InfluxErrorBoundary } from './influx-error-boundary';
-import type ObsidianInflux from '../app/influx-plugin';
 import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
+import type { InfluxUiPlugin } from './influx-ui-plugin';
 import {
 	collectBasenameCounts,
 	collectComponentPaths,
@@ -40,7 +40,7 @@ import {
 	InfluxToolbar,
 } from './influx-react-component-parts';
 
-interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: ObsidianInflux }
+interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, plugin: InfluxUiPlugin }
 
 const SEARCH_DEBOUNCE_MS = 250;
 const SEARCH_FOCUS_DELAY_MS = 100;

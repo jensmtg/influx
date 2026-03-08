@@ -5,8 +5,8 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { CONSTANTS } from '../../../config/constants';
 import { rootManager } from '../../../platform/react/root-manager';
-import type ObsidianInflux from '../../../app/influx-plugin';
 import { computeSettingsHash } from '../../../domain/settings/settings-hash';
+import type { InfluxUiPlugin } from '../../../ui/influx-ui-plugin';
 import {
 	ensureInfluxElementsDefined,
 	InfluxWidgetDomLifecycle,
@@ -20,7 +20,7 @@ ensureInfluxElementsDefined();
 interface InfluxWidgetSpec {
     influxFile: InfluxFile;
     show: boolean;
-    plugin: ObsidianInflux;
+    plugin: InfluxUiPlugin;
     side?: number;
 }
 
@@ -28,7 +28,7 @@ interface InfluxWidgetSpec {
 export class InfluxWidget extends WidgetType {
     protected influxFile
     protected show
-    protected plugin: ObsidianInflux
+    protected plugin: InfluxUiPlugin
 	private lifecycle = new InfluxWidgetDomLifecycle()
 
     constructor({ influxFile, show, plugin }: InfluxWidgetSpec) {

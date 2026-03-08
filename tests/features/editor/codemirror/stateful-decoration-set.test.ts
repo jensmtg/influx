@@ -4,6 +4,7 @@ import { editorViewField } from 'obsidian';
 import { StatefulDecorationSet } from '@/features/editor/codemirror/stateful-decoration-set';
 import { statefulDecorations } from '@/features/editor/codemirror/decoration-state';
 import InfluxFile from '@/domain/backlinks/influx-file';
+import { ApiAdapter } from '@/domain/backlinks/api-adapter';
 import { getPlugin, isPluginUnloading } from '@/platform/obsidian/plugin-window-guards';
 import { cacheManager } from '@/platform/cache/cache-manager';
 
@@ -87,6 +88,10 @@ function createView(state: EditorState) {
 }
 
 function createPlugin(overrides?: Record<string, unknown>) {
+	const api = Object.assign(Object.create(ApiAdapter.prototype), {
+		invalidateSettingsCache: jest.fn(),
+	});
+
 	return {
 		data: {
 			settings: {
@@ -96,7 +101,10 @@ function createPlugin(overrides?: Record<string, unknown>) {
 				...overrides,
 			},
 		},
-		api: {},
+		api,
+		cycleListLimit: jest.fn(),
+		toggleSortOrder: jest.fn(),
+		toggleFrontmatterLinks: jest.fn(),
 	};
 }
 

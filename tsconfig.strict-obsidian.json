@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strictNullChecks": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/platform/obsidian/**/*.ts"
+  ],
+  "exclude": [
+    "tests",
+    "node_modules",
+    "coverage",
+    "docs"
+  ]
+}

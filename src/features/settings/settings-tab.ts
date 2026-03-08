@@ -1,8 +1,8 @@
-import type ObsidianInflux from '../../app/influx-plugin';
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { ObsidianInfluxSettings } from '../../types';
 import { validateYamlPropertyNames } from '../../domain/settings/filtering';
 import { isDebugMode, setDebugMode } from '../../platform/diagnostics/debug-mode';
+import type { SettingsTabPlugin } from './settings-tab-plugin';
 import {
 	SETTINGS_SECTIONS,
 	type DropdownFieldSpec,
@@ -17,9 +17,9 @@ const REGEX_HELP_URL =
 const PATTERN_PLACEHOLDER = '^templates/\n20\\d\\d\nmenu\nMenu';
 
 export class ObsidianInfluxSettingsTab extends PluginSettingTab {
-    plugin: ObsidianInflux;
+    plugin: SettingsTabPlugin;
 
-    constructor(app: App, plugin: ObsidianInflux) {
+    constructor(app: App, plugin: SettingsTabPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }

@@ -1,4 +1,4 @@
-import type { Plugin } from 'obsidian';
+import type { Plugin, WorkspaceLeaf } from 'obsidian';
 import { ObsidianInfluxSettingsTab } from '../features/settings/settings-tab';
 import { asyncDecoBuilderExt } from '../features/editor/codemirror/async-view-plugin';
 import { CONSTANTS } from '../config/constants';
@@ -11,20 +11,23 @@ import { isDebugMode } from '../platform/diagnostics/debug-mode';
 import { InfluxSidebarView } from '../features/sidebar/influx-sidebar-view';
 import type { PreviewManager } from '../features/preview/preview-manager';
 import type { InfluxDebugHelpers, InfluxWindow } from '../platform/obsidian/influx-window-types';
+import type { SettingsTabPlugin } from '../features/settings/settings-tab-plugin';
+import type { InfluxSidebarPlugin } from '../features/sidebar/influx-sidebar-plugin';
+import type { InfluxUiPlugin } from '../ui/influx-ui-plugin';
 
 export type InfluxPluginWindow = InfluxWindow;
 
-type InfluxPluginLike = Plugin & {
+type InfluxPluginLike = Plugin & SettingsTabPlugin & InfluxSidebarPlugin & InfluxUiPlugin & {
 	manifest: { version: string };
 	app: Plugin['app'];
 	data: { settings: { showInfluxInSidebar: boolean } };
 	openSidebar: () => void;
 	registerEditorExtension: (extension: unknown) => void;
-	addSettingTab: (tab: unknown) => void;
+	addSettingTab: (tab: ObsidianInfluxSettingsTab) => void;
 	registerMarkdownPostProcessor: (processor: (el: HTMLElement, ctx: unknown) => Promise<void> | void) => void;
-		registerView: (type: string, creator: (leaf: unknown) => unknown) => void;
-		addRibbonIcon: (icon: string, title: string, callback: () => void) => void;
-		addCommand: (command: { id: string; name: string; callback: () => void }) => void;
+	registerView: (type: string, creator: (leaf: WorkspaceLeaf) => unknown) => void;
+	addRibbonIcon: (icon: string, title: string, callback: () => void) => void;
+	addCommand: (command: { id: string; name: string; callback: () => void }) => void;
 };
 
 function createInfluxDebugHelpers(): InfluxDebugHelpers {
@@ -85,9 +88,9 @@ export function attachWindowPluginReference(plugin: InfluxPluginLike): InfluxPlu
 
 export function registerPluginUi(plugin: InfluxPluginLike, previewManager: PreviewManager): void {
 	plugin.registerEditorExtension(asyncDecoBuilderExt);
-	plugin.addSettingTab(new ObsidianInfluxSettingsTab(plugin.app, plugin as never));
+	plugin.addSettingTab(new ObsidianInfluxSettingsTab(plugin.app, plugin));
 	plugin.registerMarkdownPostProcessor(previewManager.handlePreviewMode.bind(previewManager));
-	plugin.registerView(CONSTANTS.VIEW_TYPE_SIDEBAR, (leaf) => new InfluxSidebarView(leaf as never, plugin as never));
+	plugin.registerView(CONSTANTS.VIEW_TYPE_SIDEBAR, (leaf) => new InfluxSidebarView(leaf, plugin));
 	plugin.addRibbonIcon('links-coming-in', 'Open Influx sidebar', () => {
 		plugin.openSidebar();
 	});

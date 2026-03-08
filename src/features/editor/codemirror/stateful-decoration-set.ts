@@ -6,9 +6,9 @@ import { statefulDecorations } from "./decoration-state";
 import { getPlugin, isPluginUnloading } from '../../../platform/obsidian/plugin-window-guards';
 import type { MinimalPluginInterface } from '../../../platform/obsidian/plugin-window-guards';
 import { ApiAdapter } from '../../../domain/backlinks/api-adapter';
-import type ObsidianInflux from '../../../app/influx-plugin';
 import { createInfluxFileForRender } from '../../../domain/backlinks/influx-render-pipeline';
 import { StatefulDecorationAsyncState } from './stateful-decoration-async-state';
+import { isInfluxUiPlugin } from '../../../ui/influx-ui-plugin';
 
 
 export class StatefulDecorationSet {
@@ -40,13 +40,16 @@ export class StatefulDecorationSet {
 		if (!plugin) {
 			return null;
 		}
+		if (!isInfluxUiPlugin(plugin) || !(plugin.api instanceof ApiAdapter)) {
+			return null;
+		}
 
 		const settings = plugin.data.settings;
 		if (settings.showInfluxInSidebar) {
 			return null;
 		}
 
-		const apiAdapter = plugin.api as ApiAdapter;
+		const apiAdapter = plugin.api;
 
 		const result = await createInfluxFileForRender({
 			filePath: file.path,
@@ -73,7 +76,7 @@ export class StatefulDecorationSet {
 			influxDecoration({
 				influxFile,
 				show: influxFile.show,
-				plugin: plugin as unknown as ObsidianInflux,
+				plugin,
 				side,
 			}).range(anchorPosition)
 		);

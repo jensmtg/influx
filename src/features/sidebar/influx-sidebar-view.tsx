@@ -3,18 +3,18 @@ import { createRoot, Root } from 'react-dom/client';
 import * as React from 'react';
 import InfluxFile from '../../domain/backlinks/influx-file';
 import InfluxReactComponent from '../../ui/influx-react-component';
-import type ObsidianInflux from '../../app/influx-plugin';
 import { logger } from '../../platform/diagnostics/logger';
 import { CONSTANTS } from '../../config/constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../platform/events/influx-updates';
 import { buildInfluxFileForRender, createInfluxFileForRender } from '../../domain/backlinks/influx-render-pipeline';
+import type { InfluxSidebarPlugin } from './influx-sidebar-plugin';
 
 export class InfluxSidebarView extends ItemView {
 	private static nextSubscriptionId = 1;
 	private currentFile: TFile | null = null;
 	private influxFile: InfluxFile | null = null;
 	private root: Root | null = null;
-	private plugin: ObsidianInflux;
+	private plugin: InfluxSidebarPlugin;
 	private componentKey: string = 'initial';
 	private currentUpdateId: number = 0;
 	private abortController: AbortController | null = null;
@@ -92,7 +92,7 @@ export class InfluxSidebarView extends ItemView {
 		});
 	}
 
-	constructor(leaf: WorkspaceLeaf, plugin: ObsidianInflux) {
+	constructor(leaf: WorkspaceLeaf, plugin: InfluxSidebarPlugin) {
 		super(leaf);
 		this.plugin = plugin;
 	}
