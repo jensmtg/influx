@@ -72,6 +72,7 @@ describe('InfluxWidget', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.useFakeTimers();
 		(globalThis as { document?: Document }).document = {
 			createElement: jest.fn(),
 		} as unknown as Document;
@@ -82,12 +83,14 @@ describe('InfluxWidget', () => {
 	});
 
 	afterEach(() => {
+		jest.useRealTimers();
 		(globalThis as { document?: Document }).document = originalDocument;
 		(globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver = originalResizeObserver;
 	});
 
-	test('registers the editor root and unmounts it when the widget disconnects', () => {
+	test('registers the editor root and unmounts it when the widget stays disconnected', () => {
 		const container = createContainer();
+		(container as any).isConnected = false;
 		(document.createElement as jest.Mock).mockReturnValue(container);
 
 		const widget = new InfluxWidget({
@@ -98,6 +101,7 @@ describe('InfluxWidget', () => {
 
 		widget.toDOM({ state: {} } as any);
 		container.listeners.disconnected?.(new Event('disconnected'));
+		jest.runAllTimers();
 
 		expect(rootManager.register).toHaveBeenCalledWith(
 			container,
@@ -107,6 +111,24 @@ describe('InfluxWidget', () => {
 			expect.objectContaining({ widget })
 		);
 		expect(rootManager.unmount).toHaveBeenCalledWith(container);
+	});
+
+	test('does not unmount when the widget reconnects after a transient disconnect', () => {
+		const container = createContainer();
+		(container as any).isConnected = true;
+		(document.createElement as jest.Mock).mockReturnValue(container);
+
+		const widget = new InfluxWidget({
+			influxFile: createInfluxFile('Reconnect.md'),
+			show: true,
+			plugin: createPlugin(),
+		});
+
+		widget.toDOM({ state: {} } as any);
+		container.listeners.disconnected?.(new Event('disconnected'));
+		jest.runAllTimers();
+
+		expect(rootManager.unmount).not.toHaveBeenCalled();
 	});
 
 	test('removes the old disconnect listener when the widget DOM is recreated', () => {
@@ -148,6 +170,5 @@ describe('InfluxWidget', () => {
 
 		expect(disconnect).toHaveBeenCalledTimes(1);
 		expect(removeEventListener).toHaveBeenCalledWith('disconnected', disconnectedHandler);
-		expect(disconnectedHandler).toHaveBeenCalledTimes(1);
 	});
 });

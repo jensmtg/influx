@@ -27,10 +27,11 @@ import {
  */
 export class PreviewManager {
 	private static readonly PREVIEW_ROOT_RETRY_MS = 75;
-	private static readonly POST_PROCESS_REFRESH_DELAY_MS = 80;
+	private static readonly POST_PROCESS_REFRESH_DELAYS_MS = [80, 240, 640];
 	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
 	private nextLeafContainerId = 1;
 	private postProcessRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private postProcessRefreshRuns = new Map<string, number>();
 	private disposed = false;
 
 	constructor(
@@ -44,6 +45,7 @@ export class PreviewManager {
 			clearTimeout(timer);
 		}
 		this.postProcessRefreshTimers.clear();
+		this.postProcessRefreshRuns.clear();
 	}
 
 	async updateAllPreviews(): Promise<void> {
@@ -215,7 +217,6 @@ export class PreviewManager {
 		const previewRoot = resolvePreviewRoot(element);
 		if (!previewRoot) {
 			if (!settings.showInfluxInSidebar) {
-				logger.debug('[handlePreviewMode] Preview root not ready yet; scheduling retry', { filePath });
 				this.schedulePreviewRefreshForPath(filePath);
 			}
 			return;
@@ -225,7 +226,6 @@ export class PreviewManager {
 			return;
 		}
 
-		logger.debug('[handlePreviewMode] Scheduling preview refresh', { filePath });
 		this.schedulePreviewRefreshForPath(filePath);
 	}
 
@@ -239,14 +239,36 @@ export class PreviewManager {
 			clearTimeout(pending);
 		}
 
+		const runId = (this.postProcessRefreshRuns.get(filePath) ?? 0) + 1;
+		this.postProcessRefreshRuns.set(filePath, runId);
+		this.schedulePreviewRefreshAttempt(filePath, runId, 0);
+	}
+
+	private schedulePreviewRefreshAttempt(filePath: string, runId: number, delayIndex: number): void {
+		const delay = PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS[delayIndex];
 		const timer = setTimeout(() => {
-			if (this.isInactive()) {
+			if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
 				this.postProcessRefreshTimers.delete(filePath);
 				return;
 			}
-			this.postProcessRefreshTimers.delete(filePath);
-			void this.refreshPreviewLeavesByPath(filePath);
-		}, PreviewManager.POST_PROCESS_REFRESH_DELAY_MS);
+
+			void this.refreshPreviewLeavesByPath(filePath).finally(() => {
+				if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
+					this.postProcessRefreshTimers.delete(filePath);
+					return;
+				}
+
+				const nextDelayIndex = delayIndex + 1;
+				if (nextDelayIndex >= PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS.length) {
+					this.postProcessRefreshTimers.delete(filePath);
+					this.postProcessRefreshRuns.delete(filePath);
+					return;
+				}
+
+				this.schedulePreviewRefreshAttempt(filePath, runId, nextDelayIndex);
+			});
+		}, delay);
+
 		this.postProcessRefreshTimers.set(filePath, timer);
 	}
 
@@ -316,22 +338,8 @@ export class PreviewManager {
             return cached;
         }
 
-        const settings = this.plugin.data.settings;
-        logger.debug('Computing settings hash', {
-            settings: {
-                sortingPrinciple: settings.sortingPrinciple,
-                sortingAttribute: settings.sortingAttribute,
-                sourceBehaviour: settings.sourceBehaviour,
-                includeFrontmatterLinks: settings.includeFrontmatterLinks,
-                frontmatterProperties: settings.frontmatterProperties,
-                fontSize: settings.fontSize,
-                collapseAllByDefault: settings.collapseAllByDefault,
-                listLimit: settings.listLimit
-            }
-        });
-        const hashString = computeSettingsHash(settings);
-        cacheManager.setSettingsHash(hashString);
-        logger.debug('Settings hash computed', { hash: hashString });
-        return hashString;
-    }
+		const hashString = computeSettingsHash(this.plugin.data.settings);
+		cacheManager.setSettingsHash(hashString);
+		return hashString;
+	}
 }

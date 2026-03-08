@@ -151,7 +151,7 @@ describe('PreviewManager', () => {
 		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
 
-	test('handlePreviewMode coalesces repeated post-processor calls per file', async () => {
+		test('handlePreviewMode coalesces repeated post-processor calls per file', async () => {
 		jest.useFakeTimers();
 		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
 
@@ -181,22 +181,30 @@ describe('PreviewManager', () => {
 			updating: new Map<string, number>(),
 		} as any;
 
-		const manager = new PreviewManager(plugin, {} as any);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+			const manager = new PreviewManager(plugin, {} as any);
+			const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+			const refreshDelays = (PreviewManager as any).POST_PROCESS_REFRESH_DELAYS_MS as number[];
 
-		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
-		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
-		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
+			await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
+			await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
+			await manager.handlePreviewMode(previewRoot, { sourcePath: 'Shared.md' } as any);
 
-		expect(updatePreviewSpy).not.toHaveBeenCalled();
+			expect(updatePreviewSpy).not.toHaveBeenCalled();
 
-		jest.advanceTimersByTime(100);
-		await Promise.resolve();
-		await Promise.resolve();
+			for (const delay of refreshDelays) {
+				jest.advanceTimersByTime(delay + 1);
+				await Promise.resolve();
+				await Promise.resolve();
+			}
+			jest.runOnlyPendingTimers();
+			await Promise.resolve();
+			await Promise.resolve();
 
-		expect(updatePreviewSpy).toHaveBeenCalledTimes(1);
-		expect(updatePreviewSpy).toHaveBeenCalledWith(leaf);
-	});
+			expect(updatePreviewSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+			expect(updatePreviewSpy.mock.calls.length).toBeLessThanOrEqual(refreshDelays.length);
+			expect(updatePreviewSpy).toHaveBeenNthCalledWith(1, leaf);
+			expect(updatePreviewSpy).toHaveBeenLastCalledWith(leaf);
+		});
 
 	test('handlePreviewMode still schedules refresh when preview root is delayed by later post-processing', async () => {
 		jest.useFakeTimers();
@@ -232,7 +240,7 @@ describe('PreviewManager', () => {
 
 		const manager = new PreviewManager(plugin, {} as any);
 		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
-		const refreshDelay = (PreviewManager as any).POST_PROCESS_REFRESH_DELAY_MS;
+			const [refreshDelay] = (PreviewManager as any).POST_PROCESS_REFRESH_DELAYS_MS as number[];
 
 		await manager.handlePreviewMode(lateElement, { sourcePath: 'QueryHeavy.md' } as any);
 
@@ -268,7 +276,7 @@ describe('PreviewManager', () => {
 
 		const manager = new PreviewManager(plugin, {} as any);
 		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
-		const refreshDelay = (PreviewManager as any).POST_PROCESS_REFRESH_DELAY_MS;
+			const [refreshDelay] = (PreviewManager as any).POST_PROCESS_REFRESH_DELAYS_MS as number[];
 
 		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Dispose.md' } as any);
 		manager.dispose();
@@ -301,7 +309,7 @@ describe('PreviewManager', () => {
 
 		const manager = new PreviewManager(plugin, {} as any);
 		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
-		const refreshDelay = (PreviewManager as any).POST_PROCESS_REFRESH_DELAY_MS;
+			const [refreshDelay] = (PreviewManager as any).POST_PROCESS_REFRESH_DELAYS_MS as number[];
 
 		await manager.handlePreviewMode(previewRoot, { sourcePath: 'Unload.md' } as any);
 		jest.advanceTimersByTime(refreshDelay + 1);

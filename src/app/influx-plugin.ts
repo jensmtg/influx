@@ -199,7 +199,7 @@ export default class ObsidianInflux extends Plugin {
 				file: file instanceof TFile ? file : undefined
 			});
 
-			if (!signal.aborted && op === 'save-settings') {
+			if (!signal.aborted && (op === 'save-settings' || op === 'file-open' || op === 'mode-change')) {
 				refreshAllInfluxEditorViews();
 			}
 

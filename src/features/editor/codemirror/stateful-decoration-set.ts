@@ -20,26 +20,35 @@ export class StatefulDecorationSet {
         this.editor = editor;
     }
 
-    async computeAsyncDecorations(state: EditorState, show: boolean, updateId: number): Promise<DecorationSet | null> {
-        if (!state.field(editorViewField)) return null; // If not yet loaded.
-        if (!show) return Decoration.none;
-        if (!this.isUpdateCurrent(updateId, show)) return null;
+	async computeAsyncDecorations(state: EditorState, show: boolean, updateId: number): Promise<DecorationSet | null> {
+		const editorField = state.field(editorViewField, false);
+		if (!editorField) {
+			return null;
+		}
+		if (!show) {
+			return Decoration.none;
+		}
+		if (!this.isUpdateCurrent(updateId, show)) {
+			return null;
+		}
 
-        const { file } = state.field(editorViewField);
-        if (!file) return null; // If no file is loaded
+		const { file } = editorField;
+		if (!file) {
+			return null;
+		}
 
         // Use type-safe plugin access
-        const plugin = getPlugin();
+		const plugin = getPlugin();
 
-        if (!plugin) {
-            return null;
-        }
+		if (!plugin) {
+			return null;
+		}
 
         // Skip inline rendering when sidebar mode is enabled
-        const settings = plugin.data.settings;
-        if (settings.showInfluxInSidebar) {
-            return null;
-        }
+		const settings = plugin.data.settings;
+		if (settings.showInfluxInSidebar) {
+			return null;
+		}
 
         // Reuse plugin's api instance instead of creating new one (preserves cache)
         const apiAdapter = plugin.api as ApiAdapter
@@ -52,12 +61,12 @@ export class StatefulDecorationSet {
 			shouldAbort: () => !this.isUpdateCurrent(updateId, show),
 		})
 		if (!result) {
-            return null;
-        }
+			return null;
+		}
 		const { influxFile } = result
 		if (result.hidden) {
-            return Decoration.none;
-        }
+			return Decoration.none;
+		}
 
         const decorations: Range<Decoration>[] = []
 
@@ -78,7 +87,7 @@ export class StatefulDecorationSet {
 
 		decorations.push(influxDecoration({ influxFile, show: influxFile.show, plugin: plugin as unknown as ObsidianInflux, side }).range(anchorPosition))
 
-        return Decoration.set(decorations, true);
+		return Decoration.set(decorations, true);
 
     }
 
@@ -107,17 +116,17 @@ export class StatefulDecorationSet {
      * This method computes decorations and then dispatches with an update effect
      * to ensure the update happens within CM6's transaction cycle
      */
-    async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
-        // Capture plugin reference and check at the START to prevent race conditions
-        const plugin = getPlugin();
-        if (!plugin || isPluginUnloading()) {
-            return;
-        }
+	async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
+		// Capture plugin reference and check at the START to prevent race conditions
+		const plugin = getPlugin();
+		if (!plugin || isPluginUnloading()) {
+			return;
+		}
 
         // Store editor reference and check immediately
-        if (!this.editor) {
-            return;
-        }
+		if (!this.editor) {
+			return;
+		}
 
         // Store pending request for cancellation
         const request = this.asyncState.beginUpdate(show);
@@ -129,48 +138,54 @@ export class StatefulDecorationSet {
 
         // Early exit if plugin or editor was destroyed during async computation
         // This prevents updating a destroyed editor
-        if (!this.editor || !this.editor.state) {
-            this.asyncState.clearPending();
-            return;
-        }
+		if (!this.editor || !this.editor.state) {
+			this.asyncState.clearPending();
+			return;
+		}
 
         // Check if this update is still the most recent request
-        if (!this.asyncState.isLatestRequest(show, currentUpdateId)) {
-            this.asyncState.clearPending();
-            return;
-        }
+		if (!this.asyncState.isLatestRequest(show, currentUpdateId)) {
+			this.asyncState.clearPending();
+			return;
+		}
 
         // Revalidate plugin instance still active (after async operation)
         const currentPlugin = getPlugin();
-        if (currentPlugin !== plugin) {
-            this.asyncState.clearPending();
-            return;
-        }
+		if (currentPlugin !== plugin) {
+			this.asyncState.clearPending();
+			return;
+		}
 
         // Check if plugin is now unloading (after async operation)
-        if (isPluginUnloading()) {
-            this.asyncState.clearPending();
-            return;
-        }
+		if (isPluginUnloading()) {
+			this.asyncState.clearPending();
+			return;
+		}
 
-        // Final check before updating decorations - ensure plugin still active and editor valid
-        if (isPluginUnloading() || !this.editor || !this.editor.state) {
-            this.asyncState.clearPending();
-            return;
-        }
+		// Final check before updating decorations - ensure plugin still active and editor valid
+		if (isPluginUnloading() || !this.editor || !this.editor.state) {
+			this.asyncState.clearPending();
+			return;
+		}
 
-        // Update decorations using proper CM6 StateEffect
-        // This ensures update happens within transaction system
-        if (this.editor.state.field(statefulDecorations.field, false)) {
-            try {
-                this.editor.dispatch({
-                    effects: [statefulDecorations.update.of(decorations || Decoration.none)]
-                });
-            } catch {
-                // Log error but don't throw - editor may have been destroyed during async computation
-                // This is expected when switching files rapidly
-            }
-        }
+		if (decorations === null) {
+			this.asyncState.clearPending();
+			return;
+		}
+
+		// Update decorations using proper CM6 StateEffect
+		// This ensures update happens within transaction system
+		const decorationField = this.editor.state.field(statefulDecorations.field, false);
+		if (decorationField) {
+			try {
+				this.editor.dispatch({
+					effects: [statefulDecorations.update.of(decorations)]
+				});
+			} catch {
+				// Log error but don't throw - editor may have been destroyed during async computation
+				// This is expected when switching files rapidly
+			}
+		}
 
         this.asyncState.clearPending();
     }

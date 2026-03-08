@@ -58,17 +58,31 @@ export class InfluxWidgetHeightCache {
 
 export class InfluxWidgetDomLifecycle {
 	private disconnectedHandler: (() => void) | null = null;
+	private disconnectCallback: (() => void) | null = null;
 	private currentContainer: HTMLElement | null = null;
 	private currentDOMContainer: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
+	private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	attachContainer(container: HTMLElement, onDisconnect: () => void): void {
+		this.clearDisconnectTimer();
 		if (this.currentDOMContainer && this.disconnectedHandler) {
 			this.currentDOMContainer.removeEventListener('disconnected', this.disconnectedHandler);
 		}
 
-		container.addEventListener('disconnected', onDisconnect);
-		this.disconnectedHandler = onDisconnect;
+		const deferredDisconnectHandler = () => {
+			this.clearDisconnectTimer();
+			this.disconnectTimer = setTimeout(() => {
+				this.disconnectTimer = null;
+				if (!container.isConnected) {
+					onDisconnect();
+				}
+			}, 0);
+		};
+
+		container.addEventListener('disconnected', deferredDisconnectHandler);
+		this.disconnectedHandler = deferredDisconnectHandler;
+		this.disconnectCallback = onDisconnect;
 		this.currentDOMContainer = container;
 		this.currentContainer = container;
 	}
@@ -103,15 +117,24 @@ export class InfluxWidgetDomLifecycle {
 	cleanup(onPersistHeight: (container: HTMLElement | null) => void): void {
 		onPersistHeight(this.currentContainer);
 		this.stopObserving();
+		this.clearDisconnectTimer();
 		if (this.currentDOMContainer && this.disconnectedHandler) {
 			this.currentDOMContainer.removeEventListener('disconnected', this.disconnectedHandler);
 		}
-		if (this.disconnectedHandler) {
-			this.disconnectedHandler();
-			this.disconnectedHandler = null;
+		if (this.disconnectCallback) {
+			this.disconnectCallback();
 		}
+		this.disconnectedHandler = null;
+		this.disconnectCallback = null;
 		this.currentContainer = null;
 		this.currentDOMContainer = null;
+	}
+
+	private clearDisconnectTimer(): void {
+		if (this.disconnectTimer) {
+			clearTimeout(this.disconnectTimer);
+			this.disconnectTimer = null;
+		}
 	}
 
 	setDisconnectedHandlerForTests(handler: (() => void) | null): void {

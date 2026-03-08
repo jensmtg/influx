@@ -66,13 +66,13 @@ export class InfluxWidget extends WidgetType {
         return true;
     }
 
-    toDOM(view: EditorView) {
-        const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG)
-        // Use unique ID based on file path to avoid conflicts
-        container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
+	toDOM(view: EditorView) {
+		const container = document.createElement(CONSTANTS.INFLUX_ELEMENT_TAG)
+		// Use unique ID based on file path to avoid conflicts
+		container.id = `influx-react-anchor-${this.influxFile.file?.path || 'unknown'}`;
 
-        const root = createRoot(container);
-        rootManager.register(container, root, 'editor', this.influxFile.file?.path, {
+		const root = createRoot(container);
+		rootManager.register(container, root, 'editor', this.influxFile.file?.path, {
 			widget: this,
 			view
 		});
@@ -91,12 +91,12 @@ export class InfluxWidget extends WidgetType {
 			this.lifecycle.stopObserving();
         }
 
-        // Cleanup when element is disconnected from DOM
-        // Store handler for proper cleanup in destroy()
-        const disconnectedHandler = () => {
+		// Cleanup when element is disconnected from DOM
+		// Store handler for proper cleanup in destroy()
+		const disconnectedHandler = () => {
 			this.persistMeasuredHeight(container);
-            rootManager.unmount(container);
-        };
+			rootManager.unmount(container);
+		};
 
         this.lifecycle.attachContainer(container, disconnectedHandler);
 

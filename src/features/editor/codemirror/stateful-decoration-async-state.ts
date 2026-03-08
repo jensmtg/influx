@@ -77,11 +77,13 @@ export class StatefulDecorationAsyncState {
 
 		try {
 			const decorations = await promise;
-			this.recentComputation = {
-				key,
-				decorations,
-				timestamp: Date.now(),
-			};
+			if (decorations !== null) {
+				this.recentComputation = {
+					key,
+					decorations,
+					timestamp: Date.now(),
+				};
+			}
 			return decorations;
 		} finally {
 			if (this.inflightComputation?.key === key) {

@@ -155,6 +155,36 @@ describe('StatefulDecorationSet', () => {
 		expect(view.dispatch).not.toHaveBeenCalled();
 	});
 
+	test('does not dispatch Decoration.none when async compute returns null', async () => {
+		const state = createState('content', 'Transient.md');
+		const view = createView(state);
+		const decorationSet = new StatefulDecorationSet(view as any);
+
+		jest.spyOn(decorationSet as any, 'computeAsyncDecorationsCoalesced').mockResolvedValue(null);
+
+		await decorationSet.updateAsyncDecorations(state, true);
+
+		expect(view.dispatch).not.toHaveBeenCalled();
+	});
+
+	test('recomputes after a transient null result instead of caching it', async () => {
+		const state = createState('content', 'Retry.md');
+		const view = createView(state);
+		const decorationSet = new StatefulDecorationSet(view as any);
+		const computeSpy = jest.spyOn(decorationSet as any, 'computeAsyncDecorations');
+
+		computeSpy.mockResolvedValueOnce(null).mockResolvedValueOnce(Decoration.none);
+
+		(decorationSet as any).pendingUpdate = { show: true, updateId: 1 };
+		const first = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 1);
+		(decorationSet as any).pendingUpdate = { show: true, updateId: 2 };
+		const second = await (decorationSet as any).computeAsyncDecorationsCoalesced(state, true, createPlugin(), 2);
+
+		expect(first).toBeNull();
+		expect(second).toBe(Decoration.none);
+		expect(computeSpy).toHaveBeenCalledTimes(2);
+	});
+
 	test('anchors decorations after closing frontmatter when top-of-page mode is enabled', async () => {
 		const text = ['---', 'title: Example', '---', 'Body text'].join('\n');
 		const state = createState(text, 'Frontmatter.md');

@@ -224,7 +224,7 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(updateCoordinator.schedule).not.toHaveBeenCalled();
 	});
 
-	test('triggerUpdates refreshes open editors on save-settings and previews on non-modify ops', async () => {
+	test('triggerUpdates refreshes open editors on file-open, mode-change, and save-settings', async () => {
 		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
 			refreshAllInfluxEditorViews: jest.Mock;
 		};
@@ -243,5 +243,16 @@ describe('ObsidianInflux lifecycle', () => {
 
 		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(1);
 		expect(updateAllPreviews).toHaveBeenCalledTimes(1);
+
+		plugin.triggerUpdates('file-open');
+		const fileOpenTask = (updateCoordinator.schedule as jest.Mock).mock.calls[1][3] as (signal: { aborted: boolean }) => Promise<void>;
+		await fileOpenTask({ aborted: false });
+
+		plugin.triggerUpdates('mode-change');
+		const modeChangeTask = (updateCoordinator.schedule as jest.Mock).mock.calls[2][3] as (signal: { aborted: boolean }) => Promise<void>;
+		await modeChangeTask({ aborted: false });
+
+		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(3);
+		expect(updateAllPreviews).toHaveBeenCalledTimes(3);
 	});
 });

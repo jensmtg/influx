@@ -19,6 +19,30 @@ function createView(path: string | null) {
 	} as any;
 }
 
+function createMutableView(initialPath: string | null) {
+	let currentPath = initialPath;
+	return {
+		view: createViewProxy(() => currentPath),
+		setPath: (nextPath: string | null) => {
+			currentPath = nextPath;
+		},
+	};
+}
+
+function createViewProxy(getPath: () => string | null) {
+	return {
+		state: {
+			field: jest.fn((field: unknown) => {
+				if (field === editorViewField) {
+					const path = getPath();
+					return path ? { file: { path } } : null;
+				}
+				return null;
+			}),
+		},
+	} as any;
+}
+
 function createUpdate(params: { path: string | null; docChanged?: boolean }) {
 	return {
 		view: createView(params.path),
@@ -32,6 +56,7 @@ describe('AsyncViewPluginController', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
+		jest.useRealTimers();
 		AsyncViewPluginController.activeControllers.clear();
 		(StatefulDecorationSet as unknown as jest.Mock).mockImplementation(() => ({
 			updateAsyncDecorations,
@@ -56,6 +81,35 @@ describe('AsyncViewPluginController', () => {
 
 		expect(cancelPendingUpdates).toHaveBeenCalledTimes(1);
 		expect(updateAsyncDecorations).toHaveBeenCalledWith(expect.anything(), true);
+	});
+
+	test('retries initial render when the file path is not ready at construction time', () => {
+		jest.useFakeTimers();
+		const { view, setPath } = createMutableView(null);
+
+		new AsyncViewPluginController(view);
+		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
+
+		setPath('Recovered.md');
+		jest.advanceTimersByTime(121);
+
+		expect(cancelPendingUpdates).toHaveBeenCalledTimes(1);
+		expect(updateAsyncDecorations).toHaveBeenCalledTimes(2);
+		expect(updateAsyncDecorations).toHaveBeenLastCalledWith(view.state, true);
+	});
+
+	test('schedules a stabilization refresh after the initial editor render', () => {
+		jest.useFakeTimers();
+		const view = createView('Stabilize.md');
+
+		new AsyncViewPluginController(view);
+		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
+
+		jest.advanceTimersByTime(121);
+
+		expect(cancelPendingUpdates).toHaveBeenCalledTimes(1);
+		expect(updateAsyncDecorations).toHaveBeenCalledTimes(2);
+		expect(updateAsyncDecorations).toHaveBeenLastCalledWith(view.state, true);
 	});
 
 	test('refreshes same-file document changes after canceling pending updates', () => {

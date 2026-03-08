@@ -149,7 +149,6 @@ export class InfluxCacheManager {
 			settings,
 			timestamp: Date.now(),
 		};
-		logger.debug('Settings cached');
 	}
 
 	invalidateSettingsCache(): void {

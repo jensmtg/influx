@@ -7,11 +7,14 @@ import { CONSTANTS } from '../../../config/constants';
 
 export class AsyncViewPluginController {
 	static activeControllers = new Set<AsyncViewPluginController>();
+	private static readonly INITIAL_STABILIZATION_DELAYS_MS = [120, 360];
 
     statefulDecorationsSet: StatefulDecorationSet;
     private show: boolean = true;
     private currentFilePath: string | null = null;
     private view: EditorView;
+	private initialRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+	private initialRefreshAttempt = 0;
 
     constructor(view: EditorView) {
         this.view = view;
@@ -19,11 +22,14 @@ export class AsyncViewPluginController {
         this.currentFilePath = this.getCurrentFilePath(view);
         AsyncViewPluginController.activeControllers.add(this);
         this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
+		this.scheduleInitialRefreshIfNeeded();
     }
 
 	refreshNow(): void {
 		this.statefulDecorationsSet.cancelPendingUpdates();
 		this.debouncedRefresh?.cancel?.();
+		this.clearInitialRefreshTimer();
+		this.initialRefreshAttempt = 0;
 		this.statefulDecorationsSet.updateAsyncDecorations(this.view.state, this.show);
 	}
 
@@ -37,7 +43,7 @@ export class AsyncViewPluginController {
         this.statefulDecorationsSet.updateAsyncDecorations(view.state, true);
      }
 
-    update(update: ViewUpdate) {
+	    update(update: ViewUpdate) {
 			const newFilePath = this.getCurrentFilePath(update.view);
 			const fileChanged = newFilePath !== this.currentFilePath;
 			this.currentFilePath = newFilePath;
@@ -45,7 +51,10 @@ export class AsyncViewPluginController {
 			if (fileChanged) {
 				this.statefulDecorationsSet.cancelPendingUpdates();
 				this.debouncedRefresh?.cancel?.();
+				this.clearInitialRefreshTimer();
+				this.initialRefreshAttempt = 0;
 				this.statefulDecorationsSet.updateAsyncDecorations(update.view.state, this.show);
+				this.scheduleInitialRefreshIfNeeded();
 				return;
 			}
 
@@ -69,9 +78,42 @@ export class AsyncViewPluginController {
 			return field?.file?.path ?? null;
 		}
 
+		private scheduleInitialRefreshIfNeeded(): void {
+			if (this.initialRefreshTimer) {
+				return;
+			}
+
+			const delay = AsyncViewPluginController.INITIAL_STABILIZATION_DELAYS_MS[this.initialRefreshAttempt];
+			if (delay == null) {
+				return;
+			}
+
+			this.initialRefreshTimer = setTimeout(() => {
+				this.initialRefreshTimer = null;
+				if (!this.view?.state) {
+					return;
+				}
+
+				this.currentFilePath = this.getCurrentFilePath(this.view);
+				this.initialRefreshAttempt += 1;
+				this.statefulDecorationsSet.cancelPendingUpdates();
+				this.debouncedRefresh?.cancel?.();
+				this.statefulDecorationsSet.updateAsyncDecorations(this.view.state, this.show);
+				this.scheduleInitialRefreshIfNeeded();
+			}, delay);
+		}
+
+		private clearInitialRefreshTimer(): void {
+			if (this.initialRefreshTimer) {
+				clearTimeout(this.initialRefreshTimer);
+				this.initialRefreshTimer = null;
+			}
+		}
+
 		destroy() {
 			// Cancel debounced callback to prevent post-destroy execution
 			this.debouncedRefresh?.cancel?.();
+			this.clearInitialRefreshTimer();
 			// Cancel any pending async updates
 			this.statefulDecorationsSet.cancelPendingUpdates();
 			AsyncViewPluginController.activeControllers.delete(this);
