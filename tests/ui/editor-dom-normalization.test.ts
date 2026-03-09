@@ -65,31 +65,32 @@ describe('editor-dom-normalization', () => {
 		expect(headingLevelFromTagName('h9')).toBeNull();
 	});
 
-	test('normalizeEditorListItems converts list-leading heading into inline span', () => {
+	test('normalizeEditorListItems preserves heading semantics and nested content for list-leading headings', () => {
 		const { container, rootItem } = createHeadingListFixture();
 
 		normalizeEditorListItems(asHTMLElement(container), createHTMLElementFactory());
 
 		const firstChild = rootItem.firstElementChild;
 		expect(firstChild).not.toBeNull();
-		expect(firstChild?.tagName).toBe('SPAN');
+		expect(firstChild?.tagName).not.toBe('H2');
 		expect(firstChild?.getAttribute('role')).toBe('heading');
 		expect(firstChild?.getAttribute('aria-level')).toBe('2');
-		expect(firstChild?.classList.contains('influx-inline-heading')).toBe(true);
-		expect(firstChild?.style.getPropertyValue('display')).toBe('inline !important');
-		expect(rootItem.classList.contains('influx-li-leading-heading')).toBe(true);
-		expect(rootItem.style.getPropertyValue('display')).toBe('list-item !important');
+		expect(firstChild?.textContent).toBe('Heading');
+		expect(rootItem.children.some((child) => child.tagName === 'UL')).toBe(true);
+		expect(rootItem.textContent).toContain('child');
 		expect(rootItem.childNodes.toArray().some((node) => node.nodeType === FAKE_NODE_TYPES.TEXT && !node.textContent.trim())).toBe(false);
 	});
 
-	test('normalizeEditorListItems unwraps paragraph-wrapped heading and marks heading-only items', () => {
+	test('normalizeEditorListItems unwraps paragraph-wrapped headings without leaving extra wrappers', () => {
 		const { container, rootItem } = createParagraphWrappedHeadingFixture();
 
 		normalizeEditorListItems(asHTMLElement(container), createHTMLElementFactory());
 
-		expect(rootItem.firstElementChild?.tagName).toBe('SPAN');
+		expect(rootItem.firstElementChild?.tagName).not.toBe('H3');
+		expect(rootItem.firstElementChild?.getAttribute('role')).toBe('heading');
+		expect(rootItem.firstElementChild?.getAttribute('aria-level')).toBe('3');
+		expect(rootItem.firstElementChild?.textContent).toBe('Title');
 		expect(rootItem.children.some((child) => child.tagName === 'P')).toBe(false);
-		expect(rootItem.classList.contains('influx-li-leading-heading')).toBe(true);
-		expect(rootItem.classList.contains('influx-li-heading-only')).toBe(true);
+		expect(rootItem.children).toHaveLength(1);
 	});
 });

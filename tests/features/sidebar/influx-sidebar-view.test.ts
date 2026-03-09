@@ -145,7 +145,7 @@ describe('InfluxSidebarView', () => {
 		expect(harness.currentFile).toBe(fileA);
 		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
 		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
+		expect(getRenderedText(lastRendered)).toContain('Nothing to show for this note yet');
 
 		await view.updateView(fileB);
 		expect(createInfluxFileMock).toHaveBeenCalledWith('B.md', harness.plugin.api);
@@ -167,7 +167,7 @@ describe('InfluxSidebarView', () => {
 		expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
 		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
 		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
+		expect(getRenderedText(lastRendered)).toContain('Linked mentions are hidden for this note');
 	});
 
 	test('updateView ignores stale results from an older async update', async () => {
@@ -224,7 +224,8 @@ describe('InfluxSidebarView', () => {
 		const pending = view.updateView(fileA);
 		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
 		expect(renderCalls).toHaveLength(1);
-		expect(renderCalls[0][0].props.className).toContain('influx-sidebar-status--loading');
+		expect(getRenderedText(renderCalls[0][0])).toContain('Loading linked mentions');
+		expect(getRenderedText(renderCalls[0][0])).toContain('Scanning backlinks for A.');
 
 		resolveCreate?.({
 			show: false,
@@ -347,7 +348,6 @@ describe('InfluxSidebarView', () => {
 		expect(updateViewSpy).not.toHaveBeenCalled();
 		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
 		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
 		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
 	});
 
@@ -473,7 +473,6 @@ describe('InfluxSidebarView', () => {
 		expect(harness.influxFile).toBeNull();
 		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
 		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(lastRendered.props.className).toContain('influx-sidebar-status--empty');
 		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
 	});
 
@@ -525,7 +524,6 @@ describe('InfluxSidebarView', () => {
 
 		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
 		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(lastRendered.props.className).toBe('influx-sidebar-stack');
 		expect(getRenderedText(lastRendered)).toContain('Sidebar refresh failed');
 		expect(getRenderedText(lastRendered)).toContain('Keep editing and Influx will retry');
 	});

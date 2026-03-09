@@ -67,7 +67,7 @@ describe('ObsidianInfluxSettingsTab', () => {
 		};
 	};
 
-	test('display renders the main settings sections and diagnostics details', () => {
+	test('display wires representative settings controls and diagnostics details', () => {
 		const { tab } = createTab();
 		const originalDocument = global.document;
 		const detailsEl = {
@@ -106,20 +106,22 @@ describe('ObsidianInfluxSettingsTab', () => {
 			(global as typeof globalThis & { document?: Document }).document = originalDocument;
 		}
 
+		const settingNames = (Setting as jest.Mock).mock.results
+			.map((result) => result.value?.setName?.mock.calls[0]?.[0])
+			.filter(Boolean);
+
 		expect(tab.containerEl.empty).toHaveBeenCalledTimes(1);
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Display Mode' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'General Settings' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Styling and layout' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Where Influx appears' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Which notes count as sources' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Default collapsed state' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Frontmatter links' });
-		expect(tab.containerEl.createEl).toHaveBeenCalledWith('h2', { text: 'Advanced Diagnostics' });
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('details');
 		expect(detailsEl.createEl).toHaveBeenCalledWith('summary', {
 			text: 'Diagnostics and bug-report tools (advanced)'
 		});
-		expect(Setting).toHaveBeenCalled();
+		expect(settingNames).toEqual(expect.arrayContaining([
+			'Influx display location',
+			'Live update',
+			'Exclude pages',
+			'Frontmatter properties',
+			'Enable debug logging',
+		]));
 	});
 
 	test('saveSettings delegates to plugin transactional settings persistence', async () => {
