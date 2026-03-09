@@ -2,10 +2,10 @@ import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import type { ApiAdapter } from './api-adapter';
 import type { BacklinksObject, ExtendedInlinkingFile } from './types';
 import { InlinkingFile, type InlinkingFileApi } from './inlinking-file';
-import { recordMetric } from '../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
 import { buildInfluxList } from './influx-file-list-builder';
+import { createInfluxRenderEntries, recordInfluxRenderEntriesMetric } from './influx-file-render-entries';
 import {
 	clearInfluxListBuildCaches,
 	getInflightInfluxListBuild,
@@ -181,36 +181,29 @@ export default class InfluxFile {
     static clearBuildCachesForTests(): void {
         InfluxFile.clearBuildCaches();
     }
+
     toEntries(): ExtendedInlinkingFile[] {
         this.ensureInitialized();
         if (!this.show) {
             return [];
         }
 
-        const settings = this.api.getSettings();
-        const startTime = performance.now();
-        const targetFilePath = this.file?.path;
-        const entries = this.inlinkingFiles.map((inlinkingFile): ExtendedInlinkingFile => ({
-            inlinkingFile,
-            titleText: (inlinkingFile.title ?? '').trim(),
-            summaryMarkdown: inlinkingFile.summary ?? '',
-            sourcePath: inlinkingFile.file?.path ?? targetFilePath ?? '/',
-        }));
+		const startTime = performance.now();
+		const targetFilePath = this.file?.path;
+		const entries = createInfluxRenderEntries({
+			inlinkingFiles: this.inlinkingFiles,
+			targetFilePath,
+		});
 
-        recordMetric({
-            name: 'influx.markdown.render',
-            mode: 'shared',
-            durationMs: performance.now() - startTime,
-            settings,
-            ctx: {
-                filePath: targetFilePath,
-                inputCount: this.inlinkingFiles.length,
-                renderedCount: entries.length,
-                markdownConcurrency: 0,
-            }
-        });
+		recordInfluxRenderEntriesMetric({
+			api: this.api,
+			targetFilePath,
+			inputCount: this.inlinkingFiles.length,
+			renderedCount: entries.length,
+			startedAt: startTime,
+		});
 
-        this.components = entries
-        return entries
+		this.components = entries
+		return entries
     }
 }
