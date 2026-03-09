@@ -1,4 +1,4 @@
-import { TFile, CachedMetadata, normalizePath } from 'obsidian';
+import { TFile, CachedMetadata } from 'obsidian';
 import type { ApiAdapter } from './api-adapter';
 import type { BacklinksObject, ExtendedInlinkingFile } from './types';
 import { InlinkingFile, type InlinkingFileApi } from './inlinking-file';
@@ -6,6 +6,7 @@ import { computeSettingsHash } from '../settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
 import { buildInfluxList } from './influx-file-list-builder';
 import { createInfluxRenderEntries, recordInfluxRenderEntriesMetric } from './influx-file-render-entries';
+import { backlinksContainChangedPath, resolveInfluxVisibility } from './influx-file-visibility';
 import {
 	clearInfluxListBuildCaches,
 	getInflightInfluxListBuild,
@@ -79,14 +80,9 @@ export default class InfluxFile {
 	}
 
 	refreshVisibility(): boolean {
-		if (!this.file) {
-			this.show = false
-			this.collapsed = false
-			return this.show
-		}
-
-		this.show = this.api.getShowStatus(this.file)
-		this.collapsed = this.api.getCollapsedStatus(this.file)
+		const visibility = resolveInfluxVisibility(this.file, this.api);
+		this.show = visibility.show
+		this.collapsed = visibility.collapsed
 		return this.show
 	}
 
@@ -100,25 +96,14 @@ export default class InfluxFile {
         }
     }
 
-    shouldUpdate(file: TFile) {
-        this.ensureInitialized();
-        if (!this.file) {
-            return false;
-        }
-        this.backlinks = this.api.getBacklinks(this.file)
-        if (!this.backlinks || !this.backlinks.data) {
-            return false
-        }
-
-        const normalizedTarget = normalizePath(file.path);
-        const paths = this.backlinks.data instanceof Map
-            ? Array.from(this.backlinks.data.keys())
-            : Object.keys(this.backlinks.data);
-
-        return paths.some(path =>
-            normalizePath(path) === normalizedTarget
-        );
-    }
+	shouldUpdate(file: TFile) {
+		this.ensureInitialized();
+		if (!this.file) {
+			return false;
+		}
+		this.backlinks = this.api.getBacklinks(this.file)
+		return backlinksContainChangedPath(this.backlinks, file.path);
+	}
 
     async makeInfluxList() {
         this.ensureInitialized();
