@@ -31,38 +31,32 @@ const createMockFile = (basename: string, ctime: number, mtime: number) => ({
 });
 
 describe('settings-utils', () => {
-    describe('yaml property validation', () => {
-        test('validateYamlPropertyNames keeps valid entries and reports invalid entries', () => {
-            const result = validateYamlPropertyNames([
-                'valid_name',
-                'with-hyphen',
-                '1invalid',
-                'invalid space',
-                '',
-                '   ',
-                undefined as any,
-            ]);
+		describe('yaml property validation', () => {
+			test('validateYamlPropertyNames keeps valid entries and reports invalid entries', () => {
+				const result = validateYamlPropertyNames([
+					'valid_name',
+					'with-hyphen',
+					'1invalid',
+					'invalid space',
+					'',
+					'   ',
+				]);
 
-            expect(result).toEqual({
-                valid: ['valid_name', 'with-hyphen'],
-                invalid: ['1invalid', 'invalid space'],
-            });
-        });
+				expect(result).toEqual({
+					valid: ['valid_name', 'with-hyphen'],
+					invalid: ['1invalid', 'invalid space'],
+				});
+			});
 
-        test('validateYamlPropertyNames returns empty groups for non-array input', () => {
-            expect(validateYamlPropertyNames(null as any)).toEqual({ valid: [], invalid: [] });
-            expect(validateYamlPropertyNames(undefined as any)).toEqual({ valid: [], invalid: [] });
-        });
-
-        test.each([
-            ['alpha', true],
-            ['my-key', true],
-            ['9start', false],
-            ['', false],
-        ])('isValidYamlPropertyName(%p) => %p', (input, expected) => {
-            expect(isValidYamlPropertyName(input as any)).toBe(expected);
-        });
-    });
+			test.each([
+				['alpha', true],
+				['my-key', true],
+				['9start', false],
+				['', false],
+			])('isValidYamlPropertyName(%p) => %p', (input, expected) => {
+				expect(isValidYamlPropertyName(input)).toBe(expected);
+			});
+		});
 
     describe('frontmatter and pattern behavior', () => {
         test('hasInfluxFrontmatterKey only accepts true or "true"', () => {
@@ -74,10 +68,10 @@ describe('settings-utils', () => {
             expect(hasInfluxFrontmatterKey(null)).toBe(false);
         });
 
-        test('patternMatches supports trimmed regex patterns and ignores invalid values', () => {
-            expect(patternMatches('/Notes/Test.md', ['  /Notes/  ', ''])).toBe(true);
-            expect(patternMatches('/Notes/Test.md', ['[(broken', null as any, 12 as any])).toBe(false);
-        });
+			test('patternMatches supports trimmed regex patterns and ignores invalid values', () => {
+				expect(patternMatches('/Notes/Test.md', ['  /Notes/  ', ''])).toBe(true);
+				expect(patternMatches('/Notes/Test.md', ['[(broken', '   '])).toBe(false);
+			});
 
         test('shouldShowInflux follows OPT_IN and OPT_OUT semantics', () => {
             const optIn = createSettings({

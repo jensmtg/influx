@@ -70,6 +70,8 @@ describe('ObsidianInfluxSettingsTab', () => {
 	test('display wires representative settings controls and diagnostics details', () => {
 		const { tab } = createTab();
 		const originalDocument = global.document;
+		const originalSettingImplementation = (Setting as jest.Mock).getMockImplementation();
+		const settingNames: string[] = [];
 		const detailsEl = {
 			createEl: jest.fn(),
 			createDiv: jest.fn(() => ({ createEl: jest.fn() })),
@@ -99,16 +101,26 @@ describe('ObsidianInfluxSettingsTab', () => {
 			}))
 		};
 		(global as typeof globalThis & { document: Document }).document = mockDocument as Document;
+		(Setting as jest.Mock).mockImplementation((...args: unknown[]) => {
+			const instance = originalSettingImplementation?.(...args) as { setName?: (name: string) => unknown } | undefined;
+			if (instance?.setName) {
+				const originalSetName = instance.setName.bind(instance);
+				instance.setName = (name: string) => {
+					settingNames.push(name);
+					return originalSetName(name);
+				};
+			}
+			return instance;
+		});
 
 		try {
 			tab.display();
 		} finally {
+			if (originalSettingImplementation) {
+				(Setting as jest.Mock).mockImplementation(originalSettingImplementation);
+			}
 			(global as typeof globalThis & { document?: Document }).document = originalDocument;
 		}
-
-		const settingNames = (Setting as jest.Mock).mock.results
-			.map((result) => result.value?.setName?.mock.calls[0]?.[0])
-			.filter(Boolean);
 
 		expect(tab.containerEl.empty).toHaveBeenCalledTimes(1);
 		expect(tab.containerEl.createEl).toHaveBeenCalledWith('details');

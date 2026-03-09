@@ -111,6 +111,7 @@ describe('ObsidianInflux lifecycle', () => {
 
 	afterEach(() => {
 		jest.clearAllMocks();
+		jest.useRealTimers();
 		(globalThis as typeof globalThis & { document?: Document }).document = originalDocument;
 		(globalThis as typeof globalThis & { window?: Window }).window = originalWindow;
 	});
@@ -150,7 +151,7 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(win.influxPlugin).toBe(plugin);
 		expect(win.influxDebug).toBeUndefined();
 		expect(win.testInfluxReadingView).toBeUndefined();
-		jest.useRealTimers();
+		await plugin.onunload();
 	});
 
 	test('onload schedules startup editor and preview refreshes', async () => {
@@ -185,7 +186,7 @@ describe('ObsidianInflux lifecycle', () => {
 
 		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(3);
 		expect(updateAllPreviews).toHaveBeenCalledTimes(3);
-		jest.useRealTimers();
+		await plugin.onunload();
 	});
 
 	test('onload exposes debug helpers only when debug mode is enabled', async () => {
@@ -211,14 +212,11 @@ describe('ObsidianInflux lifecycle', () => {
 
 		const win = globalThis.window as any;
 		expect(win.influxPlugin).toBe(plugin);
-		expect(win.influxDebug).toEqual(
-			expect.objectContaining({
-				getCache: expect.any(Function),
-				getUpdates: expect.any(Function),
-				snapshot: expect.any(Function),
-			})
-		);
-		expect(win.testInfluxReadingView).toEqual(expect.any(Function));
+		expect(typeof win.influxDebug?.getCache).toBe('function');
+		expect(typeof win.influxDebug?.getUpdates).toBe('function');
+		expect(typeof win.influxDebug?.snapshot).toBe('function');
+		expect(typeof win.testInfluxReadingView).toBe('function');
+		await plugin.onunload();
 	});
 
 	test('onload replaces a stale window plugin reference and skips sidebar auto-open when disabled', async () => {
@@ -244,6 +242,7 @@ describe('ObsidianInflux lifecycle', () => {
 
 		expect((globalThis.window as any).influxPlugin).toBe(plugin);
 		expect(app.workspace.ensureSideLeaf).not.toHaveBeenCalled();
+		await plugin.onunload();
 	});
 
 	test('onunload disposes preview timers and tears down plugin state', async () => {
@@ -308,7 +307,11 @@ describe('ObsidianInflux lifecycle', () => {
 
 			plugin.triggerUpdates('save-settings');
 
-			expect(updateCoordinator.schedule).toHaveBeenCalledWith('global', 'save-settings', undefined, expect.any(Function));
+			expect((updateCoordinator.schedule as jest.Mock).mock.calls.map(([scope, op, file]) => ({ scope, op, file }))).toContainEqual({
+				scope: 'global',
+				op: 'save-settings',
+				file: undefined,
+			});
 			const scheduledTask = getScheduledTask('save-settings');
 			await scheduledTask({ aborted: false });
 

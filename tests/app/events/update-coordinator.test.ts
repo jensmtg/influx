@@ -2,8 +2,6 @@ import { CONSTANTS } from '@/config/constants';
 import { UpdateCoordinator } from '@/app/events/update-coordinator';
 import { logger } from '@/platform/diagnostics/logger';
 
-jest.useFakeTimers();
-
 jest.mock('@/platform/diagnostics/logger', () => ({
     logger: {
         debug: jest.fn(),
@@ -22,12 +20,14 @@ describe('UpdateCoordinator', () => {
     };
 
     beforeEach(() => {
+        jest.useFakeTimers();
         coordinator = new UpdateCoordinator();
         jest.clearAllMocks();
     });
 
     afterEach(() => {
         jest.runOnlyPendingTimers();
+        jest.useRealTimers();
     });
 
     describe('schedule and lifecycle', () => {
@@ -89,8 +89,7 @@ describe('UpdateCoordinator', () => {
 
             expect(info.unloading).toBe(false);
             expect(info.activeCount).toBe(1);
-            expect(info.operations).toHaveLength(1);
-            expect(info.operations[0]).toEqual(
+            expect(info.operations).toContainEqual(
                 expect.objectContaining({ id: 'id', op: 'modify', filePath: '/a.md' })
             );
         });

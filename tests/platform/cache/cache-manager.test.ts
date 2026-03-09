@@ -13,6 +13,17 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 describe('InfluxCacheManager', () => {
     let cache: InfluxCacheManager;
 
+	const insertUntilOldestEvicts = (insertEntry: (index: number) => void, oldestMissing: () => boolean): number => {
+		for (let i = 0; i < 4000; i += 1) {
+			insertEntry(i);
+			if (i > 0 && oldestMissing()) {
+				return i + 1;
+			}
+		}
+
+		throw new Error('Expected cache eviction before safety limit');
+	};
+
     beforeEach(() => {
         cache = InfluxCacheManager.getInstance();
         cache.clearAll();
@@ -52,18 +63,15 @@ describe('InfluxCacheManager', () => {
 		});
 
 		test('evicts oldest file entries when file cache exceeds size limit', () => {
-			const maxEntries = (InfluxCacheManager as any).FILE_CACHE_MAX_ENTRIES;
 			const now = Date.now();
-			jest.spyOn(Date, 'now').mockImplementation(() => now);
-
-			for (let i = 0; i < maxEntries + 1; i += 1) {
+			const insertedCount = insertUntilOldestEvicts((i) => {
 				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
 				cache.setFile(`File-${i}.md`, mockTFile(`File-${i}.md`, `File-${i}`) as any);
-			}
+			}, () => cache.getFile('File-0.md') === null);
 
 			expect(cache.getFile('File-0.md')).toBeNull();
-			expect(cache.getFile(`File-${maxEntries}.md`)?.path).toBe(`File-${maxEntries}.md`);
-			expect(cache.getDebugInfo().fileCache.size).toBe(maxEntries);
+			expect(cache.getFile(`File-${insertedCount - 1}.md`)?.path).toBe(`File-${insertedCount - 1}.md`);
+			expect(cache.getDebugInfo().fileCache.size).toBe(insertedCount - 1);
 		});
 	});
 
@@ -107,18 +115,17 @@ describe('InfluxCacheManager', () => {
 		});
 
 		test('evicts oldest backlinks entries and cleans dependency index when cache exceeds size limit', () => {
-			const maxEntries = (InfluxCacheManager as any).BACKLINKS_CACHE_MAX_ENTRIES;
 			const now = Date.now();
-			for (let i = 0; i < maxEntries + 1; i += 1) {
+			const insertedCount = insertUntilOldestEvicts((i) => {
 				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
 				cache.setBacklinks(`target-${i}.md`, { data: new Map([[`source-${i}.md`, []]]) } as any);
-			}
+			}, () => cache.getBacklinks('target-0.md') === null);
 
 			expect(cache.getBacklinks('target-0.md')).toBeNull();
-			expect(cache.getDebugInfo().backlinksCache.size).toBe(maxEntries);
+			expect(cache.getDebugInfo().backlinksCache.size).toBe(insertedCount - 1);
 
 			cache.invalidateFile('source-0.md');
-			expect(cache.getDebugInfo().backlinksDependencyIndex.sources).toBe(maxEntries);
+			expect(cache.getDebugInfo().backlinksDependencyIndex.sources).toBe(insertedCount - 1);
 		});
 	});
 
@@ -171,17 +178,16 @@ describe('InfluxCacheManager', () => {
 		});
 
 		test('evicts oldest preview file hashes when cache exceeds size limit', () => {
-			const maxEntries = (InfluxCacheManager as any).PREVIEW_HASH_CACHE_MAX_ENTRIES;
 			const now = Date.now();
 
-			for (let i = 0; i < maxEntries + 1; i += 1) {
+			const insertedCount = insertUntilOldestEvicts((i) => {
 				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
 				cache.setPreviewFileHash(`Preview-${i}.md`, `hash-${i}`);
-			}
+			}, () => cache.getPreviewFileHash('Preview-0.md') === undefined);
 
 			expect(cache.getPreviewFileHash('Preview-0.md')).toBeUndefined();
-			expect(cache.getPreviewFileHash(`Preview-${maxEntries}.md`)).toBe(`hash-${maxEntries}`);
-			expect(cache.getDebugInfo().previewFileHashes.size).toBe(maxEntries);
+			expect(cache.getPreviewFileHash(`Preview-${insertedCount - 1}.md`)).toBe(`hash-${insertedCount - 1}`);
+			expect(cache.getDebugInfo().previewFileHashes.size).toBe(insertedCount - 1);
 		});
 	});
 

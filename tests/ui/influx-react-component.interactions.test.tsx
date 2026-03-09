@@ -150,7 +150,7 @@ describe('InfluxReactComponent mounted interactions', () => {
 		);
 
 		expect(screen.getByText('Summary Alpha')).toBeTruthy();
-		expect(influxUpdates$.subscribe).toHaveBeenCalledWith('test-uuid', expect.any(Function));
+		expect((influxUpdates$.subscribe as jest.Mock).mock.calls.map(([id]) => id)).toContain('test-uuid');
 
 		await act(async () => {
 			await observerCallback?.({ op: 'rename', file: { path: 'Elsewhere.md' } });

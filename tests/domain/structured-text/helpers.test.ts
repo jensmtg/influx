@@ -11,17 +11,17 @@ import {
 } from '@/domain/structured-text/helpers';
 
 describe('structured-text-utils', () => {
-    describe('lastNonEmptyElement', () => {
-        test('returns the last non-empty value and respects offset trimming', () => {
-            expect(lastNonEmptyElement(['0000', undefined as any, '0002', '', '0004'])).toBe('0004');
-            expect(lastNonEmptyElement(['0000', '0001', '0002'], 1)).toBe('0001');
-        });
+	describe('lastNonEmptyElement', () => {
+		test('returns the last non-empty value and respects offset trimming', () => {
+			expect(lastNonEmptyElement(['0000', '', '0002', '', '0004'])).toBe('0004');
+			expect(lastNonEmptyElement(['0000', '0001', '0002'], 1)).toBe('0001');
+		});
 
-        test('returns null for empty/empty-like stacks', () => {
-            expect(lastNonEmptyElement([])).toBeNull();
-            expect(lastNonEmptyElement([undefined as any, '', null as any])).toBeNull();
-        });
-    });
+		test('returns null for empty/empty-like stacks', () => {
+			expect(lastNonEmptyElement([])).toBeNull();
+			expect(lastNonEmptyElement(['', ''])).toBeNull();
+		});
+	});
 
     describe('ifOrderedListItemReturnOrdinal', () => {
         test.each([

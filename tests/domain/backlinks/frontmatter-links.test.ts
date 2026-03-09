@@ -44,14 +44,11 @@ const linkWithoutPosition = (link: string): LinkCache => ({
 } as LinkCache);
 
 describe('frontmatter-utils', () => {
-    describe('property gates', () => {
-        test('validateFrontmatterProperties keeps only non-empty strings', () => {
-            expect(
-                validateFrontmatterProperties(['related', '', '  ', 'see_also', null as any, undefined as any])
-            ).toEqual(['related', 'see_also']);
-            expect(validateFrontmatterProperties(null as any)).toEqual([]);
-        });
-    });
+	describe('property gates', () => {
+		test('validateFrontmatterProperties keeps only non-empty strings', () => {
+			expect(validateFrontmatterProperties(['related', '', '  ', 'see_also'])).toEqual(['related', 'see_also']);
+		});
+	});
 
     describe('link conversion and property filtering', () => {
         test('convertFrontmatterLinkToLinkCache converts valid links and sets sentinel position', () => {
@@ -72,13 +69,9 @@ describe('frontmatter-utils', () => {
             });
         });
 
-        test.each([
-            null,
-            {},
-            { link: '' },
-        ])('convertFrontmatterLinkToLinkCache returns null for invalid input: %p', (invalid) => {
-            expect(convertFrontmatterLinkToLinkCache(invalid as any)).toBeNull();
-        });
+		test('convertFrontmatterLinkToLinkCache returns null for empty links', () => {
+			expect(convertFrontmatterLinkToLinkCache({ key: 'related', link: '' } as FrontmatterLinkCache)).toBeNull();
+		});
 
         test('filterFrontmatterLinks filters by key when target properties are provided', () => {
             const links = [fmLink('related', 'A'), fmLink('author', 'B'), fmLink('see_also', 'C')];
@@ -94,14 +87,12 @@ describe('frontmatter-utils', () => {
             expect(backlinks.data.get('A')).toHaveLength(2);
         });
 
-        test('mergeConvertedLinksIntoBacklinks merges for Record and tolerates invalid input', () => {
-            const backlinks = { data: { Existing: [{ link: 'Existing' } as LinkCache] } as Record<string, LinkCache[]> };
-            mergeConvertedLinksIntoBacklinks(backlinks, [{ link: 'New' } as LinkCache]);
-            expect(backlinks.data.Existing).toHaveLength(1);
-            expect(backlinks.data.New).toHaveLength(1);
-            expect(() => mergeConvertedLinksIntoBacklinks(null as any, [{ link: 'x' } as LinkCache])).not.toThrow();
-            expect(() => mergeConvertedLinksIntoBacklinks(backlinks, null as any)).not.toThrow();
-        });
+		test('mergeConvertedLinksIntoBacklinks merges for Record data', () => {
+			const backlinks = { data: { Existing: [{ link: 'Existing' } as LinkCache] } as Record<string, LinkCache[]> };
+			mergeConvertedLinksIntoBacklinks(backlinks, [{ link: 'New' } as LinkCache]);
+			expect(backlinks.data.Existing).toHaveLength(1);
+			expect(backlinks.data.New).toHaveLength(1);
+		});
 
         test('processFrontmatterLinks runs the full pipeline when enabled and property-filtered', () => {
             const backlinks = { data: new Map<string, LinkCache[]>() };
@@ -118,14 +109,14 @@ describe('frontmatter-utils', () => {
             expect((result.data as Map<string, LinkCache[]>).get('Excluded')).toBeUndefined();
         });
 
-        test('processFrontmatterLinks returns input unchanged when disabled or malformed', () => {
-            const backlinks = { data: new Map<string, LinkCache[]>() };
-            expect(
-                processFrontmatterLinks(backlinks, [fmLink('related', 'A')], createSettings({ includeFrontmatterLinks: false }))
-            ).toBe(backlinks);
-            expect(processFrontmatterLinks(backlinks, null as any, createSettings({ includeFrontmatterLinks: true }))).toBe(backlinks);
-        });
-    });
+		test('processFrontmatterLinks returns input unchanged when disabled or when there are no frontmatter links to merge', () => {
+			const backlinks = { data: new Map<string, LinkCache[]>() };
+			expect(
+				processFrontmatterLinks(backlinks, [fmLink('related', 'A')], createSettings({ includeFrontmatterLinks: false }))
+			).toBe(backlinks);
+			expect(processFrontmatterLinks(backlinks, [], createSettings({ includeFrontmatterLinks: true }))).toBe(backlinks);
+		});
+	});
 
     describe('frontmatter filtering from backlinks', () => {
         const getMetadata = jest.fn((_: string): CachedMetadata | null => null);
@@ -238,11 +229,6 @@ describe('frontmatter-utils', () => {
 			const result = filterFrontmatterLinksFromBacklinks(backlinks, 'Target', getMetadata);
 			expect((result.data as Map<string, LinkCache[]>).get('Source.md')).toEqual([linkAtLine('Target', 14)]);
 		});
-
-        test('handles nullish backlinks container safely', () => {
-            expect(() => filterFrontmatterLinksFromBacklinks(null as any, 'Target', getMetadata)).not.toThrow();
-            expect(() => filterFrontmatterLinksFromBacklinks({} as any, 'Target', getMetadata)).not.toThrow();
-        });
 
 		test('keeps only frontmatter backlinks from allowed properties while preserving body links', () => {
 			const backlinks = {

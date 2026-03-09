@@ -14,6 +14,26 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 }));
 
 describe('ApiAdapter', () => {
+	const createFrontmatterLink = (key: string, link: string): FrontmatterLinkCache => ({
+		key,
+		link,
+		displayText: link,
+		original: `[[${link}]]`,
+	}) as FrontmatterLinkCache;
+
+	const createMetadata = (links: FrontmatterLinkCache[], frontmatter?: Record<string, unknown>): CachedMetadata => ({
+		frontmatterLinks: links,
+		frontmatter,
+	}) as CachedMetadata;
+
+	const createBacklink = (link: string, line = 0): LinkCache => ({
+		link,
+		position: {
+			start: { line, col: 0, offset: 0 },
+			end: { line, col: 10, offset: 10 },
+		},
+	}) as LinkCache;
+
 	const createContext = (settingsOverrides: Partial<typeof DEFAULT_SETTINGS> = {}) => {
 		const file = mockTFile('Target.md', 'Target');
 		const source = mockTFile('Source.md', 'Source');
@@ -21,15 +41,11 @@ describe('ApiAdapter', () => {
 		const metadataByPath = new Map<string, CachedMetadata>([
 			[
 				'Source.md',
-				{
-					frontmatterLinks: [{ key: 'related', link: 'Target' } as FrontmatterLinkCache],
-				} as CachedMetadata,
+				createMetadata([createFrontmatterLink('related', 'Target')]),
 			],
 			[
 				'Target.md',
-				{
-					frontmatterLinks: [{ key: 'related', link: 'Reference Note' } as FrontmatterLinkCache],
-				} as CachedMetadata,
+				createMetadata([createFrontmatterLink('related', 'Reference Note')]),
 			],
 		]);
 
@@ -48,15 +64,7 @@ describe('ApiAdapter', () => {
 					data: new Map<string, LinkCache[]>([
 						[
 							'Source.md',
-							[
-								{
-									link: 'Target',
-									position: {
-										start: { line: 0, col: 0, offset: 0 },
-										end: { line: 0, col: 10, offset: 10 },
-									},
-								} as LinkCache,
-							],
+							[createBacklink('Target')],
 						],
 					]),
 				})),
@@ -120,46 +128,30 @@ describe('ApiAdapter', () => {
 			frontmatterProperties: ['citations'],
 		});
 
-		(app.metadataCache.getBacklinksForFile as jest.Mock).mockReturnValue({
-			data: new Map<string, LinkCache[]>([
-				[
-					'Source.md',
+			(app.metadataCache.getBacklinksForFile as jest.Mock).mockReturnValue({
+				data: new Map<string, LinkCache[]>([
 					[
-						{
-							link: 'Target',
-							position: {
-								start: { line: 0, col: 0, offset: 0 },
-								end: { line: 0, col: 10, offset: 10 },
-							},
-						} as LinkCache,
+						'Source.md',
+						[createBacklink('Target')],
 					],
-				],
-			]),
-		});
+				]),
+			});
 
 		const backlinks = api.getBacklinks(file);
 
 		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(false);
 	});
 
-	test('clones metadata-cache backlinks before filtering so the original object stays untouched', () => {
-		const { api, file, app } = createContext({ includeFrontmatterLinks: false });
-		const originalBacklinks = {
-			data: new Map<string, LinkCache[]>([
-				[
-					'Source.md',
+		test('clones metadata-cache backlinks before filtering so the original object stays untouched', () => {
+			const { api, file, app } = createContext({ includeFrontmatterLinks: false });
+			const originalBacklinks = {
+				data: new Map<string, LinkCache[]>([
 					[
-						{
-							link: 'Target',
-							position: {
-								start: { line: 0, col: 0, offset: 0 },
-								end: { line: 0, col: 10, offset: 10 },
-							},
-						} as LinkCache,
+						'Source.md',
+						[createBacklink('Target')],
 					],
-				],
-			]),
-		};
+				]),
+			};
 		(app.metadataCache.getBacklinksForFile as jest.Mock).mockReturnValue(originalBacklinks);
 
 		const backlinks = api.getBacklinks(file);
@@ -169,21 +161,17 @@ describe('ApiAdapter', () => {
 		expect(backlinks.data).not.toBe(originalBacklinks.data);
 	});
 
-	test('honors requireInfluxFrontmatterKey when evaluating show status', () => {
-		const { api, file, app, plugin } = createContext({
-			requireInfluxFrontmatterKey: true,
-		});
+		test('honors requireInfluxFrontmatterKey when evaluating show status', () => {
+			const { api, file, app, plugin } = createContext({
+				requireInfluxFrontmatterKey: true,
+			});
 
-		(app.metadataCache.getFileCache as jest.Mock).mockReturnValueOnce({
-			frontmatter: { influx: true },
-		} as CachedMetadata);
-		expect(api.getShowStatus(file)).toBe(true);
+			(app.metadataCache.getFileCache as jest.Mock).mockReturnValueOnce(createMetadata([], { influx: true }));
+			expect(api.getShowStatus(file)).toBe(true);
 
-		(app.metadataCache.getFileCache as jest.Mock).mockReturnValueOnce({
-			frontmatter: { influx: false },
-		} as CachedMetadata);
-		api.invalidateSettingsCache();
-		plugin.data.settings = {
+			(app.metadataCache.getFileCache as jest.Mock).mockReturnValueOnce(createMetadata([], { influx: false }));
+			api.invalidateSettingsCache();
+			plugin.data.settings = {
 			...plugin.data.settings,
 			requireInfluxFrontmatterKey: true,
 		};

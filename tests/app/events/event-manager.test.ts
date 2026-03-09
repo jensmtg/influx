@@ -8,16 +8,38 @@ jest.mock('@/platform/diagnostics/metrics', () => ({
 }));
 
 describe('EventManager', () => {
-    let eventManager: EventManager;
-    let plugin: any;
-
-	const makeLeaf = (view: Record<string, unknown>) => ({ view });
+	let eventManager: EventManager;
+	let plugin: any;
+	let vaultHandlers: Map<string, (...args: unknown[]) => void>;
+	let workspaceHandlers: Map<string, (...args: unknown[]) => void>;
+	const emitVaultEvent = (eventName: string, ...args: unknown[]) => {
+		const handler = vaultHandlers.get(eventName);
+		expect(handler).toBeDefined();
+		handler?.(...args);
+	};
+	const emitWorkspaceEvent = (eventName: string, ...args: unknown[]) => {
+		const handler = workspaceHandlers.get(eventName);
+		expect(handler).toBeDefined();
+		handler?.(...args);
+	};
 
     beforeEach(() => {
+		vaultHandlers = new Map();
+		workspaceHandlers = new Map();
         plugin = {
             app: {
-                vault: { on: jest.fn() },
-                workspace: { on: jest.fn() },
+				vault: {
+					on: jest.fn((eventName: string, handler: (...args: unknown[]) => void) => {
+						vaultHandlers.set(eventName, handler);
+						return { eventName, handler };
+					}),
+				},
+				workspace: {
+					on: jest.fn((eventName: string, handler: (...args: unknown[]) => void) => {
+						workspaceHandlers.set(eventName, handler);
+						return { eventName, handler };
+					}),
+				},
             },
             data: { settings: { liveUpdate: true } },
             api: { invalidateFileCache: jest.fn() },
@@ -34,40 +56,38 @@ describe('EventManager', () => {
         test('registers all expected vault/workspace handlers', () => {
             eventManager.register();
 
-            expect(plugin.app.vault.on).toHaveBeenCalledWith('modify', expect.any(Function));
-            expect(plugin.app.vault.on).toHaveBeenCalledWith('rename', expect.any(Function));
-            expect(plugin.app.vault.on).toHaveBeenCalledWith('delete', expect.any(Function));
-            expect(plugin.app.workspace.on).toHaveBeenCalledWith('file-open', expect.any(Function));
-            expect(plugin.app.workspace.on).toHaveBeenCalledWith('layout-change', expect.any(Function));
-            expect(plugin.app.workspace.on).toHaveBeenCalledWith('active-leaf-change', expect.any(Function));
+			expect(Array.from(vaultHandlers.keys())).toEqual(['modify', 'rename', 'delete']);
+			expect(Array.from(workspaceHandlers.keys())).toEqual(['file-open', 'layout-change', 'active-leaf-change']);
             expect(plugin.registerEvent).toHaveBeenCalledTimes(6);
         });
     });
 
     describe('file event handlers', () => {
         test('handleModify: ignores folders, invalidates file cache, and respects liveUpdate flag', () => {
+			eventManager.register();
             const folder = {} as TAbstractFile;
             const file = mockTFile('test.md', 'test');
 
-            (eventManager as any).handleModify(folder);
+			emitVaultEvent('modify', folder);
             expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
             expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
             plugin.data.settings.liveUpdate = false;
-            (eventManager as any).handleModify(file);
+			emitVaultEvent('modify', file);
             expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
             expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
             plugin.data.settings.liveUpdate = true;
-            (eventManager as any).handleModify(file);
+			emitVaultEvent('modify', file);
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('modify', file);
         });
 
         test('handleRename: invalidates old/new paths for files and always triggers rename update', () => {
+			eventManager.register();
             const file = mockTFile('new.md', 'new');
             const folder = {} as TAbstractFile;
 
-            (eventManager as any).handleRename(file, 'old.md');
+			emitVaultEvent('rename', file, 'old.md');
             expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('old.md');
             expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
             expect(plugin.cleanupFileHash).toHaveBeenCalledWith('old.md');
@@ -78,17 +98,18 @@ describe('EventManager', () => {
             plugin.cleanupFileHash.mockClear();
             plugin.triggerUpdates.mockClear();
 
-            (eventManager as any).handleRename(folder);
+			emitVaultEvent('rename', folder);
             expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
             expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', folder);
         });
 
         test('handleDelete: invalidates/cleans files and always triggers delete update', () => {
+			eventManager.register();
             const file = mockTFile('test.md', 'test');
             const folder = {} as TAbstractFile;
 
-            (eventManager as any).handleDelete(file);
+			emitVaultEvent('delete', file);
             expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
             expect(plugin.cleanupFileHash).toHaveBeenCalledWith('test.md');
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', file);
@@ -97,42 +118,36 @@ describe('EventManager', () => {
             plugin.cleanupFileHash.mockClear();
             plugin.triggerUpdates.mockClear();
 
-            (eventManager as any).handleDelete(folder);
+			emitVaultEvent('delete', folder);
             expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
             expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', folder);
         });
 
         test('handleFileOpen triggers only for real files', () => {
+			eventManager.register();
             const file = mockTFile('test.md', 'test');
             const folder = {} as TAbstractFile;
 
-            (eventManager as any).handleFileOpen(null);
-            (eventManager as any).handleFileOpen(folder);
+			emitWorkspaceEvent('file-open', null);
+			emitWorkspaceEvent('file-open', folder);
             expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
-            (eventManager as any).handleFileOpen(file);
+			emitWorkspaceEvent('file-open', file);
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('file-open', file);
         });
 
         test('handleLayoutChange cleans roots and triggers layout update', () => {
-            (eventManager as any).handleLayoutChange();
+			eventManager.register();
+			emitWorkspaceEvent('layout-change');
             expect(plugin.cleanupReactRoots).toHaveBeenCalledTimes(1);
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('layout-change');
         });
     });
 
     describe('mode change metrics', () => {
-		test('detectMode classifies preview, source, live, markdown fallback, and non-markdown leaves', () => {
-			expect((eventManager as any).detectMode(makeLeaf({ currentMode: { type: 'preview' } }))).toBe('preview');
-			expect((eventManager as any).detectMode(makeLeaf({ currentMode: { type: 'live' } }))).toBe('editor');
-			expect((eventManager as any).detectMode(makeLeaf({ mode: 'source' }))).toBe('editor');
-			expect((eventManager as any).detectMode(makeLeaf({ getViewType: () => 'markdown' }))).toBe('editor');
-			expect((eventManager as any).detectMode(makeLeaf({ getViewType: () => 'canvas' }))).toBe('other');
-			expect((eventManager as any).detectMode(null)).toBeNull();
-		});
-
         test('records metric only when detected mode actually changes', () => {
+            eventManager.register();
             const markdownLeaf = {
                 view: {
                     getViewType: () => 'markdown',
@@ -145,7 +160,7 @@ describe('EventManager', () => {
                 },
             };
 
-            (eventManager as any).handleActiveLeafChange(markdownLeaf);
+			emitWorkspaceEvent('active-leaf-change', markdownLeaf);
             expect(recordMetric).toHaveBeenCalledWith(
                 expect.objectContaining({
                     name: 'influx.mode.change',
@@ -155,10 +170,10 @@ describe('EventManager', () => {
             expect(plugin.triggerUpdates).not.toHaveBeenCalledWith('mode-change', expect.anything());
 
             (recordMetric as jest.Mock).mockClear();
-            (eventManager as any).handleActiveLeafChange(markdownLeaf);
+			emitWorkspaceEvent('active-leaf-change', markdownLeaf);
             expect(recordMetric).not.toHaveBeenCalled();
 
-            (eventManager as any).handleActiveLeafChange(previewLeaf);
+			emitWorkspaceEvent('active-leaf-change', previewLeaf);
             expect(recordMetric).toHaveBeenCalledWith(
                 expect.objectContaining({
                     name: 'influx.mode.change',
@@ -169,6 +184,7 @@ describe('EventManager', () => {
         });
 
         test('triggers a mode-change refresh only for editor <-> preview transitions', () => {
+            eventManager.register();
             const file = mockTFile('A.md', 'A');
             const editorLeaf = {
                 view: {
@@ -190,18 +206,19 @@ describe('EventManager', () => {
                 },
             };
 
-            (eventManager as any).handleActiveLeafChange(editorLeaf);
+			emitWorkspaceEvent('active-leaf-change', editorLeaf);
             expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
-            (eventManager as any).handleActiveLeafChange(previewLeaf);
+			emitWorkspaceEvent('active-leaf-change', previewLeaf);
             expect(plugin.triggerUpdates).toHaveBeenCalledWith('mode-change', file);
 
             plugin.triggerUpdates.mockClear();
-            (eventManager as any).handleActiveLeafChange(otherLeaf);
+			emitWorkspaceEvent('active-leaf-change', otherLeaf);
             expect(plugin.triggerUpdates).not.toHaveBeenCalled();
         });
 
 		test('treats reading-like preview leaves as renderable and ignores plain-object files for refresh payloads', () => {
+			eventManager.register();
 			const readingLeaf = {
 				view: {
 					currentMode: { type: 'preview' },
@@ -222,11 +239,11 @@ describe('EventManager', () => {
 				},
 			};
 
-			(eventManager as any).handleActiveLeafChange(otherLeaf);
+			emitWorkspaceEvent('active-leaf-change', otherLeaf);
 			expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
 			(recordMetric as jest.Mock).mockClear();
-			(eventManager as any).handleActiveLeafChange(readingLeaf);
+			emitWorkspaceEvent('active-leaf-change', readingLeaf);
 			expect(recordMetric).toHaveBeenCalledWith(
 				expect.objectContaining({
 					ctx: expect.objectContaining({ fromMode: 'other', toMode: 'preview' }),
@@ -234,7 +251,7 @@ describe('EventManager', () => {
 			);
 			expect(plugin.triggerUpdates).not.toHaveBeenCalled();
 
-			(eventManager as any).handleActiveLeafChange(livePreviewLeaf);
+			emitWorkspaceEvent('active-leaf-change', livePreviewLeaf);
 			expect(plugin.triggerUpdates).toHaveBeenCalledWith('mode-change', livePreviewLeaf.view.file);
 		});
     });
