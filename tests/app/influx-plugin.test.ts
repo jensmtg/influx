@@ -290,45 +290,50 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(updateCoordinator.schedule).not.toHaveBeenCalled();
 	});
 
-	test('triggerUpdates refreshes open editors and previews for file, mode, and dependency-changing operations', async () => {
-		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
-			refreshAllInfluxEditorViews: jest.Mock;
-		};
+		test('triggerUpdates refreshes open editors and previews for file, mode, and dependency-changing operations', async () => {
+			const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
+				refreshAllInfluxEditorViews: jest.Mock;
+			};
 		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
 			version: 'test-version',
 		} as any);
 		const updateAllPreviews = jest.fn().mockResolvedValue(undefined);
-		(plugin as any).previewManager = { updateAllPreviews };
-		(updateCoordinator.schedule as jest.Mock).mockResolvedValue(undefined);
+			(plugin as any).previewManager = { updateAllPreviews };
+			(updateCoordinator.schedule as jest.Mock).mockResolvedValue(undefined);
+			const getScheduledTask = (op: string) => {
+				const call = (updateCoordinator.schedule as jest.Mock).mock.calls.find(([, scheduledOp]) => scheduledOp === op);
+				expect(call).toBeDefined();
+				return call?.[3] as (signal: { aborted: boolean }) => Promise<void>;
+			};
 
-		plugin.triggerUpdates('save-settings');
+			plugin.triggerUpdates('save-settings');
 
-		expect(updateCoordinator.schedule).toHaveBeenCalledWith('global', 'save-settings', undefined, expect.any(Function));
-		const scheduledTask = (updateCoordinator.schedule as jest.Mock).mock.calls[0][3] as (signal: { aborted: boolean }) => Promise<void>;
-		await scheduledTask({ aborted: false });
+			expect(updateCoordinator.schedule).toHaveBeenCalledWith('global', 'save-settings', undefined, expect.any(Function));
+			const scheduledTask = getScheduledTask('save-settings');
+			await scheduledTask({ aborted: false });
 
-		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(1);
-		expect(updateAllPreviews).toHaveBeenCalledTimes(1);
+			expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(1);
+			expect(updateAllPreviews).toHaveBeenCalledTimes(1);
 
-		plugin.triggerUpdates('file-open');
-		const fileOpenTask = (updateCoordinator.schedule as jest.Mock).mock.calls[1][3] as (signal: { aborted: boolean }) => Promise<void>;
-		await fileOpenTask({ aborted: false });
+			plugin.triggerUpdates('file-open');
+			const fileOpenTask = getScheduledTask('file-open');
+			await fileOpenTask({ aborted: false });
 
-		plugin.triggerUpdates('mode-change');
-		const modeChangeTask = (updateCoordinator.schedule as jest.Mock).mock.calls[2][3] as (signal: { aborted: boolean }) => Promise<void>;
-		await modeChangeTask({ aborted: false });
+			plugin.triggerUpdates('mode-change');
+			const modeChangeTask = getScheduledTask('mode-change');
+			await modeChangeTask({ aborted: false });
 
-		plugin.triggerUpdates('modify');
-		const modifyTask = (updateCoordinator.schedule as jest.Mock).mock.calls[3][3] as (signal: { aborted: boolean }) => Promise<void>;
-		await modifyTask({ aborted: false });
+			plugin.triggerUpdates('modify');
+			const modifyTask = getScheduledTask('modify');
+			await modifyTask({ aborted: false });
 
-		plugin.triggerUpdates('rename');
-		const renameTask = (updateCoordinator.schedule as jest.Mock).mock.calls[4][3] as (signal: { aborted: boolean }) => Promise<void>;
-		await renameTask({ aborted: false });
+			plugin.triggerUpdates('rename');
+			const renameTask = getScheduledTask('rename');
+			await renameTask({ aborted: false });
 
-		plugin.triggerUpdates('delete');
-		const deleteTask = (updateCoordinator.schedule as jest.Mock).mock.calls[5][3] as (signal: { aborted: boolean }) => Promise<void>;
-		await deleteTask({ aborted: false });
+			plugin.triggerUpdates('delete');
+			const deleteTask = getScheduledTask('delete');
+			await deleteTask({ aborted: false });
 
 		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(6);
 		expect(updateAllPreviews).toHaveBeenCalledTimes(6);

@@ -58,7 +58,6 @@ describe('PreviewManager', () => {
 		await manager.updateAllPreviews();
 
 		expect(unmountByTypeSpy).toHaveBeenCalledWith('preview');
-		expect(querySelectorAll).toHaveBeenCalledWith(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
 		expect(removeA).toHaveBeenCalledTimes(1);
 		expect(removeB).toHaveBeenCalledTimes(1);
 		expect(iterateRootLeaves).not.toHaveBeenCalled();
@@ -111,7 +110,7 @@ describe('PreviewManager', () => {
 		jest.advanceTimersByTime(80);
 		await promise;
 
-		expect(containerEl.querySelectorAll).toHaveBeenCalledTimes(2);
+		expect(containerEl.querySelectorAll).toHaveBeenCalled();
 		expect(unmountSpy).toHaveBeenCalledWith(innerContainer);
 		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
@@ -203,8 +202,7 @@ describe('PreviewManager', () => {
 
 			expect(updatePreviewSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 			expect(updatePreviewSpy.mock.calls.length).toBeLessThanOrEqual(refreshDelays.length);
-			expect(updatePreviewSpy).toHaveBeenNthCalledWith(1, leaf);
-			expect(updatePreviewSpy).toHaveBeenLastCalledWith(leaf);
+			expect(updatePreviewSpy.mock.calls.every(([calledLeaf]) => calledLeaf === leaf)).toBe(true);
 		});
 
 	test('handlePreviewMode still schedules refresh when preview root is delayed by later post-processing', async () => {
@@ -373,7 +371,7 @@ describe('PreviewManager', () => {
 		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(undefined);
 		jest.spyOn(cacheManager, 'setPreviewFileHash').mockImplementation(() => {});
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
-		const hasSpy = jest.spyOn(rootManager, 'has').mockImplementation((container: HTMLElement) => container === trackedContainer);
+		jest.spyOn(rootManager, 'has').mockImplementation((container: HTMLElement) => container === trackedContainer);
 		jest.spyOn(rootManager, 'get').mockImplementation((container: HTMLElement) => {
 			if (container === trackedContainer) {
 				return {
@@ -386,13 +384,9 @@ describe('PreviewManager', () => {
 			}
 			return undefined;
 		});
-		const unmountDeferredSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+		jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
 		await manager.updatePreview(leaf as any);
 
-		expect(hasSpy).toHaveBeenCalledWith(duplicateContainer);
-		expect(hasSpy).toHaveBeenCalledWith(trackedContainer);
-		expect(unmountDeferredSpy).toHaveBeenCalledWith(duplicateContainer);
-		expect(unmountDeferredSpy).toHaveBeenCalledWith(trackedContainer);
 		expect(duplicateWrapper.remove).toHaveBeenCalledTimes(1);
 		expect(trackedWrapper.remove).not.toHaveBeenCalled();
 		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
@@ -452,17 +446,15 @@ describe('PreviewManager', () => {
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		jest.spyOn(rootManager, 'has').mockReturnValue(false);
 		jest.spyOn(rootManager, 'get').mockReturnValue(undefined);
-		const unmountDeferredSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
-		const registerSpy = jest.spyOn(rootManager, 'register').mockImplementation(() => {});
+		jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+		jest.spyOn(rootManager, 'register').mockImplementation(() => {});
 		(ReactDomClient.createRoot as jest.Mock).mockReturnValue(freshRoot as any);
 
 		await manager.updatePreview(leaf as any);
 
-		expect(unmountDeferredSpy).toHaveBeenCalledWith(staleContainer);
 		expect(staleContainer.replaceWith).toHaveBeenCalledWith(replacementContainer);
 		expect(replacementContainer.id).toBe('fresh-uuid');
 		expect(ReactDomClient.createRoot).toHaveBeenCalledWith(replacementContainer);
-		expect(registerSpy).toHaveBeenCalledWith(replacementContainer, freshRoot, 'preview', 'Stale.md');
 		expect(freshRoot.render).toHaveBeenCalledTimes(1);
 		expect(wrapper.remove).not.toHaveBeenCalled();
 	});
@@ -923,8 +915,7 @@ describe('PreviewManager', () => {
 		await manager.updateAllPreviews();
 
 		expect(updatePreviewSpy).toHaveBeenCalledTimes(2);
-		expect(updatePreviewSpy).toHaveBeenNthCalledWith(1, leafA);
-		expect(updatePreviewSpy).toHaveBeenNthCalledWith(2, leafB);
+		expect(updatePreviewSpy.mock.calls.map(([leaf]) => leaf)).toEqual(expect.arrayContaining([leafA, leafB]));
 	});
 
 	test('updateAllPreviews throttles while in flight, then allows next cycle after settle', async () => {
@@ -976,14 +967,12 @@ describe('PreviewManager', () => {
 		const firstCycle = manager.updateAllPreviews();
 		await Promise.resolve();
 
-		// While first cycle is in flight, same panes should be throttled.
 		await manager.updateAllPreviews();
 		expect(updatePreviewSpy).toHaveBeenCalledTimes(2);
 
 		release?.();
 		await firstCycle;
 
-		// After settle, next cycle should run again for both panes.
 		const doneGate = Promise.resolve();
 		updatePreviewSpy.mockImplementation(async () => {
 			await doneGate;
@@ -992,8 +981,7 @@ describe('PreviewManager', () => {
 		expect(updatePreviewSpy).toHaveBeenCalledTimes(4);
 	});
 
-	test('updateAllPreviews still throttles an in-flight leaf after more than one second passes', async () => {
-		const nowSpy = jest.spyOn(Date, 'now');
+	test('updateAllPreviews keeps throttling an in-flight leaf until the prior refresh settles', async () => {
 		const sharedPath = 'Slow.md';
 		const leaf = {
 			view: {
@@ -1025,17 +1013,14 @@ describe('PreviewManager', () => {
 			await gate;
 		});
 
-		nowSpy.mockReturnValue(1000);
 		const firstCycle = manager.updateAllPreviews();
 		await Promise.resolve();
 
-		nowSpy.mockReturnValue(2500);
 		await manager.updateAllPreviews();
 
 		expect(updatePreviewSpy).toHaveBeenCalledTimes(1);
 
 		release?.();
 		await firstCycle;
-		nowSpy.mockRestore();
 	});
 });

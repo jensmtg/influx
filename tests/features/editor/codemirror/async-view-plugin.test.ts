@@ -129,17 +129,19 @@ describe('AsyncViewPluginController', () => {
 		expect(updateAsyncDecorations).toHaveBeenCalledWith(expect.anything(), true);
 	});
 
-	test('hideInflux and showInflux drive visible state into decoration refreshes', () => {
-		const view = createView('Visibility.md');
-		const controller = new AsyncViewPluginController(view);
+		test('hideInflux and showInflux drive visible state into decoration refreshes', () => {
+			const view = createView('Visibility.md');
+			const controller = new AsyncViewPluginController(view);
 
-		jest.clearAllMocks();
-		controller.hideInflux(view);
-		controller.showInflux(view);
+			jest.clearAllMocks();
+			controller.hideInflux(view);
+			controller.showInflux(view);
 
-		expect(updateAsyncDecorations).toHaveBeenNthCalledWith(1, view.state, false);
-		expect(updateAsyncDecorations).toHaveBeenNthCalledWith(2, view.state, true);
-	});
+			expect(updateAsyncDecorations.mock.calls.map(([state, visible]) => ({ state, visible }))).toEqual([
+				{ state: view.state, visible: false },
+				{ state: view.state, visible: true },
+			]);
+		});
 
 	test('destroy cancels debounced refreshes and pending updates', () => {
 		const controller = new AsyncViewPluginController(createView('Destroy.md'));

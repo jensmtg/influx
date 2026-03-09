@@ -69,7 +69,11 @@ describe('InfluxSidebarView', () => {
 	const createContext = () => {
 		const fileA = mockTFile('A.md', 'A');
 		const fileB = mockTFile('B.md', 'B');
-		const workspaceOn = jest.fn().mockReturnValue(() => {});
+		const workspaceHandlers = new Map<string, (...args: unknown[]) => void>();
+		const workspaceOn = jest.fn().mockImplementation((eventName: string, handler: (...args: unknown[]) => void) => {
+			workspaceHandlers.set(eventName, handler);
+			return () => {};
+		});
 
 		const plugin: InfluxSidebarPlugin = {
 			data: {
@@ -110,6 +114,13 @@ describe('InfluxSidebarView', () => {
 			fileA,
 			fileB,
 			workspaceOn,
+			emitWorkspaceEvent: (eventName: string, ...args: unknown[]) => {
+				const handler = workspaceHandlers.get(eventName);
+				if (!handler) {
+					throw new Error(`Missing workspace handler for ${eventName}`);
+				}
+				handler(...args);
+			},
 		};
 	};
 
@@ -200,14 +211,13 @@ describe('InfluxSidebarView', () => {
 		await Promise.resolve();
 		const second = view.updateView(fileB);
 		await second;
+		const renderCountBeforeStaleResolve = (harness.root?.render as jest.Mock).mock.calls.length;
 
 		resolveA?.(influxA);
 		await first;
 
 		expect(harness.currentFile).toBe(fileB);
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		const lastRenderArg = renderCalls[renderCalls.length - 1][0];
-		expect(lastRenderArg.props.influxFile).toBe(influxB);
+		expect((harness.root?.render as jest.Mock).mock.calls).toHaveLength(renderCountBeforeStaleResolve);
 	});
 
 	test('updateView renders loading state while awaiting influx file creation', async () => {
@@ -435,7 +445,7 @@ describe('InfluxSidebarView', () => {
 	});
 
 	test('registerFileEvents wires active leaf, file open, and editor change listeners', () => {
-		const { view, harness, plugin, fileA, workspaceOn } = createContext();
+		const { view, harness, plugin, fileA, workspaceOn, emitWorkspaceEvent } = createContext();
 		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
 		const handleEditorChangeSpy = jest.spyOn(harness, 'handleEditorChange').mockResolvedValue(undefined);
 
@@ -443,31 +453,32 @@ describe('InfluxSidebarView', () => {
 
 		expect(workspaceOn).toHaveBeenCalledTimes(3);
 		expect(harness.registerEvent).toHaveBeenCalledTimes(3);
+		expect(workspaceOn.mock.calls.map((call) => call[0])).toEqual([
+			'active-leaf-change',
+			'file-open',
+			'editor-change',
+		]);
 
-		const activeLeafHandler = workspaceOn.mock.calls[0][1];
-		activeLeafHandler({ view: { file: fileA } });
+		emitWorkspaceEvent('active-leaf-change', { view: { file: fileA } });
 		expect(updateViewSpy).toHaveBeenCalledWith(fileA);
 
-		const fileOpenHandler = workspaceOn.mock.calls[1][1];
-		fileOpenHandler(fileA);
+		emitWorkspaceEvent('file-open', fileA);
 		expect(updateViewSpy).toHaveBeenCalledWith(fileA);
 
 		harness.currentFile = fileA;
 		(plugin.data.settings.liveUpdate as boolean) = true;
-		const editorChangeHandler = workspaceOn.mock.calls[2][1];
-		editorChangeHandler({}, { file: fileA });
+		emitWorkspaceEvent('editor-change', {}, { file: fileA });
 		expect(handleEditorChangeSpy).toHaveBeenCalledTimes(1);
 	});
 
 	test('registerFileEvents clears the sidebar to an idle state when no file is open', () => {
-		const { harness, workspaceOn, fileA } = createContext();
+		const { harness, fileA, emitWorkspaceEvent } = createContext();
 		harness.currentFile = fileA;
 		harness.influxFile = { show: true };
 
 		harness.registerFileEvents();
 
-		const fileOpenHandler = workspaceOn.mock.calls[1][1];
-		fileOpenHandler(null);
+		emitWorkspaceEvent('file-open', null);
 
 		expect(harness.currentFile).toBeNull();
 		expect(harness.influxFile).toBeNull();
@@ -477,15 +488,14 @@ describe('InfluxSidebarView', () => {
 	});
 
 	test('registerFileEvents keeps sidebar content mounted when the sidebar leaf becomes active', () => {
-		const { harness, workspaceOn, fileA } = createContext();
+		const { harness, fileA, emitWorkspaceEvent } = createContext();
 		harness.currentFile = fileA;
 		harness.influxFile = { show: true };
 		harness.leaf = { id: 'sidebar-leaf' };
 
 		harness.registerFileEvents();
 
-		const activeLeafHandler = workspaceOn.mock.calls[0][1];
-		activeLeafHandler(harness.leaf);
+		emitWorkspaceEvent('active-leaf-change', harness.leaf);
 
 		expect(harness.currentFile).toBe(fileA);
 		expect(harness.influxFile).toEqual({ show: true });
@@ -493,15 +503,14 @@ describe('InfluxSidebarView', () => {
 	});
 
 	test('registerFileEvents ignores editor changes when live update is disabled', () => {
-		const { harness, plugin, fileA, workspaceOn } = createContext();
+		const { harness, plugin, fileA, emitWorkspaceEvent } = createContext();
 		const handleEditorChangeSpy = jest.spyOn(harness, 'handleEditorChange').mockResolvedValue(undefined);
 
 		harness.registerFileEvents();
 		harness.currentFile = fileA;
 		(plugin.data.settings.liveUpdate as boolean) = false;
 
-		const editorChangeHandler = workspaceOn.mock.calls[2][1];
-		editorChangeHandler({}, { file: fileA });
+		emitWorkspaceEvent('editor-change', {}, { file: fileA });
 
 		expect(handleEditorChangeSpy).not.toHaveBeenCalled();
 	});
