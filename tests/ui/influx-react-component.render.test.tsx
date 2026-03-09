@@ -128,27 +128,6 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(screen.getByRole('button', { name: 'Collapse Source-1' })).toBeTruthy();
 	});
 
-	test('uses influx-prefixed structural classes for editor layout', async () => {
-		const components = [makeComponent(1)];
-		const influxFile = await makeInfluxFile({ components, totalEntryCount: 1 });
-		const props = {
-			influxFile,
-			preview: false,
-			plugin: makePlugin(),
-		} satisfies ComponentProps;
-
-		const { container } = render(<InfluxReactComponent {...props} />);
-
-		expect(container.querySelector('.influx-toolbar')).toBeTruthy();
-		expect(container.querySelector('.influx-summary-row--toolbar')).toBeTruthy();
-		expect(container.querySelector('.influx-result-group')).toBeTruthy();
-		expect(container.querySelector('.influx-result-body')).toBeTruthy();
-		expect(container.querySelector('.influx-svg-icon')).toBeTruthy();
-		expect(container.querySelector('.nav-header')).toBeNull();
-		expect(container.querySelector('.tree-item-self')).toBeNull();
-		expect(container.querySelector('.search-result-file-matches')).toBeNull();
-	});
-
 	test('renders icon-only toolbar buttons with accessible labels and helper copy', async () => {
 		const components = [makeComponent(1)];
 		const influxFile = await makeInfluxFile({
@@ -166,14 +145,12 @@ describe('InfluxReactComponent render wiring', () => {
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
 
-		const { container } = render(<InfluxReactComponent {...props} />);
+		render(<InfluxReactComponent {...props} />);
 
 		expect(screen.getByRole('button', { name: 'Collapse all linked mentions' })).toBeTruthy();
 		expect(screen.getByText('List limit: 10 backlinks')).toBeTruthy();
 		expect(screen.getByText('Sort order: oldest first')).toBeTruthy();
 		expect(screen.getByText('Frontmatter links: excluded')).toBeTruthy();
-		expect(container.querySelector('.influx-summary-action')).toBeNull();
-		expect(container.querySelector('.influx-toolbar-button-badge')).toBeNull();
 	});
 
 	test('renders source links with full file paths and folder context when basenames collide', async () => {

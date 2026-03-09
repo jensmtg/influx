@@ -68,6 +68,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
 	const searchResultsContainerRef = React.useRef<HTMLDivElement>(null);
 	const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
+	const searchFocusTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const updateSeqRef = React.useRef(0);
 
 	React.useEffect(() => {
@@ -198,6 +199,15 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		};
 	}, [debouncedSetSearchQuery]);
 
+	const clearSearchFocusTimeout = React.useCallback(() => {
+		if (searchFocusTimeoutRef.current !== null) {
+			clearTimeout(searchFocusTimeoutRef.current);
+			searchFocusTimeoutRef.current = null;
+		}
+	}, []);
+
+	React.useEffect(() => clearSearchFocusTimeout, [clearSearchFocusTimeout]);
+
 	const handleSearchChange = (value: string) => {
 		handleSearchChangeInput({
 			value,
@@ -207,6 +217,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	};
 
 	const resetSearch = (closePanel: boolean) => {
+		clearSearchFocusTimeout();
 		resetSearchUi({
 			closePanel,
 			dispatch: dispatchSearchUi,
@@ -222,7 +233,13 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		toggleSearchPanel({
 			isSearchExpanded,
 			dispatch: dispatchSearchUi,
-			scheduleFocus: setTimeout,
+			cancelScheduledFocus: clearSearchFocusTimeout,
+			scheduleFocus: (callback, delayMs) => {
+				searchFocusTimeoutRef.current = setTimeout(() => {
+					searchFocusTimeoutRef.current = null;
+					callback();
+				}, delayMs);
+			},
 			focusDelayMs: SEARCH_FOCUS_DELAY_MS,
 			focusSearchInput: () => searchInputRef.current?.focus(),
 		});

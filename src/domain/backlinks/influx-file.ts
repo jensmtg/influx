@@ -2,14 +2,20 @@ import { TFile, CachedMetadata, normalizePath } from 'obsidian';
 import type { ApiAdapter } from './api-adapter';
 import type { BacklinksObject, ExtendedInlinkingFile } from './types';
 import { InlinkingFile, type InlinkingFileApi } from './inlinking-file';
-import { logger } from '../../platform/diagnostics/logger';
-import { mapWithConcurrency } from '../../shared/async/concurrency';
-import { CONSTANTS } from '../../config/constants';
-import { DEFAULT_SETTINGS } from '../../types';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 import { computeSettingsHash } from '../settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
-import { collectValidBacklinkFiles, sortInfluxSourceFiles } from './influx-file-build-helpers';
+import { buildInfluxList } from './influx-file-list-builder';
+import {
+	clearInfluxListBuildCaches,
+	getInflightInfluxListBuild,
+	getRecentInfluxListBuild,
+	makeInfluxListBuildCacheKey,
+	setInflightInfluxListBuild,
+	storeRecentInfluxListBuild,
+	type InfluxListBuildResult,
+	clearInflightInfluxListBuild,
+} from './influx-file-list-cache';
 
 export interface InfluxFileApi extends InlinkingFileApi {
     getFileByPath: ApiAdapter['getFileByPath'];
@@ -21,19 +27,6 @@ export interface InfluxFileApi extends InlinkingFileApi {
 }
 
 export default class InfluxFile {
-    private static readonly RECENT_LIST_BUILD_TTL_MS = 1500;
-    private static inflightListBuilds = new Map<string, Promise<{
-        inlinkingFiles: InlinkingFile[];
-        totalEntryCount: number;
-    }>>();
-    private static recentListBuilds = new Map<string, {
-        value: {
-            inlinkingFiles: InlinkingFile[];
-            totalEntryCount: number;
-        };
-        timestamp: number;
-    }>();
-
     uuid: string;
     api: InfluxFileApi;
     file: TFile | null;
@@ -130,159 +123,60 @@ export default class InfluxFile {
     async makeInfluxList() {
         this.ensureInitialized();
 		if (!this.file) {
-			this.inlinkingFiles = [];
-			this.totalEntryCount = 0;
+			this.backlinks = null;
+			this.applyInfluxListBuild({ inlinkingFiles: [], totalEntryCount: 0 });
 			return;
 		}
 
+		this.backlinks = this.api.getBacklinks(this.file);
 		const settings = this.api.getSettings();
 		const settingsHash = computeSettingsHash(settings);
         const dependencyRevision = cacheManager.getDependencyRevision();
-        const buildKey = this.makeInflightListBuildKey(this.file.path, this.file.stat?.mtime ?? 0, settingsHash, dependencyRevision);
+        const buildKey = makeInfluxListBuildCacheKey(
+			this.file.path,
+			this.file.stat?.mtime ?? 0,
+			settingsHash,
+			dependencyRevision
+		);
 
-        const recent = InfluxFile.recentListBuilds.get(buildKey);
-        if (recent && Date.now() - recent.timestamp <= InfluxFile.RECENT_LIST_BUILD_TTL_MS) {
-            this.inlinkingFiles = [...recent.value.inlinkingFiles];
-            this.totalEntryCount = recent.value.totalEntryCount;
+        const recent = getRecentInfluxListBuild(buildKey);
+        if (recent) {
+			this.applyInfluxListBuild(recent);
             return;
         }
 
-        const inflight = InfluxFile.inflightListBuilds.get(buildKey);
+        const inflight = getInflightInfluxListBuild(buildKey);
         if (inflight) {
-            const shared = await inflight;
-            this.inlinkingFiles = [...shared.inlinkingFiles];
-            this.totalEntryCount = shared.totalEntryCount;
+			this.applyInfluxListBuild(await inflight);
             return;
         }
 
-        const buildPromise = this.buildInfluxList(settings, settingsHash);
-        InfluxFile.inflightListBuilds.set(buildKey, buildPromise);
+		const buildPromise = buildInfluxList({
+			contextFile: this,
+			currentFile: this.file,
+			backlinks: this.backlinks,
+			api: this.api,
+			settings,
+			settingsHash,
+		});
+		setInflightInfluxListBuild(buildKey, buildPromise);
         try {
-            const built = await buildPromise;
-            this.inlinkingFiles = [...built.inlinkingFiles];
-            this.totalEntryCount = built.totalEntryCount;
-            InfluxFile.recentListBuilds.set(buildKey, {
-                value: {
-                    inlinkingFiles: built.inlinkingFiles,
-                    totalEntryCount: built.totalEntryCount,
-                },
-                timestamp: Date.now(),
-            });
-            this.pruneRecentListBuilds();
+			const built = await buildPromise;
+			this.applyInfluxListBuild(built);
+			storeRecentInfluxListBuild(buildKey, built);
         } finally {
-            if (InfluxFile.inflightListBuilds.get(buildKey) === buildPromise) {
-                InfluxFile.inflightListBuilds.delete(buildKey);
-            }
+			clearInflightInfluxListBuild(buildKey, buildPromise);
         }
     }
 
-    private makeInflightListBuildKey(path: string, fileMtime: number, settingsHash: string, dependencyRevision: number): string {
-        return `${normalizePath(path)}|${fileMtime}|${settingsHash}|${dependencyRevision}`;
-    }
+	private applyInfluxListBuild(result: InfluxListBuildResult): void {
+		this.inlinkingFiles = [...result.inlinkingFiles];
+		this.totalEntryCount = result.totalEntryCount;
+	}
 
-    private async buildInfluxList(
-        settings: typeof DEFAULT_SETTINGS,
-        settingsHash: string
-    ): Promise<{ inlinkingFiles: InlinkingFile[]; totalEntryCount: number }> {
-        const currentFile = this.file;
-        if (!currentFile) {
-            return {
-                inlinkingFiles: [],
-                totalEntryCount: 0,
-            };
-        }
-
-        const startTime = performance.now();
-        this.backlinks = this.api.getBacklinks(currentFile);
-        if (!this.backlinks || !this.backlinks.data) {
-            recordMetric({
-                name: 'influx.inlinking.build',
-                mode: 'shared',
-                durationMs: performance.now() - startTime,
-                settings,
-                ctx: {
-                    filePath: currentFile.path,
-                    candidateSourceCount: 0,
-                    processedSourceCount: 0,
-                    listLimit: settings.listLimit || 0,
-                    summaryConcurrency: CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
-                }
-            });
-            return {
-                inlinkingFiles: [],
-                totalEntryCount: 0,
-            };
-        }
-
-        const listLimit = settings.listLimit || 0;
-        const validFiles = collectValidBacklinkFiles({
-            backlinks: this.backlinks,
-            currentFilePath: currentFile.path,
-            api: this.api,
-        });
-
-        const totalEntryCount = validFiles.length;
-        const sortedFiles = sortInfluxSourceFiles(validFiles, settings);
-        const filesToProcess = listLimit > 0 ? sortedFiles.slice(0, listLimit) : sortedFiles;
-
-        const processed = await mapWithConcurrency(
-            filesToProcess,
-            CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
-            async (file: TFile): Promise<InlinkingFile | null> => {
-                try {
-                    const inlinkingFile = new InlinkingFile(file, this.api);
-                    await inlinkingFile.makeSummary(this, settingsHash);
-                    return inlinkingFile;
-                } catch (error) {
-                    logger.error(`Failed to process file ${file.path}:`, { filePath: file.path, error });
-                    return null;
-                }
-            }
-        );
-
-        const inlinkingFilesNew = processed.filter((item): item is InlinkingFile => item !== null);
-        recordMetric({
-            name: 'influx.inlinking.build',
-            mode: 'shared',
-            durationMs: performance.now() - startTime,
-            settings,
-            ctx: {
-                filePath: currentFile.path,
-                candidateSourceCount: validFiles.length,
-                processedSourceCount: inlinkingFilesNew.length,
-                listLimit,
-                summaryConcurrency: CONSTANTS.SUMMARY_BUILD_CONCURRENCY,
-            }
-        });
-
-        // Warn user if some files failed to process
-        if (inlinkingFilesNew.length < filesToProcess.length) {
-            logger.warn(`Only ${inlinkingFilesNew.length} of ${filesToProcess.length} files processed successfully`, {
-                processed: inlinkingFilesNew.length,
-                totalAttempted: filesToProcess.length,
-                totalCandidates: validFiles.length
-            });
-        }
-
-        return {
-            inlinkingFiles: inlinkingFilesNew,
-            totalEntryCount,
-        };
-    }
-
-    private pruneRecentListBuilds(): void {
-        const now = Date.now();
-        for (const [key, entry] of InfluxFile.recentListBuilds.entries()) {
-            if (now - entry.timestamp > InfluxFile.RECENT_LIST_BUILD_TTL_MS) {
-                InfluxFile.recentListBuilds.delete(key);
-            }
-        }
-    }
-
-    static clearBuildCaches(): void {
-        InfluxFile.inflightListBuilds.clear();
-        InfluxFile.recentListBuilds.clear();
-    }
+	static clearBuildCaches(): void {
+		clearInfluxListBuildCaches();
+	}
 
     static clearBuildCachesForTests(): void {
         InfluxFile.clearBuildCaches();

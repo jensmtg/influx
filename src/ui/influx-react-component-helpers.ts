@@ -357,12 +357,21 @@ export function resetSearchUi(params: {
 export function toggleSearchPanel(params: {
 	isSearchExpanded: boolean;
 	dispatch: (action: SearchUiAction) => void;
+	cancelScheduledFocus?: () => void;
 	scheduleFocus: SearchFocusScheduler;
 	focusDelayMs: number;
 	focusSearchInput: () => void;
 }): void {
-	const { isSearchExpanded, dispatch, scheduleFocus, focusDelayMs, focusSearchInput } = params;
+	const {
+		isSearchExpanded,
+		dispatch,
+		cancelScheduledFocus,
+		scheduleFocus,
+		focusDelayMs,
+		focusSearchInput,
+	} = params;
 	const willOpen = !isSearchExpanded;
+	cancelScheduledFocus?.();
 	dispatch({ type: 'TOGGLE_PANEL' });
 	if (willOpen) {
 		scheduleFocus(focusSearchInput, focusDelayMs);

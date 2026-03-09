@@ -85,22 +85,23 @@ const MarkdownMount = React.memo(function MarkdownMount({
 			return;
 		}
 
-		container.replaceChildren();
+		const renderTarget = document.createElement('div');
+		container.replaceChildren(renderTarget);
 		const renderComponent = new Component();
 		let cancelled = false;
 
 		const render = async () => {
 			try {
 				const preparedMarkdown = prepareMarkdownForInflux(markdown);
-				await MarkdownRenderer.renderMarkdown(preparedMarkdown, container, sourcePath || '/', renderComponent);
+				await MarkdownRenderer.renderMarkdown(preparedMarkdown, renderTarget, sourcePath || '/', renderComponent);
 				if (cancelled) {
 					return;
 				}
 				if (mode === 'editor') {
-					normalizeEditorListItems(container);
+					normalizeEditorListItems(renderTarget);
 				}
 				if (disableCheckboxes) {
-					disableRenderedCheckboxes(container);
+					disableRenderedCheckboxes(renderTarget);
 				}
 			} catch (error) {
 				if (!cancelled) {
@@ -114,7 +115,10 @@ const MarkdownMount = React.memo(function MarkdownMount({
 		return () => {
 			cancelled = true;
 			renderComponent.unload();
-			container.replaceChildren();
+			renderTarget.replaceChildren();
+			if (renderTarget.parentElement === container) {
+				container.replaceChildren();
+			}
 		};
 	}, [markdown, sourcePath, disableCheckboxes, mode]);
 

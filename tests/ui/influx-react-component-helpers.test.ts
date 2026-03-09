@@ -128,32 +128,38 @@ describe('influx-react-component helpers', () => {
 			expect(dispatch).toHaveBeenCalledWith({ type: 'RESET', closePanel: true });
 		});
 
-		test('toggleSearchPanel only schedules focus when opening', () => {
+		test('toggleSearchPanel clears pending focus and only schedules a new one when opening', () => {
 			const dispatch = jest.fn();
+			const cancelScheduledFocus = jest.fn();
 			const scheduleFocus = jest.fn();
 			const focusSearchInput = jest.fn();
 
 			toggleSearchPanel({
 				isSearchExpanded: false,
 				dispatch,
+				cancelScheduledFocus,
 				scheduleFocus,
 				focusDelayMs: 100,
 				focusSearchInput,
 			});
 
+			expect(cancelScheduledFocus).toHaveBeenCalledTimes(1);
 			expect(dispatch).toHaveBeenCalledWith({ type: 'TOGGLE_PANEL' });
 			expect(scheduleFocus).toHaveBeenCalledWith(focusSearchInput, 100);
 
+			cancelScheduledFocus.mockClear();
 			dispatch.mockClear();
 			scheduleFocus.mockClear();
 			toggleSearchPanel({
 				isSearchExpanded: true,
 				dispatch,
+				cancelScheduledFocus,
 				scheduleFocus,
 				focusDelayMs: 100,
 				focusSearchInput,
 			});
 
+			expect(cancelScheduledFocus).toHaveBeenCalledTimes(1);
 			expect(dispatch).toHaveBeenCalledWith({ type: 'TOGGLE_PANEL' });
 			expect(scheduleFocus).not.toHaveBeenCalled();
 		});
