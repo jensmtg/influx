@@ -13,12 +13,9 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 }));
 
 describe('ObsidianInfluxSettingsTab', () => {
-	type TestableSettingsTab = ObsidianInfluxSettingsTab & {
-		handleFrontmatterPropertiesBlur: (inputEl: HTMLInputElement) => Promise<void>;
-		applyDisplayModeSetting: (value: string) => Promise<void>;
+	type MockInputEl = Pick<HTMLInputElement, 'value' | 'classList' | 'closest'> & {
+		onblur?: (e: FocusEvent) => void;
 	};
-
-	type MockInputEl = Pick<HTMLInputElement, 'value' | 'classList' | 'closest'>;
 	type MockDocumentFragment = Pick<DocumentFragment, 'append'>;
 	type MockDocument = Pick<Document, 'createDocumentFragment' | 'createElement'>;
 
@@ -63,7 +60,151 @@ describe('ObsidianInfluxSettingsTab', () => {
 		const app = {} as App;
 		return {
 			plugin,
-			tab: new ObsidianInfluxSettingsTab(app, plugin) as TestableSettingsTab,
+			tab: new ObsidianInfluxSettingsTab(app, plugin),
+		};
+	};
+
+	const installMockDocument = () => {
+		const originalDocument = global.document;
+		const mockDocument: MockDocument = {
+			createDocumentFragment: jest.fn((): MockDocumentFragment => ({ append: jest.fn() })),
+			createElement: jest.fn(() => ({
+				href: '',
+				text: '',
+				classList: { add: jest.fn() },
+				style: {},
+			}))
+		};
+
+		(global as typeof globalThis & { document: Document }).document = mockDocument as Document;
+
+		return () => {
+			(global as typeof globalThis & { document?: Document }).document = originalDocument;
+		};
+	};
+
+	const mockSettingsContainerElements = (tab: ObsidianInfluxSettingsTab) => {
+		(tab.containerEl.createEl as jest.Mock).mockImplementation((tag: string, options?: { text?: string }) => {
+			if (tag === 'details') {
+				return {
+					createEl: jest.fn(),
+					createDiv: jest.fn(() => ({ createEl: jest.fn() })),
+				};
+			}
+
+			return {
+				tag,
+				text: options?.text,
+				appendChild: jest.fn(),
+				querySelector: jest.fn(),
+				createDiv: jest.fn(() => ({ createEl: jest.fn() })),
+			};
+		});
+	};
+
+	const captureDisplayInteractions = (options?: { frontmatterInputEl?: MockInputEl }) => {
+		const originalSettingImplementation = (Setting as jest.Mock).getMockImplementation();
+		const dropdownChanges = new Map<string, (value: string) => Promise<void> | void>();
+		const textInputs = new Map<string, MockInputEl>();
+
+		(Setting as jest.Mock).mockImplementation(() => {
+			let settingName = '';
+			const instance: {
+				settingEl: { style: { display: string } };
+				setName: jest.Mock;
+				setDesc: jest.Mock;
+				addText: jest.Mock;
+				addTextArea: jest.Mock;
+				addToggle: jest.Mock;
+				addDropdown: jest.Mock;
+			} = {
+				settingEl: { style: { display: '' } },
+				setName: jest.fn((name: string) => {
+					settingName = name;
+					return instance;
+				}),
+				setDesc: jest.fn(() => instance),
+				addText: jest.fn((cb: (component: {
+					setPlaceholder: jest.Mock;
+					setValue: jest.Mock;
+					onChange: jest.Mock;
+					onInput: jest.Mock;
+					inputEl: MockInputEl;
+				}) => void) => {
+					const inputEl = settingName === 'Frontmatter properties'
+						? (options?.frontmatterInputEl ?? {
+							value: '',
+							classList: { add: jest.fn(), remove: jest.fn() },
+							closest: jest.fn().mockReturnValue(null),
+						})
+						: {
+							value: '',
+							classList: { add: jest.fn(), remove: jest.fn() },
+							closest: jest.fn().mockReturnValue(null),
+						};
+					const component = {
+						setPlaceholder: jest.fn().mockReturnThis(),
+						setValue: jest.fn().mockReturnThis(),
+						onChange: jest.fn().mockReturnThis(),
+						onInput: jest.fn().mockReturnThis(),
+						inputEl,
+					};
+					cb(component);
+					textInputs.set(settingName, inputEl);
+					return instance;
+				}),
+				addTextArea: jest.fn((cb: (component: {
+					setPlaceholder: jest.Mock;
+					setValue: jest.Mock;
+					inputEl: { setAttr: jest.Mock; onblur?: (e: FocusEvent) => void };
+				}) => void) => {
+					cb({
+						setPlaceholder: jest.fn().mockReturnThis(),
+						setValue: jest.fn().mockReturnThis(),
+						inputEl: { setAttr: jest.fn() },
+					});
+					return instance;
+				}),
+				addToggle: jest.fn((cb: (component: { setValue: jest.Mock; onChange: jest.Mock }) => void) => {
+					cb({
+						setValue: jest.fn().mockReturnThis(),
+						onChange: jest.fn().mockReturnThis(),
+					});
+					return instance;
+				}),
+				addDropdown: jest.fn((cb: (component: {
+					addOption: jest.Mock;
+					setValue: jest.Mock;
+					onChange: jest.Mock;
+				}) => void) => {
+					let onChangeHandler: ((value: string) => Promise<void> | void) | undefined;
+					const dropdown = {
+						addOption: jest.fn().mockReturnThis(),
+						setValue: jest.fn().mockReturnThis(),
+						onChange: jest.fn((handler: (value: string) => Promise<void> | void) => {
+							onChangeHandler = handler;
+							return dropdown;
+						}),
+					};
+					cb(dropdown);
+					if (onChangeHandler) {
+						dropdownChanges.set(settingName, onChangeHandler);
+					}
+					return instance;
+				}),
+			};
+
+			return instance;
+		});
+
+		return {
+			dropdownChanges,
+			textInputs,
+			restore: () => {
+				if (originalSettingImplementation) {
+					(Setting as jest.Mock).mockImplementation(originalSettingImplementation);
+				}
+			},
 		};
 	};
 
@@ -144,8 +285,9 @@ describe('ObsidianInfluxSettingsTab', () => {
 		expect(plugin.saveSettingsByParams).toHaveBeenCalledWith(plugin.data.settings, { triggerUpdates: true });
 	});
 
-	test('handleFrontmatterPropertiesBlur keeps valid names and marks invalid input', async () => {
+	test('frontmatter properties blur keeps valid names and marks invalid input', async () => {
 		const { tab, plugin } = createTab();
+		const restoreDocument = installMockDocument();
 
 		const warningEl = { textContent: '' };
 		const settingContainer = {
@@ -160,8 +302,19 @@ describe('ObsidianInfluxSettingsTab', () => {
 			},
 			closest: jest.fn().mockReturnValue(settingContainer),
 		};
+		const interactions = captureDisplayInteractions({ frontmatterInputEl: inputEl });
 
-		await tab.handleFrontmatterPropertiesBlur(inputEl as HTMLInputElement);
+		try {
+			mockSettingsContainerElements(tab);
+			tab.display();
+			const frontmatterInput = interactions.textInputs.get('Frontmatter properties');
+			expect(frontmatterInput?.onblur).toBeTruthy();
+
+			await frontmatterInput?.onblur?.({ target: frontmatterInput } as FocusEvent);
+		} finally {
+			interactions.restore();
+			restoreDocument();
+		}
 
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'valid_name']);
 		expect(inputEl.classList.add).toHaveBeenCalledWith('is-invalid');
@@ -172,8 +325,9 @@ describe('ObsidianInfluxSettingsTab', () => {
 		);
 	});
 
-	test('handleFrontmatterPropertiesBlur clears warning for fully valid input', async () => {
+	test('frontmatter properties blur clears warning for fully valid input', async () => {
 		const { tab, plugin } = createTab();
+		const restoreDocument = installMockDocument();
 
 		const remove = jest.fn();
 		const warningEl = { remove };
@@ -189,8 +343,19 @@ describe('ObsidianInfluxSettingsTab', () => {
 			},
 			closest: jest.fn().mockReturnValue(settingContainer),
 		};
+		const interactions = captureDisplayInteractions({ frontmatterInputEl: inputEl });
 
-		await tab.handleFrontmatterPropertiesBlur(inputEl as HTMLInputElement);
+		try {
+			mockSettingsContainerElements(tab);
+			tab.display();
+			const frontmatterInput = interactions.textInputs.get('Frontmatter properties');
+			expect(frontmatterInput?.onblur).toBeTruthy();
+
+			await frontmatterInput?.onblur?.({ target: frontmatterInput } as FocusEvent);
+		} finally {
+			interactions.restore();
+			restoreDocument();
+		}
 
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'see_also', 'references-2']);
 		expect(inputEl.classList.remove).toHaveBeenCalledWith('is-invalid');
@@ -199,9 +364,21 @@ describe('ObsidianInfluxSettingsTab', () => {
 
 	test('display mode only opens sidebar after settings save succeeds', async () => {
 		const { tab, plugin } = createTab();
+		const restoreDocument = installMockDocument();
+		const interactions = captureDisplayInteractions();
 		plugin.saveSettingsByParams.mockResolvedValueOnce(false);
 
-		await tab.applyDisplayModeSetting('sidebar');
+		try {
+			mockSettingsContainerElements(tab);
+			tab.display();
+			const changeDisplayMode = interactions.dropdownChanges.get('Influx display location');
+			expect(changeDisplayMode).toBeTruthy();
+
+			await changeDisplayMode?.('sidebar');
+		} finally {
+			interactions.restore();
+			restoreDocument();
+		}
 
 		expect(plugin.openSidebar).not.toHaveBeenCalled();
 		expect(plugin.data.settings.showInfluxInSidebar).toBe(false);
