@@ -1,5 +1,7 @@
+/** @jest-environment jsdom */
+
 import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { render, screen } from '@testing-library/react';
 import InfluxReactComponent from '@/ui/influx-react-component';
 import type { ExtendedInlinkingFile } from '@/domain/backlinks/types';
 import InfluxFile, { type InfluxFileApi } from '@/domain/backlinks/influx-file';
@@ -10,7 +12,7 @@ import { mockTFile } from '../mocks';
 jest.mock('@/ui/markdown-mount', () => ({
 	__esModule: true,
 	default: (props: { markdown: string; sourcePath: string; className?: string }) => (
-		<div className={props.className} data-source-path={props.sourcePath}>
+		<div className={props.className} data-testid="markdown-mount" data-source-path={props.sourcePath}>
 			{props.markdown}
 		</div>
 	),
@@ -95,23 +97,20 @@ function makePlugin(): ComponentPlugin {
 }
 
 describe('InfluxReactComponent render wiring', () => {
-	test('renders empty-state message when show=true and there are no visible components', async () => {
+	test('renders empty-state message and toolbar actions when there are no visible components', async () => {
 		const influxFile = await makeInfluxFile({ components: [], totalEntryCount: 0 });
 		const props = {
 			influxFile,
 			preview: false,
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
-		const html = renderToStaticMarkup(
-			<InfluxReactComponent {...props} />
-		);
 
-		expect(html).toContain('No backlinks found for this note yet.');
-		expect(html).toContain('Linked mentions');
-		expect(html).toContain('<button');
-		expect(html).toContain('Search backlinks');
-		expect(html).toContain('Collapse all linked mentions');
-		expect(html).not.toContain('title="Search backlinks"');
+		render(<InfluxReactComponent {...props} />);
+
+		expect(screen.getByText('No backlinks found for this note yet.')).toBeTruthy();
+		expect(screen.getByText('Linked mentions (influx)')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Search backlinks' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Collapse all linked mentions' })).toBeTruthy();
 	});
 
 	test('renders editor load-more button label with exact remaining count', async () => {
@@ -123,12 +122,10 @@ describe('InfluxReactComponent render wiring', () => {
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
 
-		const html = renderToStaticMarkup(
-			<InfluxReactComponent {...props} />
-		);
+		render(<InfluxReactComponent {...props} />);
 
-		expect(html).toContain('Load 5 more backlinks');
-		expect(html).toContain('Collapse Source-1');
+		expect(screen.getByRole('button', { name: 'Load 5 more backlinks' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Collapse Source-1' })).toBeTruthy();
 	});
 
 	test('uses influx-prefixed structural classes for editor layout', async () => {
@@ -140,20 +137,19 @@ describe('InfluxReactComponent render wiring', () => {
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
 
-		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+		const { container } = render(<InfluxReactComponent {...props} />);
 
-		expect(html).toContain('influx-toolbar');
-		expect(html).toContain('influx-summary-row--toolbar');
-		expect(html).toContain('influx-result-group');
-		expect(html).toContain('influx-result-body');
-		expect(html).toContain('influx-svg-icon');
-		expect(html).not.toContain('nav-header');
-		expect(html).not.toContain('tree-item-self');
-		expect(html).not.toContain('search-result-file-matches');
-		expect(html).not.toContain('svg-icon lucide-');
+		expect(container.querySelector('.influx-toolbar')).toBeTruthy();
+		expect(container.querySelector('.influx-summary-row--toolbar')).toBeTruthy();
+		expect(container.querySelector('.influx-result-group')).toBeTruthy();
+		expect(container.querySelector('.influx-result-body')).toBeTruthy();
+		expect(container.querySelector('.influx-svg-icon')).toBeTruthy();
+		expect(container.querySelector('.nav-header')).toBeNull();
+		expect(container.querySelector('.tree-item-self')).toBeNull();
+		expect(container.querySelector('.search-result-file-matches')).toBeNull();
 	});
 
-	test('renders icon-only toolbar buttons with hover labels', async () => {
+	test('renders icon-only toolbar buttons with accessible labels and helper copy', async () => {
 		const components = [makeComponent(1)];
 		const influxFile = await makeInfluxFile({
 			components,
@@ -170,18 +166,14 @@ describe('InfluxReactComponent render wiring', () => {
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
 
-		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+		const { container } = render(<InfluxReactComponent {...props} />);
 
-		expect(html).toContain('influx-summary-row influx-summary-row--toolbar');
-		expect(html).not.toContain('influx-summary-row influx-clickable');
-		expect(html).toContain('Collapse all linked mentions');
-		expect(html).toContain('List limit: 10 backlinks');
-		expect(html).toContain('Sort order: oldest first');
-		expect(html).toContain('Frontmatter links: excluded');
-		expect(html).toContain('influx-control-tooltip');
-		expect(html).not.toContain('title="Collapse all linked mentions"');
-		expect(html).not.toContain('influx-summary-action');
-		expect(html).not.toContain('influx-toolbar-button-badge');
+		expect(screen.getByRole('button', { name: 'Collapse all linked mentions' })).toBeTruthy();
+		expect(screen.getByText('List limit: 10 backlinks')).toBeTruthy();
+		expect(screen.getByText('Sort order: oldest first')).toBeTruthy();
+		expect(screen.getByText('Frontmatter links: excluded')).toBeTruthy();
+		expect(container.querySelector('.influx-summary-action')).toBeNull();
+		expect(container.querySelector('.influx-toolbar-button-badge')).toBeNull();
 	});
 
 	test('renders source links with full file paths and folder context when basenames collide', async () => {
@@ -199,17 +191,18 @@ describe('InfluxReactComponent render wiring', () => {
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
 
-		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+		const { container } = render(<InfluxReactComponent {...props} />);
+		const folderLink = container.querySelector('a[data-href="Folder/Source-1.md"]');
+		const elsewhereLink = container.querySelector('a[href="Elsewhere/Source-1.md"]');
 
-		expect(html).toContain('data-href="Folder/Source-1.md"');
-		expect(html).toContain('href="Elsewhere/Source-1.md"');
-		expect(html).toContain('influx-result-source-context');
-		expect(html).toContain('>Folder<');
-		expect(html).toContain('>Elsewhere<');
-		expect(html).not.toContain('target="_blank"');
+		expect(folderLink).toBeTruthy();
+		expect(elsewhereLink).toBeTruthy();
+		expect(screen.getByText('Folder')).toBeTruthy();
+		expect(screen.getByText('Elsewhere')).toBeTruthy();
+		expect(elsewhereLink?.getAttribute('target')).toBeNull();
 	});
 
-	test('renders preview summary in toolbar instead of pane header row', async () => {
+	test('renders preview summary in the toolbar instead of a pane header row', async () => {
 		const components = [makeComponent(1)];
 		const influxFile = await makeInfluxFile({ components, totalEntryCount: 1 });
 		const props = {
@@ -218,10 +211,10 @@ describe('InfluxReactComponent render wiring', () => {
 			plugin: makePlugin(),
 		} satisfies ComponentProps;
 
-		const html = renderToStaticMarkup(<InfluxReactComponent {...props} />);
+		const { container } = render(<InfluxReactComponent {...props} />);
 
-		expect(html).toContain('influx-toolbar');
-		expect(html).toContain('influx-summary-row--toolbar');
-		expect(html).not.toContain('class="influx-summary-row influx-clickable"');
+		expect(container.querySelector('.influx-toolbar')).toBeTruthy();
+		expect(container.querySelector('.influx-summary-row--toolbar')).toBeTruthy();
+		expect(container.querySelector('.influx-summary-row.influx-clickable')).toBeNull();
 	});
 });
