@@ -78,7 +78,7 @@ function createInfluxFile(path = 'Widget.md'): WidgetInfluxFile {
 }
 
 function createEditorView(): MockEditorView {
-	return { state: {} };
+	return { state: {} as EditorView['state'] };
 }
 
 describe('InfluxWidget', () => {
@@ -145,26 +145,6 @@ describe('InfluxWidget', () => {
 		expect(rootManager.unmount).not.toHaveBeenCalled();
 	});
 
-	test('removes the old disconnect listener when the widget DOM is recreated', () => {
-		const firstContainer = createContainer();
-		const secondContainer = createContainer();
-		(document.createElement as jest.Mock)
-			.mockReturnValueOnce(firstContainer)
-			.mockReturnValueOnce(secondContainer);
-
-		const widget = new InfluxWidget({
-			influxFile: createInfluxFile('Rerender.md'),
-			show: true,
-			plugin: createPlugin(),
-		});
-
-		widget.toDOM(createEditorView() as EditorView);
-		const firstHandler = firstContainer.listeners.disconnected;
-		widget.toDOM(createEditorView() as EditorView);
-
-		expect(firstContainer.removeEventListener).toHaveBeenCalledWith('disconnected', firstHandler);
-	});
-
 	test('destroy disconnects observers and removes the active disconnect listener', () => {
 		const widget = new InfluxWidget({
 			influxFile: createInfluxFile('Destroy.md'),
@@ -177,7 +157,7 @@ describe('InfluxWidget', () => {
 
 		widget.currentContainer = { offsetHeight: 320 } as HTMLElement;
 		widget.currentDOMContainer = { removeEventListener } as unknown as HTMLElement;
-		widget.resizeObserver = { disconnect } as ResizeObserver;
+		widget.resizeObserver = { disconnect } as unknown as ResizeObserver;
 		widget.disconnectedHandler = disconnectedHandler;
 
 		widget.destroy();

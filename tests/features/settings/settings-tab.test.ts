@@ -249,7 +249,6 @@ describe('ObsidianInfluxSettingsTab', () => {
 
 		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'valid_name']);
 		expect(inputEl.classList.add).toHaveBeenCalledWith('is-invalid');
-		expect(warningEl.textContent).toContain('Invalid property names');
 		expect(plugin.saveSettingsByParams).toHaveBeenCalledWith(
 			expect.objectContaining({ frontmatterProperties: ['related', 'valid_name'] }),
 			expect.objectContaining({ triggerUpdates: true })

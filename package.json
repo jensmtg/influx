@@ -6,7 +6,8 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -p tsconfig.build.json --noEmit --skipLibCheck && node esbuild.config.mjs production",
+		"build": "tsc -p tsconfig.json --noEmit --skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -p tsconfig.json --noEmit --skipLibCheck",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test": "jest",
 		"test:coverage": "jest --coverage",

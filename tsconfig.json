@@ -2,6 +2,9 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
@@ -23,6 +26,13 @@
     ],
   },
   "include": [
-    "**/*.ts", "**/*.tsx"
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "tests",
+    "node_modules",
+    "coverage",
+    "docs"
   ]
 }
