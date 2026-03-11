@@ -28,9 +28,38 @@ body .markdown-preview-sizer:has(.influx-preview-wrapper) {
 }
 
 /* Keep wrapper aligned when readable line length is enabled */
-body.is-readable-line-width .influx-preview-wrapper {
+:is(
+	body.is-readable-line-width,
+	.markdown-reading-view.is-readable-line-width,
+	.markdown-preview-view.is-readable-line-width
+) .influx-preview-wrapper {
 	max-width: var(--file-line-width);
+	width: 100%;
 	margin-inline: auto;
+}
+
+:is(
+	body.is-readable-line-width,
+	.markdown-reading-view.is-readable-line-width,
+	.markdown-preview-view.is-readable-line-width
+) .influx-component.influx-component--preview {
+	max-width: var(--file-line-width);
+	width: 100%;
+	margin-inline: auto;
+}
+
+:is(
+	body.is-readable-line-width,
+	.markdown-reading-view.is-readable-line-width,
+	.markdown-preview-view.is-readable-line-width
+) .influx-component.influx-component--preview .influx-result-body,
+:is(
+	body.is-readable-line-width,
+	.markdown-reading-view.is-readable-line-width,
+	.markdown-preview-view.is-readable-line-width
+) .influx-component.influx-component--preview .influx-entries {
+	width: 100%;
+	max-width: 100%;
 }
 
 @keyframes fadeIn {
