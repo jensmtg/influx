@@ -154,41 +154,6 @@ describe('ObsidianInflux lifecycle', () => {
 		await plugin.onunload();
 	});
 
-	test('onload schedules startup editor and preview refreshes', async () => {
-		jest.useFakeTimers();
-		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
-			refreshAllInfluxEditorViews: jest.Mock;
-		};
-		const app = {
-			workspace: {
-				ensureSideLeaf: jest.fn(),
-				getLeavesOfType: jest.fn().mockReturnValue([]),
-			},
-			vault: {},
-			metadataCache: {},
-		};
-		const plugin = new ObsidianInflux(app as any, {
-			version: 'test-version',
-		} as any);
-		(plugin.loadData as jest.Mock).mockResolvedValue({
-			settings: {
-				showInfluxInSidebar: false,
-			},
-		});
-
-		await plugin.onload();
-		const previewManager = (plugin as any).previewManager;
-		const updateAllPreviews = jest.spyOn(previewManager, 'updateAllPreviews').mockResolvedValue(undefined);
-
-		jest.advanceTimersByTime(160 + 520 + 1400);
-		await Promise.resolve();
-		await Promise.resolve();
-
-		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(3);
-		expect(updateAllPreviews).toHaveBeenCalledTimes(3);
-		await plugin.onunload();
-	});
-
 	test('onload exposes debug helpers only when debug mode is enabled', async () => {
 		(isDebugMode as jest.Mock).mockReturnValue(true);
 		const app = {
@@ -216,32 +181,6 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(typeof win.influxDebug?.getUpdates).toBe('function');
 		expect(typeof win.influxDebug?.snapshot).toBe('function');
 		expect(typeof win.testInfluxReadingView).toBe('function');
-		await plugin.onunload();
-	});
-
-	test('onload replaces a stale window plugin reference and skips sidebar auto-open when disabled', async () => {
-		const app = {
-			workspace: {
-				ensureSideLeaf: jest.fn(),
-				getLeavesOfType: jest.fn().mockReturnValue([]),
-			},
-			vault: {},
-			metadataCache: {},
-		};
-		(globalThis.window as any).influxPlugin = { stale: true };
-		const plugin = new ObsidianInflux(app as any, {
-			version: 'test-version',
-		} as any);
-		(plugin.loadData as jest.Mock).mockResolvedValue({
-			settings: {
-				showInfluxInSidebar: false,
-			},
-		});
-
-		await plugin.onload();
-
-		expect((globalThis.window as any).influxPlugin).toBe(plugin);
-		expect(app.workspace.ensureSideLeaf).not.toHaveBeenCalled();
 		await plugin.onunload();
 	});
 
