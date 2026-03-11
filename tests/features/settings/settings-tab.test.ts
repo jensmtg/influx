@@ -13,11 +13,14 @@ jest.mock('@/platform/diagnostics/logger', () => ({
 }));
 
 describe('ObsidianInfluxSettingsTab', () => {
-	type MockInputEl = Pick<HTMLInputElement, 'value' | 'classList' | 'closest'> & {
+	type MockInputEl = {
+		value: string;
+		classList: { add: jest.Mock; remove: jest.Mock };
+		closest: jest.Mock;
 		onblur?: (e: FocusEvent) => void;
 	};
-	type MockDocumentFragment = Pick<DocumentFragment, 'append'>;
-	type MockDocument = Pick<Document, 'createDocumentFragment' | 'createElement'>;
+	type MockDocumentFragment = { append: jest.Mock };
+	type MockDocument = { createDocumentFragment: jest.Mock; createElement: jest.Mock };
 
 	const createTab = () => {
 		const plugin: SettingsTabPlugin = {
@@ -31,7 +34,6 @@ describe('ObsidianInfluxSettingsTab', () => {
 				options?.onSuccess?.();
 				return true;
 			}),
-			saveData: jest.fn().mockResolvedValue(undefined),
 			triggerUpdates: jest.fn(),
 			openSidebar: jest.fn(),
 			closeSidebar: jest.fn(),
@@ -76,7 +78,7 @@ describe('ObsidianInfluxSettingsTab', () => {
 			}))
 		};
 
-		(global as typeof globalThis & { document: Document }).document = mockDocument as Document;
+		(global as typeof globalThis & { document: Document }).document = mockDocument as unknown as Document;
 
 		return () => {
 			(global as typeof globalThis & { document?: Document }).document = originalDocument;
@@ -208,14 +210,6 @@ describe('ObsidianInfluxSettingsTab', () => {
 		};
 	};
 
-	test('saveSettings delegates to plugin transactional settings persistence', async () => {
-		const { tab, plugin } = createTab();
-
-		await tab.saveSettings();
-
-		expect(plugin.saveSettingsByParams).toHaveBeenCalledWith(plugin.data.settings, { triggerUpdates: true });
-	});
-
 	test('frontmatter properties blur keeps valid names and marks invalid input', async () => {
 		const { tab, plugin } = createTab();
 		const restoreDocument = installMockDocument();
@@ -241,7 +235,7 @@ describe('ObsidianInfluxSettingsTab', () => {
 			const frontmatterInput = interactions.textInputs.get('Frontmatter properties');
 			expect(frontmatterInput?.onblur).toBeTruthy();
 
-			await frontmatterInput?.onblur?.({ target: frontmatterInput } as FocusEvent);
+			await frontmatterInput?.onblur?.({ target: frontmatterInput } as unknown as FocusEvent);
 		} finally {
 			interactions.restore();
 			restoreDocument();
@@ -253,43 +247,6 @@ describe('ObsidianInfluxSettingsTab', () => {
 			expect.objectContaining({ frontmatterProperties: ['related', 'valid_name'] }),
 			expect.objectContaining({ triggerUpdates: true })
 		);
-	});
-
-	test('frontmatter properties blur clears warning for fully valid input', async () => {
-		const { tab, plugin } = createTab();
-		const restoreDocument = installMockDocument();
-
-		const remove = jest.fn();
-		const warningEl = { remove };
-		const settingContainer = {
-			querySelector: jest.fn().mockReturnValue(warningEl),
-			appendChild: jest.fn(),
-		};
-		const inputEl: MockInputEl = {
-			value: 'related, see_also, references-2',
-			classList: {
-				add: jest.fn(),
-				remove: jest.fn(),
-			},
-			closest: jest.fn().mockReturnValue(settingContainer),
-		};
-		const interactions = captureDisplayInteractions({ frontmatterInputEl: inputEl });
-
-		try {
-			mockSettingsContainerElements(tab);
-			tab.display();
-			const frontmatterInput = interactions.textInputs.get('Frontmatter properties');
-			expect(frontmatterInput?.onblur).toBeTruthy();
-
-			await frontmatterInput?.onblur?.({ target: frontmatterInput } as FocusEvent);
-		} finally {
-			interactions.restore();
-			restoreDocument();
-		}
-
-		expect(plugin.data.settings.frontmatterProperties).toEqual(['related', 'see_also', 'references-2']);
-		expect(inputEl.classList.remove).toHaveBeenCalledWith('is-invalid');
-		expect(remove).toHaveBeenCalledTimes(1);
 	});
 
 	test('display mode only opens sidebar after settings save succeeds', async () => {

@@ -105,6 +105,7 @@ export class AsyncViewPluginController {
 			this.initialRefreshAttempt += 1;
 			this.runImmediateRefresh(this.view.state, { scheduleStabilization: true });
 		}, delay);
+		this.initialRefreshTimer.unref?.();
 	}
 
 	private clearInitialRefreshTimer(): void {

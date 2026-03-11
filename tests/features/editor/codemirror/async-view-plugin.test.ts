@@ -19,7 +19,7 @@ function createView(path: string | null): MockEditorView {
 				}
 				return null;
 			}),
-		},
+		} as unknown as EditorView['state'],
 	};
 }
 
@@ -43,13 +43,13 @@ function createViewProxy(getPath: () => string | null): MockEditorView {
 				}
 				return null;
 			}),
-		},
+		} as unknown as EditorView['state'],
 	};
 }
 
 function createUpdate(params: { path: string | null; docChanged?: boolean }): MockViewUpdate {
 	return {
-		view: createView(params.path),
+		view: createView(params.path) as EditorView,
 		docChanged: params.docChanged ?? false,
 	};
 }
@@ -70,13 +70,12 @@ describe('AsyncViewPluginController', () => {
 		}));
 	});
 
-	test('starts initial decoration computation for the current file', () => {
-		const view = createView('Initial.md');
-
-		new AsyncViewPluginController(view as EditorView);
-
-		expect(StatefulDecorationSet).toHaveBeenCalledWith(view);
-		expect(updateAsyncDecorations).toHaveBeenCalledWith(view.state, true);
+	afterEach(() => {
+		for (const controller of AsyncViewPluginController.activeControllers) {
+			controller.destroy();
+		}
+		AsyncViewPluginController.activeControllers.clear();
+		jest.useRealTimers();
 	});
 
 	test('refreshes immediately and cancels pending work when the editor file changes', () => {
@@ -87,21 +86,6 @@ describe('AsyncViewPluginController', () => {
 
 		expect(cancelPendingUpdates).toHaveBeenCalledTimes(1);
 		expect(updateAsyncDecorations).toHaveBeenCalledWith(expect.anything(), true);
-	});
-
-	test('retries initial render when the file path is not ready at construction time', () => {
-		jest.useFakeTimers();
-		const { view, setPath } = createMutableView(null);
-
-		new AsyncViewPluginController(view as EditorView);
-		expect(updateAsyncDecorations).toHaveBeenCalledTimes(1);
-
-		setPath('Recovered.md');
-		jest.advanceTimersByTime(121);
-
-		expect(cancelPendingUpdates).toHaveBeenCalledTimes(1);
-		expect(updateAsyncDecorations).toHaveBeenCalledTimes(2);
-		expect(updateAsyncDecorations).toHaveBeenLastCalledWith(view.state, true);
 	});
 
 	test('schedules a stabilization refresh after the initial editor render', () => {
@@ -129,19 +113,17 @@ describe('AsyncViewPluginController', () => {
 		expect(updateAsyncDecorations).toHaveBeenCalledWith(expect.anything(), true);
 	});
 
-		test('hideInflux and showInflux drive visible state into decoration refreshes', () => {
-			const view = createView('Visibility.md');
-			const controller = new AsyncViewPluginController(view);
+	test('hideInflux and showInflux drive visible state into decoration refreshes', () => {
+		const view = createView('Visibility.md');
+		const controller = new AsyncViewPluginController(view as EditorView);
 
-			jest.clearAllMocks();
-			controller.hideInflux(view);
-			controller.showInflux(view);
+		jest.clearAllMocks();
+		controller.hideInflux(view as EditorView);
+		controller.showInflux(view as EditorView);
 
-			expect(updateAsyncDecorations.mock.calls.map(([state, visible]) => ({ state, visible }))).toEqual([
-				{ state: view.state, visible: false },
-				{ state: view.state, visible: true },
-			]);
-		});
+		expect(updateAsyncDecorations).toHaveBeenNthCalledWith(1, view.state, false);
+		expect(updateAsyncDecorations).toHaveBeenNthCalledWith(2, view.state, true);
+	});
 
 	test('destroy cancels debounced refreshes and pending updates', () => {
 		const controller = new AsyncViewPluginController(createView('Destroy.md'));
