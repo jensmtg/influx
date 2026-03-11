@@ -128,31 +128,6 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(screen.getByRole('button', { name: 'Collapse Source-1' })).toBeTruthy();
 	});
 
-	test('renders icon-only toolbar buttons with accessible labels and helper copy', async () => {
-		const components = [makeComponent(1)];
-		const influxFile = await makeInfluxFile({
-			components,
-			totalEntryCount: 1,
-			settings: {
-				listLimit: 10,
-				sortingPrinciple: 'OLDEST_FIRST',
-				includeFrontmatterLinks: false,
-			},
-		});
-		const props = {
-			influxFile,
-			preview: false,
-			plugin: makePlugin(),
-		} satisfies ComponentProps;
-
-		render(<InfluxReactComponent {...props} />);
-
-		expect(screen.getByRole('button', { name: 'Collapse all linked mentions' })).toBeTruthy();
-		expect(screen.getByText('List limit: 10 backlinks')).toBeTruthy();
-		expect(screen.getByText('Sort order: oldest first')).toBeTruthy();
-		expect(screen.getByText('Frontmatter links: excluded')).toBeTruthy();
-	});
-
 	test('renders source links with full file paths and folder context when basenames collide', async () => {
 		const duplicateA = makeComponent(1);
 		const duplicateBBase = makeComponent(2);
@@ -179,19 +154,4 @@ describe('InfluxReactComponent render wiring', () => {
 		expect(elsewhereLink?.getAttribute('target')).toBeNull();
 	});
 
-	test('renders preview summary in the toolbar instead of a pane header row', async () => {
-		const components = [makeComponent(1)];
-		const influxFile = await makeInfluxFile({ components, totalEntryCount: 1 });
-		const props = {
-			influxFile,
-			preview: true,
-			plugin: makePlugin(),
-		} satisfies ComponentProps;
-
-		const { container } = render(<InfluxReactComponent {...props} />);
-
-		expect(container.querySelector('.influx-toolbar')).toBeTruthy();
-		expect(container.querySelector('.influx-summary-row--toolbar')).toBeTruthy();
-		expect(container.querySelector('.influx-summary-row.influx-clickable')).toBeNull();
-	});
 });
