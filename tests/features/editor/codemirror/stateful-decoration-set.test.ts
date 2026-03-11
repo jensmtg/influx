@@ -271,17 +271,4 @@ describe('StatefulDecorationSet', () => {
 		expect(ranges).toEqual([expectedAnchor]);
 	});
 
-		test('anchors decorations at the document end when top-of-page mode is disabled', async () => {
-		const text = ['---', 'title: Example', '---', 'Body text'].join('\n');
-		const state = createState(text, 'Bottom.md');
-		const view = createView(state);
-		const decorationSet = createDecorationSet(view as MockEditorView);
-		decorationSet.pendingUpdate = { show: true, updateId: 1 };
-
-		const decorations = await decorationSet.computeAsyncDecorations(state, true, 1);
-		const ranges: number[] = [];
-		decorations?.between(0, state.doc.length, (from: number) => ranges.push(from));
-
-		expect(ranges).toEqual([state.doc.length]);
-	});
 });

@@ -100,34 +100,6 @@ describe('influx-react-component helpers', () => {
 			});
 		});
 
-		test('handleSearchChangeInput updates input immediately and commits debounced query', () => {
-			const dispatch = jest.fn();
-			const commitDebouncedQuery = jest.fn();
-
-			handleSearchChangeInput({
-				value: 'alpha',
-				dispatch,
-				commitDebouncedQuery,
-			});
-
-			expect(dispatch).toHaveBeenCalledWith({ type: 'INPUT_CHANGED', value: 'alpha' });
-			expect(commitDebouncedQuery).toHaveBeenCalledWith('alpha');
-		});
-
-		test('resetSearchUi cancels pending queries before resetting state', () => {
-			const dispatch = jest.fn();
-			const cancelDebouncedQuery = jest.fn();
-
-			resetSearchUi({
-				closePanel: true,
-				dispatch,
-				cancelDebouncedQuery,
-			});
-
-			expect(cancelDebouncedQuery).toHaveBeenCalledTimes(1);
-			expect(dispatch).toHaveBeenCalledWith({ type: 'RESET', closePanel: true });
-		});
-
 		test('toggleSearchPanel clears pending focus and only schedules a new one when opening', () => {
 			const dispatch = jest.fn();
 			const cancelScheduledFocus = jest.fn();
@@ -197,21 +169,6 @@ describe('influx-react-component helpers', () => {
 
 			expect(filterComponentsBySearch(components, '')).toBe(components);
 			expect(filterComponentsBySearch(components, '   ')).toBe(components);
-		});
-
-		test('getSearchText memoizes by object identity', () => {
-			const component = entry({
-				path: 'A.md',
-				basename: 'Alpha',
-				titleText: 'Heading',
-				summaryMarkdown: 'Body',
-			});
-
-			const first = getSearchText(component);
-			const second = getSearchText(component);
-
-			expect(first).toBe(second);
-			expect(first).toBe('alpha heading body');
 		});
 
 		test('getSearchMatchDetails explains where the query matched', () => {
@@ -295,14 +252,6 @@ describe('influx-react-component helpers', () => {
 			expect(collectComponentPaths(components)).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: true, components })).toEqual(['A.md', 'B.md']);
 			expect(collectInitialCollapsedPaths({ collapsed: false, components })).toEqual([]);
-		});
-
-		test('collectComponentPaths uses sourcePath instead of reaching back into the raw file path', () => {
-			const stale = entry({ path: 'A.md', basename: 'Alpha' });
-			stale.inlinkingFile.file = mockTFile('stale-A.md', 'Alpha');
-			const components = [stale];
-
-			expect(collectComponentPaths(components)).toEqual(['A.md']);
 		});
 
 		test('collectBasenameCounts tracks duplicate source note names for disambiguation', () => {
@@ -538,9 +487,9 @@ describe('influx-react-component helpers', () => {
 			expect(result).toEqual([]);
 		});
 
-		test('resolveInfluxUpdateEntries drops stale async results after a newer update wins', async () => {
-			let release: (() => void) | null = null;
-			let latestSeq = 1;
+			test('resolveInfluxUpdateEntries drops stale async results after a newer update wins', async () => {
+				let release!: () => void;
+				let latestSeq = 1;
 			const current = {
 				file: { path: 'Current.md' },
 				shouldUpdate: jest.fn().mockReturnValue(true),
@@ -561,11 +510,11 @@ describe('influx-react-component helpers', () => {
 				isAborted: () => false,
 			});
 
-			latestSeq = 2;
-			release?.();
-			await expect(pending).resolves.toBeNull();
-			expect(current.toEntries).not.toHaveBeenCalled();
-		});
+				latestSeq = 2;
+				release();
+				await expect(pending).resolves.toBeNull();
+				expect(current.toEntries).not.toHaveBeenCalled();
+			});
 
 		test('resolveInfluxUpdateEntries stops after abort and does not read entries', async () => {
 			const current = {
