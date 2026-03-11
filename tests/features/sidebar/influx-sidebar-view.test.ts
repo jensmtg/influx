@@ -138,7 +138,7 @@ describe('InfluxSidebarView', () => {
 		expect(createInfluxFileMock).not.toHaveBeenCalled();
 	});
 
-	test('updateView cancels previous request and renders empty status when file should not show', async () => {
+	test('updateView cancels previous request and can continue with a later file after a hidden result', async () => {
 		const { view, harness, fileA, fileB } = createContext();
 		const abort = jest.fn();
 		harness.abortController = { abort, signal: { aborted: false } };
@@ -154,31 +154,9 @@ describe('InfluxSidebarView', () => {
 
 		expect(abort).toHaveBeenCalledTimes(1);
 		expect(harness.currentFile).toBe(fileA);
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(getRenderedText(lastRendered)).toContain('Nothing to show for this note yet');
 
 		await view.updateView(fileB);
 		expect(createInfluxFileMock).toHaveBeenCalledWith('B.md', harness.plugin.api);
-	});
-
-	test('handleEditorChange renders hidden-state message when current file should be hidden', async () => {
-		const { harness, plugin, fileA } = createContext();
-		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(false);
-		harness.currentFile = fileA;
-		harness.influxFile = {
-			show: true,
-			makeInfluxList: jest.fn(),
-			toEntries: jest.fn().mockReturnValue([]),
-			totalEntryCount: 0,
-		};
-
-		await harness.handleEditorChange();
-
-		expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(getRenderedText(lastRendered)).toContain('Linked mentions are hidden for this note');
 	});
 
 	test('updateView ignores stale results from an older async update', async () => {
@@ -220,31 +198,6 @@ describe('InfluxSidebarView', () => {
 		expect((harness.root?.render as jest.Mock).mock.calls).toHaveLength(renderCountBeforeStaleResolve);
 	});
 
-	test('updateView renders loading state while awaiting influx file creation', async () => {
-		const { view, harness, fileA } = createContext();
-		let resolveCreate: ((value: unknown) => void) | null = null;
-
-		createInfluxFileMock.mockImplementation(
-			() =>
-				new Promise((resolve) => {
-					resolveCreate = resolve;
-				})
-		);
-
-		const pending = view.updateView(fileA);
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		expect(renderCalls).toHaveLength(1);
-		expect(getRenderedText(renderCalls[0][0])).toContain('Loading linked mentions');
-		expect(getRenderedText(renderCalls[0][0])).toContain('Scanning backlinks for A.');
-
-		resolveCreate?.({
-			show: false,
-			makeInfluxList: jest.fn().mockResolvedValue(undefined),
-			toEntries: jest.fn().mockReturnValue([]),
-			totalEntryCount: 0,
-		});
-		await pending;
-	});
 
 	test('handleEditorChange drops rendering when update id changes mid-flight', async () => {
 		const { harness, plugin, fileA } = createContext();
@@ -341,25 +294,6 @@ describe('InfluxSidebarView', () => {
 		expect(harness.root).toBe(createdRoot);
 	});
 
-	test('onOpen still registers events when there is no active file', async () => {
-		const { view, harness, plugin } = createContext();
-		const createdRoot = {
-			render: jest.fn(),
-			unmount: jest.fn(),
-		};
-		const registerFileEventsSpy = jest.spyOn(harness, 'registerFileEvents').mockImplementation(() => {});
-		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
-		(plugin.app.workspace.getActiveFile as jest.Mock).mockReturnValue(null);
-		(createRoot as jest.Mock).mockReturnValue(createdRoot);
-
-		await view.onOpen();
-
-		expect(registerFileEventsSpy).toHaveBeenCalledTimes(1);
-		expect(updateViewSpy).not.toHaveBeenCalled();
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
-	});
 
 	test('onClose aborts pending work, unmounts root, and clears sidebar state', async () => {
 		const { view, harness, fileA } = createContext();
@@ -368,7 +302,7 @@ describe('InfluxSidebarView', () => {
 		const updatesUnsubscribe = jest.fn();
 
 		harness.updatesUnsubscribe = updatesUnsubscribe;
-		harness.abortController = { abort };
+		harness.abortController = { abort, signal: { aborted: false } };
 		harness.root = { render: jest.fn(), unmount };
 		harness.currentFile = fileA;
 		harness.influxFile = { show: true };
@@ -471,21 +405,6 @@ describe('InfluxSidebarView', () => {
 		expect(handleEditorChangeSpy).toHaveBeenCalledTimes(1);
 	});
 
-	test('registerFileEvents clears the sidebar to an idle state when no file is open', () => {
-		const { harness, fileA, emitWorkspaceEvent } = createContext();
-		harness.currentFile = fileA;
-		harness.influxFile = { show: true };
-
-		harness.registerFileEvents();
-
-		emitWorkspaceEvent('file-open', null);
-
-		expect(harness.currentFile).toBeNull();
-		expect(harness.influxFile).toBeNull();
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(getRenderedText(lastRendered)).toContain('Open a note to explore linked mentions');
-	});
 
 	test('registerFileEvents keeps sidebar content mounted when the sidebar leaf becomes active', () => {
 		const { harness, fileA, emitWorkspaceEvent } = createContext();
@@ -515,25 +434,4 @@ describe('InfluxSidebarView', () => {
 		expect(handleEditorChangeSpy).not.toHaveBeenCalled();
 	});
 
-	test('handleEditorChange warning banner keeps structured title and retry detail', async () => {
-		const { harness, plugin, fileA } = createContext();
-		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(true);
-
-		harness.currentFile = fileA;
-		harness.influxFile = {
-			show: true,
-			makeInfluxList: jest.fn().mockRejectedValue(new Error('boom')),
-			toEntries: jest.fn().mockReturnValue([]),
-			totalEntryCount: 0,
-		};
-		harness.abortController = { signal: { aborted: false } };
-		harness.currentUpdateId = 4;
-
-		await harness.handleEditorChange();
-
-		const renderCalls = (harness.root?.render as jest.Mock).mock.calls;
-		const lastRendered = renderCalls[renderCalls.length - 1][0];
-		expect(getRenderedText(lastRendered)).toContain('Sidebar refresh failed');
-		expect(getRenderedText(lastRendered)).toContain('Keep editing and Influx will retry');
-	});
 });

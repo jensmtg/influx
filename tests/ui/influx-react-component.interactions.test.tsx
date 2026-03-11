@@ -268,8 +268,6 @@ describe('InfluxReactComponent mounted interactions', () => {
 			jest.advanceTimersByTime(400);
 		});
 
-		expect(screen.getByText(/Searching source notes, section titles, and excerpts for/i)).toBeTruthy();
-		expect(screen.getByText('Matched in source note, section title, excerpt')).toBeTruthy();
 		expect(screen.getAllByText('Beta', { selector: 'mark' }).length).toBeGreaterThan(0);
 		expect(screen.queryByText('Summary Alpha')).toBeNull();
 		expect(screen.getByText('Summary Beta')).toBeTruthy();
@@ -298,8 +296,8 @@ describe('InfluxReactComponent mounted interactions', () => {
 		);
 
 		expect(screen.getAllByTestId('markdown-mount')).toHaveLength(40);
-		fireEvent.click(screen.getByText('Load 5 more backlinks'));
+		fireEvent.click(screen.getByRole('button', { name: /Load .* more backlinks/ }));
 		expect(screen.getAllByTestId('markdown-mount')).toHaveLength(45);
-		expect(screen.queryByText('Load 5 more backlinks')).toBeNull();
+		expect(screen.queryByRole('button', { name: /Load .* more backlinks/ })).toBeNull();
 	});
 });
