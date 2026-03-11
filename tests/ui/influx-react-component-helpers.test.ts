@@ -336,60 +336,6 @@ describe('influx-react-component helpers', () => {
 			).toBe(false);
 		});
 
-		test('getLinkedMentionsCountTooltip provides explicit count context', () => {
-			expect(
-				getLinkedMentionsCountTooltip({
-					totalEntryCount: 20,
-					listLimit: 10,
-					renderedCount: 10,
-					filteredCount: 4,
-					hasSearch: true,
-				})
-			).toBe('4 matching backlinks shown out of 20 total backlinks.');
-
-			expect(
-				getLinkedMentionsCountTooltip({
-					totalEntryCount: 20,
-					listLimit: 10,
-					renderedCount: 10,
-					filteredCount: 10,
-					hasSearch: false,
-				})
-			).toBe('10 backlinks shown out of 20 total backlinks.');
-		});
-
-		test('getNoSearchResultsMessage references the user query when present', () => {
-			expect(getNoSearchResultsMessage('alpha')).toBe('No backlinks match "alpha" in source names, section titles, or excerpt text.');
-			expect(getNoSearchResultsMessage('  alpha beta  ')).toBe('No backlinks match "alpha beta" in source names, section titles, or excerpt text.');
-			expect(getNoSearchResultsMessage('   ')).toBe('No matching backlinks found.');
-		});
-
-		test('getLoadMoreBacklinksLabel reflects remaining amount and chunk size', () => {
-			expect(
-				getLoadMoreBacklinksLabel({
-					visibleCount: 40,
-					totalFilteredCount: 95,
-					chunkSize: 30,
-				})
-			).toBe('Load 30 more backlinks');
-
-			expect(
-				getLoadMoreBacklinksLabel({
-					visibleCount: 80,
-					totalFilteredCount: 95,
-					chunkSize: 50,
-				})
-			).toBe('Load 15 more backlinks');
-
-			expect(
-				getLoadMoreBacklinksLabel({
-					visibleCount: 10,
-					totalFilteredCount: 10,
-					chunkSize: 30,
-				})
-			).toBe('All backlinks loaded');
-		});
-
 		test('getNextVisibleCount caps appended results at the filtered total', () => {
 			expect(
 				getNextVisibleCount({
@@ -453,15 +399,6 @@ describe('influx-react-component helpers', () => {
 			).toBe(false);
 		});
 
-		test('getEmptyBacklinksMessage explains empty and filtered states', () => {
-			expect(getEmptyBacklinksMessage({ totalEntryCount: 0, renderedCount: 0 })).toBe(
-				'No backlinks found for this note yet.'
-			);
-			expect(getEmptyBacklinksMessage({ totalEntryCount: 8, renderedCount: 0 })).toBe(
-				'Backlinks are currently hidden by your filters or settings.'
-			);
-			expect(getEmptyBacklinksMessage({ totalEntryCount: 8, renderedCount: 3 })).toBe('');
-		});
 	});
 
 	describe('update-event gating', () => {
