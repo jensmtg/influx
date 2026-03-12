@@ -347,9 +347,14 @@ export class PreviewManager {
 				return;
 			}
 
-			void this.refreshPreviewLeavesByPath(filePath).finally(() => {
+			void this.refreshPreviewLeavesByPath(filePath).then((refreshedAny) => {
 				if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
 					this.clearScheduledRefresh(filePath);
+					return;
+				}
+
+				if (refreshedAny) {
+					this.clearScheduledRefresh(filePath, true);
 					return;
 				}
 
@@ -360,15 +365,26 @@ export class PreviewManager {
 				}
 
 				this.schedulePreviewRefreshAttempt(filePath, runId, nextDelayIndex);
+			}).catch((error) => {
+				logger.error('Failed scheduled preview refresh attempt', { filePath, error });
+				if (!this.isInactive() && this.postProcessRefreshRuns.get(filePath) === runId) {
+					const nextDelayIndex = delayIndex + 1;
+					if (nextDelayIndex >= PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS.length) {
+						this.clearScheduledRefresh(filePath, true);
+						return;
+					}
+
+					this.schedulePreviewRefreshAttempt(filePath, runId, nextDelayIndex);
+				}
 			});
 		}, delay);
 
 		this.postProcessRefreshTimers.set(filePath, timer);
 	}
 
-	private async refreshPreviewLeavesByPath(filePath: string): Promise<void> {
+	private async refreshPreviewLeavesByPath(filePath: string): Promise<boolean> {
 		if (this.isInactive()) {
-			return;
+			return false;
 		}
 
 		const trackedPreviewContainers = rootManager.getContainersByFilePath(filePath, 'preview');
@@ -391,16 +407,21 @@ export class PreviewManager {
 					});
 				})
 			);
-			return;
+			return true;
 		}
 
 		const leaves = this.getPreviewLeavesByPath(filePath);
+		if (leaves.length === 0) {
+			return false;
+		}
 
 		await Promise.all(
 			leaves.map((leaf) => this.updatePreview(leaf).catch((error) => {
 				logger.error('Failed to refresh preview leaf from post-processor', { filePath, error });
 			}))
 		);
+
+		return true;
 	}
 
 	private getPreviewLeavesByPath(filePath: string): WorkspaceLeaf[] {
