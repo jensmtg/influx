@@ -328,13 +328,57 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath');
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 
 		await manager.updatePreview(leaf as any);
 
 		expect(previewModeRerender).toHaveBeenCalledWith(true);
 		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Rerender.md');
 		expect(previewRoot.appendChild).not.toHaveBeenCalled();
+	});
+
+	test('updatePreview rerenders preview mode instead of adopting an untracked preview container', async () => {
+		const existingContainer = {
+			id: 'untracked-preview-host',
+			replaceChildren: jest.fn(),
+		} as unknown as HTMLElement;
+		const previewRoot = {
+			id: 'rerender-preview-root',
+			remove: jest.fn(),
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
+					return [existingContainer];
+				}
+				return [];
+			}),
+			appendChild: jest.fn(),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const previewModeRerender = jest.fn();
+		const leaf = createMarkdownLeaf({
+			path: 'UntrackedContainer.md',
+			file: { path: 'UntrackedContainer.md', stat: { mtime: 1 } },
+			containerEl: {} as HTMLDivElement,
+			previewModeContainerEl: previewRoot,
+			previewModeRerender,
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
+		const createRootMock = ReactDomClient.createRoot as jest.Mock;
+
+		await manager.updatePreview(leaf as any);
+
+		expect(previewModeRerender).toHaveBeenCalledWith(true);
+		expect(scheduleRefreshSpy).toHaveBeenCalledWith('UntrackedContainer.md');
+		expect(createRootMock).not.toHaveBeenCalled();
+		expect(existingContainer.replaceChildren).not.toHaveBeenCalled();
 	});
 
 	test('refreshPreviewLeavesByPath refreshes tracked preview roots without falling back to leaf updates when none remain', async () => {
@@ -372,7 +416,7 @@ jest.mock('react-dom/client', () => ({
 		const root = { render: jest.fn(), unmount: jest.fn() } as any;
 		rootManager.register(trackedContainer, root, 'preview', 'Tracked.md');
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await (manager as any).refreshPreviewLeavesByPath('Tracked.md');
 
@@ -381,11 +425,11 @@ jest.mock('react-dom/client', () => ({
 			filePath: 'Tracked.md',
 			preferredContainerId: 'tracked-preview-root',
 		}));
-		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
 		expect(plugin.app.workspace.iterateRootLeaves).toHaveBeenCalledTimes(1);
 	});
 
-	test('refreshPreviewLeavesByPath also refreshes untracked leaves for the same file path', async () => {
+		test('refreshPreviewLeavesByPath also refreshes untracked leaves for the same file path', async () => {
 		const trackedContainer = {
 			id: 'tracked-preview-root',
 			classList: { contains: jest.fn().mockReturnValue(false) },
@@ -407,11 +451,13 @@ jest.mock('react-dom/client', () => ({
 		} as unknown as HTMLElement;
 		(trackedContainer.closest as jest.Mock).mockReturnValue(trackedPreviewRoot);
 
+		const previewModeRerender = jest.fn();
 		const untrackedLeaf = createMarkdownLeaf({
 			path: 'Shared.md',
 			containerEl: {
 				querySelectorAll: jest.fn().mockReturnValue([{ classList: { contains: () => true }, querySelectorAll: jest.fn().mockReturnValue([]) }]),
 			} as unknown as HTMLDivElement,
+			previewModeRerender,
 		});
 
 		const plugin = {
@@ -428,7 +474,7 @@ jest.mock('react-dom/client', () => ({
 		} as any);
 		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Shared.md');
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 
 		await (manager as any).refreshPreviewLeavesByPath('Shared.md');
 
@@ -437,7 +483,8 @@ jest.mock('react-dom/client', () => ({
 			filePath: 'Shared.md',
 			preferredContainerId: 'tracked-preview-root',
 		}));
-		expect(updatePreviewSpy).toHaveBeenCalledWith(untrackedLeaf);
+		expect(previewModeRerender).toHaveBeenCalledWith(true);
+		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Shared.md');
 	});
 
 	test('updateAllPreviews loads deferred markdown leaves before inspecting preview state', async () => {
@@ -468,12 +515,12 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await manager.updateAllPreviews();
 
 		expect(loadIfDeferred).toHaveBeenCalledTimes(1);
-		expect(updatePreviewSpy).toHaveBeenCalledWith(deferredLeaf);
+		expect(refreshUntrackedLeafSpy).toHaveBeenCalledWith(deferredLeaf, 'Deferred.md');
 	});
 
 	test('schedulePreviewRefreshForPath coalesces duplicate refresh requests into one deferred pass', async () => {
@@ -516,11 +563,13 @@ jest.mock('react-dom/client', () => ({
 		} as unknown as HTMLElement;
 		(trackedContainer.closest as jest.Mock).mockReturnValue(trackedPreviewRoot);
 
+		const previewModeRerender = jest.fn();
 		const untrackedLeaf = createMarkdownLeaf({
 			path: 'Untracked.md',
 			containerEl: {
 				querySelectorAll: jest.fn().mockReturnValue([{ classList: { contains: () => true }, querySelectorAll: jest.fn().mockReturnValue([]) }]),
 			} as unknown as HTMLDivElement,
+			previewModeRerender,
 		});
 
 		const iterateRootLeaves = jest.fn((cb: (leaf: unknown) => void) => {
@@ -536,7 +585,7 @@ jest.mock('react-dom/client', () => ({
 		} as any);
 		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Tracked.md');
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 
 		await manager.updateAllPreviews();
 
@@ -545,7 +594,8 @@ jest.mock('react-dom/client', () => ({
 			filePath: 'Tracked.md',
 			preferredContainerId: 'tracked-preview-root',
 		}));
-		expect(updatePreviewSpy).toHaveBeenCalledWith(untrackedLeaf);
+		expect(previewModeRerender).toHaveBeenCalledWith(true);
+		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Untracked.md');
 	});
 
 	test('handlePreviewMode bails early while plugin is unloading', async () => {
@@ -569,7 +619,7 @@ jest.mock('react-dom/client', () => ({
 		} as any;
 
 		const manager = new PreviewManager(plugin, {} as any);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath');
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer');
 
 		await manager.handlePreviewMode(previewRoot, { docId: 'unload-doc', sourcePath: 'Unload.md', addChild: jest.fn() } as any);
@@ -656,11 +706,11 @@ jest.mock('react-dom/client', () => ({
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await manager.updateAllPreviews();
 
-		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
 		expect(plugin.updating.has('Scratchpad.md::1')).toBe(true);
 	});
 
@@ -688,11 +738,11 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await manager.updateAllPreviews();
 
-		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
 	});
 
 	test('updateAllPreviews bails early while plugin is unloading', async () => {
@@ -742,12 +792,12 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await manager.updateAllPreviews();
 
-		expect(updatePreviewSpy).toHaveBeenCalledTimes(2);
-		expect(updatePreviewSpy.mock.calls.map((call: unknown[]) => call[0])).toEqual(expect.arrayContaining([leafA, leafB]));
+		expect(refreshUntrackedLeafSpy).toHaveBeenCalledTimes(2);
+		expect(refreshUntrackedLeafSpy.mock.calls.map((call: unknown[]) => call[0])).toEqual(expect.arrayContaining([leafA, leafB]));
 	});
 
 	test('updateAllPreviews throttles while in flight, then allows next cycle after settle', async () => {
@@ -784,8 +834,8 @@ jest.mock('react-dom/client', () => ({
 		});
 
 		const manager = new PreviewManager(plugin, {} as any);
-		const updatePreviewSpy = jest
-			.spyOn(manager, 'updatePreview')
+		const refreshUntrackedLeafSpy = jest
+			.spyOn(manager as any, 'refreshUntrackedPreviewLeaf')
 			.mockImplementation(async () => {
 				await gate;
 			});
@@ -794,17 +844,17 @@ jest.mock('react-dom/client', () => ({
 		await Promise.resolve();
 
 		await manager.updateAllPreviews();
-		expect(updatePreviewSpy).toHaveBeenCalledTimes(2);
+		expect(refreshUntrackedLeafSpy).toHaveBeenCalledTimes(2);
 
 		release();
 		await firstCycle;
 
 		const doneGate = Promise.resolve();
-		updatePreviewSpy.mockImplementation(async () => {
+		refreshUntrackedLeafSpy.mockImplementation(async () => {
 			await doneGate;
 		});
 		await manager.updateAllPreviews();
-		expect(updatePreviewSpy).toHaveBeenCalledTimes(4);
+		expect(refreshUntrackedLeafSpy).toHaveBeenCalledTimes(4);
 	});
 
 });

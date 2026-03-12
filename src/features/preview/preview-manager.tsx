@@ -102,7 +102,7 @@ export class PreviewManager {
 			}
 			this.plugin.updating.add(updateKey);
 
-			return this.updatePreview(leaf)
+			return this.refreshUntrackedPreviewLeaf(influxLeaf, filePath)
 				.catch((error) => {
 					logger.error('Failed to update preview', { filePath, error });
 				})
@@ -141,11 +141,14 @@ export class PreviewManager {
 		}
 
 		const existingContainer = findExistingContainer(previewDiv);
-		if (!existingContainer) {
+		if (!existingContainer || !rootManager.has(existingContainer)) {
 			if (rerenderLeafPreviewMode(influxLeaf)) {
 				this.schedulePreviewRefreshForPath(path);
 			} else {
-				logger.debug('Preview leaf has no renderer-owned host to update', { filePath: path });
+				logger.debug('Preview leaf has no renderer-owned host to update', {
+					filePath: path,
+					hasExistingContainer: Boolean(existingContainer),
+				});
 			}
 			return;
 		}
@@ -372,9 +375,12 @@ export class PreviewManager {
 		refreshedAny = true;
 
 		await Promise.all(
-			leaves.map((leaf) => this.updatePreview(leaf).catch((error) => {
+			leaves.map((leaf) => {
+				const influxLeaf = leaf as InfluxWorkspaceLeaf;
+				return this.refreshUntrackedPreviewLeaf(influxLeaf, filePath).catch((error) => {
 				logger.error('Failed to refresh preview leaf from post-processor', { filePath, error });
-			}))
+				});
+			})
 		);
 
 		return refreshedAny;
@@ -423,6 +429,22 @@ export class PreviewManager {
 		}));
 
 		return leaves;
+	}
+
+	private async refreshUntrackedPreviewLeaf(
+		leaf: InfluxWorkspaceLeaf,
+		filePath: string
+	): Promise<void> {
+		if (this.isInactive()) {
+			return;
+		}
+
+		if (!rerenderLeafPreviewMode(leaf)) {
+			logger.debug('Failed to rerender untracked preview leaf', { filePath });
+			return;
+		}
+
+		this.schedulePreviewRefreshForPath(filePath);
 	}
 
 	private hasFreshPreviewRoot(
