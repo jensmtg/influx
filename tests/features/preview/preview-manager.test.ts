@@ -487,7 +487,7 @@ jest.mock('react-dom/client', () => ({
 		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Shared.md');
 	});
 
-	test('updateAllPreviews loads deferred markdown leaves before inspecting preview state', async () => {
+	test('refreshPreviewLeavesByPath loads deferred markdown leaves before inspecting preview state', async () => {
 		const previewRoot = {
 			id: 'deferred-preview-root',
 			remove: jest.fn(),
@@ -517,10 +517,44 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {} as any);
 		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
-		await manager.updateAllPreviews();
+		await (manager as any).refreshPreviewLeavesByPath('Deferred.md');
 
 		expect(loadIfDeferred).toHaveBeenCalledTimes(1);
 		expect(refreshUntrackedLeafSpy).toHaveBeenCalledWith(deferredLeaf, 'Deferred.md');
+	});
+
+	test('updateAllPreviews skips deferred markdown leaves during global refreshes', async () => {
+		const deferredLeaf = createMarkdownLeaf({
+			path: 'Deferred.md',
+			containerEl: {} as HTMLDivElement,
+			previewModeContainerEl: {
+				id: 'deferred-preview-root',
+				remove: jest.fn(),
+				querySelectorAll: jest.fn().mockReturnValue([]),
+				appendChild: jest.fn(),
+				insertBefore: jest.fn(),
+				firstChild: null,
+			} as unknown as HTMLElement,
+			isDeferred: true,
+			loadIfDeferred: jest.fn().mockResolvedValue(undefined),
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(deferredLeaf)),
+				},
+			},
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
+
+		await manager.updateAllPreviews();
+
+		expect(deferredLeaf.loadIfDeferred).not.toHaveBeenCalled();
+		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
 	});
 
 	test('schedulePreviewRefreshForPath coalesces duplicate refresh requests into one deferred pass', async () => {

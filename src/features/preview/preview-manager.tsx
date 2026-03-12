@@ -392,6 +392,7 @@ export class PreviewManager {
 	): Promise<WorkspaceLeaf[]> {
 		const leaves: WorkspaceLeaf[] = [];
 		const candidates: WorkspaceLeaf[] = [];
+		const shouldLoadDeferredLeaves = Boolean(filePath);
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			if (leaf.getViewState().type === 'markdown') {
@@ -405,6 +406,10 @@ export class PreviewManager {
 			}
 
 			if (leaf.isDeferred) {
+				if (!shouldLoadDeferredLeaves) {
+					return;
+				}
+
 				try {
 					await leaf.loadIfDeferred();
 				} catch (error) {

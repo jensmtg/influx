@@ -49,6 +49,9 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 - [x] Switch untracked reading-view leaf fallback toward documented `MarkdownView` preview state (`getMode()` / `previewMode.containerEl`) instead of scanning leaf DOM to decide what counts as a preview host.
 - [x] Use `MarkdownPreviewView.rerender(...)` for untracked preview leaves that are missing an owned host, instead of reinjecting a new fallback wrapper from leaf refresh code.
 - [x] Replace the manual sidebar close loop in `src/app/influx-plugin.ts` with documented `Workspace.detachLeavesOfType(...)`.
+- [x] Load deferred root markdown leaves with `WorkspaceLeaf.loadIfDeferred()` before reading preview/view state during untracked preview refresh fallback.
+- [x] Stop leaf-refresh fallback from adopting stray untracked preview containers directly; ask Obsidian to rerender the preview so the markdown post-processor recreates the owned host instead.
+- [x] Keep global preview refreshes off deferred background leaves; only targeted path refreshes should load deferred markdown leaves before inspecting preview state.
 - [x] Add focused tests for dependency-driven refreshes so a source-note edit can no longer leave open targets stale.
 - [x] Add at least one case-sensitive path regression test before we forget about Linux and weird vault setups again.
 - [x] Revisit preview refresh throttling once the stale-update fixes land, just to make sure we are not hiding bursty real-world changes.
@@ -58,11 +61,26 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 - [x] Finish the `strictNullChecks` migration in the main source `tsconfig` and keep a simple single-source typecheck/build path.
 - [x] Keep `window.influxPlugin` as the runtime bridge for editor integrations, but gate `window.influxDebug` and `testInfluxReadingView` behind debug mode.
 
+## Documentation-aligned maintainability path
+
+- [ ] Refactor `src/features/preview/preview-manager.tsx` away from main-area leaf iteration plus late preview wrapper injection as the primary reading-view host strategy.
+- [ ] Refactor `src/features/preview/preview-manager-dom.ts` away from `.markdown-preview-view` discovery as the main reading-view ownership mechanism.
+- [x] Prototype a `MarkdownRenderChild`-owned reading-view host that registers via `MarkdownPostProcessorContext.addChild(...)` and owns the React mount lifecycle.
+- [x] Replace deprecated `MarkdownRenderer.renderMarkdown(...)` in `src/ui/markdown-mount.tsx` with the current `MarkdownRenderer.render(...)` path once the renderer-owned reading-view host is in place.
+- [x] Keep the editor path on the current CodeMirror extension architecture (`registerEditorExtension`, `ViewPlugin`, `StateField` decorations) rather than trying to unify editor and reading mode under one host.
+- [x] Treat the sidebar as a separate custom `ItemView` host unless we can verify a supported Obsidian API path for embedding a real preview renderer there.
+- [x] Audit `src/app/events/event-manager.ts` to replace markdown-shaped leaf/view casts with documented markdown-view checks and safer mode/file resolution.
+- [x] Audit `src/features/sidebar/influx-sidebar-view.tsx` to replace cast-based `leaf.view` / `info` access and decide whether `getActiveFile()` is too loose compared with active markdown-view semantics.
+- [x] Audit preview leaf iteration and view access for Obsidian `DeferredView` safety; the current preview manager casts `WorkspaceLeaf` to a markdown-shaped leaf while iterating root leaves.
+- [x] If preview/sidebar coordination ever needs to touch non-visible leaves directly, verify whether `WorkspaceLeaf.loadIfDeferred()` is required before reading view-specific state.
+- [x] Consider replacing the manual sidebar close loop in `src/app/influx-plugin.ts` with `Workspace.detachLeavesOfType(...)`.
+- [ ] If we want stronger sidebar parity later, gather concrete TypeScript API references for `MarkdownPreviewView`, deferred-view loading, and any supported preview-host embedding APIs before refactoring.
+
 ## Nice to do after release blockers are gone
 
 - [x] Pick one canonical home for the shared update observable and delete the extra shim once imports are settled.
 - [-] Flatten or rename the `features/editor/codemirror` area if we still agree the extra nesting is mostly path noise.
-- [ ] Revisit noisy logger output in tests once the preview/renderer refactor settles, so validation stays readable without hiding useful failures.
+- [x] Revisit noisy logger output in tests once the preview/renderer refactor settles, so validation stays readable without hiding useful failures.
 - [ ] Move plugin-specific view code out of the generic-sounding `ui/` bucket, or at least rename the files so their responsibilities are obvious.
 - [ ] Remove dead or low-value code paths in `src/domain/backlinks/frontmatter-links.ts` if they are truly unused.
 - [x] Split the update-event policy out of `src/ui/influx-react-component-helpers.ts` so it is not stuck in the same grab-bag file as search and pagination helpers.
@@ -76,7 +94,8 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 
 ## Recommended next sequence
 
-- [ ] Fix reading-view and sidebar link behavior first, because it blocks trustworthy manual verification.
+- [ ] First land the documentation-aligned reading-view host changes (`MarkdownPostProcessorContext.addChild(...)`, `MarkdownRenderChild`, `MarkdownRenderer.render(...)`) and the deferred-view/workspace API audit.
+- [ ] Then finish reading-view and sidebar link/hover parity on top of the documentation-aligned host path.
 - [ ] Then fix backlink reappearance after source-link edits and rerun the modify/rename/delete stress pass.
 - [ ] Then finish the remaining manual vault checklist items for tasks, mermaid, frontmatter policy, and live settings changes.
 - [ ] End with the release sanity pass on package contents and marketplace-facing metadata.
