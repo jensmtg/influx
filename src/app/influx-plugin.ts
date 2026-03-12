@@ -206,8 +206,13 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	triggerUpdates(op: InfluxUpdateOp, file?: TAbstractFile, oldPath?: string) {
-		// Coalesce by target path (or global) to avoid duplicate concurrent pipelines across ops.
-		const id = file?.path ? `path:${file.path}` : 'global';
+		// Coalesce most updates by current target path, but keep renames distinct so
+		// an immediate follow-up modify on the new path does not erase oldPath-aware refresh work.
+		const id = op === 'rename' && file?.path
+			? `rename:${oldPath ?? ''}->${file.path}`
+			: file?.path
+				? `path:${file.path}`
+				: 'global';
 		const shouldUseTargetedPreviewRefresh =
 			file instanceof TFile && (op === 'file-open' || op === 'mode-change');
 
@@ -215,7 +220,7 @@ export default class ObsidianInflux extends Plugin {
 			if (signal.aborted) return;
 
 			// Notify components via observable
-			await influxUpdates$.notify({
+			void influxUpdates$.notify({
 				op,
 				file: file instanceof TFile ? file : undefined,
 				oldPath,

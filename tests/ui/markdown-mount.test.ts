@@ -71,6 +71,60 @@ describe('prepareMarkdownForInflux', () => {
 		expect(prepared).not.toContain('> ```dataviewjs');
 	});
 
+	test('should close a sanitized fence when the snippet ends before the original block closes', () => {
+		const markdown = [
+			'Before',
+			'```query',
+			'tag:#work',
+		].join('\n');
+
+		const prepared = prepareMarkdownForInflux(markdown);
+		expect(prepared).toBe([
+			'Before',
+			'```text',
+			'[Influx] query block disabled in backlink snippet',
+			'tag:#work',
+			'```',
+		].join('\n'));
+	});
+
+	test('should close a quoted sanitized fence when the snippet truncates inside the block', () => {
+		const markdown = [
+			'> [!info]',
+			'> ```dataview',
+			'> LIST FROM #project',
+		].join('\n');
+
+		const prepared = prepareMarkdownForInflux(markdown);
+		expect(prepared).toBe([
+			'> [!info]',
+			'> ```text',
+			'> [Influx] dataview block disabled in backlink snippet',
+			'> LIST FROM #project',
+			'> ```',
+		].join('\n'));
+	});
+
+	test('should not close a sanitized fence on nested fenced content lines', () => {
+		const markdown = [
+			'```query',
+			'```ts',
+			'const value = 1;',
+			'```',
+			'```',
+		].join('\n');
+
+		const prepared = prepareMarkdownForInflux(markdown);
+		expect(prepared).toBe([
+			'```text',
+			'[Influx] query block disabled in backlink snippet',
+			'```ts',
+			'const value = 1;',
+			'```',
+			'```',
+		].join('\n'));
+	});
+
 	test('should keep normal code fences unchanged', () => {
 		const markdown = [
 			'```ts',

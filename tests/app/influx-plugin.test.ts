@@ -8,6 +8,7 @@ import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
 import { EventManager } from '@/app/events/event-manager';
 import { PreviewManager } from '@/features/preview/preview-manager';
 import { isDebugMode } from '@/platform/diagnostics/debug-mode';
+import { influxUpdates$ } from '@/platform/events/influx-updates';
 import { requireApiVersion, TFile } from 'obsidian';
 
 jest.mock('@/platform/react/root-manager', () => ({
@@ -280,8 +281,10 @@ describe('ObsidianInflux lifecycle', () => {
 			version: 'test-version',
 		} as any);
 		const activeFile = Object.assign(new TFile(), { path: 'Active.md' });
+		const renamedFile = Object.assign(new TFile(), { path: 'Renamed.md' });
 		const updateAllPreviews = jest.fn().mockResolvedValue(undefined);
 		const updatePreviewsForFilePath = jest.fn().mockResolvedValue(undefined);
+		const notifySpy = jest.spyOn(influxUpdates$, 'notify').mockResolvedValue(undefined);
 			(plugin as any).previewManager = { updateAllPreviews, updatePreviewsForFilePath };
 			(updateCoordinator.schedule as jest.Mock).mockResolvedValue(undefined);
 			const getScheduledTask = (op: string) => {
@@ -315,7 +318,7 @@ describe('ObsidianInflux lifecycle', () => {
 			const modifyTask = getScheduledTask('modify');
 			await modifyTask({ aborted: false });
 
-			plugin.triggerUpdates('rename');
+			plugin.triggerUpdates('rename', renamedFile, 'Original.md');
 			const renameTask = getScheduledTask('rename');
 			await renameTask({ aborted: false });
 
@@ -328,5 +331,52 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(updatePreviewsForFilePath).toHaveBeenNthCalledWith(1, 'Active.md');
 		expect(updatePreviewsForFilePath).toHaveBeenNthCalledWith(2, 'Active.md');
 		expect(updateAllPreviews).toHaveBeenCalledTimes(4);
+		expect((updateCoordinator.schedule as jest.Mock).mock.calls).toContainEqual([
+			'rename:Original.md->Renamed.md',
+			'rename',
+			'Renamed.md',
+			expect.any(Function),
+		]);
+		expect(notifySpy).toHaveBeenCalledWith({
+			op: 'rename',
+			file: renamedFile,
+			oldPath: 'Original.md',
+		});
+	});
+
+	test('triggerUpdates does not block preview refresh behind a slow shared update notification', async () => {
+		const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
+			refreshAllInfluxEditorViews: jest.Mock;
+		};
+		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
+			version: 'test-version',
+		} as any);
+		const activeFile = Object.assign(new TFile(), { path: 'Active.md' });
+		const updatePreviewsForFilePath = jest.fn().mockResolvedValue(undefined);
+		(plugin as any).previewManager = { updateAllPreviews: jest.fn(), updatePreviewsForFilePath };
+		(updateCoordinator.schedule as jest.Mock).mockResolvedValue(undefined);
+
+		let releaseNotify!: () => void;
+		const notifySpy = jest.spyOn(influxUpdates$, 'notify').mockImplementation(
+			() => new Promise<void>((resolve) => {
+				releaseNotify = resolve;
+			})
+		);
+
+		plugin.triggerUpdates('file-open', activeFile);
+		const scheduledTask = (updateCoordinator.schedule as jest.Mock).mock.calls.find(([, op]) => op === 'file-open')?.[3] as
+			| ((signal: { aborted: boolean }) => Promise<void>)
+			| undefined;
+		expect(scheduledTask).toBeDefined();
+
+		const pending = scheduledTask?.({ aborted: false });
+		await Promise.resolve();
+
+		expect(notifySpy).toHaveBeenCalledTimes(1);
+		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(1);
+		expect(updatePreviewsForFilePath).toHaveBeenCalledWith('Active.md');
+
+		releaseNotify();
+		await pending;
 	});
 });

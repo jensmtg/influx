@@ -51,7 +51,7 @@ export function prepareMarkdownForInflux(markdown: string): string {
 			continue;
 		}
 
-		if (inSanitizedFence && /^```/.test(normalizedContent)) {
+		if (inSanitizedFence && /^```\s*$/.test(normalizedContent)) {
 			output.push(`${fencePrefix}\`\`\``);
 			inSanitizedFence = false;
 			fencePrefix = '';
@@ -59,6 +59,10 @@ export function prepareMarkdownForInflux(markdown: string): string {
 		}
 
 		output.push(line);
+	}
+
+	if (inSanitizedFence) {
+		output.push(`${fencePrefix}\`\`\``);
 	}
 
 	return output.join('\n');

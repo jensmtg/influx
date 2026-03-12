@@ -15,7 +15,7 @@ export class Observable<T> {
 	private observers = new Map<string, Observer<T>>();
 	private isNotifying = false;
 	private isInsideObserverCallback = false;
-	private pendingData: T | undefined;
+	private pendingData: T[] = [];
 	private currentData: T | undefined;
 
 	subscribe(id: string, observer: Observer<T>): () => void {
@@ -29,7 +29,7 @@ export class Observable<T> {
 	async notify(data: T): Promise<void> {
 		if (this.isNotifying) {
 			if (!(this.isInsideObserverCallback && Object.is(data, this.currentData))) {
-				this.pendingData = data;
+				this.pendingData.push(data);
 			}
 			return;
 		}
@@ -39,13 +39,12 @@ export class Observable<T> {
 			let nextData: T | undefined = data;
 			while (nextData !== undefined) {
 				this.currentData = nextData;
-				this.pendingData = undefined;
 				await this.notifyObservers(nextData);
-				nextData = this.pendingData;
+				nextData = this.pendingData.shift();
 			}
 		} finally {
 			this.currentData = undefined;
-			this.pendingData = undefined;
+			this.pendingData = [];
 			this.isInsideObserverCallback = false;
 			this.isNotifying = false;
 		}

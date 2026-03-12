@@ -171,12 +171,12 @@ export class InfluxSidebarView extends ItemView {
 			return;
 		}
 
-		if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && !event.file) {
+		const changedPaths = [event.file?.path, event.oldPath].filter((path): path is string => Boolean(path));
+		if ((event.op === 'modify' || event.op === 'rename' || event.op === 'delete') && changedPaths.length === 0) {
 			return;
 		}
 
 		const currentFile = this.currentFile;
-		const changedPaths = [event.file?.path, event.oldPath].filter((path): path is string => Boolean(path));
 		const touchesCurrentFile = changedPaths.includes(currentFile.path);
 		const affectsBacklinks = changedPaths.length === 0
 			? false
@@ -323,10 +323,10 @@ export class InfluxSidebarView extends ItemView {
 
 		try {
 			const shouldShow = this.plugin.api.getShowStatus(currentFile);
-			currentInfluxFile.show = shouldShow;
 			if (this.isCurrentUpdateAborted(signal, updateId)) {
 				return;
 			}
+			currentInfluxFile.show = shouldShow;
 			if (shouldShow) {
 				this.plugin.api.invalidateFileCache(currentFile.path);
 			}

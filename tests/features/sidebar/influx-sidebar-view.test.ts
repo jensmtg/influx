@@ -431,6 +431,22 @@ describe('InfluxSidebarView', () => {
 		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true });
 	});
 
+	test('shared update bus can refresh from an oldPath-only rename payload', async () => {
+		const { view, harness, fileA } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+
+		await view.onOpen();
+		harness.currentFile = fileA;
+		harness.influxFile = {
+			shouldUpdate: jest.fn().mockReturnValue(false),
+			shouldUpdatePaths: jest.fn().mockReturnValue(true),
+		};
+
+		await influxUpdates$.notify({ op: 'rename', oldPath: 'Old-Only.md' });
+
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+	});
+
 	test('shared update bus ignores irrelevant file updates', async () => {
 		const { view, harness, fileA, fileB } = createContext();
 		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);

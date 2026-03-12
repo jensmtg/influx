@@ -401,7 +401,7 @@ jest.mock('react-dom/client', () => ({
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(fileHash);
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
-		jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+		jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 
 		await (manager as any).renderPreviewForContainer({
 			previewDiv: previewRootB,
@@ -445,7 +445,7 @@ jest.mock('react-dom/client', () => ({
 
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
-		jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+		jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 
 		await expect((manager as any).renderPreviewForContainer({
 			previewDiv: previewRoot,

@@ -234,7 +234,7 @@ export class PreviewManager {
 		}
 
 		if (existingContainer) {
-			rootManager.unmountDeferred(existingContainer);
+			rootManager.unmount(existingContainer);
 		}
 
 		const result = await createInfluxFileForRender({

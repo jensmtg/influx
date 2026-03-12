@@ -82,10 +82,10 @@ describe('Observable', () => {
 			expect(observer).toHaveBeenCalledTimes(1);
 		});
 
-        test('notify coalesces concurrent external notifications to the latest payload', async () => {
-            const seen: string[] = [];
-            let releaseFirst: (() => void) | undefined;
-            const gate = new Promise<void>((resolve) => {
+		test('notify queues concurrent external notifications in order', async () => {
+			const seen: string[] = [];
+			let releaseFirst: (() => void) | undefined;
+			const gate = new Promise<void>((resolve) => {
                 releaseFirst = resolve;
             });
 
@@ -99,13 +99,13 @@ describe('Observable', () => {
 
             const firstRun = observable.notify('first');
             await Promise.resolve();
-            await observable.notify('second');
-            await observable.notify('third');
-            releaseFirst?.();
-            await firstRun;
+			await observable.notify('second');
+			await observable.notify('third');
+			releaseFirst?.();
+			await firstRun;
 
-            expect(seen).toEqual(['first', 'third']);
-        });
+			expect(seen).toEqual(['first', 'second', 'third']);
+		});
     });
 
     describe('error handling', () => {
