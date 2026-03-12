@@ -357,6 +357,54 @@ describe('PreviewManager', () => {
 			expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 		});
 
+	test('refreshPreviewLeavesByPath prefers tracked preview roots over root leaf iteration', async () => {
+		const trackedContainer = {
+			id: 'tracked-preview-root',
+			classList: { contains: jest.fn().mockReturnValue(false) },
+			closest: jest.fn(),
+			querySelector: jest.fn(),
+		} as unknown as HTMLElement;
+		const previewRoot = {
+			id: 'tracked-preview-pane',
+			classList: {
+				contains: (name: string) => name === 'markdown-preview-view',
+			},
+			remove: jest.fn(),
+			closest: jest.fn().mockReturnValue(null),
+			querySelector: jest.fn().mockReturnValue(null),
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
+					return [trackedContainer];
+				}
+				return [];
+			}),
+		} as unknown as HTMLElement;
+		(trackedContainer.closest as jest.Mock).mockReturnValue(previewRoot);
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 9 } }),
+		} as any);
+		const root = { render: jest.fn(), unmount: jest.fn() } as any;
+		rootManager.register(trackedContainer, root, 'preview', 'Tracked.md');
+		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+
+		await (manager as any).refreshPreviewLeavesByPath('Tracked.md');
+
+		expect(renderPreviewSpy).toHaveBeenCalledWith(expect.objectContaining({
+			previewDiv: previewRoot,
+			filePath: 'Tracked.md',
+			preferredContainerId: 'tracked-preview-root',
+		}));
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
+	});
+
 	test('handlePreviewMode bails early while plugin is unloading', async () => {
 		jest.useFakeTimers();
 		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;

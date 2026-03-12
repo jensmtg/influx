@@ -232,6 +232,20 @@ export class RootManager {
 		return this.roots.get(container);
 	}
 
+	getContainersByFilePath(filePath: string, type?: RootType): HTMLElement[] {
+		const containers = this.filePathIndex.get(this.normalizePathKey(filePath));
+		if (!containers || containers.size === 0) {
+			return [];
+		}
+
+		return Array.from(containers).filter((container) => {
+			if (!type) {
+				return true;
+			}
+			return this.roots.get(container)?.type === type;
+		});
+	}
+
 	/**
 	 * Check if a root exists for a container
 	 */

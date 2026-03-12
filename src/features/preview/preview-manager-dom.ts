@@ -172,12 +172,11 @@ export function resolvePreviewRoot(element: HTMLElement): HTMLElement | null {
 	if (element.classList.contains('markdown-preview-view')) {
 		return element;
 	}
-	const closest = element.closest('.markdown-preview-view');
-	if (closest instanceof HTMLElement) {
+	const closest = asHtmlElement(element.closest('.markdown-preview-view'));
+	if (closest) {
 		return closest;
 	}
-	const nested = element.querySelector('.markdown-preview-view');
-	return nested instanceof HTMLElement ? nested : null;
+	return asHtmlElement(element.querySelector('.markdown-preview-view'));
 }
 
 export function cleanupPreviewContainers(container: Element, logCounts = false): void {

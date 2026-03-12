@@ -341,6 +341,29 @@ export class PreviewManager {
 			return;
 		}
 
+		const trackedPreviewContainers = rootManager.getContainersByFilePath(filePath, 'preview');
+		if (trackedPreviewContainers.length > 0) {
+			const fileMtime = this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0;
+			await Promise.all(
+				trackedPreviewContainers.map((container) => {
+					const previewDiv = resolvePreviewRoot(container);
+					if (!previewDiv) {
+						return Promise.resolve();
+					}
+
+					return this.renderPreviewForContainer({
+						previewDiv,
+						filePath,
+						fileMtime,
+						preferredContainerId: container.id,
+					}).catch((error) => {
+						logger.error('Failed to refresh tracked preview host from post-processor', { filePath, error });
+					});
+				})
+			);
+			return;
+		}
+
 		const leaves = this.getPreviewLeavesByPath(filePath);
 
 		await Promise.all(
