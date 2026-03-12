@@ -1,31 +1,31 @@
 # TODO
 
-Current push before Influx `3.0.0`: finish the real-vault regression pass, fix the remaining link/refresh regressions we just found, and do the final release checks.
+Current push before Influx `3.0.0`: finish the real-vault regression pass, close the remaining refresh/link regressions, and do the final release checks.
 
-## Must do before release
+## Release blockers
 
 - [ ] Fix reading-view and sidebar link behavior so source note titles and rendered excerpt links behave like real Obsidian links.
 - [ ] Restore hover previews / hover editors for Influx links in reading view and sidebar.
-- [ ] Rework reading-view mounting to follow the documented markdown post-processor lifecycle, instead of discovering `.markdown-preview-view` later and injecting a separate wrapper.
-- [x] Prototype and land a `MarkdownRenderChild`-owned reading-view host registered via `MarkdownPostProcessorContext.addChild(...)`.
-- [x] Replace obsolete `MarkdownRenderer.renderMarkdown(...)` in `src/ui/markdown-mount.tsx` with `MarkdownRenderer.render(...)`.
-- [x] Audit preview/sidebar workspace leaf handling for Obsidian deferred views; stop relying on unchecked markdown-shaped casts and add documented view checks where needed.
-- [x] Tighten active-note/sidebar resolution to documented workspace/view APIs where current code uses looser file lookup semantics.
 - [ ] Fix the refresh path where a backlink can disappear after a source-link edit and fail to reappear when the link is added back.
 - [ ] Re-test modify, rename, delete, and rapid repeated source-note changes after the backlink reappearance fix lands.
 - [ ] Do one last manual regression pass in a real Obsidian vault across editor, reading view, and sidebar mode.
 - [ ] During that vault pass, explicitly verify first-open behavior on notes with query, tasks, and mermaid blocks.
 - [ ] Re-check the frontmatter-link policy in a real vault against mixed property cases, alias/path variants, and duplicate-target cases.
 - [ ] Do a final release sanity pass on `manifest.json`, `versions.json`, packaged files, and marketplace-facing copy.
+- [ ] During that release sanity pass, decide whether to keep `minAppVersion: 1.0.0` with compatibility guards or intentionally raise to `1.7.2` and update `manifest.json` / `versions.json` together.
 
-## Manual vault verification checklist
+## Current preview / architecture focus
 
-- [x] Open a target note with backlinks in editor, reading view, and sidebar; make sure Influx appears correctly in all three.
+- [ ] Keep reducing `src/features/preview/preview-manager.tsx` reliance on main-area leaf iteration for Reading-view fallback.
+- [ ] Keep reducing `src/features/preview/preview-manager-dom.ts` reliance on `.markdown-preview-view` discovery for Reading-view ownership.
+- [ ] If we want stronger sidebar parity later, gather verified API references for `MarkdownPreviewView`, deferred-view loading, and any supported preview-host embedding APIs before refactoring sidebar host semantics.
+
+## Manual vault checklist
+
 - [ ] In reading view, verify readable line length still constrains Influx correctly.
 - [ ] In reading view, verify source note title links are clickable and navigate correctly.
 - [ ] In reading view, verify rendered excerpt wikilinks/tags/internal links are clickable and navigate correctly.
 - [ ] In reading view and sidebar, verify link hover previews / hover editors appear like normal Obsidian links.
-- [x] On first open, verify query-heavy notes render correctly without needing a reopen or mode toggle.
 - [ ] On first open, verify notes with tasks and mermaid blocks render correctly without needing a reopen or mode toggle.
 - [ ] While keeping a target note open, modify, rename, and delete linked source notes; verify editor, preview, and sidebar all refresh honestly.
 - [ ] Specifically verify a backlink disappears when its source link is removed and reappears when that source link is added back.
@@ -33,69 +33,10 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 - [ ] Re-check frontmatter link policy with mixed allow/deny properties, aliases, duplicate basenames, and path variants in a real vault.
 - [ ] Toggle the important settings live and make sure visibility, sort order, list limit, and frontmatter behavior update without stale UI.
 - [ ] If possible, test a case-sensitive or Linux-style path scenario (`Foo.md` vs `foo.md`) to make sure paths do not collide.
-- [x] Cold-started a query note and a backlink-heavy note; Influx rendered without needing a reopen.
-- [x] Switched between editor and reading mode on a backlink-heavy note; backlinks stayed visible across mode changes.
-- [x] Restored readable line length alignment in reading view after the regression surfaced during manual testing.
 
-## Recently completed
+## Recently landed
 
-- [x] Tighten shared workspace/view handling around `MarkdownView` in `src/app/events/event-manager.ts`, `src/features/sidebar/influx-sidebar-view.tsx`, and preview leaf handling.
-- [x] Move reading-view host creation into the markdown post-processor path and register a `MarkdownRenderChild`, while making tracked preview roots the primary refresh path.
-- [x] Restore delegated link click and hover bridging for reading view and sidebar through Obsidian workspace APIs, with focused tests.
-- [x] Replace obsolete markdown snippet rendering with `MarkdownRenderer.render(...)` and pass the plugin app through the React render path.
-- [x] Start trimming brittle preview tests that were tightly coupled to old retry timing and wrapper-cleanup internals.
-- [x] Shrink preview fallback/timer plumbing to a single coalesced deferred refresh pass and keep `preview-manager` coverage focused on tracked-vs-untracked behavior.
-- [x] Make the markdown post-processor path keep a renderer-owned preview-host registry, so direct reading-view updates reuse owned hosts instead of treating preview-root DOM scans as the source of truth.
-- [x] Switch untracked reading-view leaf fallback toward documented `MarkdownView` preview state (`getMode()` / `previewMode.containerEl`) instead of scanning leaf DOM to decide what counts as a preview host.
-- [x] Use `MarkdownPreviewView.rerender(...)` for untracked preview leaves that are missing an owned host, instead of reinjecting a new fallback wrapper from leaf refresh code.
-- [x] Replace the manual sidebar close loop in `src/app/influx-plugin.ts` with documented `Workspace.detachLeavesOfType(...)`.
-- [x] Load deferred root markdown leaves with `WorkspaceLeaf.loadIfDeferred()` before reading preview/view state during untracked preview refresh fallback.
-- [x] Stop leaf-refresh fallback from adopting stray untracked preview containers directly; ask Obsidian to rerender the preview so the markdown post-processor recreates the owned host instead.
-- [x] Keep global preview refreshes off deferred background leaves; only targeted path refreshes should load deferred markdown leaves before inspecting preview state.
-- [x] Add focused tests for dependency-driven refreshes so a source-note edit can no longer leave open targets stale.
-- [x] Add at least one case-sensitive path regression test before we forget about Linux and weird vault setups again.
-- [x] Revisit preview refresh throttling once the stale-update fixes land, just to make sure we are not hiding bursty real-world changes.
-- [x] Do one more settings UX pass for copy, grouping, and affordances now that the settings UI is schema-driven.
-- [x] Trim or rewrite a large batch of brittle tests that asserted static markup or internal wiring more than behavior.
-- [x] Add one more focused lifecycle check around `MarkdownMount` and toolbar teardown if the manual pass exposes gaps.
-- [x] Finish the `strictNullChecks` migration in the main source `tsconfig` and keep a simple single-source typecheck/build path.
-- [x] Keep `window.influxPlugin` as the runtime bridge for editor integrations, but gate `window.influxDebug` and `testInfluxReadingView` behind debug mode.
-
-## Documentation-aligned maintainability path
-
-- [ ] Refactor `src/features/preview/preview-manager.tsx` away from main-area leaf iteration plus late preview wrapper injection as the primary reading-view host strategy.
-- [ ] Refactor `src/features/preview/preview-manager-dom.ts` away from `.markdown-preview-view` discovery as the main reading-view ownership mechanism.
-- [x] Prototype a `MarkdownRenderChild`-owned reading-view host that registers via `MarkdownPostProcessorContext.addChild(...)` and owns the React mount lifecycle.
-- [x] Replace deprecated `MarkdownRenderer.renderMarkdown(...)` in `src/ui/markdown-mount.tsx` with the current `MarkdownRenderer.render(...)` path once the renderer-owned reading-view host is in place.
-- [x] Keep the editor path on the current CodeMirror extension architecture (`registerEditorExtension`, `ViewPlugin`, `StateField` decorations) rather than trying to unify editor and reading mode under one host.
-- [x] Treat the sidebar as a separate custom `ItemView` host unless we can verify a supported Obsidian API path for embedding a real preview renderer there.
-- [x] Audit `src/app/events/event-manager.ts` to replace markdown-shaped leaf/view casts with documented markdown-view checks and safer mode/file resolution.
-- [x] Audit `src/features/sidebar/influx-sidebar-view.tsx` to replace cast-based `leaf.view` / `info` access and decide whether `getActiveFile()` is too loose compared with active markdown-view semantics.
-- [x] Audit preview leaf iteration and view access for Obsidian `DeferredView` safety; the current preview manager casts `WorkspaceLeaf` to a markdown-shaped leaf while iterating root leaves.
-- [x] If preview/sidebar coordination ever needs to touch non-visible leaves directly, verify whether `WorkspaceLeaf.loadIfDeferred()` is required before reading view-specific state.
-- [x] Consider replacing the manual sidebar close loop in `src/app/influx-plugin.ts` with `Workspace.detachLeavesOfType(...)`.
-- [ ] If we want stronger sidebar parity later, gather concrete TypeScript API references for `MarkdownPreviewView`, deferred-view loading, and any supported preview-host embedding APIs before refactoring.
-
-## Nice to do after release blockers are gone
-
-- [x] Pick one canonical home for the shared update observable and delete the extra shim once imports are settled.
-- [-] Flatten or rename the `features/editor/codemirror` area if we still agree the extra nesting is mostly path noise.
-- [x] Revisit noisy logger output in tests once the preview/renderer refactor settles, so validation stays readable without hiding useful failures.
-- [ ] Move plugin-specific view code out of the generic-sounding `ui/` bucket, or at least rename the files so their responsibilities are obvious.
-- [ ] Remove dead or low-value code paths in `src/domain/backlinks/frontmatter-links.ts` if they are truly unused.
-- [x] Split the update-event policy out of `src/ui/influx-react-component-helpers.ts` so it is not stuck in the same grab-bag file as search and pagination helpers.
-- [ ] Keep breaking large responsibilities out of `src/domain/backlinks/influx-file.ts` until it is easier to maintain.
-- [ ] Continue reducing cross-layer coupling between plugin bootstrap, settings policy, and render/update orchestration.
-
-## Extra cleanup only if we still want it
-
-- [x] Start the `strictNullChecks` migration with a tiny obsidian/window-guard slice, then keep expanding that safe little island through preview, sidebar, ui, and backlink files while it still stays boring.
-- [ ] Keep deleting tests that only defend implementation noise, even if the total test count goes down.
-
-## Recommended next sequence
-
-- [ ] First land the documentation-aligned reading-view host changes (`MarkdownPostProcessorContext.addChild(...)`, `MarkdownRenderChild`, `MarkdownRenderer.render(...)`) and the deferred-view/workspace API audit.
-- [ ] Then finish reading-view and sidebar link/hover parity on top of the documentation-aligned host path.
-- [ ] Then fix backlink reappearance after source-link edits and rerun the modify/rename/delete stress pass.
-- [ ] Then finish the remaining manual vault checklist items for tasks, mermaid, frontmatter policy, and live settings changes.
-- [ ] End with the release sanity pass on package contents and marketplace-facing metadata.
+- [x] Moved Reading-view host ownership onto the markdown post-processor path with `MarkdownRenderChild`, direct renderer-owned refreshes, and delegated link/hover handling.
+- [x] Replaced obsolete nested markdown rendering with `MarkdownRenderer.render(...)` and kept the editor path on the existing CM6 extension architecture.
+- [x] Hardened preview/sidebar workspace handling around documented `MarkdownView` / deferred-view APIs, including `requireApiVersion('1.7.2')` guards and older sidebar fallbacks.
+- [x] Simplified preview fallback so unowned leaves rerender through Obsidian instead of adopting stray containers, and tracked preview roots now carry `previewRoot` metadata through `rootManager`.

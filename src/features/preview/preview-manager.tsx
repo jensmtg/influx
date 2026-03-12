@@ -1,4 +1,4 @@
-import { WorkspaceLeaf, MarkdownPostProcessorContext, MarkdownRenderChild } from 'obsidian';
+import { WorkspaceLeaf, MarkdownPostProcessorContext, MarkdownRenderChild, requireApiVersion } from 'obsidian';
 import { ApiAdapter } from '../../domain/backlinks/api-adapter';
 import { rootManager } from '../../platform/react/root-manager';
 import { logger } from '../../platform/diagnostics/logger';
@@ -70,7 +70,7 @@ export class PreviewManager {
 				return Promise.resolve();
 			}
 
-			const previewDiv = resolvePreviewRoot(info.container);
+			const previewDiv = this.resolveTrackedPreviewRoot(info.container);
 			if (!previewDiv) {
 				return Promise.resolve();
 			}
@@ -349,7 +349,7 @@ export class PreviewManager {
 			const fileMtime = this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0;
 			await Promise.all(
 				trackedPreviewContainers.map((container) => {
-					const previewDiv = resolvePreviewRoot(container);
+					const previewDiv = this.resolveTrackedPreviewRoot(container);
 					if (!previewDiv) {
 						return Promise.resolve();
 					}
@@ -392,6 +392,7 @@ export class PreviewManager {
 	): Promise<WorkspaceLeaf[]> {
 		const leaves: WorkspaceLeaf[] = [];
 		const candidates: WorkspaceLeaf[] = [];
+		const supportsDeferredViews = requireApiVersion('1.7.2');
 		const shouldLoadDeferredLeaves = Boolean(filePath);
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
@@ -405,7 +406,7 @@ export class PreviewManager {
 				return;
 			}
 
-			if (leaf.isDeferred) {
+			if (supportsDeferredViews && leaf.isDeferred) {
 				if (!shouldLoadDeferredLeaves) {
 					return;
 				}
@@ -473,13 +474,14 @@ export class PreviewManager {
 		if (existingContainer) {
 			const info = rootManager.get(existingContainer);
 			if (info) {
+				rootManager.updateMetadata(existingContainer, { previewRoot: previewDiv });
 				return info.root;
 			}
 
 			existingContainer.id = existingContainer.id || containerId;
 			existingContainer.replaceChildren();
 			const root = createRoot(existingContainer);
-			rootManager.register(existingContainer, root, 'preview', filePath);
+			rootManager.register(existingContainer, root, 'preview', filePath, { previewRoot: previewDiv });
 			logger.debug('Attached root to existing preview container', { filePath });
 			return root;
 		}
@@ -487,7 +489,7 @@ export class PreviewManager {
 		cleanupPreviewContainers(previewDiv);
 		const previewContainer = this.createPreviewContainer(previewDiv, containerId);
 		const root = createRoot(previewContainer);
-		rootManager.register(previewContainer, root, 'preview', filePath);
+		rootManager.register(previewContainer, root, 'preview', filePath, { previewRoot: previewDiv });
 		return root;
 	}
 
@@ -577,5 +579,15 @@ export class PreviewManager {
 
 	private isElementConnected(element: HTMLElement): boolean {
 		return (element as HTMLElement & { isConnected?: boolean }).isConnected !== false;
+	}
+
+	private resolveTrackedPreviewRoot(container: HTMLElement): HTMLElement | null {
+		const metadataPreviewRoot = rootManager.get(container)?.metadata?.previewRoot;
+		const previewRoot = metadataPreviewRoot as HTMLElement | undefined;
+		if (previewRoot && typeof previewRoot.querySelectorAll === 'function' && this.isElementConnected(previewRoot)) {
+			return previewRoot;
+		}
+
+		return resolvePreviewRoot(container);
 	}
 }

@@ -1,4 +1,4 @@
-import { Plugin, TAbstractFile, TFile } from 'obsidian';
+import { Plugin, TAbstractFile, TFile, requireApiVersion } from 'obsidian';
 import { ApiAdapter } from '../domain/backlinks/api-adapter';
 import InfluxFile from '../domain/backlinks/influx-file';
 import { InlinkingFile } from '../domain/backlinks/inlinking-file';
@@ -89,7 +89,21 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	openSidebar() {
-		this.app.workspace.ensureSideLeaf(CONSTANTS.VIEW_TYPE_SIDEBAR, 'right', { active: true });
+		if (requireApiVersion('1.7.2')) {
+			void this.app.workspace.ensureSideLeaf(CONSTANTS.VIEW_TYPE_SIDEBAR, 'right', { active: true });
+			return;
+		}
+
+		const existingLeaf = this.app.workspace.getLeavesOfType(CONSTANTS.VIEW_TYPE_SIDEBAR)[0];
+		const targetLeaf = existingLeaf ?? this.app.workspace.getRightLeaf(false);
+		if (!targetLeaf) {
+			return;
+		}
+
+		void targetLeaf.setViewState({
+			type: CONSTANTS.VIEW_TYPE_SIDEBAR,
+			active: true,
+		});
 	}
 
 	closeSidebar() {

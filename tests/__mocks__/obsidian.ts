@@ -221,6 +221,8 @@ export const MarkdownRenderer = {
 	}),
 };
 
+export const requireApiVersion = jest.fn().mockReturnValue(true);
+
 export const editorViewField = Symbol('editorViewField');
 
 export const debounce = <Args extends unknown[], Result>(fn: (...args: Args) => Result) => {

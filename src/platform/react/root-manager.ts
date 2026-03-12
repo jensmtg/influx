@@ -232,6 +232,18 @@ export class RootManager {
 		return this.roots.get(container);
 	}
 
+	updateMetadata(container: HTMLElement, metadata: Record<string, unknown>): void {
+		const info = this.roots.get(container);
+		if (!info) {
+			return;
+		}
+
+		info.metadata = {
+			...(info.metadata ?? {}),
+			...metadata,
+		};
+	}
+
 	getContainersByFilePath(filePath: string, type?: RootType): HTMLElement[] {
 		const containers = this.filePathIndex.get(this.normalizePathKey(filePath));
 		if (!containers || containers.size === 0) {

@@ -8,6 +8,7 @@ import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
 import { EventManager } from '@/app/events/event-manager';
 import { PreviewManager } from '@/features/preview/preview-manager';
 import { isDebugMode } from '@/platform/diagnostics/debug-mode';
+import { requireApiVersion } from 'obsidian';
 
 jest.mock('@/platform/react/root-manager', () => ({
 	rootManager: {
@@ -107,6 +108,7 @@ describe('ObsidianInflux lifecycle', () => {
 			querySelectorAll: jest.fn().mockReturnValue([]),
 		};
 		(globalThis as typeof globalThis & { window: any }).window = {};
+		(requireApiVersion as jest.Mock).mockReturnValue(true);
 	});
 
 	afterEach(() => {
@@ -123,6 +125,7 @@ describe('ObsidianInflux lifecycle', () => {
 				detachLeavesOfType: jest.fn(),
 				ensureSideLeaf: jest.fn(),
 				getLeavesOfType: jest.fn().mockReturnValue([]),
+				getRightLeaf: jest.fn(),
 			},
 			vault: {},
 			metadataCache: {},
@@ -155,13 +158,14 @@ describe('ObsidianInflux lifecycle', () => {
 		await plugin.onunload();
 	});
 
-	test('onload exposes debug helpers only when debug mode is enabled', async () => {
+		test('onload exposes debug helpers only when debug mode is enabled', async () => {
 		(isDebugMode as jest.Mock).mockReturnValue(true);
 		const app = {
 			workspace: {
 				detachLeavesOfType: jest.fn(),
 				ensureSideLeaf: jest.fn(),
 				getLeavesOfType: jest.fn().mockReturnValue([]),
+				getRightLeaf: jest.fn(),
 			},
 			vault: {},
 			metadataCache: {},
@@ -221,6 +225,29 @@ describe('ObsidianInflux lifecycle', () => {
 		plugin.closeSidebar();
 
 		expect(detachLeavesOfType).toHaveBeenCalledWith('influx-sidebar-view');
+	});
+
+	test('openSidebar falls back to right leaf view state before Obsidian 1.7.2', () => {
+		(requireApiVersion as jest.Mock).mockReturnValue(false);
+		const setViewState = jest.fn().mockResolvedValue(undefined);
+		const targetLeaf = { setViewState };
+		const plugin = new ObsidianInflux({
+			workspace: {
+				ensureSideLeaf: jest.fn(),
+				getLeavesOfType: jest.fn().mockReturnValue([]),
+				getRightLeaf: jest.fn().mockReturnValue(targetLeaf),
+			},
+			vault: {},
+			metadataCache: {},
+		} as any, {
+			version: 'test-version',
+		} as any);
+
+		plugin.openSidebar();
+
+		expect(plugin.app.workspace.ensureSideLeaf).not.toHaveBeenCalled();
+		expect(plugin.app.workspace.getRightLeaf).toHaveBeenCalledWith(false);
+		expect(setViewState).toHaveBeenCalledWith({ type: 'influx-sidebar-view', active: true });
 	});
 
 	test('saveSettingsByParams only commits in-memory settings and side effects after persistence succeeds', async () => {

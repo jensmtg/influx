@@ -4,7 +4,7 @@ import { cacheManager } from '@/platform/cache/cache-manager';
 import { CONSTANTS } from '@/config/constants';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import * as ReactDomClient from 'react-dom/client';
-import { MarkdownRenderChild, MarkdownView } from 'obsidian';
+import { MarkdownRenderChild, MarkdownView, requireApiVersion } from 'obsidian';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({
@@ -20,6 +20,7 @@ jest.mock('react-dom/client', () => ({
 
 		beforeEach(() => {
 			jest.spyOn(console, 'info').mockImplementation(() => {});
+			(requireApiVersion as jest.Mock).mockReturnValue(true);
 		});
 
 		class MockHTMLElement {
@@ -403,7 +404,7 @@ jest.mock('react-dom/client', () => ({
 				return [];
 			}),
 		} as unknown as HTMLElement;
-		(trackedContainer.closest as jest.Mock).mockReturnValue(previewRoot);
+		(trackedContainer.closest as jest.Mock).mockReturnValue(null);
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
@@ -414,7 +415,7 @@ jest.mock('react-dom/client', () => ({
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 9 } }),
 		} as any);
 		const root = { render: jest.fn(), unmount: jest.fn() } as any;
-		rootManager.register(trackedContainer, root, 'preview', 'Tracked.md');
+		rootManager.register(trackedContainer, root, 'preview', 'Tracked.md', { previewRoot });
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
 		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
@@ -449,7 +450,7 @@ jest.mock('react-dom/client', () => ({
 				return [];
 			}),
 		} as unknown as HTMLElement;
-		(trackedContainer.closest as jest.Mock).mockReturnValue(trackedPreviewRoot);
+		(trackedContainer.closest as jest.Mock).mockReturnValue(null);
 
 		const previewModeRerender = jest.fn();
 		const untrackedLeaf = createMarkdownLeaf({
@@ -472,7 +473,7 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 9 } }),
 		} as any);
-		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Shared.md');
+		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Shared.md', { previewRoot: trackedPreviewRoot });
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
 		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 
@@ -557,6 +558,41 @@ jest.mock('react-dom/client', () => ({
 		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
 	});
 
+	test('refreshPreviewLeavesByPath does not call deferred-view APIs before Obsidian 1.7.2', async () => {
+		(requireApiVersion as jest.Mock).mockReturnValue(false);
+		const deferredLeaf = createMarkdownLeaf({
+			path: 'Deferred.md',
+			containerEl: {} as HTMLDivElement,
+			previewModeContainerEl: {
+				id: 'deferred-preview-root',
+				remove: jest.fn(),
+				querySelectorAll: jest.fn().mockReturnValue([]),
+				appendChild: jest.fn(),
+				insertBefore: jest.fn(),
+				firstChild: null,
+			} as unknown as HTMLElement,
+			isDeferred: true,
+			loadIfDeferred: jest.fn().mockResolvedValue(undefined),
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(deferredLeaf)),
+				},
+			},
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
+
+		await (manager as any).refreshPreviewLeavesByPath('Deferred.md');
+
+		expect(deferredLeaf.loadIfDeferred).not.toHaveBeenCalled();
+		expect(refreshUntrackedLeafSpy).toHaveBeenCalledWith(deferredLeaf, 'Deferred.md');
+	});
+
 	test('schedulePreviewRefreshForPath coalesces duplicate refresh requests into one deferred pass', async () => {
 		jest.useFakeTimers();
 		const plugin = {
@@ -595,7 +631,7 @@ jest.mock('react-dom/client', () => ({
 				return [];
 			}),
 		} as unknown as HTMLElement;
-		(trackedContainer.closest as jest.Mock).mockReturnValue(trackedPreviewRoot);
+		(trackedContainer.closest as jest.Mock).mockReturnValue(null);
 
 		const previewModeRerender = jest.fn();
 		const untrackedLeaf = createMarkdownLeaf({
@@ -617,7 +653,7 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockImplementation((path: string) => ({ stat: { mtime: path === 'Tracked.md' ? 4 : 2 } })),
 		} as any);
-		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Tracked.md');
+		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Tracked.md', { previewRoot: trackedPreviewRoot });
 		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
 		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 
