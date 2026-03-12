@@ -416,25 +416,49 @@ describe('influx-react-component helpers', () => {
 					currentPath: 'Current.md',
 					affectsBacklinks: false,
 				})
+			).toBe(false);
+		});
+
+		test('rename updates stay relevant when oldPath or backlinks still point at the pre-rename source', () => {
+			expect(
+				shouldProcessInfluxUpdateEvent({
+					event: makeUpdateEvent('rename', 'Renamed.md', 'Current.md'),
+					currentPath: 'Current.md',
+					affectsBacklinks: false,
+				})
+			).toBe(true);
+
+			expect(
+				shouldProcessInfluxUpdateEvent({
+					event: makeUpdateEvent('rename', 'Renamed.md', 'Elsewhere.md'),
+					currentPath: 'Current.md',
+					affectsBacklinks: true,
+				})
 			).toBe(true);
 		});
 
-		test('rename and delete updates stay relevant even after backlinks no longer report the old source path', () => {
-			expect(
-				shouldProcessInfluxUpdateEvent({
-					event: makeUpdateEvent('rename', 'Elsewhere.md'),
-					currentPath: 'Current.md',
-					affectsBacklinks: false,
-				})
-			).toBe(true);
+		test('resolveInfluxUpdateEntries uses oldPath-aware backlink relevance for rename events', async () => {
+			const entries = [entry({ path: 'Source.md', basename: 'Source' })];
+			const current = {
+				file: { path: 'Current.md' },
+				shouldUpdate: jest.fn().mockReturnValue(false),
+				shouldUpdatePaths: jest.fn().mockReturnValue(true),
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn().mockReturnValue(entries),
+			};
 
-			expect(
-				shouldProcessInfluxUpdateEvent({
-					event: makeUpdateEvent('delete', 'Elsewhere.md'),
-					currentPath: 'Current.md',
-					affectsBacklinks: false,
-				})
-			).toBe(true);
+			const result = await resolveInfluxUpdateEntries({
+				event: makeUpdateEvent('rename', 'Renamed.md', 'Source.md'),
+				current,
+				seq: 1,
+				getLatestSeq: () => 1,
+				isAborted: () => false,
+			});
+
+			expect(current.shouldUpdatePaths).toHaveBeenCalledWith(['Renamed.md', 'Source.md']);
+			expect(current.shouldUpdate).not.toHaveBeenCalled();
+			expect(current.makeInfluxList).toHaveBeenCalledTimes(1);
+			expect(result).toBe(entries);
 		});
 
 		test('shouldProcessInfluxUpdateEvent allows non-file operations by default', () => {

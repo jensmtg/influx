@@ -205,7 +205,7 @@ export default class ObsidianInflux extends Plugin {
 		cleanupWindowGlobals();
 	}
 
-	triggerUpdates(op: InfluxUpdateOp, file?: TAbstractFile) {
+	triggerUpdates(op: InfluxUpdateOp, file?: TAbstractFile, oldPath?: string) {
 		// Coalesce by target path (or global) to avoid duplicate concurrent pipelines across ops.
 		const id = file?.path ? `path:${file.path}` : 'global';
 		const shouldUseTargetedPreviewRefresh =
@@ -217,7 +217,8 @@ export default class ObsidianInflux extends Plugin {
 			// Notify components via observable
 			await influxUpdates$.notify({
 				op,
-				file: file instanceof TFile ? file : undefined
+				file: file instanceof TFile ? file : undefined,
+				oldPath,
 			});
 
 			if (!signal.aborted && (op === 'save-settings' || op === 'file-open' || op === 'mode-change' || op === 'modify' || op === 'rename' || op === 'delete')) {

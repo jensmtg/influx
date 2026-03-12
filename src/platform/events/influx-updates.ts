@@ -85,6 +85,7 @@ export class Observable<T> {
 export interface InfluxUpdateEvent {
 	op: InfluxUpdateOp;
 	file?: TFile;
+	oldPath?: string;
 }
 
 export const influxUpdates$ = new Observable<InfluxUpdateEvent>();

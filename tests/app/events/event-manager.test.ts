@@ -105,7 +105,7 @@ describe('EventManager', () => {
             expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
             expect(plugin.cleanupFileHash).toHaveBeenCalledWith('old.md');
             expect(plugin.cleanupFileHash).toHaveBeenCalledWith('new.md');
-            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', file);
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', file, 'old.md');
 
             plugin.api.invalidateFileCache.mockClear();
             plugin.cleanupFileHash.mockClear();
@@ -114,7 +114,7 @@ describe('EventManager', () => {
 			emitVaultEvent('rename', folder);
             expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
             expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
-            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', folder);
+            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', folder, undefined);
         });
 
         test('handleDelete: invalidates/cleans files and always triggers delete update', () => {

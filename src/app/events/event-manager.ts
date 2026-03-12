@@ -55,7 +55,7 @@ export class EventManager {
 			this.plugin.api.invalidateFileCache(file.path);
 			this.plugin.cleanupFileHash(file.path);
 		}
-		this.plugin.triggerUpdates('rename', file);
+		this.plugin.triggerUpdates('rename', file, oldPath);
 	}
 
 	private handleDelete(file: TAbstractFile): void {

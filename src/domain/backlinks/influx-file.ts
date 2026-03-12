@@ -97,13 +97,18 @@ export default class InfluxFile {
     }
 
 	shouldUpdate(file: TFile) {
+		return this.shouldUpdatePaths([file.path]);
+	}
+
+	shouldUpdatePaths(paths: readonly string[]) {
 		this.ensureInitialized();
-		if (!this.file) {
+		const changedPaths = Array.from(new Set(paths.filter((path): path is string => Boolean(path))));
+		if (!this.file || changedPaths.length === 0) {
 			return false;
 		}
-		const affectedBeforeRefresh = backlinksContainChangedPath(this.backlinks, file.path);
+		const affectedBeforeRefresh = changedPaths.some((path) => backlinksContainChangedPath(this.backlinks, path));
 		this.backlinks = this.api.getBacklinks(this.file)
-		const affectedAfterRefresh = backlinksContainChangedPath(this.backlinks, file.path);
+		const affectedAfterRefresh = changedPaths.some((path) => backlinksContainChangedPath(this.backlinks, path));
 		return affectedBeforeRefresh || affectedAfterRefresh;
 	}
 

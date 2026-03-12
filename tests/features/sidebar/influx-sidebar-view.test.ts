@@ -407,11 +407,28 @@ describe('InfluxSidebarView', () => {
 		harness.currentFile = fileA;
 		harness.influxFile = {
 			shouldUpdate: jest.fn().mockReturnValue(true),
+			shouldUpdatePaths: jest.fn().mockReturnValue(true),
 		};
 
-		await influxUpdates$.notify({ op: 'rename', file: fileB });
+		await influxUpdates$.notify({ op: 'rename', file: fileB, oldPath: 'Old-B.md' });
 
 		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+	});
+
+	test('shared update bus ignores irrelevant rename updates when neither old nor new path affects the current note', async () => {
+		const { view, harness, fileA, fileB } = createContext();
+		const updateViewSpy = jest.spyOn(view, 'updateView').mockResolvedValue(undefined);
+
+		await view.onOpen();
+		harness.currentFile = fileA;
+		harness.influxFile = {
+			shouldUpdate: jest.fn().mockReturnValue(false),
+			shouldUpdatePaths: jest.fn().mockReturnValue(false),
+		};
+
+		await influxUpdates$.notify({ op: 'rename', file: fileB, oldPath: 'Old-B.md' });
+
+		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true });
 	});
 
 	test('shared update bus ignores irrelevant file updates', async () => {
@@ -422,6 +439,7 @@ describe('InfluxSidebarView', () => {
 		harness.currentFile = fileA;
 		harness.influxFile = {
 			shouldUpdate: jest.fn().mockReturnValue(false),
+			shouldUpdatePaths: jest.fn().mockReturnValue(false),
 		};
 
 		await influxUpdates$.notify({ op: 'modify', file: fileB });
@@ -437,6 +455,7 @@ describe('InfluxSidebarView', () => {
 		harness.currentFile = fileA;
 		harness.influxFile = {
 			shouldUpdate: jest.fn().mockReturnValue(false),
+			shouldUpdatePaths: jest.fn().mockReturnValue(true),
 		};
 
 		await influxUpdates$.notify({ op: 'delete', file: fileB });

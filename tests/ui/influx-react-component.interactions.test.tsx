@@ -95,6 +95,7 @@ async function makeInfluxFile(params: {
 	totalEntryCount: number;
 	show?: boolean;
 	shouldUpdate?: (file: { path: string }) => boolean;
+	shouldUpdatePaths?: (paths: readonly string[]) => boolean;
 	makeInfluxList?: () => Promise<void>;
 	toEntries?: () => ExtendedInlinkingFile[];
 }): Promise<ComponentProps['influxFile']> {
@@ -107,6 +108,13 @@ async function makeInfluxFile(params: {
 	jest.spyOn(influxFile, 'makeInfluxList').mockImplementation(params.makeInfluxList ?? (async (): Promise<void> => undefined));
 	jest.spyOn(influxFile, 'toEntries').mockImplementation(params.toEntries ?? (() => params.components));
 	jest.spyOn(influxFile, 'shouldUpdate').mockImplementation(params.shouldUpdate ?? (() => false));
+	jest.spyOn(influxFile, 'shouldUpdatePaths').mockImplementation(
+		params.shouldUpdatePaths
+			?? ((paths) => {
+				const firstPath = paths[0];
+				return firstPath ? (params.shouldUpdate?.({ path: firstPath }) ?? false) : false;
+			})
+	);
 	return influxFile;
 }
 
@@ -218,12 +226,13 @@ describe('InfluxReactComponent mounted interactions', () => {
 		expect(screen.queryByText('Summary Stale')).toBeNull();
 	});
 
-	test('refreshes on delete events even when shouldUpdate no longer matches the removed source path', async () => {
+		test('refreshes on delete events even when shouldUpdate no longer matches the removed source path', async () => {
 		let currentComponents = [makeComponent(1, 'Alpha')];
 		const influxFile = await makeInfluxFile({
 			components: currentComponents,
 			totalEntryCount: 1,
 			shouldUpdate: () => false,
+			shouldUpdatePaths: () => true,
 			makeInfluxList: async () => {
 				currentComponents = [makeComponent(2, 'Beta')];
 			},

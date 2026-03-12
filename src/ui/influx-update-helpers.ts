@@ -6,9 +6,15 @@ export interface InfluxUpdateTarget {
 	file?: { path?: string } | null;
 	show?: boolean;
 	shouldUpdate: (file: TFile) => boolean;
+	shouldUpdatePaths?: (paths: readonly string[]) => boolean;
 	refreshVisibility?: () => boolean;
 	makeInfluxList: () => Promise<void>;
 	toEntries: () => ExtendedInlinkingFile[];
+}
+
+function getChangedPaths(event: InfluxUpdateEvent): string[] {
+	const paths = [event.file?.path, event.oldPath].filter((path): path is string => Boolean(path));
+	return Array.from(new Set(paths));
 }
 
 export function shouldProcessInfluxUpdateEvent(params: {
@@ -27,15 +33,11 @@ export function shouldProcessInfluxUpdateEvent(params: {
 	}
 
 	if (event.op === 'modify' || event.op === 'rename' || event.op === 'delete') {
-		if (!event.file) {
+		const changedPaths = getChangedPaths(event);
+		if (changedPaths.length === 0) {
 			return false;
 		}
-
-		if (event.op === 'rename' || event.op === 'delete') {
-			return true;
-		}
-
-		const touchesCurrentFile = event.file.path === currentPath;
+		const touchesCurrentFile = changedPaths.includes(currentPath);
 		return touchesCurrentFile || affectsBacklinks;
 	}
 
@@ -55,7 +57,11 @@ export async function resolveInfluxUpdateEntries(params: {
 	}
 
 	const currentPath = current.file?.path;
-	const affectsBacklinks = event.file ? current.shouldUpdate(event.file) : false;
+	const changedPaths = getChangedPaths(event);
+	const affectsBacklinks = changedPaths.length === 0
+		? false
+		: current.shouldUpdatePaths?.(changedPaths)
+			?? (event.file ? current.shouldUpdate(event.file) : current.shouldUpdate(({ path: changedPaths[0] } as TFile)));
 	if (!shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks })) {
 		return null;
 	}
@@ -73,7 +79,7 @@ export async function resolveInfluxUpdateEntries(params: {
 	return current.toEntries();
 }
 
-export function makeUpdateEvent(op: InfluxUpdateOp, path?: string): InfluxUpdateEvent {
+export function makeUpdateEvent(op: InfluxUpdateOp, path?: string, oldPath?: string): InfluxUpdateEvent {
 	const file = path ? ({ path } as TFile) : undefined;
-	return { op, file };
+	return { op, file, oldPath };
 }

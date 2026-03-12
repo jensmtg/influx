@@ -138,6 +138,18 @@ describe('InfluxFile', () => {
 			expect(influx.shouldUpdate(makeFile('source.md'))).toBe(true);
 			expect(influx.backlinks?.data instanceof Map ? influx.backlinks.data.has('source.md') : false).toBe(false);
 		});
+
+		test('shouldUpdatePaths keeps rename refresh relevant across old and new source paths', async () => {
+			const file = makeFile('target.md');
+			api.getFileByPath.mockReturnValue(file);
+			api.getBacklinks.mockReturnValue({ data: new Map([['renamed.md', []]]) });
+
+			const influx = await InfluxFile.create('target.md', api);
+			influx.backlinks = { data: new Map([['source.md', []]]) };
+
+			expect(influx.shouldUpdatePaths(['renamed.md', 'source.md'])).toBe(true);
+			expect(influx.backlinks?.data instanceof Map ? influx.backlinks.data.has('renamed.md') : false).toBe(true);
+		});
 	});
 
     describe('makeInfluxList', () => {
