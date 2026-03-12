@@ -166,6 +166,23 @@ describe('RootManager', () => {
 		expect(rootManager.size).toBe(0);
 	});
 
+	test('updateFilePath moves a tracked root between file path indexes', () => {
+		const container = asHTMLElement(createFakeElement('div'));
+		const root = createMockRoot();
+
+		rootManager.register(container, root, 'sidebar', 'Folder/Old.md');
+		rootManager.updateFilePath(container, 'Folder\\New.md');
+
+		expect(rootManager.getContainersByFilePath('Folder/Old.md')).toEqual([]);
+		expect(rootManager.getContainersByFilePath('Folder/New.md')).toEqual([container]);
+
+		rootManager.unmountByFilePath('Folder/Old.md');
+		expect(root.unmount).not.toHaveBeenCalled();
+
+		rootManager.unmountByFilePath('Folder/New.md');
+		expect(root.unmount).toHaveBeenCalledTimes(1);
+	});
+
 	test('rename and delete cleanup removes editor, preview, and sidebar roots across old and new paths', () => {
 		const oldEditor = asHTMLElement(createFakeElement('div'));
 		const oldPreview = asHTMLElement(createFakeElement('div'));

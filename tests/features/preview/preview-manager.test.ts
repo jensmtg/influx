@@ -365,6 +365,100 @@ jest.mock('react-dom/client', () => ({
 		}));
 	});
 
+	test('renderPreviewForContainer refreshes a stale pane even when another pane for the same file already has a fresh hash', async () => {
+		const previewRootA = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
+		const previewRootB = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
+		const containerA = { id: 'pane-a', replaceChildren: jest.fn() } as unknown as HTMLElement;
+		const containerB = { id: 'pane-b', replaceChildren: jest.fn() } as unknown as HTMLElement;
+		const rootA = { render: jest.fn(), unmount: jest.fn() } as any;
+		const rootB = { render: jest.fn(), unmount: jest.fn() } as any;
+		const dependencyRevision = cacheManager.getDependencyRevision();
+		const fileHash = `Shared.md-1-settings-hash-${dependencyRevision}`;
+
+		rootManager.register(containerA, rootA, 'preview', 'Shared.md', {
+			previewRoot: previewRootA,
+			previewHash: fileHash,
+		});
+		rootManager.register(containerB, rootB, 'preview', 'Shared.md', {
+			previewRoot: previewRootB,
+			previewHash: 'stale-hash',
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const influxFile = {
+			uuid: 'shared-uuid',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		};
+
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(fileHash);
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
+		jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+
+		await (manager as any).renderPreviewForContainer({
+			previewDiv: previewRootB,
+			existingContainer: containerB,
+			filePath: 'Shared.md',
+			fileMtime: 1,
+			preferredContainerId: 'pane-b',
+		});
+
+		expect(rootA.render).not.toHaveBeenCalled();
+		expect(rootB.render).toHaveBeenCalledTimes(1);
+		expect(rootManager.get(containerB)?.metadata?.previewHash).toBe(fileHash);
+	});
+
+	test('renderPreviewForContainer does not mark a preview fresh before render succeeds', async () => {
+		const previewRoot = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
+		const container = { id: 'throwing-pane', replaceChildren: jest.fn() } as unknown as HTMLElement;
+		const root = {
+			render: jest.fn(() => {
+				throw new Error('render fail');
+			}),
+			unmount: jest.fn(),
+		} as any;
+
+		rootManager.register(container, root, 'preview', 'Throw.md', { previewRoot });
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const influxFile = {
+			uuid: 'throwing-uuid',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		};
+		const setPreviewFileHashSpy = jest.spyOn(cacheManager, 'setPreviewFileHash').mockImplementation(() => {});
+
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
+		jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+
+		await expect((manager as any).renderPreviewForContainer({
+			previewDiv: previewRoot,
+			existingContainer: container,
+			filePath: 'Throw.md',
+			fileMtime: 1,
+			preferredContainerId: 'throwing-pane',
+		})).rejects.toThrow('render fail');
+
+		expect(setPreviewFileHashSpy).not.toHaveBeenCalled();
+		expect(rootManager.get(container)?.metadata?.previewHash).toBeUndefined();
+	});
+
 	test('updatePreview rerenders preview mode instead of injecting a fallback host when none exists', async () => {
 		const previewRoot = {
 			id: 'rerender-preview-root',

@@ -8,6 +8,7 @@ import { CONSTANTS } from '../../config/constants';
 import { influxUpdates$, InfluxUpdateEvent } from '../../platform/events/influx-updates';
 import { buildInfluxFileForRender, createInfluxFileForRender } from '../../domain/backlinks/influx-render-pipeline';
 import type { InfluxSidebarPlugin } from './influx-sidebar-plugin';
+import { rootManager } from '../../platform/react/root-manager';
 
 export class InfluxSidebarView extends ItemView {
 	private static nextSubscriptionId = 1;
@@ -44,6 +45,7 @@ export class InfluxSidebarView extends ItemView {
 		this.currentFile = null;
 		this.influxFile = null;
 		this.componentKey = 'initial';
+		rootManager.updateFilePath(this.containerEl, undefined);
 	}
 
 	private cancelPendingUpdate(): void {
@@ -114,6 +116,7 @@ export class InfluxSidebarView extends ItemView {
 
 		try {
 			this.root = createRoot(this.containerEl);
+			rootManager.register(this.containerEl, this.root, 'sidebar');
 			this.registerFileEvents();
 			this.registerSharedUpdates();
 
@@ -135,7 +138,11 @@ export class InfluxSidebarView extends ItemView {
 
 		if (this.root) {
 			try {
-				this.root.unmount();
+				if (rootManager.has(this.containerEl)) {
+					rootManager.unmount(this.containerEl);
+				} else {
+					this.root.unmount();
+				}
 			} catch (error) {
 				logger.error('Failed to unmount React root', { error });
 			}
@@ -145,8 +152,7 @@ export class InfluxSidebarView extends ItemView {
 		this.updatesUnsubscribe?.();
 		this.updatesUnsubscribe = null;
 
-		this.currentFile = null;
-		this.influxFile = null;
+		this.clearCurrentState();
 	}
 
 	private registerSharedUpdates(): void {
@@ -255,6 +261,7 @@ export class InfluxSidebarView extends ItemView {
 
 		this.currentFile = file;
 		this.componentKey = file.path;
+		rootManager.updateFilePath(this.containerEl, file.path);
 		this.renderStatusState({
 			title: 'Loading linked mentions',
 			detail: `Scanning backlinks for ${file.basename}.`,
@@ -308,22 +315,26 @@ export class InfluxSidebarView extends ItemView {
 			return;
 		}
 
-		const signal = this.abortController?.signal;
-		const updateId = this.currentUpdateId;
+		const currentFile = this.currentFile;
+		const currentInfluxFile = this.influxFile;
+		this.cancelPendingUpdate();
+		this.abortController = new AbortController();
+		const signal = this.abortController.signal;
+		const updateId = ++this.currentUpdateId;
 
 		try {
-			const shouldShow = this.plugin.api.getShowStatus(this.currentFile);
-			this.influxFile.show = shouldShow;
+			const shouldShow = this.plugin.api.getShowStatus(currentFile);
+			currentInfluxFile.show = shouldShow;
 			if (this.isCurrentUpdateAborted(signal, updateId)) {
 				return;
 			}
 			if (shouldShow) {
-				this.plugin.api.invalidateFileCache(this.currentFile.path);
+				this.plugin.api.invalidateFileCache(currentFile.path);
 			}
 
 			const result = await buildInfluxFileForRender({
-				influxFile: this.influxFile,
-				filePath: this.currentFile.path,
+				influxFile: currentInfluxFile,
+				filePath: currentFile.path,
 				mode: 'sidebar',
 				settings: this.plugin.data.settings,
 				shouldAbort: () => Boolean(signal?.aborted) || updateId !== this.currentUpdateId,
@@ -344,6 +355,8 @@ export class InfluxSidebarView extends ItemView {
 				return;
 			}
 
+			this.influxFile = result.influxFile;
+			rootManager.updateFilePath(this.containerEl, currentFile.path);
 			this.renderCurrentInflux();
 		} catch (error) {
 			if (signal?.aborted) {
@@ -352,7 +365,7 @@ export class InfluxSidebarView extends ItemView {
 			if (updateId !== this.currentUpdateId) {
 				return;
 			}
-			logger.error('Failed to handle editor change', { filePath: this.currentFile.path, error });
+			logger.error('Failed to handle editor change', { filePath: currentFile.path, error });
 			if (this.root && this.influxFile) {
 				const currentComponent = this.renderInfluxComponent();
 				if (!currentComponent) {

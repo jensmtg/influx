@@ -2,6 +2,14 @@ import { logger } from '../diagnostics/logger';
 import { TFile } from 'obsidian';
 
 export type Observer<T> = (data: T) => void | Promise<void>;
+export type InfluxUpdateOp =
+	| 'delete'
+	| 'file-open'
+	| 'layout-change'
+	| 'mode-change'
+	| 'modify'
+	| 'rename'
+	| 'save-settings';
 
 export class Observable<T> {
 	private observers = new Map<string, Observer<T>>();
@@ -75,7 +83,7 @@ export class Observable<T> {
 }
 
 export interface InfluxUpdateEvent {
-	op: string;
+	op: InfluxUpdateOp;
 	file?: TFile;
 }
 

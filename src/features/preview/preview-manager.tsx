@@ -229,7 +229,7 @@ export class PreviewManager {
 		const dependencyRevision = cacheManager.getDependencyRevision();
 		const fileHash = `${filePath}-${fileMtime}-${this.computeSettingsHash()}-${dependencyRevision}`;
 
-		if (this.hasFreshPreviewRoot(filePath, fileHash, existingContainer)) {
+		if (this.hasFreshPreviewRoot(fileHash, existingContainer)) {
 			return;
 		}
 
@@ -264,11 +264,10 @@ export class PreviewManager {
 			existingContainer = this.findKnownPreviewContainer(filePath, targetPreviewDiv, preferredContainerId);
 			cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
 		}
-		if (this.hasFreshPreviewRoot(filePath, fileHash, existingContainer)) {
+		if (this.hasFreshPreviewRoot(fileHash, existingContainer)) {
 			return;
 		}
 
-		cacheManager.setPreviewFileHash(filePath, fileHash);
 		const anchor = this.getOrCreatePreviewRoot(
 			targetPreviewDiv,
 			filePath,
@@ -276,9 +275,13 @@ export class PreviewManager {
 			existingContainer
 		);
 
-		anchor.render(
+		anchor.root.render(
 			<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
 		);
+		rootManager.updateMetadata(anchor.container, {
+			previewRoot: targetPreviewDiv,
+			previewHash: fileHash,
+		});
 	}
 
 	private ensurePostProcessorPreviewHost(
@@ -494,15 +497,16 @@ export class PreviewManager {
 		return Array.from(hosts.values());
 	}
 
-	private hasFreshPreviewRoot(
-		filePath: string,
-		fileHash: string,
-		existingContainer: HTMLElement | null
-	): boolean {
+	private hasFreshPreviewRoot(fileHash: string, existingContainer: HTMLElement | null): boolean {
+		if (!existingContainer) {
+			return false;
+		}
+
+		const info = rootManager.get(existingContainer);
 		return Boolean(
-			existingContainer &&
-			cacheManager.getPreviewFileHash(filePath) === fileHash &&
-			rootManager.has(existingContainer)
+			info &&
+			typeof info.metadata?.previewHash === 'string' &&
+			info.metadata.previewHash === fileHash
 		);
 	}
 
@@ -511,12 +515,12 @@ export class PreviewManager {
 		filePath: string,
 		containerId: string,
 		existingContainer: HTMLElement | null
-	): Root {
+	): { root: Root; container: HTMLElement } {
 		if (existingContainer) {
 			const info = rootManager.get(existingContainer);
 			if (info) {
 				rootManager.updateMetadata(existingContainer, { previewRoot: previewDiv });
-				return info.root;
+				return { root: info.root, container: existingContainer };
 			}
 
 			existingContainer.id = existingContainer.id || containerId;
@@ -524,14 +528,14 @@ export class PreviewManager {
 			const root = createRoot(existingContainer);
 			rootManager.register(existingContainer, root, 'preview', filePath, { previewRoot: previewDiv });
 			logger.debug('Attached root to existing preview container', { filePath });
-			return root;
+			return { root, container: existingContainer };
 		}
 
 		cleanupPreviewContainers(previewDiv);
 		const previewContainer = this.createPreviewContainer(previewDiv, containerId);
 		const root = createRoot(previewContainer);
 		rootManager.register(previewContainer, root, 'preview', filePath, { previewRoot: previewDiv });
-		return root;
+		return { root, container: previewContainer };
 	}
 
 	private createPreviewContainer(previewDiv: HTMLElement, containerId: string): HTMLElement {

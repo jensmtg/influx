@@ -41,6 +41,34 @@ export class RootManager {
 		return info;
 	}
 
+	private removeFromFilePathIndex(container: HTMLElement, filePath?: string): void {
+		if (!filePath) {
+			return;
+		}
+
+		const normalizedPath = this.normalizePathKey(filePath);
+		const containers = this.filePathIndex.get(normalizedPath);
+		if (!containers) {
+			return;
+		}
+
+		containers.delete(container);
+		if (containers.size === 0) {
+			this.filePathIndex.delete(normalizedPath);
+		}
+	}
+
+	private addToFilePathIndex(container: HTMLElement, filePath?: string): void {
+		if (!filePath) {
+			return;
+		}
+
+		const normalizedPath = this.normalizePathKey(filePath);
+		const containers = this.filePathIndex.get(normalizedPath) ?? new Set<HTMLElement>();
+		containers.add(container);
+		this.filePathIndex.set(normalizedPath, containers);
+	}
+
 	/**
 	 * Register a new React root
 	 */
@@ -84,12 +112,7 @@ export class RootManager {
 
 		this.roots.set(container, info);
 
-		if (filePath) {
-			const normalizedPath = this.normalizePathKey(filePath);
-			const containers = this.filePathIndex.get(normalizedPath) ?? new Set<HTMLElement>();
-			containers.add(container);
-			this.filePathIndex.set(normalizedPath, containers);
-		}
+		this.addToFilePathIndex(container, filePath);
 	}
 
 	/**
@@ -99,18 +122,20 @@ export class RootManager {
 	unregister(container: HTMLElement): void {
 		const info = this.roots.get(container);
 		if (info) {
-			if (info.filePath) {
-				const normalizedPath = this.normalizePathKey(info.filePath);
-				const containers = this.filePathIndex.get(normalizedPath);
-				if (containers) {
-					containers.delete(container);
-					if (containers.size === 0) {
-						this.filePathIndex.delete(normalizedPath);
-					}
-				}
-			}
+			this.removeFromFilePathIndex(container, info.filePath);
 			this.roots.delete(container);
 		}
+	}
+
+	updateFilePath(container: HTMLElement, filePath?: string): void {
+		const info = this.roots.get(container);
+		if (!info || info.filePath === filePath) {
+			return;
+		}
+
+		this.removeFromFilePathIndex(container, info.filePath);
+		info.filePath = filePath;
+		this.addToFilePathIndex(container, filePath);
 	}
 
 	/**

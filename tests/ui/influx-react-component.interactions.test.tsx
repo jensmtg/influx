@@ -10,6 +10,12 @@ import { InlinkingFile, type InlinkingFileApi } from '@/domain/backlinks/inlinki
 import { DEFAULT_SETTINGS } from '@/types';
 import { mockTFile } from '../mocks';
 
+function makeBacklinks(paths: string[]) {
+	return {
+		data: new Map(paths.map((path) => [path, [{ link: path }]])),
+	};
+}
+
 jest.mock('@/ui/markdown-mount', () => ({
 	__esModule: true,
 	default: (props: { markdown: string; sourcePath: string; className?: string }) => (
@@ -238,6 +244,61 @@ describe('InfluxReactComponent mounted interactions', () => {
 
 		expect(screen.getByText('Summary Beta')).toBeTruthy();
 		expect(screen.queryByText('Summary Alpha')).toBeNull();
+	});
+
+	test('modify events propagate backlink disappearance and reappearance after source edits', async () => {
+		const sourcePath = 'Folder/Source.md';
+		const api = createInfluxApi();
+		api.getBacklinks.mockReturnValue(makeBacklinks([sourcePath]));
+
+		const influxFile = await InfluxFile.create('Target.md', api);
+		influxFile.uuid = 'test-uuid';
+		influxFile.show = true;
+		influxFile.collapsed = false;
+		influxFile.backlinks = makeBacklinks([sourcePath]);
+
+		let hasBacklink = true;
+		let currentComponents = [makeComponent(1, 'Source')];
+		influxFile.components = currentComponents;
+		influxFile.totalEntryCount = 1;
+
+		jest.spyOn(influxFile, 'makeInfluxList').mockImplementation(async () => {
+			influxFile.backlinks = hasBacklink ? makeBacklinks([sourcePath]) : makeBacklinks([]);
+			currentComponents = hasBacklink ? [makeComponent(1, 'Source')] : [];
+			influxFile.totalEntryCount = currentComponents.length;
+		});
+		jest.spyOn(influxFile, 'toEntries').mockImplementation(() => {
+			influxFile.components = currentComponents;
+			return currentComponents;
+		});
+
+		render(
+			<InfluxReactComponent
+				influxFile={influxFile}
+				preview={false}
+				plugin={makePlugin()}
+			/>
+		);
+
+		expect(screen.getByText('Summary Source')).toBeTruthy();
+
+		hasBacklink = false;
+		api.getBacklinks.mockReturnValue(makeBacklinks([]));
+		await act(async () => {
+			await observerCallback?.({ op: 'modify', file: { path: sourcePath } });
+		});
+
+		expect(screen.queryByText('Summary Source')).toBeNull();
+		expect(screen.getByText('No backlinks found for this note yet.')).toBeTruthy();
+
+		hasBacklink = true;
+		api.getBacklinks.mockReturnValue(makeBacklinks([sourcePath]));
+		await act(async () => {
+			await observerCallback?.({ op: 'modify', file: { path: sourcePath } });
+		});
+
+		expect(screen.queryByText('No backlinks found for this note yet.')).toBeNull();
+		expect(screen.getByText('Summary Source')).toBeTruthy();
 	});
 
 	test('filters via debounced search, clears results, and closes on escape', async () => {

@@ -1,6 +1,6 @@
 import type { TFile } from 'obsidian';
 import type { ExtendedInlinkingFile } from '../domain/backlinks/types';
-import type { InfluxUpdateEvent } from '../platform/events/influx-updates';
+import type { InfluxUpdateEvent, InfluxUpdateOp } from '../platform/events/influx-updates';
 
 export interface InfluxUpdateTarget {
 	file?: { path?: string } | null;
@@ -73,7 +73,7 @@ export async function resolveInfluxUpdateEntries(params: {
 	return current.toEntries();
 }
 
-export function makeUpdateEvent(op: string, path?: string): InfluxUpdateEvent {
+export function makeUpdateEvent(op: InfluxUpdateOp, path?: string): InfluxUpdateEvent {
 	const file = path ? ({ path } as TFile) : undefined;
 	return { op, file };
 }
