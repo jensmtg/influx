@@ -429,6 +429,25 @@ describe('PreviewManager', () => {
 		expect(refreshSpy).toHaveBeenCalledTimes(1);
 	});
 
+	test('schedulePreviewRefreshForPath tries an immediate refresh before starting retry timers', async () => {
+		jest.useFakeTimers();
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const refreshSpy = jest.spyOn(manager as any, 'refreshPreviewLeavesByPath').mockResolvedValueOnce(false);
+		const scheduleAttemptSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshAttempt').mockImplementation(() => {});
+
+		(manager as any).schedulePreviewRefreshForPath('Immediate.md');
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(refreshSpy).toHaveBeenCalledTimes(1);
+		expect(scheduleAttemptSpy).toHaveBeenCalledWith('Immediate.md', 1, 0);
+	});
+
 	test('updateAllPreviews refreshes tracked preview roots before falling back to leaf iteration', async () => {
 		const trackedContainer = {
 			id: 'tracked-preview-root',

@@ -284,7 +284,11 @@ export function InfluxResultGroup(props: {
 	) : null;
 
 	return (
-		<div key={filePath} className={`influx-result-group ${collapsed ? 'influx-is-collapsed' : ''}${centered ? ' influx-result-group--split' : ''}`}>
+		<div
+			key={filePath}
+			className={`influx-result-group ${collapsed ? 'influx-is-collapsed' : ''}${centered ? ' influx-result-group--split' : ''}`}
+			data-influx-source-path={filePath}
+		>
 			<div className="influx-result-head" style={centeredTitleStyle}>
 				<button
 					type="button"

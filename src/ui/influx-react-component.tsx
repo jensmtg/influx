@@ -8,6 +8,7 @@ import { InfluxErrorBoundary } from './influx-error-boundary';
 import { debounce } from '../shared/async/debounce';
 import { recordMetric } from '../platform/diagnostics/metrics';
 import type { InfluxUiPlugin } from './influx-ui-plugin';
+import { attachInfluxLinkInteractions } from '../platform/obsidian/link-interactions';
 import {
 	collectBasenameCounts,
 	collectComponentPaths,
@@ -68,6 +69,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const searchInputRef = React.useRef<HTMLInputElement>(null);
 	const searchResultsContainerRef = React.useRef<HTMLDivElement>(null);
 	const loadMoreTriggerRef = React.useRef<HTMLDivElement>(null);
+	const rootRef = React.useRef<HTMLDivElement>(null);
 	const searchFocusTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const updateSeqRef = React.useRef(0);
 
@@ -101,6 +103,20 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const isEditorMode = renderMode === 'editor';
 	const showToolbarSummary = renderMode === 'editor' || renderMode === 'preview';
 	const autoLoadByObserver = renderMode !== 'editor';
+
+	React.useEffect(() => {
+		const container = rootRef.current;
+		if (!container) {
+			return;
+		}
+
+		return attachInfluxLinkInteractions({
+			container,
+			plugin,
+			renderMode,
+			fallbackSourcePath: targetFilePath,
+		});
+	}, [plugin, renderMode, targetFilePath]);
 
 	const filteredComponents = React.useMemo(() => {
 		const startTime = performance.now();
@@ -320,6 +336,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 				<React.Fragment>
 
 					<div
+						ref={rootRef}
 						className={`influx-root influx-component influx-component--${renderMode}`}
 						style={{
 							animation: 'fadeIn .6s',

@@ -305,7 +305,25 @@ export class PreviewManager {
 
 		const runId = (this.postProcessRefreshRuns.get(filePath) ?? 0) + 1;
 		this.postProcessRefreshRuns.set(filePath, runId);
-		this.schedulePreviewRefreshAttempt(filePath, runId, 0);
+
+		void this.refreshPreviewLeavesByPath(filePath).then((refreshedAny) => {
+			if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
+				this.clearScheduledRefresh(filePath);
+				return;
+			}
+
+			if (refreshedAny) {
+				this.clearScheduledRefresh(filePath, true);
+				return;
+			}
+
+			this.schedulePreviewRefreshAttempt(filePath, runId, 0);
+		}).catch((error) => {
+			logger.error('Failed immediate preview refresh attempt', { filePath, error });
+			if (!this.isInactive() && this.postProcessRefreshRuns.get(filePath) === runId) {
+				this.schedulePreviewRefreshAttempt(filePath, runId, 0);
+			}
+		});
 	}
 
 	private clearScheduledRefresh(filePath: string, clearRun = false): void {
