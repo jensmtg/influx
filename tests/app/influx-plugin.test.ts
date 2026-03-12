@@ -120,6 +120,7 @@ describe('ObsidianInflux lifecycle', () => {
 		jest.useFakeTimers();
 		const app = {
 			workspace: {
+				detachLeavesOfType: jest.fn(),
 				ensureSideLeaf: jest.fn(),
 				getLeavesOfType: jest.fn().mockReturnValue([]),
 			},
@@ -158,6 +159,7 @@ describe('ObsidianInflux lifecycle', () => {
 		(isDebugMode as jest.Mock).mockReturnValue(true);
 		const app = {
 			workspace: {
+				detachLeavesOfType: jest.fn(),
 				ensureSideLeaf: jest.fn(),
 				getLeavesOfType: jest.fn().mockReturnValue([]),
 			},
@@ -204,6 +206,21 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(InlinkingFile.clearSummaryCaches).toHaveBeenCalledTimes(1);
 		expect(cleanupWindowGlobals).toHaveBeenCalledTimes(1);
 		expect(plugin.updating.size).toBe(0);
+	});
+
+	test('closeSidebar uses documented workspace leaf detachment API', () => {
+		const detachLeavesOfType = jest.fn();
+		const plugin = new ObsidianInflux({
+			workspace: { detachLeavesOfType },
+			vault: {},
+			metadataCache: {},
+		} as any, {
+			version: 'test-version',
+		} as any);
+
+		plugin.closeSidebar();
+
+		expect(detachLeavesOfType).toHaveBeenCalledWith('influx-sidebar-view');
 	});
 
 	test('saveSettingsByParams only commits in-memory settings and side effects after persistence succeeds', async () => {

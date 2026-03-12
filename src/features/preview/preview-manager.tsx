@@ -18,6 +18,7 @@ import {
 	getLeafMarkdownFileMtime,
 	getLeafMarkdownFilePath,
 	getLeafPreviewModeRoot,
+	rerenderLeafPreviewMode,
 	type InfluxWorkspaceLeaf,
 	isLeafInPreviewMode,
 	resolvePreviewRoot,
@@ -139,8 +140,19 @@ export class PreviewManager {
 			return;
 		}
 
+		const existingContainer = findExistingContainer(previewDiv);
+		if (!existingContainer) {
+			if (rerenderLeafPreviewMode(influxLeaf)) {
+				this.schedulePreviewRefreshForPath(path);
+			} else {
+				logger.debug('Preview leaf has no renderer-owned host to update', { filePath: path });
+			}
+			return;
+		}
+
 		await this.renderPreviewForContainer({
 			previewDiv,
+			existingContainer,
 			filePath: path,
 			fileMtime: getLeafMarkdownFileMtime(influxLeaf),
 			resolveLatestPreviewDiv: () => getLeafPreviewModeRoot(influxLeaf),

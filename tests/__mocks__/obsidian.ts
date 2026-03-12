@@ -114,7 +114,7 @@ export class MarkdownView extends View {
 	file: unknown;
 	mode: 'source' | 'preview' = 'source';
 	currentMode: { type?: string } = { type: 'source' };
-	previewMode = {};
+	previewMode = { rerender: jest.fn() };
 	editor = {};
 
 	getViewType(): string {

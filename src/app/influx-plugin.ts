@@ -93,9 +93,7 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	closeSidebar() {
-		this.app.workspace.getLeavesOfType(CONSTANTS.VIEW_TYPE_SIDEBAR).forEach(leaf => {
-			leaf.detach();
-		});
+		this.app.workspace.detachLeavesOfType(CONSTANTS.VIEW_TYPE_SIDEBAR);
 	}
 
 	async saveSettingsByParams(

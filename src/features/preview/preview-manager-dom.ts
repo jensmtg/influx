@@ -11,6 +11,16 @@ function getMarkdownView(leaf: WorkspaceLeaf | null | undefined): MarkdownView |
 	return leaf?.view instanceof MarkdownView ? leaf.view : null;
 }
 
+export function rerenderLeafPreviewMode(leaf: WorkspaceLeaf | null | undefined): boolean {
+	const previewMode = getMarkdownView(leaf)?.previewMode;
+	if (!previewMode || typeof previewMode.rerender !== 'function') {
+		return false;
+	}
+
+	previewMode.rerender(true);
+	return true;
+}
+
 export function getLeafMarkdownFile(leaf: WorkspaceLeaf | null | undefined): TFile | null {
 	return getMarkdownView(leaf)?.file ?? null;
 }

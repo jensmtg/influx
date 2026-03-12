@@ -6,6 +6,11 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 
 - [ ] Fix reading-view and sidebar link behavior so source note titles and rendered excerpt links behave like real Obsidian links.
 - [ ] Restore hover previews / hover editors for Influx links in reading view and sidebar.
+- [ ] Rework reading-view mounting to follow the documented markdown post-processor lifecycle, instead of discovering `.markdown-preview-view` later and injecting a separate wrapper.
+- [x] Prototype and land a `MarkdownRenderChild`-owned reading-view host registered via `MarkdownPostProcessorContext.addChild(...)`.
+- [x] Replace obsolete `MarkdownRenderer.renderMarkdown(...)` in `src/ui/markdown-mount.tsx` with `MarkdownRenderer.render(...)`.
+- [x] Audit preview/sidebar workspace leaf handling for Obsidian deferred views; stop relying on unchecked markdown-shaped casts and add documented view checks where needed.
+- [x] Tighten active-note/sidebar resolution to documented workspace/view APIs where current code uses looser file lookup semantics.
 - [ ] Fix the refresh path where a backlink can disappear after a source-link edit and fail to reappear when the link is added back.
 - [ ] Re-test modify, rename, delete, and rapid repeated source-note changes after the backlink reappearance fix lands.
 - [ ] Do one last manual regression pass in a real Obsidian vault across editor, reading view, and sidebar mode.
@@ -34,6 +39,16 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 
 ## Recently completed
 
+- [x] Tighten shared workspace/view handling around `MarkdownView` in `src/app/events/event-manager.ts`, `src/features/sidebar/influx-sidebar-view.tsx`, and preview leaf handling.
+- [x] Move reading-view host creation into the markdown post-processor path and register a `MarkdownRenderChild`, while making tracked preview roots the primary refresh path.
+- [x] Restore delegated link click and hover bridging for reading view and sidebar through Obsidian workspace APIs, with focused tests.
+- [x] Replace obsolete markdown snippet rendering with `MarkdownRenderer.render(...)` and pass the plugin app through the React render path.
+- [x] Start trimming brittle preview tests that were tightly coupled to old retry timing and wrapper-cleanup internals.
+- [x] Shrink preview fallback/timer plumbing to a single coalesced deferred refresh pass and keep `preview-manager` coverage focused on tracked-vs-untracked behavior.
+- [x] Make the markdown post-processor path keep a renderer-owned preview-host registry, so direct reading-view updates reuse owned hosts instead of treating preview-root DOM scans as the source of truth.
+- [x] Switch untracked reading-view leaf fallback toward documented `MarkdownView` preview state (`getMode()` / `previewMode.containerEl`) instead of scanning leaf DOM to decide what counts as a preview host.
+- [x] Use `MarkdownPreviewView.rerender(...)` for untracked preview leaves that are missing an owned host, instead of reinjecting a new fallback wrapper from leaf refresh code.
+- [x] Replace the manual sidebar close loop in `src/app/influx-plugin.ts` with documented `Workspace.detachLeavesOfType(...)`.
 - [x] Add focused tests for dependency-driven refreshes so a source-note edit can no longer leave open targets stale.
 - [x] Add at least one case-sensitive path regression test before we forget about Linux and weird vault setups again.
 - [x] Revisit preview refresh throttling once the stale-update fixes land, just to make sure we are not hiding bursty real-world changes.
@@ -47,6 +62,7 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, fix t
 
 - [x] Pick one canonical home for the shared update observable and delete the extra shim once imports are settled.
 - [-] Flatten or rename the `features/editor/codemirror` area if we still agree the extra nesting is mostly path noise.
+- [ ] Revisit noisy logger output in tests once the preview/renderer refactor settles, so validation stays readable without hiding useful failures.
 - [ ] Move plugin-specific view code out of the generic-sounding `ui/` bucket, or at least rename the files so their responsibilities are obvious.
 - [ ] Remove dead or low-value code paths in `src/domain/backlinks/frontmatter-links.ts` if they are truly unused.
 - [x] Split the update-event policy out of `src/ui/influx-react-component-helpers.ts` so it is not stuck in the same grab-bag file as search and pagination helpers.

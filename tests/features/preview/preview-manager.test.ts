@@ -32,11 +32,14 @@ describe('PreviewManager', () => {
 		mode?: 'source' | 'preview';
 		file?: { path: string; stat?: { mtime: number } };
 		previewModeContainerEl?: HTMLElement;
+		previewModeRerender?: jest.Mock;
 	}) => {
 		const view = new MarkdownView({} as any) as any;
 		view.mode = params.mode ?? 'preview';
 		view.file = params.file ?? { path: params.path };
-		view.previewMode = params.previewModeContainerEl ? { containerEl: params.previewModeContainerEl } : {};
+		view.previewMode = params.previewModeContainerEl
+			? { containerEl: params.previewModeContainerEl, rerender: params.previewModeRerender ?? jest.fn() }
+			: { rerender: params.previewModeRerender ?? jest.fn() };
 		return {
 			view,
 			containerEl: params.containerEl,
@@ -289,6 +292,39 @@ describe('PreviewManager', () => {
 		expect(InfluxFile.create).toHaveBeenCalledTimes(1);
 		expect(createRootMock).toHaveBeenCalledTimes(1);
 		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
+	});
+
+	test('updatePreview rerenders preview mode instead of injecting a fallback host when none exists', async () => {
+		const previewRoot = {
+			id: 'rerender-preview-root',
+			remove: jest.fn(),
+			querySelectorAll: jest.fn().mockReturnValue([]),
+			appendChild: jest.fn(),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const previewModeRerender = jest.fn();
+		const leaf = createMarkdownLeaf({
+			path: 'Rerender.md',
+			file: { path: 'Rerender.md', stat: { mtime: 1 } },
+			containerEl: {} as HTMLDivElement,
+			previewModeContainerEl: previewRoot,
+			previewModeRerender,
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath');
+
+		await manager.updatePreview(leaf as any);
+
+		expect(previewModeRerender).toHaveBeenCalledWith(true);
+		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Rerender.md');
+		expect(previewRoot.appendChild).not.toHaveBeenCalled();
 	});
 
 	test('refreshPreviewLeavesByPath refreshes tracked preview roots without falling back to leaf updates when none remain', async () => {
