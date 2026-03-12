@@ -42,6 +42,10 @@ function asHtmlElement(value: unknown): HTMLElement | null {
 }
 
 function getInfluxContainer(wrapper: Element): HTMLElement | null {
+	if (typeof wrapper.querySelector !== 'function') {
+		return null;
+	}
+
 	return asHtmlElement(
 		wrapper.querySelector(`${CONSTANTS.INFLUX_CONTAINER_TAG}, ${CONSTANTS.INFLUX_CONTAINER_TAG_LEGACY}`)
 	);

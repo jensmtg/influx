@@ -1,4 +1,4 @@
-import { WorkspaceLeaf, MarkdownPostProcessorContext } from 'obsidian';
+import { WorkspaceLeaf, MarkdownPostProcessorContext, MarkdownRenderChild } from 'obsidian';
 import { ApiAdapter } from '../../domain/backlinks/api-adapter';
 import { rootManager } from '../../platform/react/root-manager';
 import { logger } from '../../platform/diagnostics/logger';
@@ -212,7 +212,22 @@ export class PreviewManager {
 			return;
 		}
 
+		this.ensurePostProcessorPreviewHost(previewRoot, context);
 		this.schedulePreviewRefreshForPath(filePath);
+	}
+
+	private ensurePostProcessorPreviewHost(
+		previewRoot: HTMLElement,
+		context: MarkdownPostProcessorContext
+	): HTMLElement {
+		const existingContainer = findExistingContainer(previewRoot);
+		if (existingContainer) {
+			return existingContainer;
+		}
+
+		const container = this.createPreviewContainer(previewRoot, `influx-preview-host-${context.docId}`);
+		context.addChild(new MarkdownRenderChild(container));
+		return container;
 	}
 
 	private schedulePreviewRefreshForPath(filePath: string): void {
@@ -341,12 +356,11 @@ export class PreviewManager {
 				return info.root;
 			}
 
-			const replacementContainer = document.createElement(CONSTANTS.INFLUX_CONTAINER_TAG);
-			replacementContainer.id = containerId;
-			existingContainer.replaceWith(replacementContainer);
-			const root = createRoot(replacementContainer);
-			rootManager.register(replacementContainer, root, 'preview', filePath);
-			logger.debug('Replaced untracked preview container before root creation', { filePath });
+			existingContainer.id = existingContainer.id || containerId;
+			existingContainer.replaceChildren();
+			const root = createRoot(existingContainer);
+			rootManager.register(existingContainer, root, 'preview', filePath);
+			logger.debug('Attached root to existing preview container', { filePath });
 			return root;
 		}
 

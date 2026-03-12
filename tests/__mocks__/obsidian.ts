@@ -29,6 +29,7 @@ class MockTAbstractFile {}
 
 export class Component {
 	private children: Component[] = [];
+	private unloadCallbacks: Array<() => void> = [];
 
 	addChild(child: Component): void {
 		this.children.push(child);
@@ -39,10 +40,27 @@ export class Component {
 	}
 
 	unload(): void {
+		for (const callback of this.unloadCallbacks) {
+			callback();
+		}
+		this.unloadCallbacks = [];
 		for (const child of this.children) {
 			child.unload();
 		}
 		this.children = [];
+	}
+
+	register(callback: () => void): void {
+		this.unloadCallbacks.push(callback);
+	}
+}
+
+export class MarkdownRenderChild extends Component {
+	containerEl: HTMLElement;
+
+	constructor(containerEl: HTMLElement) {
+		super();
+		this.containerEl = containerEl;
 	}
 }
 
@@ -351,6 +369,7 @@ export default {
 	TFile: MockTFile,
 	TAbstractFile: MockTAbstractFile,
 	Component,
+	MarkdownRenderChild,
 	View,
 	MarkdownView,
 	Plugin,
