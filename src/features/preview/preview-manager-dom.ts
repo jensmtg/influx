@@ -1,22 +1,39 @@
-import { WorkspaceLeaf, View, TFile } from 'obsidian';
+import { MarkdownView, WorkspaceLeaf, TFile } from 'obsidian';
 import { CONSTANTS } from '../../config/constants';
 import { logger } from '../../platform/diagnostics/logger';
 import { rootManager } from '../../platform/react/root-manager';
 
-export type InfluxView = View & {
-	file?: TFile;
-	currentMode?: { type: string };
-	mode?: string;
-};
-
 export type InfluxWorkspaceLeaf = WorkspaceLeaf & {
-	view?: InfluxView;
 	containerEl: HTMLDivElement;
 };
 
-function asHtmlElement(value: Element | null): HTMLElement | null {
+function getMarkdownView(leaf: WorkspaceLeaf | null | undefined): MarkdownView | null {
+	return leaf?.view instanceof MarkdownView ? leaf.view : null;
+}
+
+export function getLeafMarkdownFile(leaf: WorkspaceLeaf | null | undefined): TFile | null {
+	return getMarkdownView(leaf)?.file ?? null;
+}
+
+export function getLeafMarkdownFilePath(leaf: WorkspaceLeaf | null | undefined): string | undefined {
+	return getLeafMarkdownFile(leaf)?.path;
+}
+
+export function getLeafMarkdownFileMtime(leaf: WorkspaceLeaf | null | undefined): number {
+	return getLeafMarkdownFile(leaf)?.stat?.mtime ?? 0;
+}
+
+function getLeafPreviewModeRoot(leaf: WorkspaceLeaf | null | undefined): HTMLElement | null {
+	const containerEl = getMarkdownView(leaf)?.previewMode?.containerEl;
+	return asHtmlElement(containerEl);
+}
+
+function asHtmlElement(value: unknown): HTMLElement | null {
 	if (!value || typeof value !== 'object') {
 		return null;
+	}
+	if (typeof HTMLElement !== 'undefined' && value instanceof HTMLElement) {
+		return value;
 	}
 
 	return 'remove' in value || 'replaceWith' in value || 'id' in value
@@ -79,9 +96,8 @@ function hasTrackedInfluxRootForFile(previewRoot: HTMLElement, filePath?: string
 }
 
 export function isLeafInPreviewMode(leaf: InfluxWorkspaceLeaf): boolean {
-	const leafType: string | undefined = leaf.view?.currentMode?.type;
-	const viewMode = leaf.view?.mode;
-	return leafType === 'preview' || viewMode === 'preview';
+	const view = getMarkdownView(leaf);
+	return view?.getMode() === 'preview';
 }
 
 function selectPreferredPreviewRoot(candidates: HTMLElement[], filePath?: string): HTMLElement | null {
@@ -114,6 +130,15 @@ export function resolveLeafPreviewRoot(container: Element, filePath?: string): H
 	return selectPreferredPreviewRoot(visibleCandidates.length > 0 ? visibleCandidates : candidates, filePath);
 }
 
+export function resolveLeafPreviewRootFromLeaf(leaf: InfluxWorkspaceLeaf, filePath?: string): HTMLElement | null {
+	const previewModeRoot = getLeafPreviewModeRoot(leaf);
+	if (previewModeRoot) {
+		return previewModeRoot;
+	}
+
+	return resolveLeafPreviewRoot(leaf.containerEl, filePath);
+}
+
 export function resolveVisibleLeafPreviewRoot(container: Element, filePath?: string): HTMLElement | null {
 	return selectPreferredPreviewRoot(
 		getPreviewRootCandidates(container).filter(isPreviewRootVisible),
@@ -121,8 +146,22 @@ export function resolveVisibleLeafPreviewRoot(container: Element, filePath?: str
 	);
 }
 
+export function resolveVisibleLeafPreviewRootFromLeaf(leaf: InfluxWorkspaceLeaf, filePath?: string): HTMLElement | null {
+	const previewModeRoot = getLeafPreviewModeRoot(leaf);
+	if (previewModeRoot && isPreviewRootVisible(previewModeRoot)) {
+		return previewModeRoot;
+	}
+
+	return resolveVisibleLeafPreviewRoot(leaf.containerEl, filePath);
+}
+
 export function leafHasPreviewRoot(leaf: InfluxWorkspaceLeaf): boolean {
-	return isLeafInPreviewMode(leaf) || !!resolveVisibleLeafPreviewRoot(leaf.containerEl, leaf.view?.file?.path);
+	const filePath = getLeafMarkdownFilePath(leaf);
+	if (!filePath) {
+		return false;
+	}
+
+	return isLeafInPreviewMode(leaf) || !!resolveVisibleLeafPreviewRootFromLeaf(leaf, filePath);
 }
 
 export function resolvePreviewRoot(element: HTMLElement): HTMLElement | null {

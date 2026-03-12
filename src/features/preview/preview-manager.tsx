@@ -15,10 +15,12 @@ import {
 	cleanupDuplicatePreviewWrappers,
 	cleanupPreviewContainers,
 	findExistingContainer,
+	getLeafMarkdownFileMtime,
+	getLeafMarkdownFilePath,
 	leafHasPreviewRoot,
 	type InfluxWorkspaceLeaf,
 	isLeafInPreviewMode,
-	resolveLeafPreviewRoot,
+	resolveLeafPreviewRootFromLeaf,
 	resolvePreviewRoot,
 } from './preview-manager-dom';
 
@@ -76,7 +78,7 @@ export class PreviewManager {
 
 		const updatePromises = previewLeaves.map((leaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			const filePath = influxLeaf.view?.file?.path;
+			const filePath = getLeafMarkdownFilePath(influxLeaf);
 			if (!filePath) {
 				return Promise.resolve();
 			}
@@ -105,15 +107,14 @@ export class PreviewManager {
 		}
 
 		const influxLeaf = leaf as InfluxWorkspaceLeaf;
-		const container: HTMLDivElement = influxLeaf.containerEl;
-		const path = influxLeaf.view?.file?.path;
+		const path = getLeafMarkdownFilePath(influxLeaf);
 		if (!path) {
 			logger.debug('No file path found for preview');
 			return;
 		}
 
 		const settings = this.plugin.data.settings;
-		const previewDiv = await this.resolvePreviewDiv(container, path, isLeafInPreviewMode(influxLeaf));
+		const previewDiv = await this.resolvePreviewDiv(influxLeaf, path, isLeafInPreviewMode(influxLeaf));
 		if (!previewDiv) {
 			logger.debug('Preview root not ready for leaf', { filePath: path });
 			return;
@@ -127,7 +128,7 @@ export class PreviewManager {
 		let existingContainer = findExistingContainer(targetPreviewDiv);
 		cleanupDuplicatePreviewWrappers(previewDiv, existingContainer);
 
-		const fileMtime = influxLeaf.view?.file?.stat?.mtime ?? 0;
+		const fileMtime = getLeafMarkdownFileMtime(influxLeaf);
 		const dependencyRevision = cacheManager.getDependencyRevision();
 		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}-${dependencyRevision}`;
 
@@ -161,7 +162,7 @@ export class PreviewManager {
 			return;
 		}
 
-		const latestPreviewDiv = resolveLeafPreviewRoot(container, path);
+		const latestPreviewDiv = resolveLeafPreviewRootFromLeaf(influxLeaf, path);
 		if (!latestPreviewDiv) {
 			logger.debug('Preview root disappeared before render', { filePath: path });
 			return;
@@ -306,7 +307,7 @@ export class PreviewManager {
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			if (influxLeaf.view?.file?.path !== filePath || !leafHasPreviewRoot(influxLeaf)) {
+			if (getLeafMarkdownFilePath(influxLeaf) !== filePath || !leafHasPreviewRoot(influxLeaf)) {
 				return;
 			}
 
@@ -393,11 +394,11 @@ export class PreviewManager {
 	}
 
 	private async resolvePreviewDiv(
-		container: HTMLElement,
+		leaf: InfluxWorkspaceLeaf,
 		filePath: string,
 		allowRetry: boolean
 	): Promise<HTMLElement | null> {
-		const getPreviewDiv = () => resolveLeafPreviewRoot(container, filePath);
+		const getPreviewDiv = () => resolveLeafPreviewRootFromLeaf(leaf, filePath);
 		const immediate = getPreviewDiv();
 		if (immediate || !allowRetry) {
 			return immediate;

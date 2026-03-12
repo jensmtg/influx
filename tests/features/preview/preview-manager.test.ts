@@ -4,6 +4,7 @@ import { cacheManager } from '@/platform/cache/cache-manager';
 import { CONSTANTS } from '@/config/constants';
 import InfluxFile from '@/domain/backlinks/influx-file';
 import * as ReactDomClient from 'react-dom/client';
+import { MarkdownView } from 'obsidian';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({
@@ -24,6 +25,23 @@ describe('PreviewManager', () => {
 		querySelectorAll = jest.fn().mockReturnValue([]);
 		remove = jest.fn();
 	}
+
+	const createMarkdownLeaf = (params: {
+		path: string;
+		containerEl: HTMLDivElement;
+		mode?: 'source' | 'preview';
+		file?: { path: string; stat?: { mtime: number } };
+		previewModeContainerEl?: HTMLElement;
+	}) => {
+		const view = new MarkdownView({} as any) as any;
+		view.mode = params.mode ?? 'preview';
+		view.file = params.file ?? { path: params.path };
+		view.previewMode = params.previewModeContainerEl ? { containerEl: params.previewModeContainerEl } : {};
+		return {
+			view,
+			containerEl: params.containerEl,
+		};
+	};
 
 	afterEach(() => {
 		jest.useRealTimers();
@@ -84,13 +102,10 @@ describe('PreviewManager', () => {
 				return queryCount === 1 ? [] : [previewRoot];
 			}),
 		} as unknown as HTMLDivElement;
-		const leaf = {
-			view: {
-				file: { path: 'Scratchpad.md' },
-				currentMode: { type: 'preview' },
-			},
+		const leaf = createMarkdownLeaf({
+			path: 'Scratchpad.md',
 			containerEl,
-		};
+		});
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: true } },
@@ -161,15 +176,12 @@ describe('PreviewManager', () => {
 			},
 		}) as unknown as HTMLElement;
 
-		const leaf = {
-			view: {
-				file: { path: 'Shared.md' },
-				currentMode: { type: 'preview' },
-			},
+		const leaf = createMarkdownLeaf({
+			path: 'Shared.md',
 			containerEl: {
 				querySelector: jest.fn(),
-			},
-		};
+			} as unknown as HTMLDivElement,
+		});
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
@@ -247,15 +259,13 @@ describe('PreviewManager', () => {
 			insertBefore: jest.fn(),
 			firstChild: null,
 		} as unknown as HTMLElement;
-		const leaf = {
-			view: {
-				file: { path: 'Dependency.md', stat: { mtime: 999 } },
-				currentMode: { type: 'preview' },
-			},
+		const leaf = createMarkdownLeaf({
+			path: 'Dependency.md',
+			file: { path: 'Dependency.md', stat: { mtime: 999 } },
 			containerEl: {
 				querySelectorAll: jest.fn().mockReturnValue([previewRoot]),
-			},
-		};
+			} as unknown as HTMLDivElement,
+		});
 		const makeInfluxListDeferred = new Promise<void>((resolve) => {
 			setTimeout(resolve, 0);
 		});
@@ -301,15 +311,12 @@ describe('PreviewManager', () => {
 	});
 
 	test('updateAllPreviews skips leaves that already have an active refresh', async () => {
-		const leaf = {
-			view: {
-				file: { path: 'Scratchpad.md' },
-				currentMode: { type: 'preview' },
-			},
+		const leaf = createMarkdownLeaf({
+			path: 'Scratchpad.md',
 			containerEl: {
 				querySelector: jest.fn(),
-			},
-		};
+			} as unknown as HTMLDivElement,
+		});
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
@@ -351,24 +358,18 @@ describe('PreviewManager', () => {
 
 	test('updateAllPreviews does not throttle separate panes for the same file path', async () => {
 		const sharedPath = 'Shared.md';
-		const leafA = {
-			view: {
-				file: { path: sharedPath },
-				currentMode: { type: 'preview' },
-			},
+		const leafA = createMarkdownLeaf({
+			path: sharedPath,
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
-		};
-		const leafB = {
-			view: {
-				file: { path: sharedPath },
-				currentMode: { type: 'preview' },
-			},
+		});
+		const leafB = createMarkdownLeaf({
+			path: sharedPath,
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
-		};
+		});
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
@@ -393,24 +394,18 @@ describe('PreviewManager', () => {
 
 	test('updateAllPreviews throttles while in flight, then allows next cycle after settle', async () => {
 		const sharedPath = 'Shared.md';
-		const leafA = {
-			view: {
-				file: { path: sharedPath },
-				currentMode: { type: 'preview' },
-			},
+		const leafA = createMarkdownLeaf({
+			path: sharedPath,
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
-		};
-		const leafB = {
-			view: {
-				file: { path: sharedPath },
-				currentMode: { type: 'preview' },
-			},
+		});
+		const leafB = createMarkdownLeaf({
+			path: sharedPath,
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
-		};
+		});
 
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
