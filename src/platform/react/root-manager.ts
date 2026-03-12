@@ -246,6 +246,10 @@ export class RootManager {
 		});
 	}
 
+	getRootsByType(type: RootType): RootInfo[] {
+		return Array.from(this.roots.values()).filter((info) => info.type === type);
+	}
+
 	/**
 	 * Check if a root exists for a container
 	 */

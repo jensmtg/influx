@@ -67,13 +67,43 @@ export class PreviewManager {
 			return;
 		}
 
+		const trackedPreviewContainers = new Set<HTMLElement>();
+		const trackedPreviewUpdates = rootManager.getRootsByType('preview').map((info) => {
+			if (!info.filePath) {
+				return Promise.resolve();
+			}
+
+			const previewDiv = resolvePreviewRoot(info.container);
+			if (!previewDiv) {
+				return Promise.resolve();
+			}
+
+			trackedPreviewContainers.add(info.container);
+			return this.renderPreviewForContainer({
+				previewDiv,
+				filePath: info.filePath,
+				fileMtime: this.apiAdapter.getFileByPath(info.filePath)?.stat?.mtime ?? 0,
+				preferredContainerId: info.container.id,
+			}).catch((error) => {
+				logger.error('Failed to update tracked preview root', { filePath: info.filePath, error });
+			});
+		});
+
 		const previewLeaves: WorkspaceLeaf[] = [];
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			if (leafHasPreviewRoot(influxLeaf)) {
-				previewLeaves.push(leaf);
+			if (!leafHasPreviewRoot(influxLeaf)) {
+				return;
 			}
+
+			const previewRoot = resolveLeafPreviewRootFromLeaf(influxLeaf, getLeafMarkdownFilePath(influxLeaf));
+			const existingContainer = previewRoot ? findExistingContainer(previewRoot) : null;
+			if (existingContainer && trackedPreviewContainers.has(existingContainer)) {
+				return;
+			}
+
+				previewLeaves.push(leaf);
 		});
 
 		const updatePromises = previewLeaves.map((leaf) => {
@@ -98,7 +128,7 @@ export class PreviewManager {
 				});
 		});
 
-		await Promise.all(updatePromises);
+		await Promise.all([...trackedPreviewUpdates, ...updatePromises]);
 	}
 
 	async updatePreview(leaf: WorkspaceLeaf): Promise<void> {

@@ -58,6 +58,10 @@ function getInfluxContainers(container: Element): HTMLElement[] {
 }
 
 function getPreviewRootCandidates(container: Element): HTMLElement[] {
+	if (typeof container.querySelectorAll !== 'function') {
+		return [];
+	}
+
 	return Array.from(container.querySelectorAll('.markdown-preview-view')).filter(
 		(node): node is HTMLElement => asHtmlElement(node) !== null
 	);
