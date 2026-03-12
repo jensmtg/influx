@@ -991,6 +991,7 @@ jest.mock('react-dom/client', () => ({
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(undefined);
 		const setPreviewFileHashSpy = jest.spyOn(cacheManager, 'setPreviewFileHash').mockImplementation(() => {});
+		const unmountSpy = jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		jest.spyOn(rootManager, 'register').mockImplementation(() => {});
 		(ReactDomClient.createRoot as jest.Mock).mockReturnValue({ render: jest.fn() } as any);
@@ -998,6 +999,7 @@ jest.mock('react-dom/client', () => ({
 		await manager.updatePreview(leaf as any);
 
 		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
+		expect(unmountSpy).not.toHaveBeenCalled();
 		expect(setPreviewFileHashSpy).not.toHaveBeenCalled();
 	});
 

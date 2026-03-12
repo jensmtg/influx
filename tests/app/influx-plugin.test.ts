@@ -15,6 +15,7 @@ jest.mock('@/platform/react/root-manager', () => ({
 	rootManager: {
 		size: 0,
 		getDebugInfo: jest.fn().mockReturnValue([]),
+		unmountByFilePath: jest.fn(),
 		unmountAll: jest.fn(),
 	},
 }));
@@ -23,6 +24,7 @@ jest.mock('@/platform/cache/cache-manager', () => ({
 	cacheManager: {
 		clearAll: jest.fn(),
 		getDebugInfo: jest.fn().mockReturnValue({}),
+		invalidatePreviewFileHash: jest.fn(),
 	},
 }));
 
@@ -226,6 +228,18 @@ describe('ObsidianInflux lifecycle', () => {
 		plugin.closeSidebar();
 
 		expect(detachLeavesOfType).toHaveBeenCalledWith('influx-sidebar-view');
+	});
+
+	test('cleanupFileHash clears preview hashes and only unmounts editor/preview roots', () => {
+		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
+			version: 'test-version',
+		} as any);
+
+		plugin.cleanupFileHash('Folder/Note.md');
+
+		expect(cacheManager.invalidatePreviewFileHash).toHaveBeenCalledWith('Folder/Note.md');
+		expect(rootManager.unmountByFilePath).toHaveBeenNthCalledWith(1, 'Folder/Note.md', 'editor');
+		expect(rootManager.unmountByFilePath).toHaveBeenNthCalledWith(2, 'Folder/Note.md', 'preview');
 	});
 
 	test('openSidebar falls back to right leaf view state before Obsidian 1.7.2', () => {

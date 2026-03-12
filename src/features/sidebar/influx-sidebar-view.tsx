@@ -279,6 +279,9 @@ export class InfluxSidebarView extends ItemView {
 			if (!result) {
 				return;
 			}
+			if (this.isCurrentUpdateAborted(signal, updateId)) {
+				return;
+			}
 
 			this.influxFile = result.influxFile;
 
@@ -339,6 +342,9 @@ export class InfluxSidebarView extends ItemView {
 				shouldAbort: () => Boolean(signal?.aborted) || updateId !== this.currentUpdateId,
 			});
 			if (!result) {
+				return;
+			}
+			if (this.isCurrentUpdateAborted(signal, updateId)) {
 				return;
 			}
 			if (result.hidden) {

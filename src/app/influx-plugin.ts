@@ -166,8 +166,10 @@ export default class ObsidianInflux extends Plugin {
 	 * Call this when files are deleted, renamed, or moved.
 	 */
 	private cleanupFileReactRoots(filePath: string): void {
-		// Use rootManager to unmount by file path
-		rootManager.unmountByFilePath(filePath);
+		// Sidebar is a long-lived view shell and should stay mounted while it reacts
+		// to file lifecycle updates. Only file-owned editor/preview roots are cleaned here.
+		rootManager.unmountByFilePath(filePath, 'editor');
+		rootManager.unmountByFilePath(filePath, 'preview');
 	}
 
 	/**

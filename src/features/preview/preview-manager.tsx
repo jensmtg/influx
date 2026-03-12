@@ -233,10 +233,6 @@ export class PreviewManager {
 			return;
 		}
 
-		if (existingContainer) {
-			rootManager.unmount(existingContainer);
-		}
-
 		const result = await createInfluxFileForRender({
 			filePath,
 			api: this.apiAdapter,
@@ -266,6 +262,9 @@ export class PreviewManager {
 		}
 		if (this.hasFreshPreviewRoot(fileHash, existingContainer)) {
 			return;
+		}
+		if (existingContainer) {
+			rootManager.unmount(existingContainer);
 		}
 
 		const anchor = this.getOrCreatePreviewRoot(

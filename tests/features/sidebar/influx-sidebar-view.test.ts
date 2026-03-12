@@ -4,6 +4,7 @@ import InfluxFile from '@/domain/backlinks/influx-file';
 import { createRoot } from 'react-dom/client';
 import { influxUpdates$ } from '@/platform/events/influx-updates';
 import type { InfluxSidebarPlugin } from '@/features/sidebar/influx-sidebar-plugin';
+import * as renderPipeline from '@/domain/backlinks/influx-render-pipeline';
 import { MarkdownView, type TFile, type WorkspaceLeaf } from 'obsidian';
 import { rootManager } from '@/platform/react/root-manager';
 
@@ -214,6 +215,44 @@ describe('InfluxSidebarView', () => {
 		expect((harness.root?.render as jest.Mock).mock.calls).toHaveLength(renderCountBeforeStaleResolve);
 	});
 
+	test('updateView ignores stale hidden results from an older async update', async () => {
+		const { view, harness, fileA, fileB } = createContext();
+		let resolveA: ((value: unknown) => void) | null = null;
+
+		createInfluxFileMock.mockImplementation((path: string) => {
+			if (path === 'A.md') {
+				return new Promise((resolve) => {
+					resolveA = resolve;
+				});
+			}
+			return Promise.resolve({
+				show: true,
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn().mockReturnValue([{ sourcePath: 'B.md' }]),
+				totalEntryCount: 1,
+			});
+		});
+
+		const first = view.updateView(fileA);
+		await Promise.resolve();
+		const second = view.updateView(fileB);
+		await second;
+		const renderCountBeforeStaleResolve = (harness.root?.render as jest.Mock).mock.calls.length;
+
+		if (resolveA) {
+			(resolveA as (value: unknown) => void)({
+				show: false,
+				makeInfluxList: jest.fn(),
+				toEntries: jest.fn().mockReturnValue([]),
+				totalEntryCount: 0,
+			});
+		}
+		await first;
+
+		expect(harness.currentFile).toBe(fileB);
+		expect((harness.root?.render as jest.Mock).mock.calls).toHaveLength(renderCountBeforeStaleResolve);
+	});
+
 
 	test('handleEditorChange drops rendering when update id changes mid-flight', async () => {
 		const { harness, plugin, fileA } = createContext();
@@ -269,6 +308,40 @@ describe('InfluxSidebarView', () => {
 
 		expect(harness.root?.render).not.toHaveBeenCalled();
 		expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+	});
+
+	test('handleEditorChange ignores stale hidden results resolved after a newer update wins', async () => {
+		const { harness, fileA } = createContext();
+		const buildSpy = jest.spyOn(renderPipeline, 'buildInfluxFileForRender');
+		let resolveBuild: ((value: any) => void) | null = null;
+
+		harness.currentFile = fileA;
+		harness.influxFile = {
+			show: true,
+			makeInfluxList: jest.fn(),
+			toEntries: jest.fn().mockReturnValue([]),
+			totalEntryCount: 0,
+		};
+
+		buildSpy.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveBuild = resolve;
+				}) as Promise<any>
+		);
+
+		const pending = harness.handleEditorChange();
+		harness.currentUpdateId += 1;
+		if (resolveBuild) {
+			(resolveBuild as (value: any) => void)({
+				influxFile: harness.influxFile,
+				renderedComponents: [],
+				hidden: true,
+			});
+		}
+		await pending;
+
+		expect(harness.root?.render).not.toHaveBeenCalled();
 	});
 
 	test('handleEditorChange suppresses stale error banner when update id changes', async () => {
