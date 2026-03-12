@@ -64,7 +64,7 @@ export class PreviewManager {
 			return;
 		}
 
-		const trackedPreviewContainers = new Set<HTMLElement>();
+		const trackedPreviewRoots = new Set<HTMLElement>();
 		const trackedPreviewUpdates = rootManager.getRootsByType('preview').map((info) => {
 			if (!info.filePath) {
 				return Promise.resolve();
@@ -75,7 +75,7 @@ export class PreviewManager {
 				return Promise.resolve();
 			}
 
-			trackedPreviewContainers.add(info.container);
+			trackedPreviewRoots.add(previewDiv);
 			return this.renderPreviewForContainer({
 				previewDiv,
 				existingContainer: info.container,
@@ -87,7 +87,7 @@ export class PreviewManager {
 			});
 		});
 
-		const previewLeaves = await this.getUntrackedPreviewLeaves(trackedPreviewContainers);
+		const previewLeaves = await this.getUntrackedPreviewLeaves(trackedPreviewRoots);
 
 		const updatePromises = previewLeaves.map((leaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
@@ -140,14 +140,14 @@ export class PreviewManager {
 			return;
 		}
 
-		const existingContainer = findExistingContainer(previewDiv);
-		if (!existingContainer || !rootManager.has(existingContainer)) {
+		const existingContainer = this.findTrackedPreviewContainer(path, previewDiv);
+		if (!existingContainer) {
 			if (rerenderLeafPreviewMode(influxLeaf)) {
 				this.schedulePreviewRefreshForPath(path);
 			} else {
 				logger.debug('Preview leaf has no renderer-owned host to update', {
 					filePath: path,
-					hasExistingContainer: Boolean(existingContainer),
+					hasExistingContainer: Boolean(findExistingContainer(previewDiv)),
 				});
 			}
 			return;
@@ -341,7 +341,7 @@ export class PreviewManager {
 		}
 
 		const trackedPreviewContainers = rootManager.getContainersByFilePath(filePath, 'preview');
-		const trackedContainers = new Set<HTMLElement>(trackedPreviewContainers);
+		const trackedPreviewRoots = new Set<HTMLElement>();
 		let refreshedAny = false;
 
 		if (trackedPreviewContainers.length > 0) {
@@ -353,6 +353,8 @@ export class PreviewManager {
 					if (!previewDiv) {
 						return Promise.resolve();
 					}
+
+					trackedPreviewRoots.add(previewDiv);
 
 					return this.renderPreviewForContainer({
 						previewDiv,
@@ -367,7 +369,7 @@ export class PreviewManager {
 			);
 		}
 
-		const leaves = await this.getUntrackedPreviewLeaves(trackedContainers, filePath);
+		const leaves = await this.getUntrackedPreviewLeaves(trackedPreviewRoots, filePath);
 		if (leaves.length === 0) {
 			return refreshedAny;
 		}
@@ -387,7 +389,7 @@ export class PreviewManager {
 	}
 
 	private async getUntrackedPreviewLeaves(
-		trackedPreviewContainers: Set<HTMLElement>,
+		trackedPreviewRoots: Set<HTMLElement>,
 		filePath?: string
 	): Promise<WorkspaceLeaf[]> {
 		const leaves: WorkspaceLeaf[] = [];
@@ -426,8 +428,7 @@ export class PreviewManager {
 			}
 
 			const previewRoot = getLeafPreviewModeRoot(influxLeaf);
-			const existingContainer = previewRoot ? findExistingContainer(previewRoot) : null;
-			if (existingContainer && trackedPreviewContainers.has(existingContainer)) {
+			if (previewRoot && trackedPreviewRoots.has(previewRoot)) {
 				return;
 			}
 
@@ -588,6 +589,23 @@ export class PreviewManager {
 			return previewRoot;
 		}
 
-		return resolvePreviewRoot(container);
+		const resolvedPreviewRoot = resolvePreviewRoot(container);
+		if (resolvedPreviewRoot) {
+			rootManager.updateMetadata(container, { previewRoot: resolvedPreviewRoot });
+		}
+
+		return resolvedPreviewRoot;
+	}
+
+	private findTrackedPreviewContainer(filePath: string, previewRoot: HTMLElement): HTMLElement | null {
+		const trackedContainer = rootManager
+			.getContainersByFilePath(filePath, 'preview')
+			.find((container) => this.resolveTrackedPreviewRoot(container) === previewRoot);
+		if (trackedContainer) {
+			return trackedContainer;
+		}
+
+		const existingContainer = findExistingContainer(previewRoot);
+		return existingContainer && rootManager.has(existingContainer) ? existingContainer : null;
 	}
 }

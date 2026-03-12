@@ -39,4 +39,4 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, close
 - [x] Moved Reading-view host ownership onto the markdown post-processor path with `MarkdownRenderChild`, direct renderer-owned refreshes, and delegated link/hover handling.
 - [x] Replaced obsolete nested markdown rendering with `MarkdownRenderer.render(...)` and kept the editor path on the existing CM6 extension architecture.
 - [x] Hardened preview/sidebar workspace handling around documented `MarkdownView` / deferred-view APIs, including `requireApiVersion('1.7.2')` guards and older sidebar fallbacks.
-- [x] Simplified preview fallback so unowned leaves rerender through Obsidian instead of adopting stray containers, and tracked preview roots now carry `previewRoot` metadata through `rootManager`.
+- [x] Simplified preview fallback so unowned leaves rerender through Obsidian instead of adopting stray containers, and tracked preview roots now carry `previewRoot` metadata through `rootManager` and metadata-backed tracked-host lookup.

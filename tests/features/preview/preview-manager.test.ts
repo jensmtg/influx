@@ -382,6 +382,49 @@ jest.mock('react-dom/client', () => ({
 		expect(existingContainer.replaceChildren).not.toHaveBeenCalled();
 	});
 
+	test('updatePreview refreshes a tracked preview host from root metadata without rediscovering container DOM', async () => {
+		const previewRoot = {
+			id: 'tracked-preview-root',
+			remove: jest.fn(),
+			querySelectorAll: jest.fn().mockReturnValue([]),
+			appendChild: jest.fn(),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const trackedContainer = {
+			id: 'tracked-preview-host',
+			replaceChildren: jest.fn(),
+			closest: jest.fn().mockReturnValue(null),
+			querySelector: jest.fn(),
+		} as unknown as HTMLElement;
+		const leaf = createMarkdownLeaf({
+			path: 'Tracked.md',
+			file: { path: 'Tracked.md', stat: { mtime: 1 } },
+			containerEl: {} as HTMLDivElement,
+			previewModeContainerEl: previewRoot,
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Tracked.md', { previewRoot });
+		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
+
+		await manager.updatePreview(leaf as any);
+
+		expect(renderPreviewSpy).toHaveBeenCalledWith(expect.objectContaining({
+			previewDiv: previewRoot,
+			existingContainer: trackedContainer,
+			filePath: 'Tracked.md',
+		}));
+		expect(scheduleRefreshSpy).not.toHaveBeenCalled();
+		expect(previewRoot.querySelectorAll).not.toHaveBeenCalled();
+	});
+
 	test('refreshPreviewLeavesByPath refreshes tracked preview roots without falling back to leaf updates when none remain', async () => {
 		const trackedContainer = {
 			id: 'tracked-preview-root',
