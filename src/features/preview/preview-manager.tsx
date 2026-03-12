@@ -64,26 +64,18 @@ export class PreviewManager {
 			return;
 		}
 
+		const trackedPreviewHosts = this.getTrackedPreviewHosts();
 		const trackedPreviewRoots = new Set<HTMLElement>();
-		const trackedPreviewUpdates = rootManager.getRootsByType('preview').map((info) => {
-			if (!info.filePath) {
-				return Promise.resolve();
-			}
-
-			const previewDiv = this.resolveTrackedPreviewRoot(info.container);
-			if (!previewDiv) {
-				return Promise.resolve();
-			}
-
-			trackedPreviewRoots.add(previewDiv);
+		const trackedPreviewUpdates = trackedPreviewHosts.map(({ container, filePath, previewRoot }) => {
+			trackedPreviewRoots.add(previewRoot);
 			return this.renderPreviewForContainer({
-				previewDiv,
-				existingContainer: info.container,
-				filePath: info.filePath,
-				fileMtime: this.apiAdapter.getFileByPath(info.filePath)?.stat?.mtime ?? 0,
-				preferredContainerId: info.container.id,
+				previewDiv: previewRoot,
+				existingContainer: container,
+				filePath,
+				fileMtime: this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0,
+				preferredContainerId: container.id,
 			}).catch((error) => {
-				logger.error('Failed to update tracked preview root', { filePath: info.filePath, error });
+				logger.error('Failed to update tracked preview root', { filePath, error });
 			});
 		});
 
@@ -340,24 +332,19 @@ export class PreviewManager {
 			return false;
 		}
 
-		const trackedPreviewContainers = rootManager.getContainersByFilePath(filePath, 'preview');
+		const trackedPreviewHosts = this.getTrackedPreviewHosts(filePath);
 		const trackedPreviewRoots = new Set<HTMLElement>();
 		let refreshedAny = false;
 
-		if (trackedPreviewContainers.length > 0) {
+		if (trackedPreviewHosts.length > 0) {
 			refreshedAny = true;
 			const fileMtime = this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0;
 			await Promise.all(
-				trackedPreviewContainers.map((container) => {
-					const previewDiv = this.resolveTrackedPreviewRoot(container);
-					if (!previewDiv) {
-						return Promise.resolve();
-					}
-
-					trackedPreviewRoots.add(previewDiv);
+				trackedPreviewHosts.map(({ container, previewRoot }) => {
+					trackedPreviewRoots.add(previewRoot);
 
 					return this.renderPreviewForContainer({
-						previewDiv,
+						previewDiv: previewRoot,
 						existingContainer: container,
 						filePath,
 						fileMtime,
@@ -452,6 +439,50 @@ export class PreviewManager {
 		}
 
 		this.schedulePreviewRefreshForPath(filePath);
+	}
+
+	private getTrackedPreviewHosts(filePath?: string): Array<{
+		container: HTMLElement;
+		filePath: string;
+		previewRoot: HTMLElement;
+	}> {
+		const hosts = new Map<HTMLElement, {
+			container: HTMLElement;
+			filePath: string;
+			previewRoot: HTMLElement;
+		}>();
+
+		for (const [docId, host] of this.postProcessorHosts) {
+			const activeHost = this.getActivePostProcessorHost(docId, host.filePath);
+			if (!activeHost || (filePath && activeHost.filePath !== filePath)) {
+				continue;
+			}
+
+			hosts.set(activeHost.container, activeHost);
+		}
+
+		const rootInfos = filePath
+			? rootManager.getContainersByFilePath(filePath, 'preview').map((container) => rootManager.get(container)).filter((info): info is NonNullable<typeof info> => !!info)
+			: rootManager.getRootsByType('preview');
+
+		for (const info of rootInfos) {
+			if (!info.filePath || hosts.has(info.container)) {
+				continue;
+			}
+
+			const previewRoot = this.resolveTrackedPreviewRoot(info.container);
+			if (!previewRoot || (filePath && info.filePath !== filePath)) {
+				continue;
+			}
+
+			hosts.set(info.container, {
+				container: info.container,
+				filePath: info.filePath,
+				previewRoot,
+			});
+		}
+
+		return Array.from(hosts.values());
 	}
 
 	private hasFreshPreviewRoot(
