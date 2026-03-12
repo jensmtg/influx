@@ -87,7 +87,7 @@ export class PreviewManager {
 			});
 		});
 
-		const previewLeaves = this.getUntrackedPreviewLeaves(trackedPreviewContainers);
+		const previewLeaves = await this.getUntrackedPreviewLeaves(trackedPreviewContainers);
 
 		const updatePromises = previewLeaves.map((leaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
@@ -364,7 +364,7 @@ export class PreviewManager {
 			);
 		}
 
-		const leaves = this.getUntrackedPreviewLeaves(trackedContainers, filePath);
+		const leaves = await this.getUntrackedPreviewLeaves(trackedContainers, filePath);
 		if (leaves.length === 0) {
 			return refreshedAny;
 		}
@@ -380,13 +380,33 @@ export class PreviewManager {
 		return refreshedAny;
 	}
 
-	private getUntrackedPreviewLeaves(
+	private async getUntrackedPreviewLeaves(
 		trackedPreviewContainers: Set<HTMLElement>,
 		filePath?: string
-	): WorkspaceLeaf[] {
+	): Promise<WorkspaceLeaf[]> {
 		const leaves: WorkspaceLeaf[] = [];
+		const candidates: WorkspaceLeaf[] = [];
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
+			if (leaf.getViewState().type === 'markdown') {
+				candidates.push(leaf);
+			}
+		});
+
+		await Promise.all(candidates.map(async (leaf) => {
+			if (this.isInactive()) {
+				return;
+			}
+
+			if (leaf.isDeferred) {
+				try {
+					await leaf.loadIfDeferred();
+				} catch (error) {
+					logger.debug('Failed to load deferred markdown leaf before preview refresh', { error });
+					return;
+				}
+			}
+
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
 			const leafFilePath = getLeafMarkdownFilePath(influxLeaf);
 			if (!leafFilePath || (filePath && leafFilePath !== filePath) || !isLeafInPreviewMode(influxLeaf)) {
@@ -400,7 +420,7 @@ export class PreviewManager {
 			}
 
 			leaves.push(leaf);
-		});
+		}));
 
 		return leaves;
 	}

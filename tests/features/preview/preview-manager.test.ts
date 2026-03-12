@@ -13,12 +13,16 @@ jest.mock('react-dom/client', () => ({
 	})),
 }));
 
-describe('PreviewManager', () => {
-	const originalDocument = (globalThis as { document?: Document }).document;
-	const originalHTMLElement = (globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement;
-	const originalWindow = (globalThis as { window?: Window }).window;
+	describe('PreviewManager', () => {
+		const originalDocument = (globalThis as { document?: Document }).document;
+		const originalHTMLElement = (globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement;
+		const originalWindow = (globalThis as { window?: Window }).window;
 
-	class MockHTMLElement {
+		beforeEach(() => {
+			jest.spyOn(console, 'info').mockImplementation(() => {});
+		});
+
+		class MockHTMLElement {
 		classList = { contains: (_name: string) => false };
 		closest = jest.fn().mockReturnValue(null);
 		querySelector = jest.fn().mockReturnValue(null);
@@ -33,6 +37,9 @@ describe('PreviewManager', () => {
 		file?: { path: string; stat?: { mtime: number } };
 		previewModeContainerEl?: HTMLElement;
 		previewModeRerender?: jest.Mock;
+		isDeferred?: boolean;
+		loadIfDeferred?: jest.Mock;
+		viewType?: string;
 	}) => {
 		const view = new MarkdownView({} as any) as any;
 		view.mode = params.mode ?? 'preview';
@@ -43,6 +50,9 @@ describe('PreviewManager', () => {
 		return {
 			view,
 			containerEl: params.containerEl,
+			isDeferred: params.isDeferred ?? false,
+			loadIfDeferred: params.loadIfDeferred ?? jest.fn().mockResolvedValue(undefined),
+			getViewState: jest.fn().mockReturnValue({ type: params.viewType ?? 'markdown' }),
 		};
 	};
 
@@ -428,6 +438,42 @@ describe('PreviewManager', () => {
 			preferredContainerId: 'tracked-preview-root',
 		}));
 		expect(updatePreviewSpy).toHaveBeenCalledWith(untrackedLeaf);
+	});
+
+	test('updateAllPreviews loads deferred markdown leaves before inspecting preview state', async () => {
+		const previewRoot = {
+			id: 'deferred-preview-root',
+			remove: jest.fn(),
+			querySelectorAll: jest.fn().mockReturnValue([]),
+			appendChild: jest.fn(),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const loadIfDeferred = jest.fn().mockResolvedValue(undefined);
+		const deferredLeaf = createMarkdownLeaf({
+			path: 'Deferred.md',
+			containerEl: {} as HTMLDivElement,
+			previewModeContainerEl: previewRoot,
+			isDeferred: true,
+			loadIfDeferred,
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(deferredLeaf)),
+				},
+			},
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+
+		await manager.updateAllPreviews();
+
+		expect(loadIfDeferred).toHaveBeenCalledTimes(1);
+		expect(updatePreviewSpy).toHaveBeenCalledWith(deferredLeaf);
 	});
 
 	test('schedulePreviewRefreshForPath coalesces duplicate refresh requests into one deferred pass', async () => {
