@@ -29,14 +29,10 @@ import {
  * React root management, and cache invalidation.
  */
 export class PreviewManager {
-	private static readonly PREVIEW_ROOT_RETRY_MS = 75;
-	private static readonly POST_PROCESS_REFRESH_DELAYS_MS = [80, 240, 640];
-	private static readonly POST_RENDER_STABILIZATION_DELAY_MS = 160;
+	private static readonly PREVIEW_REFRESH_DELAY_MS = 120;
 	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
 	private nextLeafContainerId = 1;
-	private postProcessRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
-	private postProcessRefreshRuns = new Map<string, number>();
-	private postRenderStabilizationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private scheduledPreviewRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	private disposed = false;
 
 	constructor(
@@ -46,15 +42,10 @@ export class PreviewManager {
 
 	dispose(): void {
 		this.disposed = true;
-		for (const timer of this.postProcessRefreshTimers.values()) {
+		for (const timer of this.scheduledPreviewRefreshTimers.values()) {
 			clearTimeout(timer);
 		}
-		for (const timer of this.postRenderStabilizationTimers.values()) {
-			clearTimeout(timer);
-		}
-		this.postProcessRefreshTimers.clear();
-		this.postProcessRefreshRuns.clear();
-		this.postRenderStabilizationTimers.clear();
+		this.scheduledPreviewRefreshTimers.clear();
 	}
 
 	async updateAllPreviews(): Promise<void> {
@@ -89,22 +80,7 @@ export class PreviewManager {
 			});
 		});
 
-		const previewLeaves: WorkspaceLeaf[] = [];
-
-		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
-			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			if (!leafHasPreviewRoot(influxLeaf)) {
-				return;
-			}
-
-			const previewRoot = resolveLeafPreviewRootFromLeaf(influxLeaf, getLeafMarkdownFilePath(influxLeaf));
-			const existingContainer = previewRoot ? findExistingContainer(previewRoot) : null;
-			if (existingContainer && trackedPreviewContainers.has(existingContainer)) {
-				return;
-			}
-
-				previewLeaves.push(leaf);
-		});
+		const previewLeaves = this.getUntrackedPreviewLeaves(trackedPreviewContainers);
 
 		const updatePromises = previewLeaves.map((leaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
@@ -144,8 +120,11 @@ export class PreviewManager {
 		}
 
 		const settings = this.plugin.data.settings;
-		const previewDiv = await this.resolvePreviewDiv(influxLeaf, path, isLeafInPreviewMode(influxLeaf));
+		const previewDiv = resolveLeafPreviewRootFromLeaf(influxLeaf, path);
 		if (!previewDiv) {
+			if (isLeafInPreviewMode(influxLeaf)) {
+				this.schedulePreviewRefreshForPath(path);
+			}
 			logger.debug('Preview root not ready for leaf', { filePath: path });
 			return;
 		}
@@ -273,10 +252,6 @@ export class PreviewManager {
 		anchor.render(
 			<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
 		);
-
-		if (!existingContainer || !rootManager.has(existingContainer)) {
-			this.schedulePostRenderStabilizationRefresh(filePath);
-		}
 	}
 
 	private ensurePostProcessorPreviewHost(
@@ -298,106 +273,22 @@ export class PreviewManager {
 			return;
 		}
 
-		const pending = this.postProcessRefreshTimers.get(filePath);
-		if (pending) {
-			clearTimeout(pending);
-		}
-
-		const runId = (this.postProcessRefreshRuns.get(filePath) ?? 0) + 1;
-		this.postProcessRefreshRuns.set(filePath, runId);
-
-		void this.refreshPreviewLeavesByPath(filePath).then((refreshedAny) => {
-			if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
-				this.clearScheduledRefresh(filePath);
-				return;
-			}
-
-			if (refreshedAny) {
-				this.clearScheduledRefresh(filePath, true);
-				return;
-			}
-
-			this.schedulePreviewRefreshAttempt(filePath, runId, 0);
-		}).catch((error) => {
-			logger.error('Failed immediate preview refresh attempt', { filePath, error });
-			if (!this.isInactive() && this.postProcessRefreshRuns.get(filePath) === runId) {
-				this.schedulePreviewRefreshAttempt(filePath, runId, 0);
-			}
-		});
-	}
-
-	private clearScheduledRefresh(filePath: string, clearRun = false): void {
-		this.postProcessRefreshTimers.delete(filePath);
-		if (clearRun) {
-			this.postProcessRefreshRuns.delete(filePath);
-		}
-	}
-
-	private schedulePostRenderStabilizationRefresh(filePath: string): void {
-		if (this.isInactive()) {
+		if (this.scheduledPreviewRefreshTimers.has(filePath)) {
 			return;
 		}
 
-		const pending = this.postRenderStabilizationTimers.get(filePath);
-		if (pending) {
-			clearTimeout(pending);
-		}
-
 		const timer = setTimeout(() => {
-			this.postRenderStabilizationTimers.delete(filePath);
+			this.scheduledPreviewRefreshTimers.delete(filePath);
 			if (this.isInactive()) {
 				return;
 			}
 
 			void this.refreshPreviewLeavesByPath(filePath).catch((error) => {
-				logger.error('Failed to stabilize preview leaf after render', { filePath, error });
+				logger.error('Failed scheduled preview refresh', { filePath, error });
 			});
-		}, PreviewManager.POST_RENDER_STABILIZATION_DELAY_MS);
+		}, PreviewManager.PREVIEW_REFRESH_DELAY_MS);
 
-		this.postRenderStabilizationTimers.set(filePath, timer);
-	}
-
-	private schedulePreviewRefreshAttempt(filePath: string, runId: number, delayIndex: number): void {
-		const delay = PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS[delayIndex];
-		const timer = setTimeout(() => {
-			if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
-				this.clearScheduledRefresh(filePath);
-				return;
-			}
-
-			void this.refreshPreviewLeavesByPath(filePath).then((refreshedAny) => {
-				if (this.isInactive() || this.postProcessRefreshRuns.get(filePath) !== runId) {
-					this.clearScheduledRefresh(filePath);
-					return;
-				}
-
-				if (refreshedAny) {
-					this.clearScheduledRefresh(filePath, true);
-					return;
-				}
-
-				const nextDelayIndex = delayIndex + 1;
-				if (nextDelayIndex >= PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS.length) {
-					this.clearScheduledRefresh(filePath, true);
-					return;
-				}
-
-				this.schedulePreviewRefreshAttempt(filePath, runId, nextDelayIndex);
-			}).catch((error) => {
-				logger.error('Failed scheduled preview refresh attempt', { filePath, error });
-				if (!this.isInactive() && this.postProcessRefreshRuns.get(filePath) === runId) {
-					const nextDelayIndex = delayIndex + 1;
-					if (nextDelayIndex >= PreviewManager.POST_PROCESS_REFRESH_DELAYS_MS.length) {
-						this.clearScheduledRefresh(filePath, true);
-						return;
-					}
-
-					this.schedulePreviewRefreshAttempt(filePath, runId, nextDelayIndex);
-				}
-			});
-		}, delay);
-
-		this.postProcessRefreshTimers.set(filePath, timer);
+		this.scheduledPreviewRefreshTimers.set(filePath, timer);
 	}
 
 	private async refreshPreviewLeavesByPath(filePath: string): Promise<boolean> {
@@ -406,7 +297,11 @@ export class PreviewManager {
 		}
 
 		const trackedPreviewContainers = rootManager.getContainersByFilePath(filePath, 'preview');
+		const trackedContainers = new Set<HTMLElement>(trackedPreviewContainers);
+		let refreshedAny = false;
+
 		if (trackedPreviewContainers.length > 0) {
+			refreshedAny = true;
 			const fileMtime = this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0;
 			await Promise.all(
 				trackedPreviewContainers.map((container) => {
@@ -425,13 +320,14 @@ export class PreviewManager {
 					});
 				})
 			);
-			return true;
 		}
 
-		const leaves = this.getPreviewLeavesByPath(filePath);
+		const leaves = this.getUntrackedPreviewLeaves(trackedContainers, filePath);
 		if (leaves.length === 0) {
-			return false;
+			return refreshedAny;
 		}
+
+		refreshedAny = true;
 
 		await Promise.all(
 			leaves.map((leaf) => this.updatePreview(leaf).catch((error) => {
@@ -439,15 +335,25 @@ export class PreviewManager {
 			}))
 		);
 
-		return true;
+		return refreshedAny;
 	}
 
-	private getPreviewLeavesByPath(filePath: string): WorkspaceLeaf[] {
+	private getUntrackedPreviewLeaves(
+		trackedPreviewContainers: Set<HTMLElement>,
+		filePath?: string
+	): WorkspaceLeaf[] {
 		const leaves: WorkspaceLeaf[] = [];
 
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
-			if (getLeafMarkdownFilePath(influxLeaf) !== filePath || !leafHasPreviewRoot(influxLeaf)) {
+			const leafFilePath = getLeafMarkdownFilePath(influxLeaf);
+			if ((!leafFilePath || (filePath && leafFilePath !== filePath)) || !leafHasPreviewRoot(influxLeaf)) {
+				return;
+			}
+
+			const previewRoot = resolveLeafPreviewRootFromLeaf(influxLeaf, leafFilePath);
+			const existingContainer = previewRoot ? findExistingContainer(previewRoot) : null;
+			if (existingContainer && trackedPreviewContainers.has(existingContainer)) {
 				return;
 			}
 
@@ -532,20 +438,6 @@ export class PreviewManager {
 		return next;
 	}
 
-	private async resolvePreviewDiv(
-		leaf: InfluxWorkspaceLeaf,
-		filePath: string,
-		allowRetry: boolean
-	): Promise<HTMLElement | null> {
-		const getPreviewDiv = () => resolveLeafPreviewRootFromLeaf(leaf, filePath);
-		const immediate = getPreviewDiv();
-		if (immediate || !allowRetry) {
-			return immediate;
-		}
-
-		await new Promise((resolve) => window.setTimeout(resolve, PreviewManager.PREVIEW_ROOT_RETRY_MS));
-		return getPreviewDiv();
-	}
 	private computeSettingsHash(): string {
 		const cached = cacheManager.getSettingsHash();
 		if (cached) {
