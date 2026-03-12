@@ -208,6 +208,8 @@ export default class ObsidianInflux extends Plugin {
 	triggerUpdates(op: string, file?: TAbstractFile) {
 		// Coalesce by target path (or global) to avoid duplicate concurrent pipelines across ops.
 		const id = file?.path ? `path:${file.path}` : 'global';
+		const shouldUseTargetedPreviewRefresh =
+			file instanceof TFile && (op === 'file-open' || op === 'mode-change');
 
 		updateCoordinator.schedule(id, op, file?.path, async (signal) => {
 			if (signal.aborted) return;
@@ -223,7 +225,11 @@ export default class ObsidianInflux extends Plugin {
 			}
 
 			if (!signal.aborted) {
-				await this.previewManager.updateAllPreviews();
+				if (shouldUseTargetedPreviewRefresh) {
+					await this.previewManager.updatePreviewsForFilePath(file.path);
+				} else {
+					await this.previewManager.updateAllPreviews();
+				}
 			}
 		}).catch(e => {
 			// Error already logged by coordinator

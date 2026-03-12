@@ -106,6 +106,14 @@ export class PreviewManager {
 		await Promise.all([...trackedPreviewUpdates, ...updatePromises]);
 	}
 
+	async updatePreviewsForFilePath(filePath: string): Promise<void> {
+		if (this.isInactive()) {
+			return;
+		}
+
+		await this.refreshPreviewLeavesByPath(filePath);
+	}
+
 	async updatePreview(leaf: WorkspaceLeaf): Promise<void> {
 		if (this.isInactive()) {
 			return;

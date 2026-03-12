@@ -8,7 +8,7 @@ import { InlinkingFile } from '@/domain/backlinks/inlinking-file';
 import { EventManager } from '@/app/events/event-manager';
 import { PreviewManager } from '@/features/preview/preview-manager';
 import { isDebugMode } from '@/platform/diagnostics/debug-mode';
-import { requireApiVersion } from 'obsidian';
+import { requireApiVersion, TFile } from 'obsidian';
 
 jest.mock('@/platform/react/root-manager', () => ({
 	rootManager: {
@@ -272,15 +272,17 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(updateCoordinator.schedule).not.toHaveBeenCalled();
 	});
 
-		test('triggerUpdates refreshes open editors and previews for file, mode, and dependency-changing operations', async () => {
+		test('triggerUpdates uses targeted preview refresh for file-open and mode-change, and global refresh elsewhere', async () => {
 			const { refreshAllInfluxEditorViews } = jest.requireMock('@/features/editor/codemirror/async-view-plugin') as {
 				refreshAllInfluxEditorViews: jest.Mock;
 			};
 		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
 			version: 'test-version',
 		} as any);
+		const activeFile = Object.assign(new TFile(), { path: 'Active.md' });
 		const updateAllPreviews = jest.fn().mockResolvedValue(undefined);
-			(plugin as any).previewManager = { updateAllPreviews };
+		const updatePreviewsForFilePath = jest.fn().mockResolvedValue(undefined);
+			(plugin as any).previewManager = { updateAllPreviews, updatePreviewsForFilePath };
 			(updateCoordinator.schedule as jest.Mock).mockResolvedValue(undefined);
 			const getScheduledTask = (op: string) => {
 				const call = (updateCoordinator.schedule as jest.Mock).mock.calls.find(([, scheduledOp]) => scheduledOp === op);
@@ -301,11 +303,11 @@ describe('ObsidianInflux lifecycle', () => {
 			expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(1);
 			expect(updateAllPreviews).toHaveBeenCalledTimes(1);
 
-			plugin.triggerUpdates('file-open');
+			plugin.triggerUpdates('file-open', activeFile);
 			const fileOpenTask = getScheduledTask('file-open');
 			await fileOpenTask({ aborted: false });
 
-			plugin.triggerUpdates('mode-change');
+			plugin.triggerUpdates('mode-change', activeFile);
 			const modeChangeTask = getScheduledTask('mode-change');
 			await modeChangeTask({ aborted: false });
 
@@ -322,6 +324,9 @@ describe('ObsidianInflux lifecycle', () => {
 			await deleteTask({ aborted: false });
 
 		expect(refreshAllInfluxEditorViews).toHaveBeenCalledTimes(6);
-		expect(updateAllPreviews).toHaveBeenCalledTimes(6);
+		expect(updatePreviewsForFilePath).toHaveBeenCalledTimes(2);
+		expect(updatePreviewsForFilePath).toHaveBeenNthCalledWith(1, 'Active.md');
+		expect(updatePreviewsForFilePath).toHaveBeenNthCalledWith(2, 'Active.md');
+		expect(updateAllPreviews).toHaveBeenCalledTimes(4);
 	});
 });
