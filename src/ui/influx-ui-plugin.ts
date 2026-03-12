@@ -5,6 +5,7 @@ export interface InfluxUiPlugin {
 	cycleListLimit: () => Promise<void>;
 	toggleSortOrder: () => Promise<void>;
 	toggleFrontmatterLinks: () => Promise<void>;
+	app?: unknown;
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

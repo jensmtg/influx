@@ -89,7 +89,7 @@ describe('MarkdownMount lifecycle', () => {
 
 	test('keeps the latest render output when an older markdown render resolves late', async () => {
 		let releaseFirstRender: (() => void) | undefined;
-		jest.spyOn(MarkdownRenderer, 'renderMarkdown').mockImplementation(async (markdown: string, el: HTMLElement) => {
+		jest.spyOn(MarkdownRenderer, 'render').mockImplementation(async (_app: unknown, markdown: string, el: HTMLElement) => {
 			if (markdown === 'First') {
 				await new Promise<void>((resolve) => {
 					releaseFirstRender = () => {
@@ -103,10 +103,10 @@ describe('MarkdownMount lifecycle', () => {
 			el.textContent = markdown;
 		});
 
-		const view = render(React.createElement(MarkdownMount, { markdown: 'First', sourcePath: 'First.md' }));
+		const view = render(React.createElement(MarkdownMount, { app: {}, markdown: 'First', sourcePath: 'First.md' }));
 
 		await act(async () => {
-			view.rerender(React.createElement(MarkdownMount, { markdown: 'Second', sourcePath: 'Second.md' }));
+			view.rerender(React.createElement(MarkdownMount, { app: {}, markdown: 'Second', sourcePath: 'Second.md' }));
 		});
 
 		expect(view.container.textContent).toBe('Second');

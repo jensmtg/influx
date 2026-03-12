@@ -385,11 +385,12 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 									onToggleCollapse={doToggle}
 										centered={centered}
 										centeredTitleStyle={centeredTitleStyle}
-										settings={settings}
-										preview={preview}
-										renderMode={renderMode}
-										influxFileUuid={influxFile.uuid}
-									/>
+									settings={settings}
+									preview={preview}
+									renderMode={renderMode}
+									influxFileUuid={influxFile.uuid}
+									app={plugin.app}
+								/>
 								))}
 
 							{filteredComponents.length === 0 && searchQuery && (

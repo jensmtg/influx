@@ -250,6 +250,7 @@ export function InfluxResultGroup(props: {
 	preview: boolean;
 	renderMode: InfluxRenderMode;
 	influxFileUuid: string;
+	app?: unknown;
 }): React.ReactElement {
 	const {
 		extended,
@@ -263,6 +264,7 @@ export function InfluxResultGroup(props: {
 		preview,
 		renderMode,
 		influxFileUuid,
+		app,
 	} = props;
 
 	const filePath = extended.sourcePath;
@@ -324,6 +326,7 @@ export function InfluxResultGroup(props: {
 				<div className="influx-entries">
 					{entryHeader}
 					<MarkdownMount
+						app={app}
 						markdown={extended.summaryMarkdown}
 						sourcePath={extended.sourcePath}
 						className={`influx-entry ${preview ? 'is-preview' : ''} influx-entry--${renderMode}`}

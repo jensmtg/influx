@@ -4,6 +4,7 @@ import { logger } from '../platform/diagnostics/logger';
 import { normalizeEditorListItems } from './editor-dom-normalization';
 
 interface MarkdownMountProps {
+	app?: unknown;
 	markdown: string;
 	sourcePath: string;
 	className?: string;
@@ -71,6 +72,7 @@ function disableRenderedCheckboxes(container: HTMLElement): void {
 }
 
 const MarkdownMount = React.memo(function MarkdownMount({
+	app,
 	markdown,
 	sourcePath,
 	className,
@@ -92,8 +94,12 @@ const MarkdownMount = React.memo(function MarkdownMount({
 
 		const render = async () => {
 			try {
+				if (!app) {
+					logger.error('Missing app for markdown render at mount target', { sourcePath });
+					return;
+				}
 				const preparedMarkdown = prepareMarkdownForInflux(markdown);
-				await MarkdownRenderer.renderMarkdown(preparedMarkdown, renderTarget, sourcePath || '/', renderComponent);
+				await MarkdownRenderer.render(app as never, preparedMarkdown, renderTarget, sourcePath || '/', renderComponent);
 				if (cancelled) {
 					return;
 				}
@@ -120,7 +126,7 @@ const MarkdownMount = React.memo(function MarkdownMount({
 				container.replaceChildren();
 			}
 		};
-	}, [markdown, sourcePath, disableCheckboxes, mode]);
+	}, [app, markdown, sourcePath, disableCheckboxes, mode]);
 
 	return <div ref={containerRef} className={className} />;
 });

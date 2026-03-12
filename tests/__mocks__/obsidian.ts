@@ -213,6 +213,9 @@ export class ItemView extends Component {
 }
 
 export const MarkdownRenderer = {
+	render: jest.fn(async (_app: unknown, markdown: string, el: HTMLElement) => {
+		el.textContent = markdown;
+	}),
 	renderMarkdown: jest.fn(async (markdown: string, el: HTMLElement) => {
 		el.textContent = markdown;
 	}),

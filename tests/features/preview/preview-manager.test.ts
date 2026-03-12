@@ -46,6 +46,8 @@ describe('PreviewManager', () => {
 	afterEach(() => {
 		jest.useRealTimers();
 		jest.clearAllMocks();
+		cacheManager.clearAll();
+		rootManager.unmountAll();
 		jest.restoreAllMocks();
 		(globalThis as { document?: Document }).document = originalDocument;
 		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = originalHTMLElement;
@@ -166,7 +168,7 @@ describe('PreviewManager', () => {
 		expect(unmountByPathSpy).not.toHaveBeenCalled();
 	});
 
-	test('handlePreviewMode creates a renderer-managed preview host once per preview root', async () => {
+		test('handlePreviewMode creates a renderer-managed preview host once per preview root', async () => {
 		let currentContainer: HTMLElement | null = null;
 		const previewRoot = {
 			classList: {
@@ -206,7 +208,17 @@ describe('PreviewManager', () => {
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue({
+			uuid: 'doc-host',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		} as any);
 
 		await manager.handlePreviewMode(previewRoot, {
 			docId: 'doc-1',
@@ -260,7 +272,9 @@ describe('PreviewManager', () => {
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
 
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(undefined);
@@ -281,73 +295,66 @@ describe('PreviewManager', () => {
 		expect(previewRoot.appendChild).not.toHaveBeenCalled();
 	});
 
-		test('handlePreviewMode coalesces repeated post-processor calls per file', async () => {
-		jest.useFakeTimers();
-		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = MockHTMLElement as unknown as typeof HTMLElement;
-		const createdWrapper = {
-			appendChild: jest.fn(),
-			className: '',
-			querySelector: jest.fn().mockImplementation(() => createdContainer),
-		} as unknown as HTMLElement;
-		const createdContainer = { id: '', replaceChildren: jest.fn() } as unknown as HTMLElement;
-
-		const previewRoot = Object.assign(new MockHTMLElement(), {
-			classList: {
-				contains: (name: string) => name === 'markdown-preview-view',
-			},
-			appendChild: jest.fn(),
-			insertBefore: jest.fn(),
-			firstChild: null,
-		}) as unknown as HTMLElement;
-
-		(globalThis as { document?: Document }).document = {
-			createElement: jest.fn().mockImplementation((tag: string) => {
-				if (tag === 'div') {
-					return createdWrapper;
-				}
-				return createdContainer;
-			}),
-		} as unknown as Document;
-
-		const leaf = createMarkdownLeaf({
-			path: 'Shared.md',
-			containerEl: {
-				querySelector: jest.fn(),
-			} as unknown as HTMLDivElement,
-		});
-
-		const plugin = {
-			data: { settings: { showInfluxInSidebar: false } },
-			app: {
-				workspace: {
-					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
+		test('handlePreviewMode renders directly from the post-processor and avoids repeated leaf refreshes', async () => {
+			let currentContainer: HTMLElement | null = null;
+			const createdContainer = { id: '', replaceChildren: jest.fn() } as unknown as HTMLElement;
+			const createdWrapper = {
+				appendChild: jest.fn(),
+				className: '',
+				querySelector: jest.fn().mockImplementation(() => createdContainer),
+			} as unknown as HTMLElement;
+			const previewRoot = {
+				classList: {
+					contains: (name: string) => name === 'markdown-preview-view',
 				},
-			},
-			updating: new Set<string>(),
-		} as any;
+				querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+					if (!currentContainer || !selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
+						return [];
+					}
+					return [currentContainer];
+				}),
+				appendChild: jest.fn((wrapper: { querySelector?: () => HTMLElement | null }) => {
+					currentContainer = wrapper.querySelector?.() ?? null;
+				}),
+				insertBefore: jest.fn(),
+				firstChild: null,
+			} as unknown as HTMLElement;
+			(globalThis as { document?: Document }).document = {
+				createElement: jest.fn().mockImplementation((tag: string) => {
+					if (tag === 'div') {
+						return createdWrapper;
+					}
+					return createdContainer;
+				}),
+			} as unknown as Document;
 
-			const manager = new PreviewManager(plugin, {} as any);
-			const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
-			const refreshDelays = (PreviewManager as any).POST_PROCESS_REFRESH_DELAYS_MS as number[];
+			const plugin = {
+				data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+				app: { workspace: { iterateRootLeaves: jest.fn() } },
+				updating: new Set<string>(),
+			} as any;
+			const manager = new PreviewManager(plugin, {
+				getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+			} as any);
+			const influxFile = {
+				uuid: 'shared-uuid',
+				show: true,
+				totalEntryCount: 0,
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn().mockReturnValue([]),
+			};
+			jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+			jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
+			const createRootMock = ReactDomClient.createRoot as jest.Mock;
+			createRootMock.mockReturnValue({ render: jest.fn(), unmount: jest.fn() });
 
 			await manager.handlePreviewMode(previewRoot, { docId: 'shared-doc', sourcePath: 'Shared.md', addChild: jest.fn() } as any);
 			await manager.handlePreviewMode(previewRoot, { docId: 'shared-doc', sourcePath: 'Shared.md', addChild: jest.fn() } as any);
 			await manager.handlePreviewMode(previewRoot, { docId: 'shared-doc', sourcePath: 'Shared.md', addChild: jest.fn() } as any);
 
-			expect(updatePreviewSpy).not.toHaveBeenCalled();
-
-			for (const delay of refreshDelays) {
-				jest.advanceTimersByTime(delay + 1);
-				await Promise.resolve();
-				await Promise.resolve();
-			}
-			jest.runOnlyPendingTimers();
-			await Promise.resolve();
-			await Promise.resolve();
-
-			expect(updatePreviewSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-			expect(updatePreviewSpy.mock.calls.length).toBeLessThanOrEqual(refreshDelays.length);
-			expect(updatePreviewSpy.mock.calls.every((call: unknown[]) => call[0] === leaf)).toBe(true);
+			expect(InfluxFile.create).toHaveBeenCalledTimes(1);
+			expect(createRootMock).toHaveBeenCalledTimes(1);
+			expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 		});
 
 	test('handlePreviewMode bails early while plugin is unloading', async () => {

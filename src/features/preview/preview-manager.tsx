@@ -124,68 +124,12 @@ export class PreviewManager {
 			return;
 		}
 
-		let targetPreviewDiv = previewDiv;
-		let existingContainer = findExistingContainer(targetPreviewDiv);
-		cleanupDuplicatePreviewWrappers(previewDiv, existingContainer);
-
-		const fileMtime = getLeafMarkdownFileMtime(influxLeaf);
-		const dependencyRevision = cacheManager.getDependencyRevision();
-		const fileHash = `${path}-${fileMtime}-${this.computeSettingsHash()}-${dependencyRevision}`;
-
-		if (this.hasFreshPreviewRoot(path, fileHash, existingContainer)) {
-			return;
-		}
-
-		// Clean up only the existing root for this preview container.
-		// This avoids clobbering parallel panes showing the same file.
-		if (existingContainer) {
-			rootManager.unmountDeferred(existingContainer);
-		}
-
-		const result = await createInfluxFileForRender({
+		await this.renderPreviewForContainer({
+			previewDiv,
 			filePath: path,
-			api: this.apiAdapter,
-			mode: 'preview',
-			settings,
-			shouldAbort: () => this.isInactive() || cacheManager.getDependencyRevision() !== dependencyRevision,
+			fileMtime: getLeafMarkdownFileMtime(influxLeaf),
+			resolveLatestPreviewDiv: () => resolveLeafPreviewRootFromLeaf(influxLeaf, path),
 		});
-		if (!result) {
-			return;
-		}
-		if (cacheManager.getDependencyRevision() !== dependencyRevision) {
-			return;
-		}
-
-		const { influxFile } = result;
-		if (result.hidden) {
-			cleanupPreviewContainers(targetPreviewDiv);
-			return;
-		}
-
-		const latestPreviewDiv = resolveLeafPreviewRootFromLeaf(influxLeaf, path);
-		if (!latestPreviewDiv) {
-			logger.debug('Preview root disappeared before render', { filePath: path });
-			return;
-		}
-		if (latestPreviewDiv !== targetPreviewDiv) {
-			targetPreviewDiv = latestPreviewDiv;
-			existingContainer = findExistingContainer(targetPreviewDiv);
-			cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
-		}
-		if (this.hasFreshPreviewRoot(path, fileHash, existingContainer)) {
-			return;
-		}
-
-		cacheManager.setPreviewFileHash(path, fileHash);
-		const anchor = this.getOrCreatePreviewRoot(targetPreviewDiv, path, influxFile.uuid, existingContainer);
-
-		anchor.render(
-			<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
-		);
-
-		if (!existingContainer || !rootManager.has(existingContainer)) {
-			this.schedulePostRenderStabilizationRefresh(path);
-		}
 	}
 
 	async handlePreviewMode(element: HTMLElement, context: MarkdownPostProcessorContext): Promise<void> {
@@ -212,8 +156,97 @@ export class PreviewManager {
 			return;
 		}
 
-		this.ensurePostProcessorPreviewHost(previewRoot, context);
-		this.schedulePreviewRefreshForPath(filePath);
+		const host = this.ensurePostProcessorPreviewHost(previewRoot, context);
+		const preferredContainerId = host.id || `influx-preview-host-${context.docId}`;
+
+		try {
+			await this.renderPreviewForContainer({
+				previewDiv: previewRoot,
+				filePath,
+				fileMtime: this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0,
+				preferredContainerId,
+			});
+		} catch (error) {
+			logger.error('Failed to render preview from post-processor host', { filePath, error });
+			this.schedulePreviewRefreshForPath(filePath);
+		}
+	}
+
+	private async renderPreviewForContainer(params: {
+		previewDiv: HTMLElement;
+		filePath: string;
+		fileMtime: number;
+		preferredContainerId?: string;
+		resolveLatestPreviewDiv?: () => HTMLElement | null;
+	}): Promise<void> {
+		const { previewDiv, filePath, fileMtime, preferredContainerId, resolveLatestPreviewDiv } = params;
+		if (this.isInactive()) {
+			return;
+		}
+
+		const settings = this.plugin.data.settings;
+
+		let targetPreviewDiv = previewDiv;
+		let existingContainer = findExistingContainer(targetPreviewDiv);
+		cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
+
+		const dependencyRevision = cacheManager.getDependencyRevision();
+		const fileHash = `${filePath}-${fileMtime}-${this.computeSettingsHash()}-${dependencyRevision}`;
+
+		if (this.hasFreshPreviewRoot(filePath, fileHash, existingContainer)) {
+			return;
+		}
+
+		if (existingContainer) {
+			rootManager.unmountDeferred(existingContainer);
+		}
+
+		const result = await createInfluxFileForRender({
+			filePath,
+			api: this.apiAdapter,
+			mode: 'preview',
+			settings,
+			shouldAbort: () => this.isInactive() || cacheManager.getDependencyRevision() !== dependencyRevision,
+		});
+		if (!result || cacheManager.getDependencyRevision() !== dependencyRevision) {
+			return;
+		}
+
+		const { influxFile } = result;
+		if (result.hidden) {
+			cleanupPreviewContainers(targetPreviewDiv);
+			return;
+		}
+
+		const latestPreviewDiv = resolveLatestPreviewDiv?.();
+		if (resolveLatestPreviewDiv && !latestPreviewDiv) {
+			logger.debug('Preview root disappeared before render', { filePath });
+			return;
+		}
+		if (latestPreviewDiv && latestPreviewDiv !== targetPreviewDiv) {
+			targetPreviewDiv = latestPreviewDiv;
+			existingContainer = findExistingContainer(targetPreviewDiv);
+			cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
+		}
+		if (this.hasFreshPreviewRoot(filePath, fileHash, existingContainer)) {
+			return;
+		}
+
+		cacheManager.setPreviewFileHash(filePath, fileHash);
+		const anchor = this.getOrCreatePreviewRoot(
+			targetPreviewDiv,
+			filePath,
+			preferredContainerId ?? influxFile.uuid,
+			existingContainer
+		);
+
+		anchor.render(
+			<InfluxReactComponent influxFile={influxFile} preview={true} plugin={this.plugin} />
+		);
+
+		if (!existingContainer || !rootManager.has(existingContainer)) {
+			this.schedulePostRenderStabilizationRefresh(filePath);
+		}
 	}
 
 	private ensurePostProcessorPreviewHost(
