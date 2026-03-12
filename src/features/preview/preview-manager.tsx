@@ -17,10 +17,9 @@ import {
 	findExistingContainer,
 	getLeafMarkdownFileMtime,
 	getLeafMarkdownFilePath,
-	leafHasPreviewRoot,
+	getLeafPreviewModeRoot,
 	type InfluxWorkspaceLeaf,
 	isLeafInPreviewMode,
-	resolveLeafPreviewRootFromLeaf,
 	resolvePreviewRoot,
 } from './preview-manager-dom';
 
@@ -127,7 +126,7 @@ export class PreviewManager {
 		}
 
 		const settings = this.plugin.data.settings;
-		const previewDiv = resolveLeafPreviewRootFromLeaf(influxLeaf, path);
+		const previewDiv = getLeafPreviewModeRoot(influxLeaf);
 		if (!previewDiv) {
 			if (isLeafInPreviewMode(influxLeaf)) {
 				this.schedulePreviewRefreshForPath(path);
@@ -144,7 +143,7 @@ export class PreviewManager {
 			previewDiv,
 			filePath: path,
 			fileMtime: getLeafMarkdownFileMtime(influxLeaf),
-			resolveLatestPreviewDiv: () => resolveLeafPreviewRootFromLeaf(influxLeaf, path),
+			resolveLatestPreviewDiv: () => getLeafPreviewModeRoot(influxLeaf),
 		});
 	}
 
@@ -378,11 +377,11 @@ export class PreviewManager {
 		this.plugin.app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
 			const influxLeaf = leaf as InfluxWorkspaceLeaf;
 			const leafFilePath = getLeafMarkdownFilePath(influxLeaf);
-			if ((!leafFilePath || (filePath && leafFilePath !== filePath)) || !leafHasPreviewRoot(influxLeaf)) {
+			if (!leafFilePath || (filePath && leafFilePath !== filePath) || !isLeafInPreviewMode(influxLeaf)) {
 				return;
 			}
 
-			const previewRoot = resolveLeafPreviewRootFromLeaf(influxLeaf, leafFilePath);
+			const previewRoot = getLeafPreviewModeRoot(influxLeaf);
 			const existingContainer = previewRoot ? findExistingContainer(previewRoot) : null;
 			if (existingContainer && trackedPreviewContainers.has(existingContainer)) {
 				return;

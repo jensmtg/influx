@@ -582,6 +582,37 @@ describe('PreviewManager', () => {
 		expect(plugin.updating.has('Scratchpad.md::1')).toBe(true);
 	});
 
+	test('updateAllPreviews ignores source-mode leaves even if preview markup still exists in the container', async () => {
+		const previewRoot = {
+			classList: { contains: (name: string) => name === 'markdown-preview-view' },
+			querySelectorAll: jest.fn().mockReturnValue([]),
+		} as unknown as HTMLElement;
+		const leaf = createMarkdownLeaf({
+			path: 'SourceOnly.md',
+			mode: 'source',
+			containerEl: {
+				querySelectorAll: jest.fn().mockReturnValue([previewRoot]),
+			} as unknown as HTMLDivElement,
+			previewModeContainerEl: previewRoot,
+		});
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: {
+				workspace: {
+					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
+				},
+			},
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const updatePreviewSpy = jest.spyOn(manager, 'updatePreview').mockResolvedValue(undefined);
+
+		await manager.updateAllPreviews();
+
+		expect(updatePreviewSpy).not.toHaveBeenCalled();
+	});
+
 	test('updateAllPreviews bails early while plugin is unloading', async () => {
 		const plugin = {
 			data: { settings: { showInfluxInSidebar: false } },
