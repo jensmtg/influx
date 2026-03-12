@@ -174,6 +174,7 @@ export class ItemView extends Component {
 		workspace: {
 			on: jest.Mock;
 			getActiveFile: jest.Mock;
+			getActiveViewOfType: jest.Mock;
 		};
 	};
 
@@ -185,6 +186,7 @@ export class ItemView extends Component {
 			workspace: {
 				on: jest.fn(),
 				getActiveFile: jest.fn(),
+				getActiveViewOfType: jest.fn(),
 			},
 		};
 	}

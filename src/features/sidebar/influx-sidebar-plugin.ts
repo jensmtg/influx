@@ -5,6 +5,7 @@ import type { InfluxUiPlugin } from '../../ui/influx-ui-plugin';
 
 interface SidebarWorkspaceBridge {
 	getActiveFile: () => TFile | null;
+	getActiveViewOfType: (type: typeof MarkdownView) => MarkdownView | null;
 	on(name: 'active-leaf-change', callback: (leaf: WorkspaceLeaf | null) => void): EventRef;
 	on(name: 'file-open', callback: (file: TFile | null) => void): EventRef;
 	on(name: 'editor-change', callback: (editor: Editor, info: MarkdownView | MarkdownFileInfo) => void): EventRef;

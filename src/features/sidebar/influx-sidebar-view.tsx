@@ -117,7 +117,7 @@ export class InfluxSidebarView extends ItemView {
 			this.registerFileEvents();
 			this.registerSharedUpdates();
 
-			const activeFile = this.app.workspace.getActiveFile();
+			const activeFile = this.getActiveMarkdownFile();
 			if (activeFile) {
 				await this.updateView(activeFile);
 			} else {
@@ -188,17 +188,28 @@ export class InfluxSidebarView extends ItemView {
 		await this.updateView(currentFile, { force: true });
 	}
 
+	private getActiveMarkdownFile(): TFile | null {
+		return this.app.workspace.getActiveViewOfType(MarkdownView)?.file ?? null;
+	}
+
+	private getLeafMarkdownFile(leaf: WorkspaceLeaf | null): TFile | null {
+		if (!leaf || leaf === this.leaf) {
+			return null;
+		}
+
+		return leaf.view instanceof MarkdownView ? leaf.view.file : null;
+	}
+
+	private getEditorInfoFile(info: MarkdownView | MarkdownFileInfo): TFile | null {
+		return info instanceof MarkdownView ? info.file : info.file ?? null;
+	}
+
 	private registerFileEvents(): void {
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', (leaf) => {
-				if (!leaf || leaf === this.leaf) {
-					return;
-				}
-
-				const view = leaf?.view;
-				const file = (view as MarkdownView)?.file;
+				const file = this.getLeafMarkdownFile(leaf);
 				if (file && file !== this.currentFile) {
-					this.updateView(file);
+					void this.updateView(file);
 				}
 			})
 		);
@@ -217,9 +228,9 @@ export class InfluxSidebarView extends ItemView {
 
 		this.registerEvent(
 			this.app.workspace.on('editor-change', (editor: Editor, info: MarkdownView | MarkdownFileInfo) => {
-				const file = (info as MarkdownView).file || (info as MarkdownFileInfo).file;
+				const file = this.getEditorInfoFile(info);
 				if (file && file === this.currentFile && this.plugin.data.settings.liveUpdate) {
-					this.handleEditorChange();
+					void this.handleEditorChange();
 				}
 			})
 		);
