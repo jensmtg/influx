@@ -114,19 +114,31 @@ describe('InfluxFile', () => {
 			expect(influx.shouldUpdate(makeFile('other.md'))).toBe(false);
 		});
 
-        test('refreshes backlinks from API on every shouldUpdate call', async () => {
-            const file = makeFile('target.md');
-            api.getFileByPath.mockReturnValue(file);
+		test('refreshes backlinks from API on every shouldUpdate call', async () => {
+			const file = makeFile('target.md');
+			api.getFileByPath.mockReturnValue(file);
             api.getBacklinks
                 .mockReturnValueOnce({ data: new Map([['old.md', []]]) })
                 .mockReturnValueOnce({ data: new Map([['new.md', []]]) });
 
             const influx = await InfluxFile.create('target.md', api);
             expect(influx.shouldUpdate(makeFile('new.md'))).toBe(false);
-            expect(influx.shouldUpdate(makeFile('new.md'))).toBe(true);
-            expect((influx.backlinks?.data as Map<string, unknown>).has('new.md')).toBe(true);
-        });
-    });
+			expect(influx.shouldUpdate(makeFile('new.md'))).toBe(true);
+			expect((influx.backlinks?.data as Map<string, unknown>).has('new.md')).toBe(true);
+		});
+
+		test('keeps modify refresh relevant when a source backlink disappears after refresh', async () => {
+			const file = makeFile('target.md');
+			api.getFileByPath.mockReturnValue(file);
+			api.getBacklinks.mockReturnValue({ data: new Map() });
+
+			const influx = await InfluxFile.create('target.md', api);
+			influx.backlinks = { data: new Map([['source.md', []]]) };
+
+			expect(influx.shouldUpdate(makeFile('source.md'))).toBe(true);
+			expect(influx.backlinks?.data instanceof Map ? influx.backlinks.data.has('source.md') : false).toBe(false);
+		});
+	});
 
     describe('makeInfluxList', () => {
         test('returns empty list/count when no file or no backlinks', async () => {

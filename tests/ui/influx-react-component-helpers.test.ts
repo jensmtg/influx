@@ -396,6 +396,14 @@ describe('influx-react-component helpers', () => {
 
 			expect(
 				shouldProcessInfluxUpdateEvent({
+					event: makeUpdateEvent('modify', 'Other.md'),
+					currentPath: 'Current.md',
+					affectsBacklinks: true,
+				})
+			).toBe(true);
+
+			expect(
+				shouldProcessInfluxUpdateEvent({
 					event: makeUpdateEvent('rename', 'Other.md'),
 					currentPath: 'Current.md',
 					affectsBacklinks: true,

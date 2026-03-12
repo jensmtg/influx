@@ -101,8 +101,10 @@ export default class InfluxFile {
 		if (!this.file) {
 			return false;
 		}
+		const affectedBeforeRefresh = backlinksContainChangedPath(this.backlinks, file.path);
 		this.backlinks = this.api.getBacklinks(this.file)
-		return backlinksContainChangedPath(this.backlinks, file.path);
+		const affectedAfterRefresh = backlinksContainChangedPath(this.backlinks, file.path);
+		return affectedBeforeRefresh || affectedAfterRefresh;
 	}
 
     async makeInfluxList() {
