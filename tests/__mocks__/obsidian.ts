@@ -46,6 +46,78 @@ export class Component {
 	}
 }
 
+export class View extends Component {
+	app: unknown;
+	containerEl: HTMLElement;
+	leaf: unknown;
+	navigation = true;
+
+	constructor(leaf: unknown) {
+		super();
+		this.leaf = leaf;
+		this.app = {};
+		this.containerEl = {} as HTMLElement;
+	}
+
+	getDisplayText(): string {
+		return 'View';
+	}
+
+	getViewType(): string {
+		return 'view';
+	}
+
+	getState(): Record<string, unknown> {
+		return {};
+	}
+
+	getEphemeralState(): Record<string, unknown> {
+		return {};
+	}
+
+	setEphemeralState(_state: unknown): void {}
+
+	async setState(_state: unknown, _result: unknown): Promise<void> {}
+
+	onResize(): void {}
+
+	async onOpen(): Promise<void> {}
+
+	async onClose(): Promise<void> {}
+
+	getIcon(): string {
+		return 'document';
+	}
+
+	onPaneMenu(): void {}
+}
+
+export class MarkdownView extends View {
+	file: unknown;
+	mode: 'source' | 'preview' = 'source';
+	currentMode: { type?: string } = { type: 'source' };
+	previewMode = {};
+	editor = {};
+
+	getViewType(): string {
+		return 'markdown';
+	}
+
+	getMode(): 'source' | 'preview' {
+		return this.mode;
+	}
+
+	getViewData(): string {
+		return '';
+	}
+
+	setViewData(_data: string, _clear: boolean): void {}
+
+	clear(): void {}
+
+	showSearch(_replace?: boolean): void {}
+}
+
 export class Plugin extends Component {
 	app: unknown;
 	manifest: { version: string };
@@ -138,15 +210,15 @@ export const debounce = <Args extends unknown[], Result>(fn: (...args: Args) => 
 export const Setting = jest.fn().mockImplementation(() => {
 	const settingInstance: {
 		settingEl: { style: { display: string } };
-		setName?: jest.Mock;
-		setDesc?: jest.Mock;
-		setHeading?: jest.Mock;
-		addText?: jest.Mock;
-		addTextArea?: jest.Mock;
-		addToggle?: jest.Mock;
-		addDropdown?: jest.Mock;
-		addSlider?: jest.Mock;
-		addButton?: jest.Mock;
+		setName?: any;
+		setDesc?: any;
+		setHeading?: any;
+		addText?: any;
+		addTextArea?: any;
+		addToggle?: any;
+		addDropdown?: any;
+		addSlider?: any;
+		addButton?: any;
 	} = {
 		settingEl: { style: { display: "" } },
 	};
@@ -277,6 +349,8 @@ export default {
 	TFile: MockTFile,
 	TAbstractFile: MockTAbstractFile,
 	Component,
+	View,
+	MarkdownView,
 	Plugin,
 	PluginSettingTab,
 	ItemView,

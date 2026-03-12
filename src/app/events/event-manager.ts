@@ -1,13 +1,8 @@
-import { TAbstractFile, TFile, WorkspaceLeaf, View } from 'obsidian';
+import { MarkdownView, TAbstractFile, TFile, WorkspaceLeaf } from 'obsidian';
 import type ObsidianInflux from '../influx-plugin';
 import { recordMetric } from '../../platform/diagnostics/metrics';
 
 type ModeLabel = 'preview' | 'editor' | 'other';
-type InfluxView = View & {
-	currentMode?: { type?: string };
-	mode?: string;
-	file?: TFile;
-};
 
 /**
  * Manages Obsidian event registration for file modifications, renames, deletions,
@@ -111,25 +106,19 @@ export class EventManager {
 	}
 
 	private detectMode(leaf: WorkspaceLeaf | null): ModeLabel | null {
-		const view = leaf?.view as InfluxView | undefined;
+		const view = leaf?.view;
 		if (!view) {
 			return null;
 		}
+		if (!(view instanceof MarkdownView)) {
+			return 'other';
+		}
 
-		const explicitMode = view.currentMode?.type || view.mode;
-		if (explicitMode === 'preview') {
+		if (view.getMode() === 'preview') {
 			return 'preview';
 		}
-		if (explicitMode === 'source' || explicitMode === 'live') {
-			return 'editor';
-		}
 
-		const viewType = typeof view.getViewType === 'function' ? view.getViewType() : '';
-		if (viewType === 'markdown') {
-			return 'editor';
-		}
-
-		return 'other';
+		return 'editor';
 	}
 
 	private shouldRefreshForModeChange(previousMode: ModeLabel | null, nextMode: ModeLabel): boolean {
@@ -141,10 +130,10 @@ export class EventManager {
 	}
 
 	private getLeafFile(leaf: WorkspaceLeaf | null): TFile | undefined {
-		const view = leaf?.view as InfluxView | undefined;
-		if (!view?.file) {
+		const view = leaf?.view;
+		if (!(view instanceof MarkdownView) || !(view.file instanceof TFile)) {
 			return undefined;
 		}
-		return view.file instanceof TFile ? view.file : undefined;
+		return view.file;
 	}
 }

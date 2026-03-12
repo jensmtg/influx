@@ -1,4 +1,4 @@
-import { TAbstractFile } from 'obsidian';
+import { MarkdownView, TAbstractFile } from 'obsidian';
 import { EventManager } from '@/app/events/event-manager';
 import { mockTFile } from '../../mocks';
 import { recordMetric } from '@/platform/diagnostics/metrics';
@@ -21,6 +21,19 @@ describe('EventManager', () => {
 		const handler = workspaceHandlers.get(eventName);
 		expect(handler).toBeDefined();
 		handler?.(...args);
+	};
+
+	const createMarkdownLeaf = (params?: {
+		mode?: 'source' | 'preview';
+		file?: unknown;
+	}) => {
+		const view = new MarkdownView({} as any) as MarkdownView & {
+			mode: 'source' | 'preview';
+			file: unknown;
+		};
+		view.mode = params?.mode ?? 'source';
+		view.file = params?.file as any;
+		return { view };
 	};
 
     beforeEach(() => {
@@ -145,20 +158,11 @@ describe('EventManager', () => {
         });
     });
 
-    describe('mode change metrics', () => {
-        test('records metric only when detected mode actually changes', () => {
-            eventManager.register();
-            const markdownLeaf = {
-                view: {
-                    getViewType: () => 'markdown',
-                },
-            };
-            const previewLeaf = {
-                view: {
-                    currentMode: { type: 'preview' },
-                    getViewType: () => 'markdown',
-                },
-            };
+	describe('mode change metrics', () => {
+		test('records metric only when detected mode actually changes', () => {
+			eventManager.register();
+			const markdownLeaf = createMarkdownLeaf({ mode: 'source' });
+			const previewLeaf = createMarkdownLeaf({ mode: 'preview' });
 
 			emitWorkspaceEvent('active-leaf-change', markdownLeaf);
             expect(recordMetric).toHaveBeenCalledWith(
@@ -185,24 +189,12 @@ describe('EventManager', () => {
 
         test('triggers a mode-change refresh only for editor <-> preview transitions', () => {
             eventManager.register();
-            const file = mockTFile('A.md', 'A');
-            const editorLeaf = {
-                view: {
-                    mode: 'source',
-                    file,
-                    getViewType: () => 'markdown',
-                },
-            };
-            const previewLeaf = {
-                view: {
-                    mode: 'preview',
-                    file,
-                    getViewType: () => 'markdown',
-                },
-            };
-            const otherLeaf = {
-                view: {
-                    getViewType: () => 'file-explorer',
+			const file = mockTFile('A.md', 'A');
+			const editorLeaf = createMarkdownLeaf({ mode: 'source', file });
+			const previewLeaf = createMarkdownLeaf({ mode: 'preview', file });
+			const otherLeaf = {
+				view: {
+					getViewType: () => 'file-explorer',
                 },
             };
 
@@ -219,20 +211,14 @@ describe('EventManager', () => {
 
 		test('treats reading-like preview leaves as renderable and ignores plain-object files for refresh payloads', () => {
 			eventManager.register();
-			const readingLeaf = {
-				view: {
-					currentMode: { type: 'preview' },
-					file: { path: 'Reading.md' },
-					getViewType: () => 'markdown',
-				},
-			};
-			const livePreviewLeaf = {
-				view: {
-					currentMode: { type: 'live' },
-					file: mockTFile('Reading.md', 'Reading'),
-					getViewType: () => 'markdown',
-				},
-			};
+			const readingLeaf = createMarkdownLeaf({
+				mode: 'preview',
+				file: { path: 'Reading.md' },
+			});
+			const livePreviewLeaf = createMarkdownLeaf({
+				mode: 'source',
+				file: mockTFile('Reading.md', 'Reading'),
+			});
 			const otherLeaf = {
 				view: {
 					getViewType: () => 'graph',
