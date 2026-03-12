@@ -214,7 +214,8 @@ export class PreviewManager {
 		const settings = this.plugin.data.settings;
 
 		let targetPreviewDiv = previewDiv;
-		let existingContainer = providedContainer ?? findExistingContainer(targetPreviewDiv, preferredContainerId);
+		let existingContainer = providedContainer
+			?? this.findKnownPreviewContainer(filePath, targetPreviewDiv, preferredContainerId);
 		cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
 
 		const dependencyRevision = cacheManager.getDependencyRevision();
@@ -252,7 +253,7 @@ export class PreviewManager {
 		}
 		if (latestPreviewDiv && latestPreviewDiv !== targetPreviewDiv) {
 			targetPreviewDiv = latestPreviewDiv;
-			existingContainer = findExistingContainer(targetPreviewDiv, preferredContainerId);
+			existingContainer = this.findKnownPreviewContainer(filePath, targetPreviewDiv, preferredContainerId);
 			cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
 		}
 		if (this.hasFreshPreviewRoot(filePath, fileHash, existingContainer)) {
@@ -637,6 +638,20 @@ export class PreviewManager {
 		}
 
 		const existingContainer = findExistingContainer(previewRoot);
-		return existingContainer && rootManager.has(existingContainer) ? existingContainer : null;
+		if (!existingContainer || !rootManager.has(existingContainer)) {
+			return null;
+		}
+
+		rootManager.updateMetadata(existingContainer, { previewRoot });
+		return existingContainer;
+	}
+
+	private findKnownPreviewContainer(
+		filePath: string,
+		previewRoot: HTMLElement,
+		preferredContainerId?: string
+	): HTMLElement | null {
+		return this.findTrackedPreviewContainer(filePath, previewRoot)
+			?? findExistingContainer(previewRoot, preferredContainerId);
 	}
 }
