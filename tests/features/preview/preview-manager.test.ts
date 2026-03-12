@@ -146,6 +146,89 @@ describe('PreviewManager', () => {
 		expect(createdContainer.id).toBe('influx-preview-host-doc-1');
 	});
 
+	test('handlePreviewMode recreates a renderer-owned host after markdown child unload', async () => {
+		let currentContainer: HTMLElement | null = null;
+		const createdContainer = {
+			id: '',
+			replaceChildren: jest.fn(),
+			closest: jest.fn(),
+			remove: jest.fn(),
+		} as unknown as HTMLElement;
+		const createdWrapper = {
+			appendChild: jest.fn(),
+			className: '',
+			querySelector: jest.fn().mockImplementation(() => createdContainer),
+			remove: jest.fn().mockImplementation(() => {
+				currentContainer = null;
+			}),
+		} as unknown as HTMLElement;
+		(createdContainer.closest as jest.Mock).mockReturnValue(createdWrapper);
+		const previewRoot = {
+			classList: {
+				contains: (name: string) => name === 'markdown-preview-view',
+			},
+			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
+				if (!currentContainer || !selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
+					return [];
+				}
+				return [currentContainer];
+			}),
+			appendChild: jest.fn((wrapper: { querySelector?: (selector: string) => HTMLElement | null }) => {
+				currentContainer = wrapper.querySelector?.(CONSTANTS.INFLUX_CONTAINER_TAG) ?? null;
+			}),
+			insertBefore: jest.fn(),
+			firstChild: null,
+		} as unknown as HTMLElement;
+		const addChild = jest.fn();
+
+		(globalThis as { document?: Document }).document = {
+			createElement: jest.fn().mockImplementation((tag: string) => {
+				if (tag === 'div') {
+					return createdWrapper;
+				}
+				return createdContainer;
+			}),
+		} as unknown as Document;
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
+		const unmountSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue({
+			uuid: 'doc-host',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		} as any);
+
+		await manager.handlePreviewMode(previewRoot, {
+			docId: 'doc-1',
+			sourcePath: 'Shared.md',
+			addChild,
+		} as any);
+
+		const child = addChild.mock.calls[0]?.[0] as MarkdownRenderChild;
+		child.unload();
+
+		await manager.handlePreviewMode(previewRoot, {
+			docId: 'doc-1',
+			sourcePath: 'Shared.md',
+			addChild,
+		} as any);
+
+		expect(unmountSpy).toHaveBeenCalledWith(createdContainer);
+		expect(createdWrapper.remove).toHaveBeenCalledTimes(1);
+		expect(addChild).toHaveBeenCalledTimes(2);
+		expect(previewRoot.appendChild).toHaveBeenCalledTimes(2);
+	});
+
 	test('handlePreviewMode renders directly from the post-processor and avoids repeated leaf refreshes', async () => {
 		let currentContainer: HTMLElement | null = null;
 		const createdContainer = { id: '', replaceChildren: jest.fn() } as unknown as HTMLElement;

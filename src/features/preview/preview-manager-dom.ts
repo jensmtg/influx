@@ -176,11 +176,12 @@ export function resolvePreviewRoot(element: HTMLElement): HTMLElement | null {
 	if (element.classList.contains('markdown-preview-view')) {
 		return element;
 	}
-	const closest = asHtmlElement(element.closest('.markdown-preview-view'));
-	if (closest) {
-		return closest;
+
+	if (typeof element.closest !== 'function') {
+		return null;
 	}
-	return asHtmlElement(element.querySelector('.markdown-preview-view'));
+
+	return asHtmlElement(element.closest('.markdown-preview-view'));
 }
 
 export function cleanupPreviewContainers(container: Element, logCounts = false): void {
@@ -229,8 +230,14 @@ export function cleanupDuplicatePreviewWrappers(previewDiv: Element, keepContain
 	});
 }
 
-export function findExistingContainer(previewDiv: Element): HTMLElement | null {
+export function findExistingContainer(previewDiv: Element, preferredContainerId?: string): HTMLElement | null {
 	const containers = getInfluxContainers(previewDiv);
+	if (preferredContainerId) {
+		const exactMatch = containers.find((container) => container.id === preferredContainerId);
+		if (exactMatch) {
+			return exactMatch;
+		}
+	}
 
 	let fallback: HTMLElement | null = null;
 	let preferred: HTMLElement | null = null;

@@ -32,6 +32,11 @@ export class PreviewManager {
 	private static readonly PREVIEW_REFRESH_DELAY_MS = 120;
 	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
 	private nextLeafContainerId = 1;
+	private postProcessorHosts = new Map<string, {
+		filePath: string;
+		previewRoot: HTMLElement;
+		container: HTMLElement;
+	}>();
 	private scheduledPreviewRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	private disposed = false;
 
@@ -45,6 +50,7 @@ export class PreviewManager {
 		for (const timer of this.scheduledPreviewRefreshTimers.values()) {
 			clearTimeout(timer);
 		}
+		this.postProcessorHosts.clear();
 		this.scheduledPreviewRefreshTimers.clear();
 	}
 
@@ -72,6 +78,7 @@ export class PreviewManager {
 			trackedPreviewContainers.add(info.container);
 			return this.renderPreviewForContainer({
 				previewDiv,
+				existingContainer: info.container,
 				filePath: info.filePath,
 				fileMtime: this.apiAdapter.getFileByPath(info.filePath)?.stat?.mtime ?? 0,
 				preferredContainerId: info.container.id,
@@ -152,25 +159,29 @@ export class PreviewManager {
 		}
 
 		const settings = this.plugin.data.settings;
-
-		const previewRoot = resolvePreviewRoot(element);
-		if (!previewRoot) {
-			if (!settings.showInfluxInSidebar) {
-				this.schedulePreviewRefreshForPath(filePath);
+		if (settings.showInfluxInSidebar) {
+			const previewRoot = this.getActivePostProcessorHost(context.docId, filePath)?.previewRoot
+				?? resolvePreviewRoot(element);
+			if (previewRoot) {
+				cleanupPreviewContainers(previewRoot);
 			}
 			return;
 		}
-		if (settings.showInfluxInSidebar) {
-			cleanupPreviewContainers(previewRoot);
+
+		const host = this.ensurePostProcessorPreviewHost(element, context);
+		if (!host) {
+			this.schedulePreviewRefreshForPath(filePath);
 			return;
 		}
 
-		const host = this.ensurePostProcessorPreviewHost(previewRoot, context);
-		const preferredContainerId = host.id || `influx-preview-host-${context.docId}`;
+		const { previewRoot, container } = host;
+
+		const preferredContainerId = container.id || `influx-preview-host-${context.docId}`;
 
 		try {
 			await this.renderPreviewForContainer({
 				previewDiv: previewRoot,
+				existingContainer: container,
 				filePath,
 				fileMtime: this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0,
 				preferredContainerId,
@@ -183,12 +194,13 @@ export class PreviewManager {
 
 	private async renderPreviewForContainer(params: {
 		previewDiv: HTMLElement;
+		existingContainer?: HTMLElement | null;
 		filePath: string;
 		fileMtime: number;
 		preferredContainerId?: string;
 		resolveLatestPreviewDiv?: () => HTMLElement | null;
 	}): Promise<void> {
-		const { previewDiv, filePath, fileMtime, preferredContainerId, resolveLatestPreviewDiv } = params;
+		const { previewDiv, existingContainer: providedContainer, filePath, fileMtime, preferredContainerId, resolveLatestPreviewDiv } = params;
 		if (this.isInactive()) {
 			return;
 		}
@@ -196,7 +208,7 @@ export class PreviewManager {
 		const settings = this.plugin.data.settings;
 
 		let targetPreviewDiv = previewDiv;
-		let existingContainer = findExistingContainer(targetPreviewDiv);
+		let existingContainer = providedContainer ?? findExistingContainer(targetPreviewDiv, preferredContainerId);
 		cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
 
 		const dependencyRevision = cacheManager.getDependencyRevision();
@@ -234,7 +246,7 @@ export class PreviewManager {
 		}
 		if (latestPreviewDiv && latestPreviewDiv !== targetPreviewDiv) {
 			targetPreviewDiv = latestPreviewDiv;
-			existingContainer = findExistingContainer(targetPreviewDiv);
+			existingContainer = findExistingContainer(targetPreviewDiv, preferredContainerId);
 			cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
 		}
 		if (this.hasFreshPreviewRoot(filePath, fileHash, existingContainer)) {
@@ -255,17 +267,35 @@ export class PreviewManager {
 	}
 
 	private ensurePostProcessorPreviewHost(
-		previewRoot: HTMLElement,
+		element: HTMLElement,
 		context: MarkdownPostProcessorContext
-	): HTMLElement {
-		const existingContainer = findExistingContainer(previewRoot);
-		if (existingContainer) {
-			return existingContainer;
+	): { filePath: string; previewRoot: HTMLElement; container: HTMLElement } | null {
+		const existingHost = this.getActivePostProcessorHost(context.docId, context.sourcePath);
+		if (existingHost) {
+			return existingHost;
 		}
 
-		const container = this.createPreviewContainer(previewRoot, `influx-preview-host-${context.docId}`);
-		context.addChild(new MarkdownRenderChild(container));
-		return container;
+		const previewRoot = resolvePreviewRoot(element);
+		if (!previewRoot) {
+			return null;
+		}
+
+		const containerId = `influx-preview-host-${context.docId}`;
+		const container = findExistingContainer(previewRoot, containerId)
+			?? this.createPreviewContainer(previewRoot, containerId);
+		const child = new MarkdownRenderChild(container);
+		child.register(() => {
+			this.releasePostProcessorHost(context.docId, container);
+		});
+		context.addChild(child);
+
+		const host = {
+			filePath: context.sourcePath,
+			previewRoot,
+			container,
+		};
+		this.postProcessorHosts.set(context.docId, host);
+		return host;
 	}
 
 	private schedulePreviewRefreshForPath(filePath: string): void {
@@ -312,6 +342,7 @@ export class PreviewManager {
 
 					return this.renderPreviewForContainer({
 						previewDiv,
+						existingContainer: container,
 						filePath,
 						fileMtime,
 						preferredContainerId: container.id,
@@ -447,5 +478,46 @@ export class PreviewManager {
 		const hashString = computeSettingsHash(this.plugin.data.settings);
 		cacheManager.setSettingsHash(hashString);
 		return hashString;
+	}
+
+	private getActivePostProcessorHost(
+		docId: string,
+		filePath: string
+	): { filePath: string; previewRoot: HTMLElement; container: HTMLElement } | null {
+		const host = this.postProcessorHosts.get(docId);
+		if (!host) {
+			return null;
+		}
+
+		if (
+			host.filePath !== filePath ||
+			!this.isElementConnected(host.container) ||
+			!this.isElementConnected(host.previewRoot)
+		) {
+			this.releasePostProcessorHost(docId, host.container);
+			return null;
+		}
+
+		return host;
+	}
+
+	private releasePostProcessorHost(docId: string, container: HTMLElement): void {
+		const host = this.postProcessorHosts.get(docId);
+		if (host?.container === container) {
+			this.postProcessorHosts.delete(docId);
+		}
+
+		rootManager.unmountDeferred(container);
+		const wrapper = container.closest(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`);
+		if (wrapper) {
+			wrapper.remove();
+			return;
+		}
+
+		container.remove();
+	}
+
+	private isElementConnected(element: HTMLElement): boolean {
+		return (element as HTMLElement & { isConnected?: boolean }).isConnected !== false;
 	}
 }
