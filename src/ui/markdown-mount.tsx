@@ -22,14 +22,17 @@ function splitFencePrefix(line: string): { prefix: string; content: string } {
 	return { prefix, content };
 }
 
-const SANITIZED_FENCE_PATTERN = /^```(query|dataview|dataviewjs)\b/i;
+const SANITIZED_FENCE_PATTERN = /^```(query|dataview|dataviewjs|tasks)\b/i;
+const INFLUX_MARKDOWN_MOUNT_ATTR = 'data-influx-markdown-mount-root';
+
+export const INFLUX_MARKDOWN_MOUNT_SELECTOR = `[${INFLUX_MARKDOWN_MOUNT_ATTR}="true"]`;
 
 function isSanitizedFenceStart(content: string): boolean {
 	return SANITIZED_FENCE_PATTERN.test(content.trim());
 }
 
 export function prepareMarkdownForInflux(markdown: string): string {
-	if (!markdown || !/```(query|dataview|dataviewjs)\b/i.test(markdown)) {
+	if (!markdown || !/```(query|dataview|dataviewjs|tasks)\b/i.test(markdown)) {
 		return markdown;
 	}
 
@@ -92,6 +95,7 @@ const MarkdownMount = React.memo(function MarkdownMount({
 		}
 
 		const renderTarget = document.createElement('div');
+		renderTarget.setAttribute(INFLUX_MARKDOWN_MOUNT_ATTR, 'true');
 		container.replaceChildren(renderTarget);
 		const renderComponent = new Component();
 		let cancelled = false;

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { act, render } from '@testing-library/react';
 import { MarkdownRenderer } from 'obsidian';
-import MarkdownMount, { prepareMarkdownForInflux } from '@/ui/markdown-mount';
+import MarkdownMount, { INFLUX_MARKDOWN_MOUNT_SELECTOR, prepareMarkdownForInflux } from '@/ui/markdown-mount';
 
 describe('prepareMarkdownForInflux', () => {
 	test('should keep markdown unchanged when no query fence is present', () => {
@@ -69,6 +69,19 @@ describe('prepareMarkdownForInflux', () => {
 		expect(prepared).toContain('> ```text');
 		expect(prepared).toContain('[Influx] dataviewjs block disabled in backlink snippet');
 		expect(prepared).not.toContain('> ```dataviewjs');
+	});
+
+	test('should neutralize tasks fences in backlink snippets', () => {
+		const markdown = [
+			'```tasks',
+			'tags include #work',
+			'```',
+		].join('\n');
+
+		const prepared = prepareMarkdownForInflux(markdown);
+		expect(prepared).toContain('```text');
+		expect(prepared).toContain('[Influx] tasks block disabled in backlink snippet');
+		expect(prepared).not.toContain('```tasks');
 	});
 
 	test('should close a sanitized fence when the snippet ends before the original block closes', () => {
@@ -171,5 +184,14 @@ describe('MarkdownMount lifecycle', () => {
 		});
 
 		expect(view.container.textContent).toBe('Second');
+	});
+
+	test('marks the nested markdown render root so preview post-processors can ignore it', () => {
+		jest.spyOn(MarkdownRenderer, 'render').mockResolvedValue(undefined as never);
+
+		const view = render(React.createElement(MarkdownMount, { app: {}, markdown: 'Text', sourcePath: 'Note.md' }));
+		const nestedRoot = view.container.querySelector(INFLUX_MARKDOWN_MOUNT_SELECTOR);
+
+		expect(nestedRoot).toBeTruthy();
 	});
 });

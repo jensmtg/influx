@@ -160,6 +160,37 @@ jest.mock('react-dom/client', () => ({
 		expect(createdContainer.id).toBe('influx-preview-host-doc-1');
 	});
 
+	test('handlePreviewMode ignores nested markdown rendered inside an Influx markdown mount', async () => {
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
+		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
+		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
+		const nestedRoot = { matches: jest.fn() } as unknown as Element;
+		const element = {
+			closest: jest.fn().mockImplementation((selector: string) => {
+				if (selector === '[data-influx-markdown-mount-root="true"]') {
+					return nestedRoot;
+				}
+				return null;
+			}),
+		} as unknown as HTMLElement;
+
+		await manager.handlePreviewMode(element, {
+			docId: 'nested-doc',
+			sourcePath: 'Nested.md',
+			addChild: jest.fn(),
+		} as any);
+
+		expect(renderPreviewSpy).not.toHaveBeenCalled();
+		expect(scheduleRefreshSpy).not.toHaveBeenCalled();
+	});
+
 	test('handlePreviewMode recreates a renderer-owned host after markdown child unload', async () => {
 		let currentContainer: HTMLElement | null = null;
 		const createdContainer = {
@@ -991,7 +1022,6 @@ jest.mock('react-dom/client', () => ({
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(undefined);
 		const setPreviewFileHashSpy = jest.spyOn(cacheManager, 'setPreviewFileHash').mockImplementation(() => {});
-		const unmountSpy = jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		jest.spyOn(rootManager, 'register').mockImplementation(() => {});
 		(ReactDomClient.createRoot as jest.Mock).mockReturnValue({ render: jest.fn() } as any);
@@ -999,8 +1029,46 @@ jest.mock('react-dom/client', () => ({
 		await manager.updatePreview(leaf as any);
 
 		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
-		expect(unmountSpy).not.toHaveBeenCalled();
 		expect(setPreviewFileHashSpy).not.toHaveBeenCalled();
+	});
+
+	test('renderPreviewForContainer reuses an existing tracked root instead of unmounting and recreating it', async () => {
+		const previewRoot = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
+		const container = { id: 'existing-pane', replaceChildren: jest.fn() } as unknown as HTMLElement;
+		const root = { render: jest.fn(), unmount: jest.fn() } as any;
+
+		rootManager.register(container, root, 'preview', 'Reuse.md', { previewRoot });
+
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+		const influxFile = {
+			uuid: 'reuse-uuid',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		};
+
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
+		const createRootSpy = jest.spyOn(ReactDomClient, 'createRoot');
+		const unmountSpy = jest.spyOn(rootManager, 'unmount');
+
+		await (manager as any).renderPreviewForContainer({
+			previewDiv: previewRoot,
+			existingContainer: container,
+			filePath: 'Reuse.md',
+			fileMtime: 1,
+			preferredContainerId: 'existing-pane',
+		});
+
+		expect(unmountSpy).not.toHaveBeenCalled();
+		expect(createRootSpy).not.toHaveBeenCalled();
+		expect(root.render).toHaveBeenCalledTimes(1);
 	});
 
 	test('updateAllPreviews skips leaves that already have an active refresh', async () => {

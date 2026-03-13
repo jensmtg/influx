@@ -23,6 +23,7 @@ import {
 	isLeafInPreviewMode,
 	resolvePreviewRoot,
 } from './preview-manager-dom';
+import { INFLUX_MARKDOWN_MOUNT_SELECTOR } from '../../ui/markdown-mount';
 
 /**
  * Manages Influx plugin rendering in preview mode. Handles container creation,
@@ -166,6 +167,15 @@ export class PreviewManager {
 		if (this.isInactive()) {
 			return;
 		}
+		if (
+			typeof element.closest === 'function' &&
+			(
+				element.closest(INFLUX_MARKDOWN_MOUNT_SELECTOR)
+				|| element.closest(`.${CONSTANTS.INFLUX_WRAPPER_CLASS}`)
+			)
+		) {
+			return;
+		}
 
 		const filePath = context.sourcePath;
 		if (!filePath) {
@@ -263,10 +273,6 @@ export class PreviewManager {
 		if (this.hasFreshPreviewRoot(fileHash, existingContainer)) {
 			return;
 		}
-		if (existingContainer) {
-			rootManager.unmount(existingContainer);
-		}
-
 		const anchor = this.getOrCreatePreviewRoot(
 			targetPreviewDiv,
 			filePath,
