@@ -15,6 +15,7 @@ describe('influx render pipeline', () => {
 		getFileByPath: jest.fn(),
 		getMetadata: jest.fn(),
 		getBacklinks: jest.fn(),
+		getBacklinksFresh: jest.fn(),
 		getShowStatus: jest.fn(),
 		getCollapsedStatus: jest.fn(),
 		isIncludableSource: jest.fn(),

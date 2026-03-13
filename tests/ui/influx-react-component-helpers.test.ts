@@ -457,7 +457,10 @@ describe('influx-react-component helpers', () => {
 
 			expect(current.shouldUpdatePaths).toHaveBeenCalledWith(['Renamed.md', 'Source.md']);
 			expect(current.shouldUpdate).not.toHaveBeenCalled();
-			expect(current.makeInfluxList).toHaveBeenCalledTimes(1);
+			expect(current.makeInfluxList).toHaveBeenCalledWith({
+				freshBacklinks: true,
+				skipRecentBuildCache: true,
+			});
 			expect(result).toBe(entries);
 		});
 
@@ -488,7 +491,10 @@ describe('influx-react-component helpers', () => {
 				isAborted: () => false,
 			});
 
-			expect(current.makeInfluxList).toHaveBeenCalledTimes(1);
+			expect(current.makeInfluxList).toHaveBeenCalledWith({
+				freshBacklinks: false,
+				skipRecentBuildCache: false,
+			});
 			expect(result).toBe(entries);
 		});
 

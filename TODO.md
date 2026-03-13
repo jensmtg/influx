@@ -20,6 +20,18 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, close
 - [ ] Keep reducing `src/features/preview/preview-manager-dom.ts` reliance on `.markdown-preview-view` discovery for Reading-view ownership.
 - [ ] If we want stronger sidebar parity later, gather verified API references for `MarkdownPreviewView`, deferred-view loading, and any supported preview-host embedding APIs before refactoring sidebar host semantics.
 
+## Source sweep follow-ups
+
+- [ ] Investigate folder rename/delete behavior before or during the vault pass: current event/update matching is exact-path-based, so folder operations may not invalidate descendant note caches or backlink relevance honestly.
+- [ ] During the vault pass, watch for lag under very bursty updates: the shared update bus now queues events instead of dropping them, but observer work is still serialized per event.
+- [ ] During the vault pass, verify that preview-mode startup no longer fan-outs duplicate post-processor renders for the same doc host, and note whether any remaining Tasks parser errors are only coming from the underlying note content rather than Influx excerpt rendering.
+- [ ] During the vault pass, verify that targeted Reading-view refreshes no longer fall back into leaf-level rerender loops once a renderer-owned post-processor host already exists for that file.
+- [ ] During the vault pass, re-verify source-note modify behavior after the latest cache fix: source-link edits should no longer poison target backlink caches or recent list-build caches with stale data.
+- [ ] After the vault pass, simplify the backlink source-of-truth path: the recent stale-link bug showed we were layering cache invalidation around `getBacklinksForFile(...)` instead of keeping one clearer authority for source-path membership.
+- [ ] After the vault pass, decide whether `src/features/sidebar/influx-sidebar-view.tsx` should reuse `src/ui/influx-update-helpers.ts` instead of carrying a parallel shared-update gating path.
+- [ ] After the vault pass, decide whether the remaining multi-path preview host recovery in `src/features/preview/preview-manager.tsx` / `src/features/preview/preview-manager-dom.ts` is still worth simplifying once manual behavior is confirmed.
+- [ ] If alternate fence styles matter in the vault, verify whether snippet sanitization also needs to neutralize non-triple-backtick `query` / `dataview` / `dataviewjs` / `tasks` fences.
+
 ## Manual vault checklist
 
 - [ ] In reading view, verify readable line length still constrains Influx correctly.
@@ -48,3 +60,11 @@ Current push before Influx `3.0.0`: finish the real-vault regression pass, close
 - [x] Added a mounted UI regression proving `modify` updates propagate backlink disappearance and reappearance all the way through `InfluxReactComponent` after source-note edits.
 - [x] Verified and fixed broader lifecycle issues from review: sidebar roots now register with `rootManager`, overlapping sidebar live updates no longer reuse the same abort/sequence slot, preview freshness is tracked per root instead of per file, and update ops now use a typed shared event union.
 - [x] Tightened rename/delete relevance before manual vault testing by carrying `oldPath` through shared rename updates and using `shouldUpdatePaths(...)` so unrelated renames stop forcing global UI refresh while still preserving source-removal/source-rename correctness.
+- [x] Hardened more pre-vault edge cases: the shared update bus now queues events instead of dropping intermediate ones, editor/preview refresh no longer waits on slow bus observers, preview refresh reuses containers without deferred-unmount races, and sanitized markdown fences now close correctly for truncated and nested-fence snippets.
+- [x] Current automated validation is clean again: full Jest suite, `npm run typecheck`, and `npm run build` all pass after the latest pre-vault fixes.
+- [x] Final source sweep tightened a few more correctness edges: file cleanup now leaves the sidebar shell mounted, preview rebuilds keep the old render until the replacement work survives cancellation, and stale hidden sidebar results no longer overwrite newer state.
+- [x] Runtime console sweep exposed and fixed two real preview/snippet issues: nested `MarkdownRenderer.render(...)` output now opts out of Influx's markdown post-processor recursion, and fenced `tasks` blocks are neutralized in backlink snippets so Tasks plugin parsing does not fire inside excerpt renders.
+- [x] Emergency runtime pass also fixed a separate preview startup flood: concurrent markdown post-processor calls for the same doc host are now coalesced so Influx does not spin up duplicate preview pipeline renders while a host render is already in flight.
+- [x] Emergency Reading-view investigation found another loop in targeted preview refresh: once a renderer-owned host existed for a file, targeted refresh was still falling back into leaf-level preview rerender for the same file, which could retrigger Reading-view post-processing indefinitely. Targeted refresh now stops at tracked renderer-owned hosts instead of re-rerendering the leaf fallback path.
+- [x] Fixed a stale-backlink cache bug for source-note edits: source-driven refreshes now use uncached backlink reads and skip recent list-build cache reuse/storage, so a stale metadata snapshot during modify handling no longer poisons later reopen/rebuild paths.
+- [x] Refined that stale-backlink fix after real-vault testing showed it was not enough: backlink source-path truth now reconciles against `metadataCache.resolvedLinks`, so stale `getBacklinksForFile(...)` output no longer keeps broken source notes alive after reopen.

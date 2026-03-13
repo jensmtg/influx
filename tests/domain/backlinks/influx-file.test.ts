@@ -23,15 +23,21 @@ const makeFile = (path: string) => {
     return file;
 };
 
-const createApiAdapterMock = (): jest.Mocked<InfluxFileApi> => ({
-    getFileByPath: jest.fn(),
-    getMetadata: jest.fn().mockReturnValue({} as CachedMetadata),
-    getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
-    getShowStatus: jest.fn().mockReturnValue(true),
-    getCollapsedStatus: jest.fn().mockReturnValue(false),
-    isIncludableSource: jest.fn().mockReturnValue(true),
-    getSettings: jest.fn().mockReturnValue(DEFAULT_SETTINGS),
-});
+const createApiAdapterMock = (): jest.Mocked<InfluxFileApi> => {
+	const adapter = {
+		getFileByPath: jest.fn(),
+		getMetadata: jest.fn().mockReturnValue({} as CachedMetadata),
+		getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
+		getBacklinksFresh: jest.fn(),
+		getShowStatus: jest.fn().mockReturnValue(true),
+		getCollapsedStatus: jest.fn().mockReturnValue(false),
+		isIncludableSource: jest.fn().mockReturnValue(true),
+		getSettings: jest.fn().mockReturnValue(DEFAULT_SETTINGS),
+	} as jest.Mocked<InfluxFileApi>;
+
+	adapter.getBacklinksFresh.mockImplementation((file) => adapter.getBacklinks(file));
+	return adapter;
+};
 
 describe('InfluxFile', () => {
     let api: ReturnType<typeof createApiAdapterMock>;
@@ -117,12 +123,12 @@ describe('InfluxFile', () => {
 		test('refreshes backlinks from API on every shouldUpdate call', async () => {
 			const file = makeFile('target.md');
 			api.getFileByPath.mockReturnValue(file);
-            api.getBacklinks
-                .mockReturnValueOnce({ data: new Map([['old.md', []]]) })
-                .mockReturnValueOnce({ data: new Map([['new.md', []]]) });
+	            api.getBacklinksFresh
+	                .mockReturnValueOnce({ data: new Map([['old.md', []]]) })
+	                .mockReturnValueOnce({ data: new Map([['new.md', []]]) });
 
             const influx = await InfluxFile.create('target.md', api);
-            expect(influx.shouldUpdate(makeFile('new.md'))).toBe(false);
+			expect(influx.shouldUpdate(makeFile('new.md'))).toBe(false);
 			expect(influx.shouldUpdate(makeFile('new.md'))).toBe(true);
 			expect((influx.backlinks?.data as Map<string, unknown>).has('new.md')).toBe(true);
 		});
@@ -143,12 +149,37 @@ describe('InfluxFile', () => {
 			const file = makeFile('target.md');
 			api.getFileByPath.mockReturnValue(file);
 			api.getBacklinks.mockReturnValue({ data: new Map([['renamed.md', []]]) });
+			api.getBacklinksFresh.mockReturnValue({ data: new Map([['renamed.md', []]]) });
 
 			const influx = await InfluxFile.create('target.md', api);
 			influx.backlinks = { data: new Map([['source.md', []]]) };
 
 			expect(influx.shouldUpdatePaths(['renamed.md', 'source.md'])).toBe(true);
 			expect(influx.backlinks?.data instanceof Map ? influx.backlinks.data.has('renamed.md') : false).toBe(true);
+		});
+
+		test('makeInfluxList can bypass cached backlinks and recent list builds for source-driven refreshes', async () => {
+			const target = makeFile('target.md');
+			const source = makeFile('source.md');
+			api.getFileByPath.mockImplementation((path: string) => {
+				if (path === 'target.md') return target;
+				if (path === 'source.md') return source;
+				return null;
+			});
+			api.getBacklinks.mockReturnValue({ data: new Map([['stale.md', []]]) });
+			api.getBacklinksFresh.mockReturnValue({ data: new Map([['source.md', []]]) });
+
+			const summarySpy = jest.spyOn(InlinkingFile.prototype, 'makeSummary').mockImplementation(async function () {
+				this.summary = 'summary';
+			});
+
+			const influx = await InfluxFile.create('target.md', api);
+			await influx.makeInfluxList({ freshBacklinks: true, skipRecentBuildCache: true });
+			await influx.makeInfluxList();
+
+			expect(api.getBacklinksFresh).toHaveBeenCalledWith(target);
+			expect(api.getBacklinks).toHaveBeenCalledWith(target);
+			summarySpy.mockRestore();
 		});
 	});
 

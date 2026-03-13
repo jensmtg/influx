@@ -190,7 +190,10 @@ export class InfluxSidebarView extends ItemView {
 			return;
 		}
 
-		await this.updateView(currentFile, { force: true });
+		await this.updateView(currentFile, {
+			force: true,
+			freshBacklinks: affectsBacklinks && !touchesCurrentFile,
+		});
 	}
 
 	private getActiveMarkdownFile(): TFile | null {
@@ -241,7 +244,7 @@ export class InfluxSidebarView extends ItemView {
 		);
 	}
 
-	async updateView(file: TFile, options?: { force?: boolean }): Promise<void> {
+	async updateView(file: TFile, options?: { force?: boolean; freshBacklinks?: boolean }): Promise<void> {
 		if (!file) {
 			return;
 		}
@@ -273,6 +276,8 @@ export class InfluxSidebarView extends ItemView {
 				api: this.plugin.api,
 				mode: 'sidebar',
 				settings: this.plugin.data.settings,
+				freshBacklinks: options?.freshBacklinks,
+				skipRecentBuildCache: options?.freshBacklinks,
 				shouldAbort: () => signal.aborted || updateId !== this.currentUpdateId,
 			});
 

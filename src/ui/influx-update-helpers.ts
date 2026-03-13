@@ -8,7 +8,7 @@ export interface InfluxUpdateTarget {
 	shouldUpdate: (file: TFile) => boolean;
 	shouldUpdatePaths?: (paths: readonly string[]) => boolean;
 	refreshVisibility?: () => boolean;
-	makeInfluxList: () => Promise<void>;
+	makeInfluxList: (options?: { freshBacklinks?: boolean; skipRecentBuildCache?: boolean }) => Promise<void>;
 	toEntries: () => ExtendedInlinkingFile[];
 }
 
@@ -58,6 +58,7 @@ export async function resolveInfluxUpdateEntries(params: {
 
 	const currentPath = current.file?.path;
 	const changedPaths = getChangedPaths(event);
+	const touchesCurrentFile = Boolean(currentPath && changedPaths.includes(currentPath));
 	const affectsBacklinks = changedPaths.length === 0
 		? false
 		: current.shouldUpdatePaths?.(changedPaths)
@@ -71,7 +72,10 @@ export async function resolveInfluxUpdateEntries(params: {
 		return [];
 	}
 
-	await current.makeInfluxList();
+	await current.makeInfluxList({
+		freshBacklinks: affectsBacklinks && !touchesCurrentFile,
+		skipRecentBuildCache: affectsBacklinks && !touchesCurrentFile,
+	});
 	if (isAborted() || seq !== getLatestSeq()) {
 		return null;
 	}

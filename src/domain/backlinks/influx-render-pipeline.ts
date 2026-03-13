@@ -16,6 +16,8 @@ interface SharedPipelineParams {
 	settings?: Partial<ObsidianInfluxSettings> | null;
 	shouldAbort?: () => boolean;
 	startedAt?: number;
+	freshBacklinks?: boolean;
+	skipRecentBuildCache?: boolean;
 }
 
 function recordInfluxPipelineMetric(params: {
@@ -70,7 +72,10 @@ export async function buildInfluxFileForRender(
 		};
 	}
 
-	await influxFile.makeInfluxList();
+	await influxFile.makeInfluxList({
+		freshBacklinks: params.freshBacklinks,
+		skipRecentBuildCache: params.skipRecentBuildCache,
+	});
 	if (shouldAbort?.()) {
 		return null;
 	}

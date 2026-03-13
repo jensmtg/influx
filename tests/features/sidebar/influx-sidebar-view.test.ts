@@ -469,7 +469,7 @@ describe('InfluxSidebarView', () => {
 
 		await influxUpdates$.notify({ op: 'save-settings' });
 
-		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: false });
 	});
 
 	test('shared update bus refreshes when a source-note change affects current backlinks', async () => {
@@ -485,7 +485,7 @@ describe('InfluxSidebarView', () => {
 
 		await influxUpdates$.notify({ op: 'rename', file: fileB, oldPath: 'Old-B.md' });
 
-		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: true });
 	});
 
 	test('shared update bus ignores irrelevant rename updates when neither old nor new path affects the current note', async () => {
@@ -501,7 +501,7 @@ describe('InfluxSidebarView', () => {
 
 		await influxUpdates$.notify({ op: 'rename', file: fileB, oldPath: 'Old-B.md' });
 
-		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true });
+		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: false });
 	});
 
 	test('shared update bus can refresh from an oldPath-only rename payload', async () => {
@@ -517,7 +517,7 @@ describe('InfluxSidebarView', () => {
 
 		await influxUpdates$.notify({ op: 'rename', oldPath: 'Old-Only.md' });
 
-		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: true });
 	});
 
 	test('shared update bus ignores irrelevant file updates', async () => {
@@ -533,7 +533,7 @@ describe('InfluxSidebarView', () => {
 
 		await influxUpdates$.notify({ op: 'modify', file: fileB });
 
-		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true });
+		expect(updateViewSpy).not.toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: false });
 	});
 
 	test('shared update bus refreshes on delete even when shouldUpdate no longer reports the removed source', async () => {
@@ -549,7 +549,7 @@ describe('InfluxSidebarView', () => {
 
 		await influxUpdates$.notify({ op: 'delete', file: fileB });
 
-		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true });
+		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: true });
 	});
 
 	test('registerFileEvents wires active leaf, file open, and editor change listeners', () => {

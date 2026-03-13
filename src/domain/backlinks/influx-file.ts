@@ -21,6 +21,7 @@ import {
 export interface InfluxFileApi extends InlinkingFileApi {
     getFileByPath: ApiAdapter['getFileByPath'];
     getBacklinks: ApiAdapter['getBacklinks'];
+	getBacklinksFresh: ApiAdapter['getBacklinksFresh'];
     getShowStatus: ApiAdapter['getShowStatus'];
     getCollapsedStatus: ApiAdapter['getCollapsedStatus'];
     isIncludableSource: ApiAdapter['isIncludableSource'];
@@ -107,12 +108,12 @@ export default class InfluxFile {
 			return false;
 		}
 		const affectedBeforeRefresh = changedPaths.some((path) => backlinksContainChangedPath(this.backlinks, path));
-		this.backlinks = this.api.getBacklinks(this.file)
+		this.backlinks = this.api.getBacklinksFresh(this.file)
 		const affectedAfterRefresh = changedPaths.some((path) => backlinksContainChangedPath(this.backlinks, path));
 		return affectedBeforeRefresh || affectedAfterRefresh;
 	}
 
-    async makeInfluxList() {
+    async makeInfluxList(options?: { freshBacklinks?: boolean; skipRecentBuildCache?: boolean }) {
         this.ensureInitialized();
 		if (!this.file) {
 			this.backlinks = null;
@@ -120,7 +121,9 @@ export default class InfluxFile {
 			return;
 		}
 
-		this.backlinks = this.api.getBacklinks(this.file);
+		const freshBacklinks = options?.freshBacklinks === true;
+		const skipRecentBuildCache = options?.skipRecentBuildCache === true;
+		this.backlinks = freshBacklinks ? this.api.getBacklinksFresh(this.file) : this.api.getBacklinks(this.file);
 		const settings = this.api.getSettings();
 		const settingsHash = computeSettingsHash(settings);
         const dependencyRevision = cacheManager.getDependencyRevision();
@@ -131,17 +134,19 @@ export default class InfluxFile {
 			dependencyRevision
 		);
 
-        const recent = getRecentInfluxListBuild(buildKey);
-        if (recent) {
-			this.applyInfluxListBuild(recent);
-            return;
-        }
+		if (!skipRecentBuildCache) {
+			const recent = getRecentInfluxListBuild(buildKey);
+			if (recent) {
+				this.applyInfluxListBuild(recent);
+            	return;
+			}
 
-        const inflight = getInflightInfluxListBuild(buildKey);
-        if (inflight) {
-			this.applyInfluxListBuild(await inflight);
-            return;
-        }
+	        const inflight = getInflightInfluxListBuild(buildKey);
+	        if (inflight) {
+				this.applyInfluxListBuild(await inflight);
+            	return;
+			}
+		}
 
 		const buildPromise = buildInfluxList({
 			contextFile: this,
@@ -155,7 +160,9 @@ export default class InfluxFile {
         try {
 			const built = await buildPromise;
 			this.applyInfluxListBuild(built);
-			storeRecentInfluxListBuild(buildKey, built);
+			if (!skipRecentBuildCache) {
+				storeRecentInfluxListBuild(buildKey, built);
+			}
         } finally {
 			clearInflightInfluxListBuild(buildKey, buildPromise);
         }

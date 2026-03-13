@@ -47,10 +47,11 @@ function makeComponent(index: number): ExtendedInlinkingFile {
 }
 
 function createInfluxApi(): jest.Mocked<InfluxFileApi> {
-	return {
+	const api = {
 		getFileByPath: jest.fn((path: string) => mockTFile(path, path.split('/').pop()?.replace(/\.md$/, '') ?? 'Target')),
 		getMetadata: jest.fn().mockReturnValue(null),
 		getBacklinks: jest.fn().mockReturnValue({ data: new Map() }),
+		getBacklinksFresh: jest.fn(),
 		getShowStatus: jest.fn().mockReturnValue(true),
 		getCollapsedStatus: jest.fn().mockReturnValue(false),
 		isIncludableSource: jest.fn().mockReturnValue(true),
@@ -65,7 +66,10 @@ function createInfluxApi(): jest.Mocked<InfluxFileApi> {
 		}),
 		readFile: jest.fn(),
 		compareLinkName: jest.fn(),
-	};
+	} as jest.Mocked<InfluxFileApi>;
+
+	api.getBacklinksFresh.mockImplementation((file) => api.getBacklinks(file));
+	return api;
 }
 
 async function makeInfluxFile(components: ExtendedInlinkingFile[]) {

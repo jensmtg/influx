@@ -59,6 +59,9 @@ describe('ApiAdapter', () => {
 				read: jest.fn().mockResolvedValue('content'),
 			},
 			metadataCache: {
+				resolvedLinks: {
+					'Source.md': { 'Target.md': 1 },
+				},
 				getFileCache: jest.fn((requestedFile: { path: string }) => metadataByPath.get(requestedFile.path) ?? null),
 				getBacklinksForFile: jest.fn(() => ({
 					data: new Map<string, LinkCache[]>([
@@ -95,6 +98,7 @@ describe('ApiAdapter', () => {
 	test('returns empty backlinks when metadata cache lacks getBacklinksForFile', () => {
 		const { app, api, file } = createContext();
 		delete (app.metadataCache as { getBacklinksForFile?: unknown }).getBacklinksForFile;
+		delete (app.metadataCache as { resolvedLinks?: unknown }).resolvedLinks;
 
 		const backlinks = api.getBacklinks(file);
 
@@ -190,5 +194,45 @@ describe('ApiAdapter', () => {
 		api.invalidateFileCache(file.path);
 		api.getBacklinks(file);
 		expect(app.metadataCache.getBacklinksForFile).toHaveBeenCalledTimes(2);
+	});
+
+	test('getBacklinksFresh bypasses cached target backlinks and does not overwrite the cache', () => {
+		const { api, file, app } = createContext({ includeFrontmatterLinks: true, frontmatterProperties: ['related'] });
+
+		(app.metadataCache.getBacklinksForFile as jest.Mock)
+			.mockReturnValueOnce({ data: new Map([['Source.md', [createBacklink('Target')]]]) })
+			.mockReturnValueOnce({ data: new Map([['Fresh.md', [createBacklink('Target')]]]) });
+		(app.metadataCache as any).resolvedLinks = {
+			'Source.md': { 'Target.md': 1 },
+		};
+
+		const cached = api.getBacklinks(file);
+		(app.metadataCache as any).resolvedLinks = {
+			'Fresh.md': { 'Target.md': 1 },
+		};
+		const fresh = api.getBacklinksFresh(file);
+		const cachedAgain = api.getBacklinks(file);
+
+		expect((cached.data as Map<string, LinkCache[]>).has('Source.md')).toBe(true);
+		expect((fresh.data as Map<string, LinkCache[]>).has('Fresh.md')).toBe(true);
+		expect((cachedAgain.data as Map<string, LinkCache[]>).has('Source.md')).toBe(true);
+		expect(app.metadataCache.getBacklinksForFile).toHaveBeenCalledTimes(2);
+	});
+
+	test('reconciles stale getBacklinksForFile output against resolvedLinks for existing targets', () => {
+		const { api, file, app } = createContext({ includeFrontmatterLinks: true, frontmatterProperties: ['related'] });
+		(app.metadataCache.getBacklinksForFile as jest.Mock).mockReturnValue({
+			data: new Map<string, LinkCache[]>([
+				['Stale.md', [createBacklink('Target')]],
+			]),
+		});
+		(app.metadataCache as any).resolvedLinks = {
+			'Source.md': { 'Target.md': 1 },
+		};
+
+		const backlinks = api.getBacklinks(file);
+
+		expect((backlinks.data as Map<string, LinkCache[]>).has('Stale.md')).toBe(false);
+		expect((backlinks.data as Map<string, LinkCache[]>).has('Source.md')).toBe(true);
 	});
 });
