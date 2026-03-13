@@ -38,6 +38,7 @@ export class PreviewManager {
 		previewRoot: HTMLElement;
 		container: HTMLElement;
 	}>();
+	private inflightPostProcessorRenders = new Map<string, Promise<void>>();
 	private scheduledPreviewRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	private disposed = false;
 
@@ -52,6 +53,7 @@ export class PreviewManager {
 			clearTimeout(timer);
 		}
 		this.postProcessorHosts.clear();
+		this.inflightPostProcessorRenders.clear();
 		this.scheduledPreviewRefreshTimers.clear();
 	}
 
@@ -201,8 +203,14 @@ export class PreviewManager {
 		const { previewRoot, container } = host;
 
 		const preferredContainerId = container.id || `influx-preview-host-${context.docId}`;
+		const renderKey = `${context.docId}:${filePath}`;
+		const existingRender = this.inflightPostProcessorRenders.get(renderKey);
+		if (existingRender) {
+			await existingRender;
+			return;
+		}
 
-		try {
+		const renderPromise = (async () => {
 			await this.renderPreviewForContainer({
 				previewDiv: previewRoot,
 				existingContainer: container,
@@ -210,10 +218,17 @@ export class PreviewManager {
 				fileMtime: this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0,
 				preferredContainerId,
 			});
-		} catch (error) {
+		})().catch((error) => {
 			logger.error('Failed to render preview from post-processor host', { filePath, error });
 			this.schedulePreviewRefreshForPath(filePath);
-		}
+		}).finally(() => {
+			if (this.inflightPostProcessorRenders.get(renderKey) === renderPromise) {
+				this.inflightPostProcessorRenders.delete(renderKey);
+			}
+		});
+
+		this.inflightPostProcessorRenders.set(renderKey, renderPromise);
+		await renderPromise;
 	}
 
 	private async renderPreviewForContainer(params: {
@@ -371,6 +386,11 @@ export class PreviewManager {
 					});
 				})
 			);
+
+			// When a file already has renderer-owned Reading-view hosts, targeted refresh
+			// should stop there. Falling back into leaf-level rerender for the same file can
+			// retrigger the markdown post-processor and create a refresh loop.
+			return true;
 		}
 
 		const leaves = await this.getUntrackedPreviewLeaves(trackedPreviewRoots, filePath);
@@ -615,6 +635,7 @@ export class PreviewManager {
 		const host = this.postProcessorHosts.get(docId);
 		if (host?.container === container) {
 			this.postProcessorHosts.delete(docId);
+			this.inflightPostProcessorRenders.delete(`${docId}:${host.filePath}`);
 		}
 
 		rootManager.unmountDeferred(container);
