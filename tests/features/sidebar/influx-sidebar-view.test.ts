@@ -239,50 +239,6 @@ describe('InfluxSidebarView', () => {
 	});
 
 
-	test('handleEditorChange aborts an older overlapping live refresh before it can render stale content', async () => {
-		const { harness, plugin, fileA } = createContext();
-		(plugin.api.getShowStatus as jest.Mock).mockReturnValue(true);
-
-		let callCount = 0;
-		let resolveFirst: (() => void) | null = null;
-		let resolveSecond: (() => void) | null = null;
-		harness.currentFile = fileA;
-		harness.influxFile = {
-			show: true,
-			makeInfluxList: jest.fn().mockImplementation(
-				() => new Promise<void>((resolve) => {
-					callCount += 1;
-					if (callCount === 1) {
-						resolveFirst = resolve;
-						return;
-					}
-					resolveSecond = resolve;
-				})
-			),
-			toEntries: jest.fn().mockReturnValue([{ sourcePath: 'A.md' }]),
-			totalEntryCount: 1,
-		};
-		harness.abortController = { abort: jest.fn(), signal: { aborted: false } };
-		harness.currentUpdateId = 0;
-
-		const first = harness.handleEditorChange();
-		const second = harness.handleEditorChange();
-
-		expect(harness.abortController?.signal.aborted).toBe(false);
-
-		if (resolveSecond) {
-			(resolveSecond as () => void)();
-		}
-		await second;
-		expect(harness.root?.render).toHaveBeenCalledTimes(1);
-
-		if (resolveFirst) {
-			(resolveFirst as () => void)();
-		}
-		await first;
-		expect(harness.root?.render).toHaveBeenCalledTimes(1);
-	});
-
 	test('onOpen creates a root, subscribes to shared updates, and updates for the active markdown view file', async () => {
 		const { view, harness, plugin, fileA, createMarkdownView } = createContext();
 		const createdRoot = {

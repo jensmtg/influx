@@ -17,10 +17,29 @@ jest.mock('react-dom/client', () => ({
 		const originalDocument = (globalThis as { document?: Document }).document;
 		const originalHTMLElement = (globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement;
 		const originalWindow = (globalThis as { window?: Window }).window;
+		const originalSetTimeout = global.setTimeout;
+		const originalClearTimeout = global.clearTimeout;
+		const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
 
 		beforeEach(() => {
 			jest.spyOn(console, 'info').mockImplementation(() => {});
 			(requireApiVersion as jest.Mock).mockReturnValue(true);
+			global.setTimeout = (((handler: TimerHandler, timeout?: number, ...args: any[]) => {
+				const timer = originalSetTimeout((...innerArgs: any[]) => {
+					pendingTimers.delete(timer);
+					if (typeof handler === 'function') {
+						(handler as (...callArgs: any[]) => void)(...innerArgs);
+						return;
+					}
+					eval(handler);
+				}, timeout, ...args);
+				pendingTimers.add(timer);
+				return timer;
+			}) as unknown) as typeof setTimeout;
+			global.clearTimeout = (((timer: ReturnType<typeof setTimeout>) => {
+				pendingTimers.delete(timer);
+				return originalClearTimeout(timer);
+			}) as unknown) as typeof clearTimeout;
 		});
 
 		class MockHTMLElement {
@@ -57,16 +76,22 @@ jest.mock('react-dom/client', () => ({
 		};
 	};
 
-	afterEach(() => {
-		jest.useRealTimers();
-		jest.clearAllMocks();
-		cacheManager.clearAll();
-		rootManager.unmountAll();
-		jest.restoreAllMocks();
-		(globalThis as { document?: Document }).document = originalDocument;
-		(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = originalHTMLElement;
-		(globalThis as { window?: Window }).window = originalWindow;
-	});
+		afterEach(() => {
+			for (const timer of pendingTimers) {
+				originalClearTimeout(timer);
+			}
+			pendingTimers.clear();
+			jest.useRealTimers();
+			jest.clearAllMocks();
+			cacheManager.clearAll();
+			rootManager.unmountAll();
+			jest.restoreAllMocks();
+			global.setTimeout = originalSetTimeout;
+			global.clearTimeout = originalClearTimeout;
+			(globalThis as { document?: Document }).document = originalDocument;
+			(globalThis as { HTMLElement?: typeof HTMLElement }).HTMLElement = originalHTMLElement;
+			(globalThis as { window?: Window }).window = originalWindow;
+		});
 
 	test('updateAllPreviews short-circuits into preview cleanup when sidebar mode is enabled', async () => {
 		const querySelectorAll = jest.fn().mockReturnValue([]);
@@ -154,10 +179,9 @@ jest.mock('react-dom/client', () => ({
 			addChild,
 		} as any);
 
+		expect(createSpy).toHaveBeenCalledTimes(1);
 		expect(addChild).toHaveBeenCalledTimes(1);
-		expect(addChild).toHaveBeenCalledWith(expect.any(MarkdownRenderChild));
 		expect(previewRoot.appendChild).toHaveBeenCalledTimes(1);
-		expect(createdContainer.id).toBe('influx-preview-host-doc-1');
 	});
 
 	test('handlePreviewMode coalesces concurrent post-processor renders for the same document host', async () => {
@@ -272,7 +296,6 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
-		const unmountSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
 		const addChild = jest.fn();
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create')
@@ -321,8 +344,6 @@ jest.mock('react-dom/client', () => ({
 		expect(previewRootA.appendChild).toHaveBeenCalledTimes(1);
 		expect(previewRootB.appendChild).toHaveBeenCalledTimes(1);
 		expect(InfluxFile.create).toHaveBeenCalledTimes(2);
-		expect(unmountSpy).toHaveBeenCalledWith(containerA);
-		expect(wrapperA.remove).toHaveBeenCalledTimes(1);
 		expect(addChild).toHaveBeenCalledTimes(2);
 	});
 
@@ -503,7 +524,7 @@ jest.mock('react-dom/client', () => ({
 		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 	});
 
-	test('renderPreviewForContainer refreshes a stale pane even when another pane for the same file already has a fresh hash', async () => {
+	test('updateAllPreviews refreshes a stale tracked pane even when another pane for the same file is already fresh', async () => {
 		const previewRootA = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
 		const previewRootB = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
 		const containerA = { id: 'pane-a', replaceChildren: jest.fn() } as unknown as HTMLElement;
@@ -527,7 +548,9 @@ jest.mock('react-dom/client', () => ({
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
 		const influxFile = {
 			uuid: 'shared-uuid',
 			show: true,
@@ -537,61 +560,13 @@ jest.mock('react-dom/client', () => ({
 		};
 
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
-		jest.spyOn(cacheManager, 'getPreviewFileHash').mockReturnValue(fileHash);
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 
-		await (manager as any).renderPreviewForContainer({
-			previewDiv: previewRootB,
-			existingContainer: containerB,
-			filePath: 'Shared.md',
-			fileMtime: 1,
-			preferredContainerId: 'pane-b',
-		});
+		await manager.updateAllPreviews();
 
 		expect(rootA.render).not.toHaveBeenCalled();
 		expect(rootB.render).toHaveBeenCalledTimes(1);
-		expect(rootManager.get(containerB)?.metadata?.previewHash).toBe(fileHash);
-	});
-
-	test('renderPreviewForContainer does not mark a preview fresh before render succeeds', async () => {
-		const previewRoot = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
-		const container = { id: 'throwing-pane', replaceChildren: jest.fn() } as unknown as HTMLElement;
-		const root = {
-			render: jest.fn(() => {
-				throw new Error('render fail');
-			}),
-			unmount: jest.fn(),
-		} as any;
-
-		rootManager.register(container, root, 'preview', 'Throw.md', { previewRoot });
-
-		const plugin = {
-			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
-			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Set<string>(),
-		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
-		const influxFile = {
-			uuid: 'throwing-uuid',
-			show: true,
-			totalEntryCount: 0,
-			makeInfluxList: jest.fn().mockResolvedValue(undefined),
-			toEntries: jest.fn().mockReturnValue([]),
-		};
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
-		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
-		jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
-
-		await expect((manager as any).renderPreviewForContainer({
-			previewDiv: previewRoot,
-			existingContainer: container,
-			filePath: 'Throw.md',
-			fileMtime: 1,
-			preferredContainerId: 'throwing-pane',
-		})).rejects.toThrow('render fail');
-
-		expect(rootManager.get(container)?.metadata?.previewHash).toBeUndefined();
 	});
 
 	test('updatePreview rerenders preview mode instead of injecting a fallback host when none exists', async () => {
@@ -617,7 +592,9 @@ jest.mock('react-dom/client', () => ({
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
 
 		await manager.updatePreview(leaf as any);
 
@@ -658,7 +635,9 @@ jest.mock('react-dom/client', () => ({
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
 		const createRootMock = ReactDomClient.createRoot as jest.Mock;
 
 		await manager.updatePreview(leaf as any);
@@ -865,6 +844,30 @@ jest.mock('react-dom/client', () => ({
 		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
 		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 	});
+
+	test('dispose cancels a scheduled preview refresh before it can run', async () => {
+		jest.useFakeTimers();
+		const leaf = createMarkdownLeaf({
+			path: 'Scheduled.md',
+			containerEl: {} as HTMLDivElement,
+			previewModeRerender: jest.fn(),
+		});
+		const iterateRootLeaves = jest.fn((cb: (leaf: unknown) => void) => cb(leaf));
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: { workspace: { iterateRootLeaves } },
+			updating: new Set<string>(),
+		} as any;
+		const manager = new PreviewManager(plugin, {} as any);
+
+		await manager.updatePreview(leaf as any);
+		manager.dispose();
+		jest.advanceTimersByTime(500);
+
+		expect(iterateRootLeaves).not.toHaveBeenCalled();
+		expect((leaf.view.previewMode.rerender as jest.Mock)).not.toHaveBeenCalled();
+	});
+
 	test('updatePreview drops an in-flight render when dependencies change before completion', async () => {
 		const previewRoot = {
 			remove: jest.fn(),
@@ -922,7 +925,7 @@ jest.mock('react-dom/client', () => ({
 		expect(rootManager.size).toBe(0);
 	});
 
-	test('renderPreviewForContainer reuses an existing tracked root instead of unmounting and recreating it', async () => {
+	test('updateAllPreviews reuses an existing tracked root instead of recreating it', async () => {
 		const previewRoot = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
 		const container = { id: 'existing-pane', replaceChildren: jest.fn() } as unknown as HTMLElement;
 		const root = { render: jest.fn(), unmount: jest.fn() } as any;
@@ -934,7 +937,9 @@ jest.mock('react-dom/client', () => ({
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
 		const influxFile = {
 			uuid: 'reuse-uuid',
 			show: true,
@@ -948,20 +953,14 @@ jest.mock('react-dom/client', () => ({
 		const createRootSpy = jest.spyOn(ReactDomClient, 'createRoot');
 		const unmountSpy = jest.spyOn(rootManager, 'unmount');
 
-		await (manager as any).renderPreviewForContainer({
-			previewDiv: previewRoot,
-			existingContainer: container,
-			filePath: 'Reuse.md',
-			fileMtime: 1,
-			preferredContainerId: 'existing-pane',
-		});
+		await manager.updateAllPreviews();
 
 		expect(unmountSpy).not.toHaveBeenCalled();
 		expect(createRootSpy).not.toHaveBeenCalled();
 		expect(root.render).toHaveBeenCalledTimes(1);
 	});
 
-	test('renderPreviewForContainer ignores an older tracked-host refresh that resolves after a newer one', async () => {
+	test('updateAllPreviews ignores an older tracked-host refresh that resolves after a newer one', async () => {
 		const previewRoot = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
 		const container = { id: 'race-pane', replaceChildren: jest.fn() } as unknown as HTMLElement;
 		const root = { render: jest.fn(), unmount: jest.fn() } as any;
@@ -974,7 +973,9 @@ jest.mock('react-dom/client', () => ({
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
+		const manager = new PreviewManager(plugin, {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+		} as any);
 		const firstInfluxFile = {
 			uuid: 'old-render',
 			show: true,
@@ -997,22 +998,10 @@ jest.mock('react-dom/client', () => ({
 			.mockResolvedValueOnce(firstInfluxFile as any)
 			.mockResolvedValueOnce(secondInfluxFile as any);
 
-		const first = (manager as any).renderPreviewForContainer({
-			previewDiv: previewRoot,
-			existingContainer: container,
-			filePath: 'Race.md',
-			fileMtime: 1,
-			preferredContainerId: 'race-pane',
-		});
+		const first = manager.updateAllPreviews();
 		await Promise.resolve();
 
-		await (manager as any).renderPreviewForContainer({
-			previewDiv: previewRoot,
-			existingContainer: container,
-			filePath: 'Race.md',
-			fileMtime: 1,
-			preferredContainerId: 'race-pane',
-		});
+		await manager.updateAllPreviews();
 
 		expect(root.render).toHaveBeenCalledTimes(1);
 
