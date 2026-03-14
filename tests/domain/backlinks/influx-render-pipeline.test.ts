@@ -104,6 +104,30 @@ describe('influx render pipeline', () => {
 		);
 	});
 
+	test('createInfluxFileForRender forwards fresh backlink and recent-build cache flags', async () => {
+		const influxFile: TestInfluxFile = {
+			show: true,
+			totalEntryCount: 2,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		};
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as InfluxFile);
+
+		await createInfluxFileForRender({
+			filePath: 'Fresh.md',
+			api: createApi(),
+			mode: 'sidebar',
+			settings: createSettings({ metricsEnabled: true }),
+			freshBacklinks: true,
+			skipRecentBuildCache: true,
+		});
+
+		expect(influxFile.makeInfluxList).toHaveBeenCalledWith({
+			freshBacklinks: true,
+			skipRecentBuildCache: true,
+		});
+	});
+
 	test('createInfluxFileForRender stops after create when aborted', async () => {
 		const influxFile: TestInfluxFile = {
 			show: true,

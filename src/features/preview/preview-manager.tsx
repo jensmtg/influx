@@ -33,12 +33,15 @@ export class PreviewManager {
 	private static readonly PREVIEW_REFRESH_DELAY_MS = 120;
 	private leafContainerIds = new WeakMap<HTMLDivElement, number>();
 	private nextLeafContainerId = 1;
+	private previewRenderOwnerIds = new WeakMap<HTMLElement, number>();
+	private nextPreviewRenderOwnerId = 1;
 	private postProcessorHosts = new Map<string, {
 		filePath: string;
 		previewRoot: HTMLElement;
 		container: HTMLElement;
 	}>();
 	private inflightPostProcessorRenders = new Map<string, Promise<void>>();
+	private latestPreviewRenderSeq = new Map<string, number>();
 	private scheduledPreviewRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	private disposed = false;
 
@@ -54,6 +57,7 @@ export class PreviewManager {
 		}
 		this.postProcessorHosts.clear();
 		this.inflightPostProcessorRenders.clear();
+		this.latestPreviewRenderSeq.clear();
 		this.scheduledPreviewRefreshTimers.clear();
 	}
 
@@ -250,9 +254,18 @@ export class PreviewManager {
 		let existingContainer = providedContainer
 			?? this.findKnownPreviewContainer(filePath, targetPreviewDiv, preferredContainerId);
 		cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
+		const renderOwner = existingContainer ?? targetPreviewDiv;
+		const renderKey = this.getPreviewRenderKey(filePath, renderOwner);
+		const renderSeq = (this.latestPreviewRenderSeq.get(renderKey) ?? 0) + 1;
+		this.latestPreviewRenderSeq.set(renderKey, renderSeq);
 
 		const dependencyRevision = cacheManager.getDependencyRevision();
 		const fileHash = `${filePath}-${fileMtime}-${this.computeSettingsHash()}-${dependencyRevision}`;
+		const shouldAbortRender = () => (
+			this.isInactive()
+			|| cacheManager.getDependencyRevision() !== dependencyRevision
+			|| this.latestPreviewRenderSeq.get(renderKey) !== renderSeq
+		);
 
 		if (this.hasFreshPreviewRoot(fileHash, existingContainer)) {
 			return;
@@ -263,9 +276,9 @@ export class PreviewManager {
 			api: this.apiAdapter,
 			mode: 'preview',
 			settings,
-			shouldAbort: () => this.isInactive() || cacheManager.getDependencyRevision() !== dependencyRevision,
+			shouldAbort: shouldAbortRender,
 		});
-		if (!result || cacheManager.getDependencyRevision() !== dependencyRevision) {
+		if (!result || shouldAbortRender()) {
 			return;
 		}
 
@@ -284,6 +297,9 @@ export class PreviewManager {
 			targetPreviewDiv = latestPreviewDiv;
 			existingContainer = this.findKnownPreviewContainer(filePath, targetPreviewDiv, preferredContainerId);
 			cleanupDuplicatePreviewWrappers(targetPreviewDiv, existingContainer);
+		}
+		if (shouldAbortRender()) {
+			return;
 		}
 		if (this.hasFreshPreviewRoot(fileHash, existingContainer)) {
 			return;
@@ -304,18 +320,38 @@ export class PreviewManager {
 		});
 	}
 
+	private getPreviewRenderKey(filePath: string, owner: HTMLElement): string {
+		return `${filePath}::${this.getPreviewRenderOwnerId(owner)}`;
+	}
+
+	private getPreviewRenderOwnerId(owner: HTMLElement): number {
+		const existing = this.previewRenderOwnerIds.get(owner);
+		if (existing) {
+			return existing;
+		}
+
+		const next = this.nextPreviewRenderOwnerId;
+		this.nextPreviewRenderOwnerId += 1;
+		this.previewRenderOwnerIds.set(owner, next);
+		return next;
+	}
+
 	private ensurePostProcessorPreviewHost(
 		element: HTMLElement,
 		context: MarkdownPostProcessorContext
 	): { filePath: string; previewRoot: HTMLElement; container: HTMLElement } | null {
-		const existingHost = this.getActivePostProcessorHost(context.docId, context.sourcePath);
-		if (existingHost) {
-			return existingHost;
-		}
-
 		const previewRoot = resolvePreviewRoot(element);
 		if (!previewRoot) {
 			return null;
+		}
+
+		const existingHost = this.getActivePostProcessorHost(context.docId, context.sourcePath);
+		if (existingHost) {
+			if (existingHost.previewRoot === previewRoot) {
+				return existingHost;
+			}
+
+			this.releasePostProcessorHost(context.docId, existingHost.container);
 		}
 
 		const containerId = `influx-preview-host-${context.docId}`;

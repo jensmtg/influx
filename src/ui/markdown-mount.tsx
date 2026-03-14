@@ -22,17 +22,39 @@ function splitFencePrefix(line: string): { prefix: string; content: string } {
 	return { prefix, content };
 }
 
-const SANITIZED_FENCE_PATTERN = /^```(query|dataview|dataviewjs|tasks)\b/i;
+const SANITIZED_FENCE_LANGUAGES = 'query|dataview|dataviewjs|tasks';
+const SANITIZED_FENCE_MARKER_PATTERN = '(?:`{3,}|~{3,})';
+const SANITIZED_FENCE_PATTERN = new RegExp(
+	`^(${SANITIZED_FENCE_MARKER_PATTERN})(${SANITIZED_FENCE_LANGUAGES})\\b`,
+	'i'
+);
+const SANITIZED_FENCE_DETECT_PATTERN = new RegExp(
+	`${SANITIZED_FENCE_MARKER_PATTERN}(${SANITIZED_FENCE_LANGUAGES})\\b`,
+	'i'
+);
 const INFLUX_MARKDOWN_MOUNT_ATTR = 'data-influx-markdown-mount-root';
 
 export const INFLUX_MARKDOWN_MOUNT_SELECTOR = `[${INFLUX_MARKDOWN_MOUNT_ATTR}="true"]`;
 
-function isSanitizedFenceStart(content: string): boolean {
-	return SANITIZED_FENCE_PATTERN.test(content.trim());
+function getSanitizedFenceStart(content: string): { fenceMarker: string; label: string } | null {
+	const match = content.trim().match(SANITIZED_FENCE_PATTERN);
+	if (!match) {
+		return null;
+	}
+
+	return {
+		fenceMarker: match[1],
+		label: match[2].toLowerCase(),
+	};
+}
+
+function isFenceClose(content: string, fenceMarker: string): boolean {
+	const match = content.trim().match(/^(`{3,}|~{3,})\s*$/);
+	return Boolean(match && match[1][0] === fenceMarker[0] && match[1].length >= fenceMarker.length);
 }
 
 export function prepareMarkdownForInflux(markdown: string): string {
-	if (!markdown || !/```(query|dataview|dataviewjs|tasks)\b/i.test(markdown)) {
+	if (!markdown || !SANITIZED_FENCE_DETECT_PATTERN.test(markdown)) {
 		return markdown;
 	}
 
@@ -40,24 +62,27 @@ export function prepareMarkdownForInflux(markdown: string): string {
 	const output: string[] = [];
 	let inSanitizedFence = false;
 	let fencePrefix = '';
+	let sanitizedFenceMarker = '```';
 
 	for (const line of lines) {
 		const { prefix, content } = splitFencePrefix(line);
 		const normalizedContent = content.trim();
+		const sanitizedFenceStart = getSanitizedFenceStart(normalizedContent);
 
-		if (!inSanitizedFence && isSanitizedFenceStart(normalizedContent)) {
+		if (!inSanitizedFence && sanitizedFenceStart) {
 			inSanitizedFence = true;
 			fencePrefix = prefix;
-			const sanitizedFenceLabel = normalizedContent.slice(3).split(/\s+/, 1)[0].toLowerCase();
-			output.push(`${fencePrefix}\`\`\`text`);
-			output.push(`${fencePrefix}[Influx] ${sanitizedFenceLabel} block disabled in backlink snippet`);
+			sanitizedFenceMarker = sanitizedFenceStart.fenceMarker;
+			output.push(`${fencePrefix}${sanitizedFenceMarker}text`);
+			output.push(`${fencePrefix}[Influx] ${sanitizedFenceStart.label} block disabled in backlink snippet`);
 			continue;
 		}
 
-		if (inSanitizedFence && /^```\s*$/.test(normalizedContent)) {
-			output.push(`${fencePrefix}\`\`\``);
+		if (inSanitizedFence && isFenceClose(normalizedContent, sanitizedFenceMarker)) {
+			output.push(`${fencePrefix}${sanitizedFenceMarker}`);
 			inSanitizedFence = false;
 			fencePrefix = '';
+			sanitizedFenceMarker = '```';
 			continue;
 		}
 
@@ -65,7 +90,7 @@ export function prepareMarkdownForInflux(markdown: string): string {
 	}
 
 	if (inSanitizedFence) {
-		output.push(`${fencePrefix}\`\`\``);
+		output.push(`${fencePrefix}${sanitizedFenceMarker}`);
 	}
 
 	return output.join('\n');

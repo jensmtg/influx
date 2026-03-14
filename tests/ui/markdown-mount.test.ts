@@ -84,6 +84,33 @@ describe('prepareMarkdownForInflux', () => {
 		expect(prepared).not.toContain('```tasks');
 	});
 
+	test('should neutralize tilde fences in backlink snippets', () => {
+		const markdown = [
+			'~~~dataview',
+			'LIST FROM #project',
+			'~~~',
+		].join('\n');
+
+		const prepared = prepareMarkdownForInflux(markdown);
+		expect(prepared).toContain('~~~text');
+		expect(prepared).toContain('[Influx] dataview block disabled in backlink snippet');
+		expect(prepared).not.toContain('~~~dataview');
+	});
+
+	test('should preserve the opening fence style when closing a truncated tilde snippet', () => {
+		const markdown = [
+			'> ~~~tasks',
+			'> tags include #work',
+		].join('\n');
+
+		expect(prepareMarkdownForInflux(markdown)).toBe([
+			'> ~~~text',
+			'> [Influx] tasks block disabled in backlink snippet',
+			'> tags include #work',
+			'> ~~~',
+		].join('\n'));
+	});
+
 	test('should close a sanitized fence when the snippet ends before the original block closes', () => {
 		const markdown = [
 			'Before',

@@ -105,7 +105,7 @@ export async function buildInfluxFileForRender(
 export async function createInfluxFileForRender(
 	params: SharedPipelineParams & { api: InfluxFileApi }
 ): Promise<InfluxRenderPipelineResult | null> {
-	const { api, filePath, mode, settings, shouldAbort } = params;
+	const { api, filePath, mode, settings, shouldAbort, freshBacklinks, skipRecentBuildCache } = params;
 	const startedAt = performance.now();
 	const influxFile = await InfluxFile.create(filePath, api);
 
@@ -120,5 +120,7 @@ export async function createInfluxFileForRender(
 		settings,
 		shouldAbort,
 		startedAt,
+		freshBacklinks,
+		skipRecentBuildCache,
 	});
 }
