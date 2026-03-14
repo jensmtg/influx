@@ -21,11 +21,26 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 - [ ] Do a final sanity pass on `manifest.json`, `versions.json`, packaged files, and marketplace-facing copy.
 - [ ] Decide whether to keep `minAppVersion: 1.0.0` with guards or intentionally raise it to `1.7.2`, then update `manifest.json` and `versions.json` together.
 
+## Test suite cleanup
+
+- [ ] Prune or rewrite preview/sidebar tests that mostly spy on private methods, private fields, or exact internal call payloads. If a test is only asserting plumbing, cut it and replace it with a behavior-level regression.
+- [ ] Revisit `tests/domain/backlinks/api-adapter-policy.test.ts`; if it is mostly cache-observation noise after stronger behavior coverage exists, delete it instead of nursing it along.
+- [ ] Add behavior-level coverage for `MarkdownMount` checkbox disabling and editor-mode normalization.
+- [ ] Add focused coverage for shared updates that touch the current file path itself, so we verify that branch without relying on private sidebar internals.
+- [ ] Add a regression that a hidden preview result cleans up stale preview UI, which is more valuable than several current routing-style preview tests.
+
 ## After the vault pass
 
 - [ ] Simplify the backlink source-of-truth path. The stale-link bug was a good reminder that we were layering cache invalidation around `getBacklinksForFile(...)` instead of keeping one cleaner authority for source-path membership.
 - [ ] Decide whether `src/features/sidebar/influx-sidebar-view.tsx` should reuse `src/ui/influx-update-helpers.ts` instead of carrying its own parallel shared-update path.
 - [ ] Decide whether the remaining multi-path preview host recovery in `src/features/preview/preview-manager.tsx` and `src/features/preview/preview-manager-dom.ts` is still worth simplifying once the manual behavior is confirmed.
+- [ ] Isolate the non-public Reading-view compatibility layer. Right now `previewMode`, `containerEl`, `rerender(true)`, and `.markdown-preview-view` knowledge is spread across the preview code.
+- [ ] Write one maintainer note that lists every intentional non-public Obsidian touchpoint we depend on: `previewMode`, `containerEl`, `rerender(true)`, `getBacklinksForFile`, `resolvedLinks`, and `.markdown-preview-view`.
+- [ ] Split `src/features/preview/preview-manager.tsx` into smaller pieces. It is doing DOM ownership, host tracking, render dedupe, scheduling, cleanup, and fallback recovery all in one place.
+- [ ] Make sidebar shared-update relevance checks cheaper. We currently blur together “does this change affect current backlinks?” and “refresh everything now,” which can force duplicate fresh-backlink work.
+- [ ] Decide whether backlink data should be normalized to one internal shape at the adapter boundary instead of carrying both `Map` and object paths through hot code.
+- [ ] Revisit the synthetic backlink-position fallback and decide whether inferred path-only backlinks should have an explicit representation instead of fake line numbers.
+- [ ] Measure the large-vault cost of `resolvedLinks` reconciliation before adding any more refresh triggers around preview/sidebar updates.
 - [ ] Keep reducing `src/features/preview/preview-manager.tsx` reliance on main-area leaf iteration for Reading-view fallback.
 - [ ] Keep reducing `src/features/preview/preview-manager-dom.ts` reliance on `.markdown-preview-view` discovery for Reading-view ownership.
 - [ ] If we come back for stronger sidebar parity later, gather verified API references for `MarkdownPreviewView`, deferred-view loading, and any supported preview-host embedding APIs before refactoring host semantics.
