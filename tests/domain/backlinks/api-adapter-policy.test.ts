@@ -17,38 +17,66 @@ describe('ApiAdapterPolicy', () => {
 		cacheManager.clearAll();
 	});
 
-	test('merges plugin settings with defaults and caches regex patterns', () => {
+	test('merges partial plugin settings with defaults', () => {
 		const policy = new ApiAdapterPolicy({
 			data: {
 				settings: {
 					includeFrontmatterLinks: true,
-					inclusionPattern: ['^Projects/'],
+					listLimit: 12,
 				},
 			},
 		});
 
 		const settings = policy.getSettings();
 
-		expect(settings.liveUpdate).toBe(DEFAULT_SETTINGS.liveUpdate);
 		expect(settings.includeFrontmatterLinks).toBe(true);
-		expect(cacheManager.getRegex('^Projects/')).toBeInstanceOf(RegExp);
+		expect(settings.listLimit).toBe(12);
+		expect(settings.liveUpdate).toBe(DEFAULT_SETTINGS.liveUpdate);
+		expect(settings.showBehaviour).toBe(DEFAULT_SETTINGS.showBehaviour);
 	});
 
-		test('caches invalid regexes as non-matching sentinels', () => {
+	test('getShowStatus honors the required influx frontmatter key before pattern matching', () => {
 		const policy = new ApiAdapterPolicy({
 			data: {
 				settings: {
 					...DEFAULT_SETTINGS,
-					collapsedPattern: ['[broken'],
+					requireInfluxFrontmatterKey: true,
+					showBehaviour: 'OPT_OUT',
+					exclusionPattern: [],
 				},
 			},
 		});
 
-			expect(policy.getCollapsedStatus(mockTFile('Broken.md', 'Broken'))).toBe(false);
-			expect(cacheManager.getRegex('[broken')).toBeNull();
+		expect(
+			policy.getShowStatus(mockTFile('Hidden.md', 'Hidden'), {
+				frontmatter: { influx: true },
+			} as any)
+		).toBe(true);
+		expect(
+			policy.getShowStatus(mockTFile('Hidden.md', 'Hidden'), {
+				frontmatter: { influx: false },
+			} as any)
+		).toBe(false);
+		expect(policy.getShowStatus(mockTFile('Hidden.md', 'Hidden'), null)).toBe(false);
+	});
+
+	test('isIncludableSource ignores invalid regexes and still respects valid source patterns', () => {
+		const policy = new ApiAdapterPolicy({
+			data: {
+				settings: {
+					...DEFAULT_SETTINGS,
+					sourceBehaviour: 'OPT_IN',
+					sourceInclusionPattern: ['[broken', '^Projects/'],
+					sourceExclusionPattern: [],
+				},
+			},
 		});
 
-	test('prefers collapse-all over pattern matching', () => {
+		expect(policy.isIncludableSource('Projects/Note.md')).toBe(true);
+		expect(policy.isIncludableSource('Archive/Note.md')).toBe(false);
+	});
+
+	test('getCollapsedStatus prefers collapse-all over pattern matching', () => {
 		const policy = new ApiAdapterPolicy({
 			data: {
 				settings: {
