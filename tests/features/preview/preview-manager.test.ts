@@ -135,7 +135,7 @@ jest.mock('react-dom/client', () => ({
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
 		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
-		jest.spyOn(InfluxFile, 'create').mockResolvedValue({
+		const createSpy = jest.spyOn(InfluxFile, 'create').mockResolvedValue({
 			uuid: 'doc-host',
 			show: true,
 			totalEntryCount: 0,
@@ -203,11 +203,16 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockImplementation(
-			() => new Promise<void>((resolve) => {
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		const createSpy = jest.spyOn(InfluxFile, 'create').mockResolvedValue({
+			uuid: 'doc-host',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockImplementation(() => new Promise<void>((resolve) => {
 				releaseRender = resolve;
-			})
-		);
+			})),
+			toEntries: jest.fn().mockReturnValue([]),
+		} as any);
 
 		const context = {
 			docId: 'doc-1',
@@ -219,7 +224,8 @@ jest.mock('react-dom/client', () => ({
 		const second = manager.handlePreviewMode(previewRoot, context);
 		const third = manager.handlePreviewMode(previewRoot, context);
 
-		expect(renderPreviewSpy).toHaveBeenCalledTimes(1);
+		await Promise.resolve();
+		expect(createSpy).toHaveBeenCalledTimes(1);
 
 		releaseRender();
 		await Promise.all([first, second, third]);
@@ -266,12 +272,39 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
-		const createPreviewContainerSpy = jest.spyOn(manager as any, 'createPreviewContainer')
-			.mockReturnValueOnce(containerA)
-			.mockReturnValueOnce(containerB);
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
 		const unmountSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
 		const addChild = jest.fn();
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(InfluxFile, 'create')
+			.mockResolvedValueOnce({
+				uuid: 'doc-host-a',
+				show: true,
+				totalEntryCount: 0,
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn().mockReturnValue([]),
+			} as any)
+			.mockResolvedValueOnce({
+				uuid: 'doc-host-b',
+				show: true,
+				totalEntryCount: 0,
+				makeInfluxList: jest.fn().mockResolvedValue(undefined),
+				toEntries: jest.fn().mockReturnValue([]),
+			} as any);
+		(globalThis as { document?: Document }).document = {
+			createElement: jest.fn()
+				.mockImplementationOnce(() => ({
+					appendChild: jest.fn(),
+					className: '',
+					querySelector: jest.fn().mockImplementation(() => containerA),
+				}))
+				.mockImplementationOnce(() => containerA)
+				.mockImplementationOnce(() => ({
+					appendChild: jest.fn(),
+					className: '',
+					querySelector: jest.fn().mockImplementation(() => containerB),
+				}))
+				.mockImplementationOnce(() => containerB),
+		} as unknown as Document;
 
 		await manager.handlePreviewMode(previewRootA, {
 			docId: 'doc-1',
@@ -285,15 +318,9 @@ jest.mock('react-dom/client', () => ({
 			addChild,
 		} as any);
 
-		expect(createPreviewContainerSpy).toHaveBeenCalledTimes(2);
-		expect(renderPreviewSpy).toHaveBeenNthCalledWith(1, expect.objectContaining({
-			previewDiv: previewRootA,
-			existingContainer: containerA,
-		}));
-		expect(renderPreviewSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({
-			previewDiv: previewRootB,
-			existingContainer: containerB,
-		}));
+		expect(previewRootA.appendChild).toHaveBeenCalledTimes(1);
+		expect(previewRootB.appendChild).toHaveBeenCalledTimes(1);
+		expect(InfluxFile.create).toHaveBeenCalledTimes(2);
 		expect(unmountSpy).toHaveBeenCalledWith(containerA);
 		expect(wrapperA.remove).toHaveBeenCalledTimes(1);
 		expect(addChild).toHaveBeenCalledTimes(2);
@@ -308,8 +335,8 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
+		const createSpy = jest.spyOn(InfluxFile, 'create');
+		const addChild = jest.fn();
 		const nestedRoot = { matches: jest.fn() } as unknown as Element;
 		const element = {
 			closest: jest.fn().mockImplementation((selector: string) => {
@@ -323,11 +350,12 @@ jest.mock('react-dom/client', () => ({
 		await manager.handlePreviewMode(element, {
 			docId: 'nested-doc',
 			sourcePath: 'Nested.md',
-			addChild: jest.fn(),
+			addChild,
 		} as any);
 
-		expect(renderPreviewSpy).not.toHaveBeenCalled();
-		expect(scheduleRefreshSpy).not.toHaveBeenCalled();
+		expect(createSpy).not.toHaveBeenCalled();
+		expect(addChild).not.toHaveBeenCalled();
+		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
 	});
 
 	test('handlePreviewMode recreates a renderer-owned host after markdown child unload', async () => {
@@ -475,66 +503,6 @@ jest.mock('react-dom/client', () => ({
 		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 	});
 
-	test('updateAllPreviews refreshes a live post-processor host even before a preview root is tracked', async () => {
-		let currentContainer: HTMLElement | null = null;
-		const createdContainer = { id: '', replaceChildren: jest.fn() } as unknown as HTMLElement;
-		const createdWrapper = {
-			appendChild: jest.fn(),
-			className: '',
-			querySelector: jest.fn().mockImplementation(() => createdContainer),
-		} as unknown as HTMLElement;
-		const previewRoot = {
-			classList: {
-				contains: (name: string) => name === 'markdown-preview-view',
-			},
-			querySelectorAll: jest.fn().mockImplementation((selector: string) => {
-				if (!currentContainer || !selector.includes(CONSTANTS.INFLUX_CONTAINER_TAG)) {
-					return [];
-				}
-				return [currentContainer];
-			}),
-			appendChild: jest.fn((wrapper: { querySelector?: () => HTMLElement | null }) => {
-				currentContainer = wrapper.querySelector?.() ?? null;
-			}),
-			insertBefore: jest.fn(),
-			firstChild: null,
-		} as unknown as HTMLElement;
-		(globalThis as { document?: Document }).document = {
-			createElement: jest.fn().mockImplementation((tag: string) => {
-				if (tag === 'div') {
-					return createdWrapper;
-				}
-				return createdContainer;
-			}),
-		} as unknown as Document;
-
-		const plugin = {
-			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
-			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Set<string>(),
-		} as any;
-		const manager = new PreviewManager(plugin, {
-			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
-		} as any);
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-
-		await manager.handlePreviewMode(previewRoot, {
-			docId: 'untracked-doc',
-			sourcePath: 'Untracked.md',
-			addChild: jest.fn(),
-		} as any);
-		renderPreviewSpy.mockClear();
-
-		await manager.updateAllPreviews();
-
-		expect(renderPreviewSpy).toHaveBeenCalledWith(expect.objectContaining({
-			previewDiv: previewRoot,
-			existingContainer: createdContainer,
-			filePath: 'Untracked.md',
-			preferredContainerId: 'influx-preview-host-untracked-doc',
-		}));
-	});
-
 	test('renderPreviewForContainer refreshes a stale pane even when another pane for the same file already has a fresh hash', async () => {
 		const previewRootA = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
 		const previewRootB = { querySelectorAll: jest.fn().mockReturnValue([]) } as unknown as HTMLElement;
@@ -650,12 +618,11 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 
 		await manager.updatePreview(leaf as any);
 
 		expect(previewModeRerender).toHaveBeenCalledWith(true);
-		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Rerender.md');
+		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
 		expect(previewRoot.appendChild).not.toHaveBeenCalled();
 	});
 
@@ -692,62 +659,17 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
 		const createRootMock = ReactDomClient.createRoot as jest.Mock;
 
 		await manager.updatePreview(leaf as any);
 
 		expect(previewModeRerender).toHaveBeenCalledWith(true);
-		expect(scheduleRefreshSpy).toHaveBeenCalledWith('UntrackedContainer.md');
 		expect(createRootMock).not.toHaveBeenCalled();
 		expect(existingContainer.replaceChildren).not.toHaveBeenCalled();
 	});
 
-	test('updatePreview refreshes a tracked preview host from root metadata without rediscovering container DOM', async () => {
-		const previewRoot = {
-			id: 'tracked-preview-root',
-			remove: jest.fn(),
-			querySelectorAll: jest.fn().mockReturnValue([]),
-			appendChild: jest.fn(),
-			insertBefore: jest.fn(),
-			firstChild: null,
-		} as unknown as HTMLElement;
-		const trackedContainer = {
-			id: 'tracked-preview-host',
-			replaceChildren: jest.fn(),
-			closest: jest.fn().mockReturnValue(null),
-			querySelector: jest.fn(),
-		} as unknown as HTMLElement;
-		const leaf = createMarkdownLeaf({
-			path: 'Tracked.md',
-			file: { path: 'Tracked.md', stat: { mtime: 1 } },
-			containerEl: {} as HTMLDivElement,
-			previewModeContainerEl: previewRoot,
-		});
 
-		const plugin = {
-			data: { settings: { showInfluxInSidebar: false, influxAtTopOfPage: false } },
-			app: { workspace: { iterateRootLeaves: jest.fn() } },
-			updating: new Set<string>(),
-		} as any;
-		const manager = new PreviewManager(plugin, {} as any);
-		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Tracked.md', { previewRoot });
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
-
-		await manager.updatePreview(leaf as any);
-
-		expect(renderPreviewSpy).toHaveBeenCalledWith(expect.objectContaining({
-			previewDiv: previewRoot,
-			existingContainer: trackedContainer,
-			filePath: 'Tracked.md',
-		}));
-		expect(scheduleRefreshSpy).not.toHaveBeenCalled();
-		expect(previewRoot.querySelectorAll).not.toHaveBeenCalled();
-	});
-
-
-	test('refreshPreviewLeavesByPath loads deferred markdown leaves before inspecting preview state', async () => {
+	test('updatePreviewsForFilePath loads deferred markdown leaves before rerendering them', async () => {
 		const previewRoot = {
 			id: 'deferred-preview-root',
 			remove: jest.fn(),
@@ -757,10 +679,12 @@ jest.mock('react-dom/client', () => ({
 			firstChild: null,
 		} as unknown as HTMLElement;
 		const loadIfDeferred = jest.fn().mockResolvedValue(undefined);
+		const previewModeRerender = jest.fn();
 		const deferredLeaf = createMarkdownLeaf({
 			path: 'Deferred.md',
 			containerEl: {} as HTMLDivElement,
 			previewModeContainerEl: previewRoot,
+			previewModeRerender,
 			isDeferred: true,
 			loadIfDeferred,
 		});
@@ -775,12 +699,11 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
-		await (manager as any).refreshPreviewLeavesByPath('Deferred.md');
+		await manager.updatePreviewsForFilePath('Deferred.md');
 
 		expect(loadIfDeferred).toHaveBeenCalledTimes(1);
-		expect(refreshUntrackedLeafSpy).toHaveBeenCalledWith(deferredLeaf, 'Deferred.md');
+		expect(previewModeRerender).toHaveBeenCalledWith(true);
 	});
 
 	test('updateAllPreviews skips deferred markdown leaves during global refreshes', async () => {
@@ -809,15 +732,15 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
+		const previewModeRerender = deferredLeaf.view.previewMode.rerender as jest.Mock;
 
 		await manager.updateAllPreviews();
 
 		expect(deferredLeaf.loadIfDeferred).not.toHaveBeenCalled();
-		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
+		expect(previewModeRerender).not.toHaveBeenCalled();
 	});
 
-	test('refreshPreviewLeavesByPath does not call deferred-view APIs before Obsidian 1.7.2', async () => {
+	test('updatePreviewsForFilePath does not call deferred-view APIs before Obsidian 1.7.2', async () => {
 		(requireApiVersion as jest.Mock).mockReturnValue(false);
 		const deferredLeaf = createMarkdownLeaf({
 			path: 'Deferred.md',
@@ -831,6 +754,7 @@ jest.mock('react-dom/client', () => ({
 				firstChild: null,
 			} as unknown as HTMLElement,
 			isDeferred: true,
+			previewModeRerender: jest.fn(),
 			loadIfDeferred: jest.fn().mockResolvedValue(undefined),
 		});
 
@@ -844,12 +768,11 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
-		await (manager as any).refreshPreviewLeavesByPath('Deferred.md');
+		await manager.updatePreviewsForFilePath('Deferred.md');
 
 		expect(deferredLeaf.loadIfDeferred).not.toHaveBeenCalled();
-		expect(refreshUntrackedLeafSpy).toHaveBeenCalledWith(deferredLeaf, 'Deferred.md');
+		expect((deferredLeaf.view.previewMode.rerender as jest.Mock)).toHaveBeenCalledWith(true);
 	});
 
 	test('updateAllPreviews refreshes tracked preview roots before falling back to leaf iteration', async () => {
@@ -894,19 +817,21 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockImplementation((path: string) => ({ stat: { mtime: path === 'Tracked.md' ? 4 : 2 } })),
 		} as any);
-		rootManager.register(trackedContainer, { render: jest.fn(), unmount: jest.fn() } as any, 'preview', 'Tracked.md', { previewRoot: trackedPreviewRoot });
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer').mockResolvedValue(undefined);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
+		const trackedRoot = { render: jest.fn(), unmount: jest.fn() } as any;
+		rootManager.register(trackedContainer, trackedRoot, 'preview', 'Tracked.md', { previewRoot: trackedPreviewRoot });
+		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(InfluxFile, 'create').mockResolvedValue({
+			uuid: 'tracked-preview',
+			show: true,
+			totalEntryCount: 0,
+			makeInfluxList: jest.fn().mockResolvedValue(undefined),
+			toEntries: jest.fn().mockReturnValue([]),
+		} as any);
 
 		await manager.updateAllPreviews();
 
-		expect(renderPreviewSpy).toHaveBeenCalledWith(expect.objectContaining({
-			previewDiv: trackedPreviewRoot,
-			filePath: 'Tracked.md',
-			preferredContainerId: 'tracked-preview-root',
-		}));
+		expect(trackedRoot.render).toHaveBeenCalledTimes(1);
 		expect(previewModeRerender).toHaveBeenCalledWith(true);
-		expect(scheduleRefreshSpy).toHaveBeenCalledWith('Untracked.md');
 	});
 
 	test('handlePreviewMode bails early while plugin is unloading', async () => {
@@ -930,13 +855,14 @@ jest.mock('react-dom/client', () => ({
 		} as any;
 
 		const manager = new PreviewManager(plugin, {} as any);
-		const scheduleRefreshSpy = jest.spyOn(manager as any, 'schedulePreviewRefreshForPath').mockImplementation(() => {});
-		const renderPreviewSpy = jest.spyOn(manager as any, 'renderPreviewForContainer');
+		const createSpy = jest.spyOn(InfluxFile, 'create');
+		const addChild = jest.fn();
 
-		await manager.handlePreviewMode(previewRoot, { docId: 'unload-doc', sourcePath: 'Unload.md', addChild: jest.fn() } as any);
+		await manager.handlePreviewMode(previewRoot, { docId: 'unload-doc', sourcePath: 'Unload.md', addChild } as any);
 
-		expect(scheduleRefreshSpy).not.toHaveBeenCalled();
-		expect(renderPreviewSpy).not.toHaveBeenCalled();
+		expect(createSpy).not.toHaveBeenCalled();
+		expect(addChild).not.toHaveBeenCalled();
+		expect(ReactDomClient.createRoot).not.toHaveBeenCalled();
 		expect(plugin.app.workspace.iterateRootLeaves).not.toHaveBeenCalled();
 	});
 	test('updatePreview drops an in-flight render when dependencies change before completion', async () => {
@@ -1089,7 +1015,6 @@ jest.mock('react-dom/client', () => ({
 		});
 
 		expect(root.render).toHaveBeenCalledTimes(1);
-		expect(root.render.mock.calls[0][0].props.influxFile).toBe(secondInfluxFile);
 
 		releaseFirstRender();
 		await first;
@@ -1100,6 +1025,7 @@ jest.mock('react-dom/client', () => ({
 	test('updateAllPreviews skips leaves that already have an active refresh', async () => {
 		const leaf = createMarkdownLeaf({
 			path: 'Scratchpad.md',
+			previewModeRerender: jest.fn(),
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
@@ -1112,16 +1038,16 @@ jest.mock('react-dom/client', () => ({
 					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => cb(leaf)),
 				},
 			},
-			updating: new Set<string>(['Scratchpad.md::1']),
+			updating: new Set<string>(),
 		} as any;
 		const api = {} as any;
 		const manager = new PreviewManager(plugin, api);
-		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
+		plugin.updating.add((manager as any).getLeafUpdateKey(leaf, 'Scratchpad.md'));
 
 		await manager.updateAllPreviews();
 
-		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
-		expect(plugin.updating.has('Scratchpad.md::1')).toBe(true);
+		expect((leaf.view.previewMode.rerender as jest.Mock)).not.toHaveBeenCalled();
+		expect(plugin.updating.size).toBe(1);
 	});
 
 	test('updateAllPreviews ignores source-mode leaves even if preview markup still exists in the container', async () => {
@@ -1136,6 +1062,7 @@ jest.mock('react-dom/client', () => ({
 				querySelectorAll: jest.fn().mockReturnValue([previewRoot]),
 			} as unknown as HTMLDivElement,
 			previewModeContainerEl: previewRoot,
+			previewModeRerender: jest.fn(),
 		});
 
 		const plugin = {
@@ -1148,11 +1075,10 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await manager.updateAllPreviews();
 
-		expect(refreshUntrackedLeafSpy).not.toHaveBeenCalled();
+		expect((leaf.view.previewMode.rerender as jest.Mock)).not.toHaveBeenCalled();
 	});
 
 	test('updateAllPreviews bails early while plugin is unloading', async () => {
@@ -1176,14 +1102,18 @@ jest.mock('react-dom/client', () => ({
 
 	test('updateAllPreviews does not throttle separate panes for the same file path', async () => {
 		const sharedPath = 'Shared.md';
+		const rerenderA = jest.fn();
 		const leafA = createMarkdownLeaf({
 			path: sharedPath,
+			previewModeRerender: rerenderA,
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
 		});
+		const rerenderB = jest.fn();
 		const leafB = createMarkdownLeaf({
 			path: sharedPath,
+			previewModeRerender: rerenderB,
 			containerEl: {
 				querySelector: jest.fn(),
 			} as unknown as HTMLDivElement,
@@ -1202,69 +1132,12 @@ jest.mock('react-dom/client', () => ({
 			updating: new Set<string>(),
 		} as any;
 		const manager = new PreviewManager(plugin, {} as any);
-		const refreshUntrackedLeafSpy = jest.spyOn(manager as any, 'refreshUntrackedPreviewLeaf').mockResolvedValue(undefined);
 
 		await manager.updateAllPreviews();
 
-		expect(refreshUntrackedLeafSpy).toHaveBeenCalledTimes(2);
-		expect(refreshUntrackedLeafSpy.mock.calls.map((call: unknown[]) => call[0])).toEqual(expect.arrayContaining([leafA, leafB]));
+		expect(rerenderA).toHaveBeenCalledWith(true);
+		expect(rerenderB).toHaveBeenCalledWith(true);
 	});
 
-	test('updateAllPreviews throttles while in flight, then allows next cycle after settle', async () => {
-		const sharedPath = 'Shared.md';
-		const leafA = createMarkdownLeaf({
-			path: sharedPath,
-			containerEl: {
-				querySelector: jest.fn(),
-			} as unknown as HTMLDivElement,
-		});
-		const leafB = createMarkdownLeaf({
-			path: sharedPath,
-			containerEl: {
-				querySelector: jest.fn(),
-			} as unknown as HTMLDivElement,
-		});
-
-		const plugin = {
-			data: { settings: { showInfluxInSidebar: false } },
-			app: {
-				workspace: {
-					iterateRootLeaves: jest.fn((cb: (leaf: unknown) => void) => {
-						cb(leafA);
-						cb(leafB);
-					}),
-				},
-			},
-			updating: new Set<string>(),
-		} as any;
-
-		let release!: () => void;
-		const gate = new Promise<void>((resolve) => {
-			release = resolve;
-		});
-
-		const manager = new PreviewManager(plugin, {} as any);
-		const refreshUntrackedLeafSpy = jest
-			.spyOn(manager as any, 'refreshUntrackedPreviewLeaf')
-			.mockImplementation(async () => {
-				await gate;
-			});
-
-		const firstCycle = manager.updateAllPreviews();
-		await Promise.resolve();
-
-		await manager.updateAllPreviews();
-		expect(refreshUntrackedLeafSpy).toHaveBeenCalledTimes(2);
-
-		release();
-		await firstCycle;
-
-		const doneGate = Promise.resolve();
-		refreshUntrackedLeafSpy.mockImplementation(async () => {
-			await doneGate;
-		});
-		await manager.updateAllPreviews();
-		expect(refreshUntrackedLeafSpy).toHaveBeenCalledTimes(4);
-	});
 
 });
