@@ -24,7 +24,11 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 ## Test suite cleanup
 
 - [ ] Prune or rewrite preview/sidebar tests that mostly spy on private methods, private fields, or exact internal call payloads. If a test is only asserting plumbing, cut it and replace it with a behavior-level regression.
-- [ ] Revisit `tests/domain/backlinks/api-adapter-policy.test.ts`; if it is mostly cache-observation noise after stronger behavior coverage exists, delete it instead of nursing it along.
+- [x] Trimmed low-value sidebar listener-wiring tests and replaced that coverage with a current-file shared-update behavior check.
+- [x] Cut several `preview-manager` tests that mostly pinned private routing, metadata caching, and timer coalescing internals.
+- [ ] `tests/features/preview/preview-manager.test.ts`: cut the tests that mostly pin private routing and container plumbing (`handlePreviewMode` call coalescing via private spies, tracked-host routing payload checks, `schedulePreviewRefreshForPath` internals, DOM metadata caching checks). Replace them with a smaller set of end-behavior tests: stale UI cleanup, rerender fallback, late-render race safety, and tracked-host-vs-untracked-leaf outcomes.
+- [ ] `tests/features/sidebar/influx-sidebar-view.test.ts`: trim the private harness bookkeeping tests around `registerFileEvents` / `handleEditorChange`. Keep the shared-update behavior coverage, but stop testing listener wiring and private method invocation as an end in itself.
+- [x] Rewrote `tests/domain/backlinks/api-adapter-policy.test.ts` around actual policy behavior instead of regex-cache side effects.
 - [ ] Add behavior-level coverage for `MarkdownMount` checkbox disabling and editor-mode normalization.
 - [ ] Add focused coverage for shared updates that touch the current file path itself, so we verify that branch without relying on private sidebar internals.
 - [ ] Add a regression that a hidden preview result cleans up stale preview UI, which is more valuable than several current routing-style preview tests.
