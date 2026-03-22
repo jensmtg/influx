@@ -2,7 +2,7 @@ import { TFile, CachedMetadata } from 'obsidian';
 import type { ApiAdapter } from './api-adapter';
 import type { BacklinksObject, ExtendedInlinkingFile } from './types';
 import { InlinkingFile, type InlinkingFileApi } from './inlinking-file';
-import { computeSettingsHash } from '../settings/settings-hash';
+import { computeBuildSettingsHash } from '../settings/settings-hash';
 import { cacheManager } from '../../platform/cache/cache-manager';
 import { buildInfluxList } from './influx-file-list-builder';
 import { createInfluxRenderEntries, recordInfluxRenderEntriesMetric } from './influx-file-render-entries';
@@ -125,7 +125,7 @@ export default class InfluxFile {
 		const skipRecentBuildCache = options?.skipRecentBuildCache === true;
 		this.backlinks = freshBacklinks ? this.api.getBacklinksFresh(this.file) : this.api.getBacklinks(this.file);
 		const settings = this.api.getSettings();
-		const settingsHash = computeSettingsHash(settings);
+		const settingsHash = computeBuildSettingsHash(settings);
         const dependencyRevision = cacheManager.getDependencyRevision();
         const buildKey = makeInfluxListBuildCacheKey(
 			this.file.path,
