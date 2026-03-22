@@ -24,7 +24,6 @@ jest.mock('@/platform/cache/cache-manager', () => ({
 	cacheManager: {
 		clearAll: jest.fn(),
 		getDebugInfo: jest.fn().mockReturnValue({}),
-		invalidatePreviewFileHash: jest.fn(),
 	},
 }));
 
@@ -230,14 +229,13 @@ describe('ObsidianInflux lifecycle', () => {
 		expect(detachLeavesOfType).toHaveBeenCalledWith('influx-sidebar-view');
 	});
 
-	test('cleanupFileHash clears preview hashes and only unmounts editor/preview roots', () => {
+	test('cleanupFileRoots only unmounts editor/preview roots', () => {
 		const plugin = new ObsidianInflux({ workspace: {}, vault: {}, metadataCache: {} } as any, {
 			version: 'test-version',
 		} as any);
 
-		plugin.cleanupFileHash('Folder/Note.md');
+		plugin.cleanupFileRoots('Folder/Note.md');
 
-		expect(cacheManager.invalidatePreviewFileHash).toHaveBeenCalledWith('Folder/Note.md');
 		expect(rootManager.unmountByFilePath).toHaveBeenNthCalledWith(1, 'Folder/Note.md', 'editor');
 		expect(rootManager.unmountByFilePath).toHaveBeenNthCalledWith(2, 'Folder/Note.md', 'preview');
 	});

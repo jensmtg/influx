@@ -50,10 +50,10 @@ export class EventManager {
 		if (file instanceof TFile) {
 			if (oldPath && oldPath !== file.path) {
 				this.plugin.api.invalidateFileCache(oldPath);
-				this.plugin.cleanupFileHash(oldPath);
+				this.plugin.cleanupFileRoots(oldPath);
 			}
 			this.plugin.api.invalidateFileCache(file.path);
-			this.plugin.cleanupFileHash(file.path);
+			this.plugin.cleanupFileRoots(file.path);
 		}
 		this.plugin.triggerUpdates('rename', file, oldPath);
 	}
@@ -61,7 +61,7 @@ export class EventManager {
 	private handleDelete(file: TAbstractFile): void {
 		if (file instanceof TFile) {
 			this.plugin.api.invalidateFileCache(file.path);
-			this.plugin.cleanupFileHash(file.path);
+			this.plugin.cleanupFileRoots(file.path);
 		}
 		this.plugin.triggerUpdates('delete', file);
 	}

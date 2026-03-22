@@ -12,8 +12,8 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 - [ ] In Reading view and sidebar, verify link behavior end to end: source-note title links, excerpt wikilinks/tags/internal links, and hover previews / hover editors.
 - [ ] Check first-open behavior on notes with `query`, `tasks`, and mermaid blocks; they should render correctly without needing a reopen or mode toggle.
 - [ ] Re-check the frontmatter-link policy in a real vault with mixed allow/deny properties, aliases, duplicate basenames, and path variants.
-- [ ] Watch for lag during very bursty updates. The shared update bus now queues correctly, but observer work is still serialized.
-- [ ] Investigate folder rename/delete behavior. Our update matching is still exact-path-based, so descendant cache invalidation may not be honest yet.
+- [ ] Watch for lag during very bursty updates. The shared update bus now queues correctly, but observer work is still serialized and cache churn may still be broader than it needs to be.
+- [ ] Investigate folder rename/delete behavior. Rename handling now carries `oldPath`, but relevance checks are still exact-path-based, so descendant invalidation may still be wrong.
 - [ ] If possible, test a case-sensitive or Linux-style path scenario (`Foo.md` vs `foo.md`) so we know whether path handling still has any blind spots.
 
 ## Release prep
@@ -40,18 +40,15 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 ## After the vault pass
 
 - [ ] Simplify the backlink source-of-truth path. The stale-link bug was a good reminder that we were layering cache invalidation around `getBacklinksForFile(...)` instead of keeping one cleaner authority for source-path membership.
-- [ ] Decide whether `src/features/sidebar/influx-sidebar-view.tsx` should reuse `src/ui/influx-update-helpers.ts` instead of carrying its own parallel shared-update path.
+- [ ] Decide whether to split cache invalidation by domain instead of using one global `dependencyRevision` for everything. Right now unrelated file changes can bust editor, preview, and list-build reuse together.
+- [ ] Split `computeSettingsHash(...)` into a preview/render hash and a narrower data/build hash. It started as preview freshness, but now the same hash also drives summary/list reuse.
+- [ ] Remove `PreviewHashCacheStore` and its cache-manager plumbing. Preview freshness now lives on `rootManager` metadata.
 - [ ] Decide whether the remaining multi-path preview host recovery in `src/features/preview/preview-manager.tsx` and `src/features/preview/preview-manager-dom.ts` is still worth simplifying once the manual behavior is confirmed.
-- [ ] Isolate the non-public Reading-view compatibility layer. Right now `previewMode`, `containerEl`, `rerender(true)`, and `.markdown-preview-view` knowledge is spread across the preview code.
-- [ ] Write one maintainer note that lists every intentional non-public Obsidian touchpoint we depend on: `previewMode`, `containerEl`, `rerender(true)`, `getBacklinksForFile`, `resolvedLinks`, and `.markdown-preview-view`.
+- [ ] Isolate and document the non-public Reading-view compatibility layer. Right now `previewMode`, `containerEl`, `rerender(true)`, `.markdown-preview-view`, deferred-leaf loading, and tracked post-processor host knowledge are spread across the preview code.
 - [ ] Split `src/features/preview/preview-manager.tsx` into smaller pieces. It is doing DOM ownership, host tracking, render dedupe, scheduling, cleanup, and fallback recovery all in one place.
-- [ ] Make sidebar shared-update relevance checks cheaper. We currently blur together “does this change affect current backlinks?” and “refresh everything now,” which can force duplicate fresh-backlink work.
+- [ ] Extract one small pure shared-update relevance helper for sidebar/component paths, then make that relevance check cheaper. Right now we carry parallel gating and can force duplicate fresh-backlink work.
 - [ ] Decide whether backlink data should be normalized to one internal shape at the adapter boundary instead of carrying both `Map` and object paths through hot code.
-- [ ] Revisit the synthetic backlink-position fallback and decide whether inferred path-only backlinks should have an explicit representation instead of fake line numbers.
-- [ ] Measure the large-vault cost of `resolvedLinks` reconciliation before adding any more refresh triggers around preview/sidebar updates.
-- [ ] Keep reducing `src/features/preview/preview-manager.tsx` reliance on main-area leaf iteration for Reading-view fallback.
-- [ ] Keep reducing `src/features/preview/preview-manager-dom.ts` reliance on `.markdown-preview-view` discovery for Reading-view ownership.
-- [ ] If we come back for stronger sidebar parity later, gather verified API references for `MarkdownPreviewView`, deferred-view loading, and any supported preview-host embedding APIs before refactoring host semantics.
+- [ ] If large-vault lag still shows up after the vault pass, measure the cost of `resolvedLinks` reconciliation before adding more refresh triggers around preview/sidebar updates.
 - [ ] If strange fence styles beyond normal backticks and tildes matter in real vaults, verify whether snippet sanitization needs anything more exotic.
 
 ## Archive

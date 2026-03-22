@@ -14,11 +14,6 @@ interface BacklinksCacheEntry {
 	timestamp: number;
 }
 
-interface PreviewHashCacheEntry {
-	hash: string;
-	timestamp: number;
-}
-
 export interface SummaryCacheValue {
 	summary: string;
 	title: string;
@@ -220,43 +215,6 @@ export class BacklinksCacheStore {
 		}
 
 		this.backlinksSourcesByTarget.delete(targetPath);
-	}
-}
-
-export class PreviewHashCacheStore {
-	constructor(private stats: CacheStats, private maxEntries: number) {}
-
-	private previewFileHashes = new Map<string, PreviewHashCacheEntry>();
-
-	get(path: string): string | undefined {
-		const entry = this.previewFileHashes.get(normalizePathKey(path));
-		if (entry === undefined) {
-			this.stats.previewHashMisses += 1;
-		} else {
-			this.stats.previewHashHits += 1;
-		}
-		return entry?.hash;
-	}
-
-	set(path: string, hash: string): void {
-		this.previewFileHashes.set(normalizePathKey(path), {
-			hash,
-			timestamp: Date.now(),
-		});
-		evictOldestEntries(this.previewFileHashes, this.maxEntries);
-	}
-
-	invalidate(path: string): void {
-		this.previewFileHashes.delete(normalizePathKey(path));
-	}
-
-	clear(): void {
-		this.previewFileHashes.clear();
-		logger.info('Preview file hashes cleared');
-	}
-
-	getDebugInfo(): { size: number } {
-		return { size: this.previewFileHashes.size };
 	}
 }
 

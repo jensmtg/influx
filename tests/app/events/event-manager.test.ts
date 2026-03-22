@@ -53,14 +53,14 @@ describe('EventManager', () => {
 						return { eventName, handler };
 					}),
 				},
-            },
-            data: { settings: { liveUpdate: true } },
-            api: { invalidateFileCache: jest.fn() },
-            cleanupFileHash: jest.fn(),
-            cleanupReactRoots: jest.fn(),
-            triggerUpdates: jest.fn(),
-            registerEvent: jest.fn(),
-        };
+			},
+			data: { settings: { liveUpdate: true } },
+			api: { invalidateFileCache: jest.fn() },
+			cleanupFileRoots: jest.fn(),
+			cleanupReactRoots: jest.fn(),
+			triggerUpdates: jest.fn(),
+			registerEvent: jest.fn(),
+		};
         eventManager = new EventManager(plugin);
         (recordMetric as jest.Mock).mockClear();
     });
@@ -101,21 +101,21 @@ describe('EventManager', () => {
             const folder = {} as TAbstractFile;
 
 			emitVaultEvent('rename', file, 'old.md');
-            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('old.md');
-            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
-            expect(plugin.cleanupFileHash).toHaveBeenCalledWith('old.md');
-            expect(plugin.cleanupFileHash).toHaveBeenCalledWith('new.md');
-            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', file, 'old.md');
+			expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('old.md');
+			expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('new.md');
+			expect(plugin.cleanupFileRoots).toHaveBeenCalledWith('old.md');
+			expect(plugin.cleanupFileRoots).toHaveBeenCalledWith('new.md');
+			expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', file, 'old.md');
 
-            plugin.api.invalidateFileCache.mockClear();
-            plugin.cleanupFileHash.mockClear();
-            plugin.triggerUpdates.mockClear();
+			plugin.api.invalidateFileCache.mockClear();
+			plugin.cleanupFileRoots.mockClear();
+			plugin.triggerUpdates.mockClear();
 
 			emitVaultEvent('rename', folder);
-            expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
-            expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
-            expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', folder, undefined);
-        });
+			expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+			expect(plugin.cleanupFileRoots).not.toHaveBeenCalled();
+			expect(plugin.triggerUpdates).toHaveBeenCalledWith('rename', folder, undefined);
+		});
 
         test('handleDelete: invalidates/cleans files and always triggers delete update', () => {
 			eventManager.register();
@@ -123,19 +123,19 @@ describe('EventManager', () => {
             const folder = {} as TAbstractFile;
 
 			emitVaultEvent('delete', file);
-            expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
-            expect(plugin.cleanupFileHash).toHaveBeenCalledWith('test.md');
-            expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', file);
+			expect(plugin.api.invalidateFileCache).toHaveBeenCalledWith('test.md');
+			expect(plugin.cleanupFileRoots).toHaveBeenCalledWith('test.md');
+			expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', file);
 
-            plugin.api.invalidateFileCache.mockClear();
-            plugin.cleanupFileHash.mockClear();
-            plugin.triggerUpdates.mockClear();
+			plugin.api.invalidateFileCache.mockClear();
+			plugin.cleanupFileRoots.mockClear();
+			plugin.triggerUpdates.mockClear();
 
 			emitVaultEvent('delete', folder);
-            expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
-            expect(plugin.cleanupFileHash).not.toHaveBeenCalled();
-            expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', folder);
-        });
+			expect(plugin.api.invalidateFileCache).not.toHaveBeenCalled();
+			expect(plugin.cleanupFileRoots).not.toHaveBeenCalled();
+			expect(plugin.triggerUpdates).toHaveBeenCalledWith('delete', folder);
+		});
 
         test('handleFileOpen triggers only for real files', () => {
 			eventManager.register();

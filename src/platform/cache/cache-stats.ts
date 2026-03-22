@@ -7,8 +7,6 @@ export interface CacheStats {
 	settingsMisses: number;
 	regexHits: number;
 	regexMisses: number;
-	previewHashHits: number;
-	previewHashMisses: number;
 	summaryHits: number;
 	summaryMisses: number;
 }
@@ -23,8 +21,6 @@ export function createEmptyCacheStats(): CacheStats {
 		settingsMisses: 0,
 		regexHits: 0,
 		regexMisses: 0,
-		previewHashHits: 0,
-		previewHashMisses: 0,
 		summaryHits: 0,
 		summaryMisses: 0,
 	};

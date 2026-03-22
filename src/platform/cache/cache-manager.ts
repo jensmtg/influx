@@ -6,7 +6,6 @@ import { CacheStats, createEmptyCacheStats, resetCacheStats } from './cache-stat
 import {
 	BacklinksCacheStore,
 	FileCacheStore,
-	PreviewHashCacheStore,
 	SummaryCacheStore,
 	type SummaryCacheValue,
 } from './cache-stores';
@@ -54,9 +53,6 @@ export interface CacheDebugInfo {
 		sources: number;
 		targets: number;
 	};
-	previewFileHashes: {
-		size: number;
-	};
 	summaryCache: {
 		size: number;
 		sources: number;
@@ -72,7 +68,6 @@ export class InfluxCacheManager {
 	private readonly stats: CacheStats = createEmptyCacheStats();
 	private readonly fileCacheStore = new FileCacheStore(this.stats, InfluxCacheManager.FILE_CACHE_MAX_ENTRIES, 5 * 60 * 1000);
 	private readonly backlinksCacheStore = new BacklinksCacheStore(this.stats, InfluxCacheManager.BACKLINKS_CACHE_MAX_ENTRIES, 2 * 60 * 1000);
-	private readonly previewHashCacheStore = new PreviewHashCacheStore(this.stats, InfluxCacheManager.PREVIEW_HASH_CACHE_MAX_ENTRIES);
 	private readonly summaryCacheStore = new SummaryCacheStore(this.stats, InfluxCacheManager.SUMMARY_CACHE_MAX_ENTRIES, InfluxCacheManager.SUMMARY_STALE_TIME_MS);
 
 	private settingsCache: SettingsCacheEntry | null = null;
@@ -84,7 +79,6 @@ export class InfluxCacheManager {
 	private static readonly SUMMARY_CACHE_MAX_ENTRIES = 3000;
 	private static readonly FILE_CACHE_MAX_ENTRIES = 2000;
 	private static readonly BACKLINKS_CACHE_MAX_ENTRIES = 1500;
-	private static readonly PREVIEW_HASH_CACHE_MAX_ENTRIES = 3000;
 	private static readonly INVALID_REGEX_SENTINEL: RegExp | null = null;
 
 	private constructor() {}
@@ -108,13 +102,11 @@ export class InfluxCacheManager {
 		this.dependencyRevision += 1;
 		this.fileCacheStore.invalidate(path);
 		this.backlinksCacheStore.invalidateTarget(path);
-		this.previewHashCacheStore.invalidate(path);
 		this.summaryCacheStore.invalidateSource(path);
 		this.summaryCacheStore.invalidateTarget(path);
 
 		const dependentTargets = this.backlinksCacheStore.invalidateSource(path);
 		for (const targetPath of dependentTargets) {
-			this.previewHashCacheStore.invalidate(targetPath);
 			this.summaryCacheStore.invalidateTarget(targetPath);
 		}
 
@@ -193,22 +185,6 @@ export class InfluxCacheManager {
 		logger.info('Regex cache cleared');
 	}
 
-	getPreviewFileHash(path: string): string | undefined {
-		return this.previewHashCacheStore.get(path);
-	}
-
-	setPreviewFileHash(path: string, hash: string): void {
-		this.previewHashCacheStore.set(path, hash);
-	}
-
-	invalidatePreviewFileHash(path: string): void {
-		this.previewHashCacheStore.invalidate(path);
-	}
-
-	clearPreviewFileHashes(): void {
-		this.previewHashCacheStore.clear();
-	}
-
 	getSettingsHash(): string | null {
 		return this.cachedSettingsHash;
 	}
@@ -244,7 +220,6 @@ export class InfluxCacheManager {
 		this.backlinksCacheStore.clear();
 		this.settingsCache = null;
 		this.regexCache.clear();
-		this.previewHashCacheStore.clear();
 		this.cachedSettingsHash = null;
 		this.dependencyRevision = 0;
 		this.summaryCacheStore.clear();
@@ -264,10 +239,9 @@ export class InfluxCacheManager {
 				size: this.regexCache.size,
 				invalid: Array.from(this.regexCache.entries())
 					.filter(([_, entry]) => entry.regex === InfluxCacheManager.INVALID_REGEX_SENTINEL)
-					.map(([pattern]) => pattern),
+				.map(([pattern]) => pattern),
 			},
 			backlinksDependencyIndex: this.backlinksCacheStore.getDependencyDebugInfo(),
-			previewFileHashes: this.previewHashCacheStore.getDebugInfo(),
 			summaryCache: this.summaryCacheStore.getDebugInfo(),
 			stats: { ...this.stats },
 		};

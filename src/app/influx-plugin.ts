@@ -173,11 +173,10 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	/**
-	 * Cleanup file hash for a specific file path.
+	 * Cleanup file-owned render roots for a specific file path.
 	 * Call this when files are deleted, renamed, or moved.
 	 */
-	cleanupFileHash(filePath: string): void {
-		cacheManager.invalidatePreviewFileHash(filePath);
+	cleanupFileRoots(filePath: string): void {
 		this.cleanupFileReactRoots(filePath);
 	}
 

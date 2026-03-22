@@ -157,37 +157,11 @@ describe('InfluxCacheManager', () => {
         });
     });
 
-	describe('preview hash and settings hash', () => {
-        test('preview file hash supports set/get/invalidate and tracks hit/miss stats', () => {
-            cache.setPreviewFileHash('A.md', 'hash-a');
-			expect(cache.getPreviewFileHash('A.md')).toBe('hash-a');
-            expect(cache.getPreviewFileHash('missing.md')).toBeUndefined();
-
-			cache.invalidatePreviewFileHash('A.md');
-			expect(cache.getPreviewFileHash('A.md')).toBeUndefined();
-
-            const stats = cache.getDebugInfo().stats;
-            expect(stats.previewHashHits).toBeGreaterThanOrEqual(1);
-            expect(stats.previewHashMisses).toBeGreaterThanOrEqual(2);
-        });
-
+	describe('settings hash', () => {
 		test('settings hash supports set/get', () => {
 			expect(cache.getSettingsHash()).toBeNull();
 			cache.setSettingsHash('abc123');
 			expect(cache.getSettingsHash()).toBe('abc123');
-		});
-
-		test('evicts oldest preview file hashes when cache exceeds size limit', () => {
-			const now = Date.now();
-
-			const insertedCount = insertUntilOldestEvicts((i) => {
-				jest.spyOn(Date, 'now').mockImplementation(() => now + i);
-				cache.setPreviewFileHash(`Preview-${i}.md`, `hash-${i}`);
-			}, () => cache.getPreviewFileHash('Preview-0.md') === undefined);
-
-			expect(cache.getPreviewFileHash('Preview-0.md')).toBeUndefined();
-			expect(cache.getPreviewFileHash(`Preview-${insertedCount - 1}.md`)).toBe(`hash-${insertedCount - 1}`);
-			expect(cache.getDebugInfo().previewFileHashes.size).toBe(insertedCount - 1);
 		});
 	});
 
