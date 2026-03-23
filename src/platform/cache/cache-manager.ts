@@ -59,7 +59,6 @@ export interface CacheDebugInfo {
 		targets: number;
 	};
 	stats: CacheStats;
-	settingsHash?: string;
 }
 
 export class InfluxCacheManager {
@@ -72,7 +71,7 @@ export class InfluxCacheManager {
 
 	private settingsCache: SettingsCacheEntry | null = null;
 	private regexCache = new Map<string, RegexCacheEntry>();
-	private cachedSettingsHash: string | null = null;
+	private cachedPreviewSettingsHash: string | null = null;
 	private dependencyRevision = 0;
 
 	private static readonly SUMMARY_STALE_TIME_MS = 10 * 60 * 1000;
@@ -148,7 +147,7 @@ export class InfluxCacheManager {
 	invalidateSettingsCache(): void {
 		this.dependencyRevision += 1;
 		this.settingsCache = null;
-		this.cachedSettingsHash = null;
+		this.cachedPreviewSettingsHash = null;
 		this.clearRegexCache();
 		this.clearBacklinksCache();
 		this.clearSummaryCache();
@@ -185,12 +184,12 @@ export class InfluxCacheManager {
 		logger.info('Regex cache cleared');
 	}
 
-	getSettingsHash(): string | null {
-		return this.cachedSettingsHash;
+	getPreviewSettingsHash(): string | null {
+		return this.cachedPreviewSettingsHash;
 	}
 
-	setSettingsHash(hash: string): void {
-		this.cachedSettingsHash = hash;
+	setPreviewSettingsHash(hash: string): void {
+		this.cachedPreviewSettingsHash = hash;
 	}
 
 	getDependencyRevision(): number {
@@ -220,7 +219,7 @@ export class InfluxCacheManager {
 		this.backlinksCacheStore.clear();
 		this.settingsCache = null;
 		this.regexCache.clear();
-		this.cachedSettingsHash = null;
+		this.cachedPreviewSettingsHash = null;
 		this.dependencyRevision = 0;
 		this.summaryCacheStore.clear();
 		resetCacheStats(this.stats);

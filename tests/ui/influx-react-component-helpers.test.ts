@@ -479,6 +479,7 @@ describe('influx-react-component helpers', () => {
 			const current = {
 				file: { path: 'Current.md' },
 				shouldUpdate: jest.fn().mockReturnValue(false),
+				shouldUpdatePaths: jest.fn().mockReturnValue(true),
 				makeInfluxList: jest.fn().mockResolvedValue(undefined),
 				toEntries: jest.fn().mockReturnValue(entries),
 			};
@@ -495,6 +496,7 @@ describe('influx-react-component helpers', () => {
 				freshBacklinks: false,
 				skipRecentBuildCache: false,
 			});
+			expect(current.shouldUpdatePaths).not.toHaveBeenCalled();
 			expect(result).toBe(entries);
 		});
 

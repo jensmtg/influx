@@ -9,6 +9,7 @@ import { influxUpdates$, InfluxUpdateEvent } from '../../platform/events/influx-
 import { buildInfluxFileForRender, createInfluxFileForRender } from '../../domain/backlinks/influx-render-pipeline';
 import type { InfluxSidebarPlugin } from './influx-sidebar-plugin';
 import { rootManager } from '../../platform/react/root-manager';
+import { resolveInfluxUpdateDecision } from '../../ui/influx-update-helpers';
 
 export class InfluxSidebarView extends ItemView {
 	private static nextSubscriptionId = 1;
@@ -180,19 +181,23 @@ export class InfluxSidebarView extends ItemView {
 		const touchesCurrentFile = changedPaths.includes(currentFile.path);
 		const affectsBacklinks = changedPaths.length === 0
 			? false
-			: this.influxFile?.shouldUpdatePaths?.(changedPaths)
+			: touchesCurrentFile
+				? false
+				: this.influxFile?.shouldUpdatePaths?.(changedPaths)
 				?? (event.file ? (this.influxFile?.shouldUpdate(event.file) ?? false) : false);
-		const shouldRefresh = event.op === 'save-settings' || event.op === 'mode-change'
-			? true
-			: touchesCurrentFile || affectsBacklinks;
+		const decision = resolveInfluxUpdateDecision({
+			event,
+			currentPath: currentFile.path,
+			affectsBacklinks,
+		});
 
-		if (!shouldRefresh) {
+		if (!decision.shouldProcess) {
 			return;
 		}
 
 		await this.updateView(currentFile, {
 			force: true,
-			freshBacklinks: affectsBacklinks && !touchesCurrentFile,
+			freshBacklinks: decision.useFreshBacklinks,
 		});
 	}
 

@@ -17,6 +17,33 @@ function getChangedPaths(event: InfluxUpdateEvent): string[] {
 	return Array.from(new Set(paths));
 }
 
+export interface InfluxUpdateDecision {
+	changedPaths: string[];
+	touchesCurrentFile: boolean;
+	affectsBacklinks: boolean;
+	shouldProcess: boolean;
+	useFreshBacklinks: boolean;
+}
+
+export function resolveInfluxUpdateDecision(params: {
+	event: InfluxUpdateEvent;
+	currentPath?: string;
+	affectsBacklinks: boolean;
+}): InfluxUpdateDecision {
+	const { event, currentPath, affectsBacklinks } = params;
+	const changedPaths = getChangedPaths(event);
+	const touchesCurrentFile = Boolean(currentPath && changedPaths.includes(currentPath));
+	const shouldProcess = shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks });
+
+	return {
+		changedPaths,
+		touchesCurrentFile,
+		affectsBacklinks,
+		shouldProcess,
+		useFreshBacklinks: affectsBacklinks && !touchesCurrentFile,
+	};
+}
+
 export function shouldProcessInfluxUpdateEvent(params: {
 	event: InfluxUpdateEvent;
 	currentPath?: string;
@@ -61,9 +88,12 @@ export async function resolveInfluxUpdateEntries(params: {
 	const touchesCurrentFile = Boolean(currentPath && changedPaths.includes(currentPath));
 	const affectsBacklinks = changedPaths.length === 0
 		? false
-		: current.shouldUpdatePaths?.(changedPaths)
+		: touchesCurrentFile
+			? false
+			: current.shouldUpdatePaths?.(changedPaths)
 			?? (event.file ? current.shouldUpdate(event.file) : current.shouldUpdate(({ path: changedPaths[0] } as TFile)));
-	if (!shouldProcessInfluxUpdateEvent({ event, currentPath, affectsBacklinks })) {
+	const decision = resolveInfluxUpdateDecision({ event, currentPath, affectsBacklinks });
+	if (!decision.shouldProcess) {
 		return null;
 	}
 
@@ -73,8 +103,8 @@ export async function resolveInfluxUpdateEntries(params: {
 	}
 
 	await current.makeInfluxList({
-		freshBacklinks: affectsBacklinks && !touchesCurrentFile,
-		skipRecentBuildCache: affectsBacklinks && !touchesCurrentFile,
+		freshBacklinks: decision.useFreshBacklinks,
+		skipRecentBuildCache: decision.useFreshBacklinks,
 	});
 	if (isAborted() || seq !== getLatestSeq()) {
 		return null;

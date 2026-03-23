@@ -636,13 +636,13 @@ export class PreviewManager {
 	}
 
 	private computeSettingsHash(): string {
-		const cached = cacheManager.getSettingsHash();
+		const cached = cacheManager.getPreviewSettingsHash();
 		if (cached) {
 			return cached;
 		}
 
 		const hashString = computeSettingsHash(this.plugin.data.settings);
-		cacheManager.setSettingsHash(hashString);
+		cacheManager.setPreviewSettingsHash(hashString);
 		return hashString;
 	}
 

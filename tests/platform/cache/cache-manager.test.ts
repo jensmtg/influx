@@ -158,10 +158,10 @@ describe('InfluxCacheManager', () => {
     });
 
 	describe('settings hash', () => {
-		test('settings hash supports set/get', () => {
-			expect(cache.getSettingsHash()).toBeNull();
-			cache.setSettingsHash('abc123');
-			expect(cache.getSettingsHash()).toBe('abc123');
+		test('preview settings hash supports set/get', () => {
+			expect(cache.getPreviewSettingsHash()).toBeNull();
+			cache.setPreviewSettingsHash('abc123');
+			expect(cache.getPreviewSettingsHash()).toBe('abc123');
 		});
 	});
 

@@ -331,6 +331,7 @@ describe('InfluxSidebarView', () => {
 		await influxUpdates$.notify({ op: 'modify', file: fileA });
 
 		expect(updateViewSpy).toHaveBeenCalledWith(fileA, { force: true, freshBacklinks: false });
+		expect((harness.influxFile as { shouldUpdatePaths: jest.Mock }).shouldUpdatePaths).not.toHaveBeenCalled();
 	});
 
 	test('shared update bus ignores irrelevant rename updates when neither old nor new path affects the current note', async () => {

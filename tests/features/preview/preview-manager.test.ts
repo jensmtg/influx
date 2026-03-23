@@ -159,7 +159,7 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		const createSpy = jest.spyOn(InfluxFile, 'create').mockResolvedValue({
 			uuid: 'doc-host',
 			show: true,
@@ -227,7 +227,7 @@ jest.mock('react-dom/client', () => ({
 		const manager = new PreviewManager(plugin, {
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		const createSpy = jest.spyOn(InfluxFile, 'create').mockResolvedValue({
 			uuid: 'doc-host',
 			show: true,
@@ -297,7 +297,7 @@ jest.mock('react-dom/client', () => ({
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
 		const addChild = jest.fn();
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create')
 			.mockResolvedValueOnce({
 				uuid: 'doc-host-a',
@@ -432,7 +432,7 @@ jest.mock('react-dom/client', () => ({
 			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
 		} as any);
 		const unmountSpy = jest.spyOn(rootManager, 'unmountDeferred').mockImplementation(() => {});
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue({
 			uuid: 'doc-host',
 			show: true,
@@ -510,7 +510,7 @@ jest.mock('react-dom/client', () => ({
 			makeInfluxList: jest.fn().mockResolvedValue(undefined),
 			toEntries: jest.fn().mockReturnValue([]),
 		};
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		const createRootMock = ReactDomClient.createRoot as jest.Mock;
 		createRootMock.mockReturnValue({ render: jest.fn(), unmount: jest.fn() });
@@ -559,7 +559,7 @@ jest.mock('react-dom/client', () => ({
 			toEntries: jest.fn().mockReturnValue([]),
 		};
 
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		jest.spyOn(rootManager, 'unmount').mockImplementation(() => {});
 
@@ -798,7 +798,7 @@ jest.mock('react-dom/client', () => ({
 		} as any);
 		const trackedRoot = { render: jest.fn(), unmount: jest.fn() } as any;
 		rootManager.register(trackedContainer, trackedRoot, 'preview', 'Tracked.md', { previewRoot: trackedPreviewRoot });
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue({
 			uuid: 'tracked-preview',
 			show: true,
@@ -914,7 +914,7 @@ jest.mock('react-dom/client', () => ({
 				return createdContainer;
 			}),
 		} as unknown as Document;
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		jest.spyOn(rootManager, 'register').mockImplementation(() => {});
 		(ReactDomClient.createRoot as jest.Mock).mockReturnValue({ render: jest.fn() } as any);
@@ -948,7 +948,7 @@ jest.mock('react-dom/client', () => ({
 			toEntries: jest.fn().mockReturnValue([]),
 		};
 
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create').mockResolvedValue(influxFile as any);
 		const createRootSpy = jest.spyOn(ReactDomClient, 'createRoot');
 		const unmountSpy = jest.spyOn(rootManager, 'unmount');
@@ -993,7 +993,7 @@ jest.mock('react-dom/client', () => ({
 			toEntries: jest.fn().mockReturnValue([]),
 		};
 
-		jest.spyOn(cacheManager, 'getSettingsHash').mockReturnValue('settings-hash');
+		jest.spyOn(cacheManager, 'getPreviewSettingsHash').mockReturnValue('settings-hash');
 		jest.spyOn(InfluxFile, 'create')
 			.mockResolvedValueOnce(firstInfluxFile as any)
 			.mockResolvedValueOnce(secondInfluxFile as any);
