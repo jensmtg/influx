@@ -39,18 +39,10 @@ export default class InfluxFile {
     show: boolean;
     collapsed: boolean;
     totalEntryCount: number;
-    private initialized: boolean = false;
 
-
-    /**
-     * Async factory method to create and initialize an InfluxFile.
-     * This prevents blocking operations in the constructor.
-     */
-    static async create(path: string, apiAdapter: InfluxFileApi): Promise<InfluxFile> {
-        const influxFile = new InfluxFile(path, apiAdapter);
-        await influxFile.initialize();
-        return influxFile;
-    }
+	static create(path: string, apiAdapter: InfluxFileApi): InfluxFile {
+		return new InfluxFile(path, apiAdapter);
+	}
 
     private constructor(path: string, apiAdapter: InfluxFileApi) {
         this.uuid = crypto.randomUUID()
@@ -64,20 +56,11 @@ export default class InfluxFile {
         this.inlinkingFiles = []
         this.components = []
         this.totalEntryCount = 0
-    }
 
-    /**
-     * Initialize InfluxFile with metadata, backlinks, and show status.
-     * This is called by factory method to avoid blocking in the constructor.
-     */
-	private async initialize(): Promise<void> {
-		if (!this.file) {
-			this.initialized = true;
-			return;
+		if (this.file) {
+			this.meta = this.api.getMetadata(this.file)
+			this.refreshVisibility()
 		}
-		this.meta = this.api.getMetadata(this.file)
-		this.refreshVisibility()
-		this.initialized = true;
 	}
 
 	refreshVisibility(): boolean {
@@ -87,22 +70,11 @@ export default class InfluxFile {
 		return this.show
 	}
 
-    /**
-     * Ensure InfluxFile is properly initialized before use.
-     * This prevents race conditions when methods are called before async initialization completes.
-     */
-    private ensureInitialized(): void {
-        if (!this.initialized) {
-            throw new Error('InfluxFile must be created using the async create() factory method');
-        }
-    }
-
 	shouldUpdate(file: TFile) {
 		return this.shouldUpdatePaths([file.path]);
 	}
 
 	shouldUpdatePaths(paths: readonly string[]) {
-		this.ensureInitialized();
 		const changedPaths = Array.from(new Set(paths.filter((path): path is string => Boolean(path))));
 		if (!this.file || changedPaths.length === 0) {
 			return false;
@@ -114,7 +86,6 @@ export default class InfluxFile {
 	}
 
     async makeInfluxList(options?: { freshBacklinks?: boolean; skipRecentBuildCache?: boolean }) {
-        this.ensureInitialized();
 		if (!this.file) {
 			this.backlinks = null;
 			this.applyInfluxListBuild({ inlinkingFiles: [], totalEntryCount: 0 });
@@ -182,7 +153,6 @@ export default class InfluxFile {
     }
 
     toEntries(): ExtendedInlinkingFile[] {
-        this.ensureInitialized();
         if (!this.show) {
             return [];
         }

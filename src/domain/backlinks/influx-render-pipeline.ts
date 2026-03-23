@@ -107,7 +107,7 @@ export async function createInfluxFileForRender(
 ): Promise<InfluxRenderPipelineResult | null> {
 	const { api, filePath, mode, settings, shouldAbort, freshBacklinks, skipRecentBuildCache } = params;
 	const startedAt = performance.now();
-	const influxFile = await InfluxFile.create(filePath, api);
+	const influxFile = await Promise.resolve(InfluxFile.create(filePath, api));
 
 	if (shouldAbort?.()) {
 		return null;

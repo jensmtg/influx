@@ -41,12 +41,12 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 
 - [ ] Simplify the backlink source-of-truth path. The stale-link bug was a good reminder that we were layering cache invalidation around `getBacklinksForFile(...)` instead of keeping one cleaner authority for source-path membership.
 - [ ] Decide whether to split cache invalidation by domain instead of using one global `dependencyRevision` for everything. Right now unrelated file changes can bust editor, preview, and list-build reuse together.
-- [ ] Split `computeSettingsHash(...)` into a preview/render hash and a narrower data/build hash. It started as preview freshness, but now the same hash also drives summary/list reuse.
-- [ ] Remove `PreviewHashCacheStore` and its cache-manager plumbing. Preview freshness now lives on `rootManager` metadata.
+- [x] Split `computeSettingsHash(...)` into a preview/render hash and a narrower data/build hash. It started as preview freshness, but now the same hash also drives summary/list reuse.
+- [x] Remove `PreviewHashCacheStore` and its cache-manager plumbing. Preview freshness now lives on `rootManager` metadata.
 - [ ] Decide whether the remaining multi-path preview host recovery in `src/features/preview/preview-manager.tsx` and `src/features/preview/preview-manager-dom.ts` is still worth simplifying once the manual behavior is confirmed.
 - [ ] Isolate and document the non-public Reading-view compatibility layer. Right now `previewMode`, `containerEl`, `rerender(true)`, `.markdown-preview-view`, deferred-leaf loading, and tracked post-processor host knowledge are spread across the preview code.
 - [ ] Split `src/features/preview/preview-manager.tsx` into smaller pieces. It is doing DOM ownership, host tracking, render dedupe, scheduling, cleanup, and fallback recovery all in one place.
-- [ ] Extract one small pure shared-update relevance helper for sidebar/component paths, then make that relevance check cheaper. Right now we carry parallel gating and can force duplicate fresh-backlink work.
+- [x] Extracted one small shared-update decision helper for sidebar/component paths and cut the unnecessary self-update backlink scan.
 - [ ] Decide whether backlink data should be normalized to one internal shape at the adapter boundary instead of carrying both `Map` and object paths through hot code.
 - [ ] If large-vault lag still shows up after the vault pass, measure the cost of `resolvedLinks` reconciliation before adding more refresh triggers around preview/sidebar updates.
 - [ ] If strange fence styles beyond normal backticks and tildes matter in real vaults, verify whether snippet sanitization needs anything more exotic.
@@ -55,6 +55,7 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 
 - [x] Source-driven refreshes now carry fresh-backlink and skip-recent-build flags all the way through the sidebar/render pipeline, so that path no longer quietly falls back to stale caches.
 - [x] Backlink source-path truth now reconciles against `metadataCache.resolvedLinks`, which fixed the stale broken-source case that could survive reopen/rebuild paths.
+- [x] `InfluxFile` no longer carries a fake async initialization lifecycle; create/init is now synchronous again and the old initialized-guard ceremony is gone.
 - [x] Reading-view refreshes are much less fragile now: duplicate post-processor renders are coalesced, tracked hosts no longer fall back into leaf rerender loops, older renders cannot paint over newer ones on the same host, and stale post-processor hosts get replaced when Obsidian rebuilds the preview root.
 - [x] Snippet sanitization now disables `query`, `dataview`, `dataviewjs`, and `tasks` blocks for both backtick and tilde fences, including truncated quoted snippets.
 - [x] The shared update bus now queues events instead of dropping intermediate ones, and editor/preview refresh no longer waits on slow observers.
