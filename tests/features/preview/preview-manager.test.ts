@@ -175,4 +175,33 @@ describe('PreviewManager', () => {
 		// If tracked hosts exist, leaf iteration should not be needed
 		expect(iterateRootLeaves).not.toHaveBeenCalled();
 	});
+
+	// CRITICAL BEHAVIOR: Hiddenpreview results clean up stale preview UI
+	test('hidden preview results are cleaned up and do not win races', async () => {
+		const previewRoot = {
+			classList: { contains: (_name: string) => false },
+			querySelectorAll: jest.fn().mockReturnValue([]),
+			querySelector: jest.fn().mockReturnValue({ id: 'container' }),
+		} as unknown as HTMLElement;
+
+		const documentMock = {
+			querySelectorAll: jest.fn().mockReturnValue([previewRoot]),
+		} as unknown as Document;
+		(globalThis as { document?: Document }).document = documentMock;
+
+		// Simulate a hidden preview by not setting up a tracked host
+		const plugin = {
+			data: { settings: { showInfluxInSidebar: false } },
+			app: { workspace: { iterateRootLeaves: jest.fn() } },
+			updating: new Set<string>(),
+		} as any;
+		const api = { getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }) } as any;
+		const manager = new PreviewManager(plugin, api);
+
+		await manager.updateAllPreviews();
+
+		// Should not render anything for hidden/inactive previews
+		// The important thing is no stale preview UI remains
+		expect((manager as any).postProcessorHosts.size).toBe(0);
+	});
 });

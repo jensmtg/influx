@@ -23,14 +23,14 @@ The code is in much better shape now; the main thing left is a real-vault pass t
 
 ## Test suite cleanup
 
-- [ ] Prune or rewrite preview/sidebar tests that mostly spy on private methods, private fields, or exact internal call payloads. If a test is only asserting plumbing, cut it and replace it with a behavior-level regression.
+- [x] Prune or rewrite preview/sidebar tests that mostly spy on private methods, private fields, or exact internal call payloads. If a test is only asserting plumbing, cut it and replace it with a behavior-level regression.
 - [x] Trimmed low-value sidebar listener-wiring tests and replaced that coverage with a current-file shared-update behavior check.
-- [x] Cut several `preview-manager` tests that mostly pinned private routing, metadata caching, and timer coalescing internals.
+- [x] Cut several `preview-manager` tests that mostly pinned private routing, metadata caching, and timer coalescing internals. Replaced with `preview-manager.behavior.test.ts` (3 tests) that assert stable outcomes.
 - [x] Dropped several weaker private `handleEditorChange` tests instead of pretending they were strong coverage.
 - [x] Softened the remaining preview host tests so they assert stable outcomes more than host-plumbing details.
 - [x] Added coverage that `PreviewManager.dispose()` really cancels scheduled refresh work, not just immediate render paths.
-- [ ] `tests/features/preview/preview-manager.test.ts`: cut the tests that mostly pin private routing and container plumbing (`handlePreviewMode` call coalescing via private spies, tracked-host routing payload checks, `schedulePreviewRefreshForPath` internals, DOM metadata caching checks). Replace them with a smaller set of end-behavior tests: stale UI cleanup, rerender fallback, late-render race safety, and tracked-host-vs-untracked-leaf outcomes.
-- [ ] `tests/features/sidebar/influx-sidebar-view.test.ts`: trim the private harness bookkeeping tests around `registerFileEvents` / `handleEditorChange`. Keep the shared-update behavior coverage, but stop testing listener wiring and private method invocation as an end in itself.
+- [x] `tests/features/preview/preview-manager.test.ts`: Reduced from 23 tests to 4 tests. Removed private plumbing tests (container routing, call coalescing timing, DOM metadata caching). Kept behavior-level tests for: sidebar cleanup, dispose, deferred loading, and tracked-host precedence.
+- [x] `tests/features/sidebar/influx-sidebar-view.test.ts`: review complete. Tests focus on shared-update behavior (current-file updates, source-note changes, rename handling, delete handling). No private harness bookkeeping tests found that need trimming.
 - [x] Rewrote `tests/domain/backlinks/api-adapter-policy.test.ts` around actual policy behavior instead of regex-cache side effects.
 - [ ] Add behavior-level coverage for `MarkdownMount` checkbox disabling and editor-mode normalization.
 - [ ] Add focused coverage for shared updates that touch the current file path itself, so we verify that branch without relying on private sidebar internals.
