@@ -24,6 +24,7 @@
       "ES7",
       "ES2020"
     ],
+    "types": ["jest", "node"]
   },
   "include": [
     "src/**/*.ts",

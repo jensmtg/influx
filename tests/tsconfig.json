@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "noEmit": true
+  },
+  "include": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.d.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../coverage",
+    "../docs"
+  ]
+}
