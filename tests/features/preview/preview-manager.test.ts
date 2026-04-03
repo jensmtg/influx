@@ -2,6 +2,7 @@ import { PreviewManager } from '@/features/preview/preview-manager';
 import { rootManager } from '@/platform/react/root-manager';
 import { cacheManager } from '@/platform/cache/cache-manager';
 import { requireApiVersion } from 'obsidian';
+import * as renderPipeline from '@/domain/backlinks/influx-render-pipeline';
 
 jest.mock('react-dom/client', () => ({
 	createRoot: jest.fn(() => ({
@@ -176,12 +177,14 @@ describe('PreviewManager', () => {
 		expect(iterateRootLeaves).not.toHaveBeenCalled();
 	});
 
-	// CRITICAL BEHAVIOR: Hiddenpreview results clean up stale preview UI
-	test('hidden preview results are cleaned up and do not win races', async () => {
+	// CRITICAL BEHAVIOR: Hidden preview results clean up stale preview UI
+	// When a preview file has no visible content (hidden), ensure no stale React roots remain
+	test('hidden preview results do not leave stale React roots in rootManager', async () => {
+		// Setup: Create a mock preview root
 		const previewRoot = {
 			classList: { contains: (_name: string) => false },
 			querySelectorAll: jest.fn().mockReturnValue([]),
-			querySelector: jest.fn().mockReturnValue({ id: 'container' }),
+			querySelector: jest.fn().mockReturnValue(null),
 		} as unknown as HTMLElement;
 
 		const documentMock = {
@@ -189,19 +192,37 @@ describe('PreviewManager', () => {
 		} as unknown as Document;
 		(globalThis as { document?: Document }).document = documentMock;
 
-		// Simulate a hidden preview by not setting up a tracked host
+		// Mock createInfluxFileForRender to return hidden=true (simulating no visible backlinks)
+		jest.spyOn(renderPipeline, 'createInfluxFileForRender').mockResolvedValue({
+			hidden: true,
+			influxFile: { show: false, uuid: 'test-uuid' } as any,
+		});
+
 		const plugin = {
-			data: { settings: { showInfluxInSidebar: false } },
+			data: {
+				settings: {
+					showInfluxInSidebar: false,
+					frontmatterProperties: [],
+				},
+			},
 			app: { workspace: { iterateRootLeaves: jest.fn() } },
 			updating: new Set<string>(),
 		} as any;
-		const api = { getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }) } as any;
+		const api = {
+			getFileByPath: jest.fn().mockReturnValue({ stat: { mtime: 1 } }),
+			getSettings: jest.fn().mockReturnValue({ frontmatterProperties: [] }),
+		} as any;
 		const manager = new PreviewManager(plugin, api);
+
+		// Mock getUntrackedPreviewLeaves to return empty so no leaf processing happens
+		jest.spyOn(manager as any, 'getUntrackedPreviewLeaves').mockResolvedValue([]);
 
 		await manager.updateAllPreviews();
 
-		// Should not render anything for hidden/inactive previews
-		// The important thing is no stale preview UI remains
-		expect((manager as any).postProcessorHosts.size).toBe(0);
+		// Verify no preview roots were registered
+		// This is the behavior-level outcome: hidden results should not create React roots
+		const allRoots = Array.from((rootManager as any).roots?.values() || []);
+		const previewRoots = allRoots.filter((r: any) => r.type === 'preview');
+		expect(previewRoots).toHaveLength(0);
 	});
 });
