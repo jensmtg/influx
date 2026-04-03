@@ -235,15 +235,43 @@ export const debounce = <Args extends unknown[], Result>(fn: (...args: Args) => 
 export const Setting = jest.fn().mockImplementation(() => {
 	const settingInstance: {
 		settingEl: { style: { display: string } };
-		setName?: any;
-		setDesc?: any;
-		setHeading?: any;
-		addText?: any;
-		addTextArea?: any;
-		addToggle?: any;
-		addDropdown?: any;
-		addSlider?: any;
-		addButton?: any;
+		setName?: (text: string) => void;
+		setDesc?: (text: string) => void;
+		setHeading?: (text: string) => void;
+		addText?: (cb: (component: {
+			setPlaceholder: jest.Mock;
+			setValue: jest.Mock;
+			onChange: jest.Mock;
+			onInput: jest.Mock;
+			inputEl: {
+				onblur?: (e: FocusEvent) => void;
+			};
+		}) => void) => void;
+		addTextArea?: (cb: (component: {
+			setPlaceholder: jest.Mock;
+			setValue: jest.Mock;
+			inputEl: {
+				onblur?: (e: FocusEvent) => void;
+			};
+		}) => void) => void;
+		addToggle?: (cb: (component: {
+			setValue: jest.Mock;
+			getState: () => boolean;
+			onChange: jest.Mock;
+		}) => void) => void;
+		addDropdown?: (cb: (component: {
+			addOption: (value: string, text: string) => void;
+			setValue: (value: string) => void;
+			onChange: (cb: (value: string) => void) => void;
+		}) => void) => void;
+		addSlider?: (cb: (component: {
+			setValue: (value: number) => void;
+			setTooltip: (value: number) => void;
+		}) => void) => void;
+		addButton?: (cb: (component: {
+			setButtonText: (text: string) => void;
+			onClick: (cb: () => void) => void;
+		}) => void) => void;
 	} = {
 		settingEl: { style: { display: "" } },
 	};

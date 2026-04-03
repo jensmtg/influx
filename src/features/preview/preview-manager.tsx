@@ -402,10 +402,8 @@ export class PreviewManager {
 
 		const trackedPreviewHosts = this.getTrackedPreviewHosts(filePath);
 		const trackedPreviewRoots = new Set<HTMLElement>();
-		let refreshedAny = false;
 
 		if (trackedPreviewHosts.length > 0) {
-			refreshedAny = true;
 			const fileMtime = this.apiAdapter.getFileByPath(filePath)?.stat?.mtime ?? 0;
 			await Promise.all(
 				trackedPreviewHosts.map(({ container, previewRoot }) => {
@@ -431,10 +429,8 @@ export class PreviewManager {
 
 		const leaves = await this.getUntrackedPreviewLeaves(trackedPreviewRoots, filePath);
 		if (leaves.length === 0) {
-			return refreshedAny;
+			return false;
 		}
-
-		refreshedAny = true;
 
 		await Promise.all(
 			leaves.map((leaf) => {
@@ -445,7 +441,7 @@ export class PreviewManager {
 			})
 		);
 
-		return refreshedAny;
+		return true;
 	}
 
 	private async getUntrackedPreviewLeaves(

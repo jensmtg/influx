@@ -23,30 +23,6 @@ function createView(path: string | null): MockEditorView {
 	};
 }
 
-function createMutableView(initialPath: string | null) {
-	let currentPath = initialPath;
-	return {
-		view: createViewProxy(() => currentPath),
-		setPath: (nextPath: string | null) => {
-			currentPath = nextPath;
-		},
-	};
-}
-
-function createViewProxy(getPath: () => string | null): MockEditorView {
-	return {
-		state: {
-			field: jest.fn((field: unknown) => {
-				if (field === editorViewField) {
-					const path = getPath();
-					return path ? { file: { path } } : null;
-				}
-				return null;
-			}),
-		} as unknown as EditorView['state'],
-	};
-}
-
 function createUpdate(params: { path: string | null; docChanged?: boolean }): MockViewUpdate {
 	return {
 		view: createView(params.path) as EditorView,
