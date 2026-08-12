@@ -15,8 +15,31 @@ body .markdown-preview-sizer {
 
 /* Centering container when readable line length is enabled */
 body.is-readable-line-width .influx-preview-wrapper {
-    max-width: var(--file-line-width);
-    margin-inline: auto;
+	max-width: var(--file-line-width);
+	margin-inline: auto;
+}
+
+table .embedded-backlinks,
+table .influx-preview-wrapper,
+table influx-preview-container,
+table obsidian-influx-element,
+.markdown-source-view table .embedded-backlinks,
+.markdown-source-view table .influx-preview-wrapper,
+.markdown-source-view table influx-preview-container,
+.markdown-source-view table obsidian-influx-element,
+.markdown-source-view .HyperMD-table-row .embedded-backlinks,
+.markdown-source-view .HyperMD-table-row .influx-preview-wrapper,
+.markdown-source-view .HyperMD-table-row influx-preview-container,
+.markdown-source-view .HyperMD-table-row obsidian-influx-element,
+.markdown-source-view .cm-table-widget .embedded-backlinks,
+.markdown-source-view .cm-table-widget .influx-preview-wrapper,
+.markdown-source-view .cm-table-widget influx-preview-container,
+.markdown-source-view .cm-table-widget obsidian-influx-element,
+.markdown-source-view .cm-table-editor .embedded-backlinks,
+.markdown-source-view .cm-table-editor .influx-preview-wrapper,
+.markdown-source-view .cm-table-editor influx-preview-container,
+.markdown-source-view .cm-table-editor obsidian-influx-element {
+	display: none !important;
 }
 
 @keyframes fadeIn {

@@ -4,6 +4,7 @@ import { EditorState, Range } from "@codemirror/state";
 import InfluxFile from '../InfluxFile';
 import { influxDecoration } from "./InfluxWidget";
 import { statefulDecorations } from "./helpers";
+import { containsMarkdownTable, findInfluxWidgetPosition, isSelectionInMarkdownTable } from "./placement-utils";
 
 
 export class StatefulDecorationSet {
@@ -15,6 +16,10 @@ export class StatefulDecorationSet {
     }
 
     async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
+        if (containsMarkdownTable(state) || isSelectionInMarkdownTable(state)) {
+            return Decoration.none;
+        }
+
         if (!state.field(editorViewField)) return null; // If not yet loaded.
 
         const { file } = state.field(editorViewField);
@@ -45,7 +50,7 @@ export class StatefulDecorationSet {
             if (settings.influxAtTopOfPage) {
                 // Show at top of page (before content)
                 // Try to find position after frontmatter (if exists)
-                anchorPosition = this.findPositionAfterFrontmatter(state);
+                anchorPosition = findInfluxWidgetPosition(state);
                 side = 1; // After the position (places it at the start of the content)
             } else {
                 // Show at bottom of page (after all content)
@@ -60,25 +65,7 @@ export class StatefulDecorationSet {
 
     }
 
-    private findPositionAfterFrontmatter(state: EditorState): number {
-        const doc = state.doc;
-
-        // Check if document has at least one line and starts with frontmatter
-        if (doc.lines === 0) return 0;
-
-        const firstLine = doc.line(1);
-        if (firstLine.text.trim() !== '---') return 0;
-
-        // Scan lines without converting entire doc to string - O(n) instead of O(n²)
-        for (let i = 2; i <= doc.lines; i++) {
-            const line = doc.line(i);
-            if (line.text.trim() === '---') {
-                return line.to; // Position after closing ---
-            }
-        }
-
-        return 0;
-    }
+    
 
 
     async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {

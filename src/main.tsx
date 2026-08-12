@@ -10,6 +10,8 @@ import { createStyleSheet, StyleSheetType } from './createStyleSheet';
 import { EditorView } from '@codemirror/view';
 
 // Extend global Window interface for test function
+import { shouldRenderInfluxForMarkdownElement } from './render-utils';
+
 declare global {
 	interface Window {
 		testInfluxReadingView?: () => void;
@@ -549,6 +551,10 @@ export default class ObsidianInflux extends Plugin {
 	}
 
 	async handlePreviewMode(element: HTMLElement, context: any) {
+		if (!shouldRenderInfluxForMarkdownElement(element)) {
+			return;
+		}
+
 		// Only process if this is a markdown preview element
 		if (!element.classList.contains('markdown-preview-view')) {
 			return;

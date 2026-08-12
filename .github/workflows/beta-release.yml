@@ -1,0 +1,139 @@
+name: Create Plugin Beta Release
+
+on:
+    push:
+        branches:
+            - 'feature/**'
+            - 'feature-*'
+            - 'feat/**'
+            - 'feat-*'
+            - 'fix/**'
+            - 'fix-*'
+            - 'bug/**'
+            - 'bug-*'
+            - 'bugfix/**'
+            - 'bugfix-*'
+            - 'hotfix/**'
+            - 'hotfix-*'
+            - 'chore/**'
+            - 'chore-*'
+            - 'deps/**'
+            - 'deps-*'
+            - 'docs/**'
+            - 'docs-*'
+            - 'refactor/**'
+            - 'refactor-*'
+            - 'perf/**'
+            - 'perf-*'
+            - 'test/**'
+            - 'test-*'
+            - 'tests/**'
+            - 'tests-*'
+            - 'ci/**'
+            - 'ci-*'
+            - 'build/**'
+            - 'build-*'
+            - 'style/**'
+            - 'style-*'
+
+env:
+    PLUGIN_NAME: influx
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: write
+            id-token: write
+            attestations: write
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Install Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: latest
+
+            - name: Compute beta SemVer
+              id: beta-version
+              uses: anothrNick/github-tag-action@1.75.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  DRY_RUN: true
+                  PRERELEASE: true
+                  PRERELEASE_SUFFIX: beta
+                  TAG_PREFIX: ''
+                  TAG_CONTEXT: repo
+                  DEFAULT_BRANCH: master
+                  DEFAULT_BUMP: ${{ (startsWith(github.ref_name, 'feature/') || startsWith(github.ref_name, 'feature-') || startsWith(github.ref_name, 'feat/') || startsWith(github.ref_name, 'feat-')) && 'minor' || 'patch' }}
+                  FORCE_WITHOUT_CHANGES_PRE: true
+
+            - name: Apply beta version to plugin manifests
+              env:
+                  BETA_VERSION: ${{ steps.beta-version.outputs.new_tag }}
+              run: |
+                  node -e '
+                  const fs = require("node:fs");
+                  const version = process.env.BETA_VERSION;
+                  if (!version) throw new Error("Missing beta version from github-tag-action");
+                  for (const file of ["package.json", "manifest.json", "manifest-beta.json"]) {
+                    const data = JSON.parse(fs.readFileSync(file, "utf8"));
+                    data.version = version;
+                    fs.writeFileSync(file, `${JSON.stringify(data, null, "\t")}\n`);
+                  }
+                  const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+                  const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
+                  versions[version] = manifest.minAppVersion;
+                  fs.writeFileSync("versions.json", `${JSON.stringify(versions, null, "\t")}\n`);
+                  '
+
+            - name: Commit beta version for BRAT
+              run: |
+                  if git diff --quiet -- package.json manifest.json manifest-beta.json versions.json; then
+                    echo "Beta metadata already committed."
+                  else
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git add package.json manifest.json manifest-beta.json versions.json
+                    git commit -m "chore: publish ${{ steps.beta-version.outputs.new_tag }} metadata [skip ci]"
+                    git push origin HEAD:${{ github.ref_name }}
+                  fi
+
+            - name: Build
+              id: build
+              run: |
+                  npm ci
+                  npm run build
+                  mkdir ${{ env.PLUGIN_NAME }}
+                  cp main.js manifest.json styles.css ${{ env.PLUGIN_NAME }}
+                  zip -r ${{ env.PLUGIN_NAME }}-${{ steps.beta-version.outputs.new_tag }}.zip ${{ env.PLUGIN_NAME }}
+                  ls
+
+            - name: Attest build provenance
+              uses: actions/attest@v4
+              with:
+                  subject-path: |
+                      main.js
+                      manifest.json
+                      styles.css
+                      ${{ env.PLUGIN_NAME }}-${{ steps.beta-version.outputs.new_tag }}.zip
+
+            - name: Release
+              id: release
+              uses: softprops/action-gh-release@v3
+              with:
+                  prerelease: true
+                  tag_name: ${{ steps.beta-version.outputs.new_tag }}
+                  name: Beta ${{ steps.beta-version.outputs.new_tag }}
+                  target_commitish: ${{ github.ref_name }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  files: |
+                      ${{ env.PLUGIN_NAME }}-${{ steps.beta-version.outputs.new_tag }}.zip
+                      main.js
+                      manifest.json
+                      styles.css
