@@ -1,6 +1,6 @@
 {
 	"name": "influx",
-	"version": "2.4.3",
+	"version": "2.4.4",
 	"description": "Transform your Obsidian backlinks from simple links into rich, contextual excerpts. See the actual content surrounding each link, turning your note connections into genuine insights.",
 	"main": "main.js",
 	"scripts": {

@@ -64,11 +64,13 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                 inlinkedEntries: {
                     fontSize: `${props.fontSize}px`,
                     lineHeight: `${props.lineHeight}px`,
-                    width: 'var(--file-line-width, 100%)',
+                    width: '100%',
                     maxWidth: '100%',
+                    boxSizing: 'border-box',
                     display: 'flex',
                     flexDirection: 'column',
-                    paddingLeft: '1rem',
+                    // Keep every edge of the excerpt clear of the mention border.
+                    padding: 'var(--size-4-3, 12px) var(--size-4-4, 16px)',
                     '& h1': {
                         marginTop: '0px',
                         marginBottom: '0px',
@@ -84,6 +86,9 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                     '& h3': {
                         fontSize: `${props.fontSize}px`,
                         lineHeight: `${props.lineHeight}px`,
+                    },
+                    '& > h2': {
+                        marginBottom: 'var(--size-4-1, 4px)',
                     },
                     '& mark': {
                         backgroundColor: 'var(--text-highlight-bg)',
