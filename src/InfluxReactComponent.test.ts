@@ -329,3 +329,66 @@ test.each([false, true])('keeps task checkbox state and native Markdown styles i
     expect(Array.from(inputs, input => input.checked)).toEqual([true, false]);
     expect(Array.from(inputs, input => input.disabled)).toEqual([true, true]);
 });
+
+test.each([false, true])('the section heading hides titles and cards together in reading view: %s', async preview => {
+    const { file } = await fixture();
+    await mount(file, preview);
+    const results = container.querySelector<HTMLElement>('.search-result-container')!;
+    const heading = container.querySelector('.backlink-pane > .tree-item-self')!;
+    await click('.backlink-pane > .tree-item-self');
+    expect(results.hidden).toBe(true);
+    expect(results.style.display).toBe('none');
+    expect(heading.getAttribute('aria-expanded')).toBe('false');
+    expect(heading.getAttribute('aria-controls')).toBe(results.id);
+    expect(results.contains(container.querySelector('.search-result-file-title'))).toBe(true);
+    expect(results.contains(container.querySelector('.nav-header'))).toBe(false);
+    expect(container.querySelector('.nav-header')).not.toBeNull();
+    await click('.backlink-pane > .tree-item-self');
+    expect(results.hidden).toBe(false);
+    expect(results.style.display).toBe('');
+    expect(heading.getAttribute('aria-expanded')).toBe('true');
+});
+
+test('the section heading saves individual card states and stays collapsed across refreshes', async () => {
+    const { file } = await fixture();
+    await mount(file);
+    await click('.search-result .collapse-icon');
+    expect(container.querySelector('.search-result .collapse-icon')?.classList.contains('is-collapsed')).toBe(true);
+    await click('.backlink-pane > .tree-item-self');
+    const refreshed = Object.assign(Object.create(Object.getPrototypeOf(file)), file, {
+        uuid: 'refreshed-file', components: [{ ...file.components[0], innerHTML: '<p>Updated task</p>' }],
+    }) as InfluxFile;
+    await mount(refreshed);
+    expect(container.querySelector<HTMLElement>('.search-result-container')?.hidden).toBe(true);
+    await click('.backlink-pane > .tree-item-self');
+    expect(container.querySelector('.entry')?.textContent).toBe('Updated task');
+    expect(container.querySelector('.search-result .collapse-icon')?.classList.contains('is-collapsed')).toBe(true);
+    expect(container.querySelector<HTMLElement>('.search-result-file-matches')?.style.display).toBe('none');
+    await click('.search-result .collapse-icon');
+    expect(container.querySelector('.search-result .collapse-icon')?.classList.contains('is-collapsed')).toBe(false);
+    expect(container.querySelector('.search-result .collapse-icon')?.getAttribute('aria-expanded')).toBe('true');
+});
+
+test('the toolbar expands a hidden section and follows individual card changes', async () => {
+    const { file } = await fixture();
+    await mount(file);
+    await click('.search-result .collapse-icon');
+    expect(container.querySelector('[aria-label="Expand all"]')).not.toBeNull();
+    await click('.backlink-pane > .tree-item-self');
+    await click('[aria-label="Expand all"]');
+    expect(container.querySelector<HTMLElement>('.search-result-container')?.hidden).toBe(false);
+    expect(container.querySelector('.search-result.is-collapsed')).toBeNull();
+    expect(container.querySelector('[aria-label="Collapse all"]')).not.toBeNull();
+});
+
+test.each(['Enter', ' '])('the heading and card arrow support the %s key', async key => {
+    const { file } = await fixture();
+    await mount(file);
+    for (const selector of ['.search-result .collapse-icon', '.backlink-pane > .tree-item-self']) {
+        const element = container.querySelector(selector)!;
+        await React.act(async () => {
+            element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+        });
+        expect(element.getAttribute('aria-expanded')).toBe('false');
+    }
+});

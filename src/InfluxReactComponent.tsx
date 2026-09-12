@@ -20,28 +20,26 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [stylesheet, setStyleSheet] = React.useState(sheet)
 	const [collapsed, setCollapsed]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState(influxFile.collapsed ? components.map(component => component.inlinkingFile.file.path) : [])
-	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
+	const [sectionCollapsed, setSectionCollapsed] = React.useState(false)
+	const resultsId = React.useId()
+	const expandAllOnClick = sectionCollapsed || (components.length > 0 && components.every(component => collapsed.includes(component.inlinkingFile.file.path)))
 	const updateGeneration = React.useRef(0)
 	const updateQueue = React.useRef<Promise<void>>(Promise.resolve())
 
 	const doToggle = (sourcePath: string) => {
-		if (collapsed.includes(sourcePath)) {
-			setCollapsed(collapsed.filter(path => path !== sourcePath))
-		}
-		else {
-			setCollapsed([...collapsed, sourcePath])
-		}
+		setCollapsed(paths => paths.includes(sourcePath)
+			? paths.filter(path => path !== sourcePath)
+			: [...paths, sourcePath])
 	}
 
 	const toggleAll = () => {
 		const all = components.map(component => component.inlinkingFile.file.path)
-		if (toggleAllToOpen) {
+		if (expandAllOnClick) {
+			setSectionCollapsed(false)
 			setCollapsed([])
-			setToggleAllToOpen(false)
 		}
 		else {
 			setCollapsed(all)
-			setToggleAllToOpen(true)
 		}
 	}
 
@@ -145,7 +143,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						</svg>
 					</div> */}
 					<div className="clickable-icon nav-action-button"
-						aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
+						aria-label={expandAllOnClick ? 'Expand all' : 'Collapse all'}
 						onClick={() => toggleAll()}
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-move-vertical">
@@ -200,9 +198,18 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			<div className="backlink-pane">
 
 				<div
-					onClick={() => toggleAll()}
-					className="tree-item-self is-clickable"
-				// aria-label={isOpen ? "Click to collapse" : "Click to expand"}
+					onClick={() => setSectionCollapsed(value => !value)}
+					onKeyDown={event => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault()
+							setSectionCollapsed(value => !value)
+						}
+					}}
+					role="button"
+					tabIndex={0}
+					aria-expanded={!sectionCollapsed}
+					aria-controls={resultsId}
+					className={`tree-item-self is-clickable ${sectionCollapsed ? 'is-collapsed' : ''}`}
 				>
 
 					{/* <span className="tree-item-icon collapse-icon">
@@ -220,7 +227,11 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					</div>
 				</div>
 
-				<div className="search-result-container">
+				<div className="search-result-container"
+					id={resultsId}
+					hidden={sectionCollapsed}
+					style={sectionCollapsed ? { display: 'none' } : undefined}
+				>
 
 
 					<div className="search-results-children" >
@@ -255,8 +266,18 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										style={centered ? { width: '160px', minWidth: '160px' } : {}}>
 
 
-										<div className="tree-item-icon collapse-icon"
+										<div className={`tree-item-icon collapse-icon ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
 											onClick={() => doToggle(sourcePath)}
+											onKeyDown={event => {
+												if (event.key === 'Enter' || event.key === ' ') {
+													event.preventDefault()
+													doToggle(sourcePath)
+												}
+											}}
+											role="button"
+											tabIndex={0}
+											aria-label={`${inlinkedCollapsed ? 'Expand' : 'Collapse'} ${extended.inlinkingFile.file.basename}`}
+											aria-expanded={!inlinkedCollapsed}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon right-triangle">
 												<path d="M3 8L12 17L21 8"></path>

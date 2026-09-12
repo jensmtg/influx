@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Collapse the whole results area, including note titles, when clicking Linked mentions; keep the heading and toolbar visible and restore each card's state when reopening.
+- Rotate each note's disclosure arrow right when collapsed and back down when expanded, using Obsidian's native animation.
 - Keep task checkboxes beside their text by using normal Markdown whitespace and spacing in both editing and reading views.
 - Apply native Markdown styles to excerpts, retain checkbox states in rendered snapshots, and keep wide content within mention cards.
 - Keep underscores and links intact in rendered titles, ignore invalid custom titles, and avoid hiding custom titles when a different heading contains a link.
