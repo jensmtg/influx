@@ -11,6 +11,10 @@ import {
 	shouldSuppressInfluxForTableEditing,
 } from "./placement-utils";
 
+type DecorationResult = {
+    decorations: DecorationSet;
+    backlinkSourceSignature?: string;
+};
 
 export class StatefulDecorationSet {
     editor: EditorView;
@@ -18,19 +22,20 @@ export class StatefulDecorationSet {
     private requestGeneration = 0;
     private backlinkSourceSignature = '';
     private showingDecorations = false;
+    private destroyed = false;
 
     constructor(editor: EditorView) {
         this.editor = editor;
     }
 
-    async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationSet | null> {
+    async computeAsyncDecorations(state: EditorState, show: boolean): Promise<DecorationResult | null> {
         const editorField = state.field(editorViewField, false)
         if (!editorField) return null; // If not yet loaded.
 
         // Desktop editors can safely render beside tables. Mobile temporarily
         // hides the block only while the caret is inside an actual table.
         if (Platform.isMobile && shouldSuppressInfluxForTableEditing(state)) {
-            return Decoration.none;
+            return { decorations: Decoration.none };
         }
 
 
@@ -48,16 +53,17 @@ export class StatefulDecorationSet {
         const apiAdapter = plugin.api
 
         const influxFile = await InfluxFile.create(file.path, apiAdapter, plugin)
+        const backlinkSourceSignature = getBacklinkSourceSignature(influxFile.backlinks)
 
         // Avoid a block widget unless there are results or the user explicitly
         // enabled the empty Influx section.
         if (!show || !influxFile.show) {
-            return Decoration.none
+            return { decorations: Decoration.none, backlinkSourceSignature }
         }
 
         const hasVisibleEntries = await influxFile.prepare()
         if (!hasVisibleEntries) {
-            return Decoration.none
+            return { decorations: Decoration.none, backlinkSourceSignature }
         }
 
         const decorations: Range<Decoration>[] = []
@@ -76,7 +82,7 @@ export class StatefulDecorationSet {
             side: placement.side,
         }).range(position))
 
-        return Decoration.set(decorations, true);
+        return { decorations: Decoration.set(decorations, true), backlinkSourceSignature };
 
     }
 
@@ -93,10 +99,19 @@ export class StatefulDecorationSet {
     }
 
     async updateAsyncDecorations(state: EditorState, show: boolean): Promise<void> {
+        if (this.destroyed) return;
         const requestGeneration = ++this.requestGeneration
         const sourceDocument = state.doc
         const sourceFilePath = state.field(editorViewField, false)?.file?.path
-        const decorations = await this.computeAsyncDecorations(state, show);
+        let result: DecorationResult | null;
+        try {
+            result = await this.computeAsyncDecorations(state, show);
+        } catch (error) {
+            if (!this.destroyed && requestGeneration === this.requestGeneration) {
+                console.error('[Influx] Failed to refresh editor:', error);
+            }
+            return;
+        }
 
         // Check if editor is still valid before proceeding
         if (!this.editor || !this.editor.state) {
@@ -112,19 +127,11 @@ export class StatefulDecorationSet {
             return;
         }
 
-        const plugin = (window as any).influxPlugin
-        const currentFile = this.editor.state.field(editorViewField, false)?.file
-        if (plugin && currentFile) {
-            const currentBacklinks = await plugin.api.getBacklinks(currentFile)
-            const latestFilePath = this.editor.state.field(editorViewField, false)?.file?.path
-            if (
-                requestGeneration !== this.requestGeneration ||
-                sourceDocument !== this.editor.state.doc ||
-                sourceFilePath !== latestFilePath
-            ) {
-                return;
-            }
-            this.backlinkSourceSignature = getBacklinkSourceSignature(currentBacklinks)
+        // Save the graph that produced these cards, not a newer graph loaded
+        // afterwards. This also avoids a second vault scan for empty results.
+        const decorations = result?.decorations ?? null;
+        if (result?.backlinkSourceSignature !== undefined) {
+            this.backlinkSourceSignature = result.backlinkSourceSignature;
         }
 
         // Safely check if we need to update decorations
@@ -164,6 +171,8 @@ export class StatefulDecorationSet {
      * forces a re-measure and glitches scroll position away from the caret.
      */
     hideIfShowing(): void {
+        // A pending computation must not restore a widget while typing in a table.
+        this.requestGeneration++;
         if (!this.showingDecorations) {
             return;
         }
@@ -178,5 +187,6 @@ export class StatefulDecorationSet {
     destroy(): void {
         // Supersede any asynchronous calculation that is still in flight.
         this.requestGeneration++
+        this.destroyed = true;
     }
 }

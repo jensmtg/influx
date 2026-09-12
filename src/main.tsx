@@ -479,6 +479,10 @@ export default class ObsidianInflux extends Plugin {
 		if (this.isUnloading) {
 			return
 		}
+		if (op === 'rename' || op === 'delete') {
+			// Invalidate before the debounce so opening a note cannot reuse old paths.
+			this.api.invalidateFileCache();
+		}
 		if (op === 'modify') {
 			if (!this.data.settings.liveUpdate || !(file instanceof TFile)) {
 				return;
@@ -508,12 +512,10 @@ export default class ObsidianInflux extends Plugin {
 			}
 
 			try {
-				if (this.isUnloading) {
+				if (this.isUnloading || (op === 'modify' && !this.data.settings.liveUpdate)) {
 					return
 				}
-				if (op === 'rename' || op === 'delete') {
-					this.api.invalidateFileCache();
-				} else if (op === 'save-settings') {
+				if (op === 'save-settings') {
 					this.api.invalidateSettingsCache();
 				}
 

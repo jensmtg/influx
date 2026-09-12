@@ -57,13 +57,13 @@ export async function getFreshBacklinks(
     }
 
     if (isBacklinkCacheActive(metadataCache)) {
-        const getNativeBacklinks = () => getBacklinksForFile.originalFn!(file);
+        const getNativeBacklinks = () => getBacklinksForFile.originalFn!.call(metadataCache, file);
         if (!useBacklinkCache) {
             return getNativeBacklinks();
         }
 
         try {
-            const cachedBacklinks = await getBacklinksForFile.safe!(file);
+            const cachedBacklinks = await getBacklinksForFile.safe!.call(metadataCache, file);
             if (hasBacklinkEntries(cachedBacklinks)) {
                 return cachedBacklinks;
             }

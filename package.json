@@ -23,6 +23,7 @@
 	"devDependencies": {
 		"@babel/core": "^7.28.6",
 		"@babel/preset-env": "^7.28.6",
+		"@babel/preset-react": "^7.29.7",
 		"@types/jest": "^30.0.0",
 		"@types/jss": "^9.5.8",
 		"@types/node": "^25.0.10",
@@ -33,6 +34,7 @@
 		"babel-jest": "^30.2.0",
 		"builtin-modules": "^5.0.0",
 		"esbuild": "0.27.2",
+		"jest-environment-jsdom": "^30.5.1",
 		"obsidian": "latest",
 		"tslib": "2.8.1",
 		"typescript": "5.9.3"

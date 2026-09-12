@@ -152,6 +152,10 @@ describe('Link Utils', () => {
     });
 
     describe('processTitleHTML', () => {
+        test('keeps SVG paths and other elements whose tag name starts with p', () => {
+            expect(processTitleHTML('<p dir="auto">_<svg><path d="M0 0" /></svg><picture>image</picture></p>'))
+                .toBe('<svg><path d="M0 0" /></svg><picture>image</picture>');
+        });
         test('should remove paragraph tags', () => {
             // Arrange
             const html = '<p>Test Title</p>';

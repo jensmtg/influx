@@ -108,6 +108,7 @@ export default class InfluxFile {
     }
 
     private async refreshBacklinks(): Promise<void> {
+        if (this.file) this.file = this.api.getFileByPath(this.file.path)
         if (!this.file) {
             this.backlinks = null
             this.show = false
@@ -143,8 +144,8 @@ export default class InfluxFile {
             ? this.backlinks.data.entries()
             : Object.entries(this.backlinks.data);
 
-        for (const [pathAsKey] of entries) {
-            if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
+        for (const [pathAsKey, links] of entries) {
+            if (Array.isArray(links) && links.length > 0 && pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
                 validPaths.push(pathAsKey);
             }
         }

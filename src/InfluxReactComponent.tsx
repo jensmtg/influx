@@ -4,6 +4,7 @@ import { ExtendedInlinkingFile } from './apiAdapter';
 import { ObsidianInfluxSettings } from "./main";
 import { TFile } from "obsidian";
 import { StyleSheetType } from "./createStyleSheet";
+import { openInfluxLink } from './link-navigation';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
@@ -45,8 +46,19 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 	}
 
 	React.useEffect(() => {
+		// A rebuilt editor decoration can reuse this React root. Refresh its
+		// content while keeping the user's collapsed cards and controls.
+		setComponents(influxFile.components)
+		setStyleSheet(sheet)
+		const pendingFiles = new Map<string, TFile>()
+		let needsFullRefresh = false
 
 		const respondToUpdateTrigger = (op: string, stylesheet: StyleSheetType, files?: readonly TFile[]): Promise<void> => {
+			if (op === 'modify' && files) {
+				for (const file of files) pendingFiles.set(file.path, file)
+			} else {
+				needsFullRefresh = true
+			}
 			const generation = ++updateGeneration.current
 			const runUpdate = async () => {
 				if (generation !== updateGeneration.current) {
@@ -54,8 +66,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 				}
 
 				let backlinksRefreshed = false
-				if (op === 'modify' && files) {
-					if (!await influxFile.shouldUpdate(files)) {
+				if (!needsFullRefresh) {
+					if (!await influxFile.shouldUpdate([...pendingFiles.values()])) {
+						if (generation === updateGeneration.current) pendingFiles.clear()
 						return
 					}
 					backlinksRefreshed = true
@@ -72,6 +85,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 				setStyleSheet(preview ? influxFile.influx.stylesheetForPreview : stylesheet)
 				setComponents([...influxFile.components])
+				pendingFiles.clear()
+				needsFullRefresh = false
 			}
 
 			const queued = updateQueue.current.then(runUpdate, runUpdate)
@@ -85,7 +100,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			updateGeneration.current++
 			influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
 		}
-	}, [])
+	}, [influxFile, preview, sheet])
 
 	const classes = stylesheet.classes
 
@@ -231,6 +246,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							return (
 
 								<div key={sourcePath}
+									onClickCapture={event => { void openInfluxLink(event, influxFile.api.app, sourcePath) }}
+									onAuxClickCapture={event => { void openInfluxLink(event, influxFile.api.app, sourcePath) }}
 									className={`tree-item search-result ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
 									style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 								>
@@ -251,8 +268,6 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												data-href={sourcePath}
 												href={sourcePath}
 												className="internal-link"
-												target="_blank"
-												rel="noopener"
 											>
 												{extended.inlinkingFile.file.basename}
 											</a>

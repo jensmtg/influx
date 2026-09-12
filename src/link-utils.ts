@@ -37,7 +37,7 @@ export function compareLinkName(link: LinkCache, basename: string): boolean {
  */
 export function processTitleHTML(html: string): string {
     return html
-        .replace(/<\/?p[^>]*>/g, '')  // Remove <p>, </p> tags
+        .replace(/<\/?p(?:\s[^>]*)?>/gi, '')  // Remove paragraph tags only
         .replace(/^_/, '');            // Remove leading underscore (now at start after p tag removal)
 }
 

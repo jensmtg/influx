@@ -28,6 +28,16 @@ function createApi(backlinkData: Map<string, LinkCache[]> | Record<string, LinkC
 const link = { link: 'Target' } as LinkCache;
 
 describe('InfluxFile processing guard', () => {
+    test('clears a deleted target without querying a stale file object', async () => {
+        const { api } = createApi(new Map([['Source.md', [link]]]));
+        const file = await InfluxFile.create('Target.md', api, {} as ObsidianInflux);
+        (api.getFileByPath as jest.Mock).mockReturnValue(null);
+        (api.getBacklinks as jest.Mock).mockClear();
+        await expect(file.prepare(true)).resolves.toBe(false);
+        expect(api.getBacklinks).not.toHaveBeenCalled();
+        expect(file.components).toEqual([]);
+    });
+
     test.each([
         new Map<string, LinkCache[]>(),
         {},
@@ -157,7 +167,7 @@ describe('InfluxFile processing guard', () => {
             sortFilesForRendering,
             getSettings: jest.fn(() => ({ listLimit: 1 })),
             readFile,
-            compareLinkName: jest.fn(() => true),
+            isLinkToFile: jest.fn(() => true),
         } as unknown as ApiAdapter;
 
         const influxFile = await InfluxFile.create(
@@ -203,7 +213,7 @@ describe('InfluxFile processing guard', () => {
             sortFilesForRendering: jest.fn((files: TFile[]) => files),
             getSettings: jest.fn(() => ({ listLimit: 2 })),
             readFile,
-            compareLinkName: jest.fn(() => true),
+            isLinkToFile: jest.fn(() => true),
         } as unknown as ApiAdapter;
         const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 

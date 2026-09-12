@@ -1,4 +1,4 @@
-import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component } from 'obsidian';
+import { App, TFile, CachedMetadata, LinkCache, MarkdownRenderer, Component, getLinkpath } from 'obsidian';
 import { InlinkingFile } from './InlinkingFile';
 import { DEFAULT_SETTINGS, ObsidianInfluxSettings } from './main';
 import { processFrontmatterLinks } from './frontmatter-utils';
@@ -19,6 +19,8 @@ import {
     type BacklinkMetadataCache,
 } from './backlink-cache';
 import { createConcurrencyLimiter, mapWithConcurrency } from './async-utils';
+import { setRenderedLinkSources } from './render-utils';
+import { processTitleHTML } from './link-utils';
 
 const MAX_BACKLINK_CACHE_ENTRIES = 32;
 const MAX_CONCURRENT_BACKLINK_LOADS = 8;
@@ -49,6 +51,8 @@ export class ApiAdapter {
     private backlinkRequests: Map<string, Promise<BacklinkLoadResult>> = new Map();
     private backlinksCache: Map<string, BacklinksObject> = new Map();
     private backlinkLoadLimiter = createConcurrencyLimiter(MAX_CONCURRENT_BACKLINK_LOADS);
+    private renderLimiter = createConcurrencyLimiter(MAX_CONCURRENT_RENDER_JOBS);
+    private backlinkProvider: readonly unknown[] = [];
     private backlinkGeneration = 0;
     private disposed = false;
     private settingsCache: ObsidianInfluxSettings | null = null;
@@ -81,6 +85,8 @@ export class ApiAdapter {
             throw new Error('[Influx] Backlink adapter has been unloaded');
         }
 
+        this.syncBacklinkProvider();
+
         const path = file.path;
         const cached = this.backlinksCache.get(path);
         if (cached) {
@@ -108,6 +114,7 @@ export class ApiAdapter {
     ): Promise<BacklinksObject> {
         try {
             const { backlinks, generation } = await request;
+            this.syncBacklinkProvider();
             if (generation !== this.backlinkGeneration) {
                 if (this.backlinkRequests.get(path) === request) {
                     this.backlinkRequests.delete(path);
@@ -124,6 +131,15 @@ export class ApiAdapter {
                 this.backlinkRequests.delete(path);
             }
             throw error;
+        }
+    }
+
+    private syncBacklinkProvider(): void {
+        const provider = (this.app.metadataCache as BacklinkMetadataCache).getBacklinksForFile;
+        const current = [provider, provider?.safe, provider?.originalFn];
+        if (current.some((value, index) => value !== this.backlinkProvider[index])) {
+            this.backlinkProvider = current;
+            this.invalidateBacklinksCache();
         }
     }
 
@@ -194,23 +210,33 @@ export class ApiAdapter {
         if (data instanceof Map) {
             return {
                 data: new Map(
-                    Array.from(data.entries(), ([path, links]) => [path, [...links]]),
+                    Array.from(data.entries())
+                        .filter(([path, links]) => typeof path === 'string' && Array.isArray(links))
+                        .map(([path, links]) => [path, [...links]]),
                 ),
             };
         }
 
-        const clonedData: Record<string, LinkCache[]> = {};
+        const clonedData: Record<string, LinkCache[]> = Object.create(null);
         for (const [path, links] of Object.entries(data || {})) {
-            clonedData[path] = [...links];
+            if (Array.isArray(links)) clonedData[path] = [...links];
         }
         return { data: clonedData };
     }
-    async renderMarkdown(markdown: string): Promise<string> {
+    async renderMarkdown(markdown: string, sourcePath: string): Promise<string> {
+        return this.renderLimiter.run(() => this.renderMarkdownNow(markdown, sourcePath));
+    }
+    private async renderMarkdownNow(markdown: string, sourcePath: string): Promise<string> {
+        if (this.disposed) throw new Error('[Influx] Backlink adapter has been unloaded');
+        if (!markdown) return '';
         const div = document.createElement('div');
         const renderComponent = new Component();
         renderComponent.load();
         try {
-            await MarkdownRenderer.renderMarkdown(markdown, div, '/', renderComponent);
+            await MarkdownRenderer.render(this.app, markdown, div, sourcePath, renderComponent);
+            setRenderedLinkSources(div, sourcePath, (linktext, parentPath) =>
+                this.app.metadataCache.getFirstLinkpathDest(getLinkpath(linktext), parentPath)?.path,
+            );
 
             // Disable checkboxes in preview mode to prevent interaction.
             const checkboxes = Array.from(div.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
@@ -272,6 +298,7 @@ export class ApiAdapter {
         this.backlinkLoadLimiter.cancelQueued(
             new Error('[Influx] Backlink adapter has been unloaded'),
         );
+        this.renderLimiter.cancelQueued(new Error('[Influx] Backlink adapter has been unloaded'));
         this.backlinkRequests.clear();
         this.backlinksCache.clear();
         this.settingsCache = null;
@@ -363,32 +390,35 @@ export class ApiAdapter {
         const settings: Partial<ObsidianInfluxSettings> = this.getSettings()
         const comparator = this.makeComparisonFn()
         const selectedFiles = inlinkingsFiles
+            .slice()
             .sort(comparator)
             .slice(0, settings.listLimit || inlinkingsFiles.length)
         const components = await mapWithConcurrency(
             selectedFiles,
             MAX_CONCURRENT_RENDER_JOBS,
             async (inlinkingFile) => {
-                // Parallelize the two renderMarkdown calls to avoid sequential blocking
-                const [titleAsMd, summaryAsMd] = await Promise.all([
-                    this.renderMarkdown(`_${inlinkingFile.title}`),
-                    this.renderMarkdown(inlinkingFile.summary),
-                ])
-
-                // Optimize string processing: remove p tags, then clean up any remaining underscores
-                const titleInnerHTML = titleAsMd
-                    .replace(/<\/?p[^>]*>/g, '')  // Remove <p>, </p> tags
-                    .replace(/^_/, '')            // Remove leading underscore (now at start after p tag removal)
-
-                const extended: ExtendedInlinkingFile = {
-                    inlinkingFile: inlinkingFile,
-                    titleInnerHTML: titleInnerHTML,
-                    innerHTML: summaryAsMd,
+                try {
+                    const [titleAsMd, summaryAsMd] = await Promise.all([
+                        this.renderMarkdown(inlinkingFile.title ? `_${inlinkingFile.title}` : '', inlinkingFile.file.path),
+                        this.renderMarkdown(inlinkingFile.summary, inlinkingFile.file.path),
+                    ])
+                    return {
+                        inlinkingFile,
+                        titleInnerHTML: processTitleHTML(titleAsMd),
+                        innerHTML: summaryAsMd,
+                    }
+                } catch (error) {
+                    if (!this.disposed) console.error(`[Influx] Failed to render ${inlinkingFile.file.path}:`, error);
+                    return null;
                 }
-                return extended
             },
         )
-        return components
+        return components.filter((component): component is ExtendedInlinkingFile => component !== null)
+    }
+    /** Resolve from the source note so duplicate names and relative links match correctly. */
+    isLinkToFile(link: LinkCache, sourcePath: string, target: TFile): boolean {
+        if (typeof link?.link !== 'string') return false;
+        return this.app.metadataCache.getFirstLinkpathDest(getLinkpath(link.link), sourcePath)?.path === target.path;
     }
     /** comparison fn for filter in function to make contextual summaries,
      * to find relevant links.

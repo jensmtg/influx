@@ -1,4 +1,4 @@
-import { WidgetType, EditorView } from "@codemirror/view";
+import { WidgetType } from "@codemirror/view";
 import InfluxFile from '../InfluxFile';
 import InfluxReactComponent from '../InfluxReactComponent';
 import * as React from "react";
@@ -14,20 +14,6 @@ const reactRoots = new WeakMap<HTMLElement, Root>();
 
 // Use a unique custom element name to avoid conflicts with other plugins
 const INFLUX_ELEMENT_TAG = "obsidian-influx-element";
-const INFLUX_EDITOR_CLASS = "influx-editor-has-widget";
-
-try {
-    customElements.define(INFLUX_ELEMENT_TAG, class extends HTMLElement {
-        disconnectedCallback() {
-            this.dispatchEvent(new CustomEvent("disconnected"))
-        }
-    })
-}
-catch (e) {
-    // Element already defined, which is fine
-}
-
-
 
 interface InfluxWidgetSpec {
     influxFile: InfluxFile;
@@ -37,8 +23,8 @@ interface InfluxWidgetSpec {
 
 
 export class InfluxWidget extends WidgetType {
-    protected influxFile
-    protected show
+    protected influxFile: InfluxFile
+    protected show: boolean
 
     constructor({ influxFile, show }: InfluxWidgetSpec) {
         super()
@@ -48,30 +34,40 @@ export class InfluxWidget extends WidgetType {
     }
 
     eq(influxWidget: WidgetType) {
-        // Proper comparison to avoid unnecessary re-renders
-        // Only recreate if show status or file path changes
         if (!(influxWidget instanceof InfluxWidget)) {
             return false;
         }
         return this.show === influxWidget.show &&
-               this.influxFile?.file?.path === influxWidget.influxFile?.file?.path;
+               this.influxFile === influxWidget.influxFile;
     }
 
-    toDOM(view: EditorView) {
+    toDOM() {
         const container = document.createElement(INFLUX_ELEMENT_TAG)
-        view.dom.classList.add(INFLUX_EDITOR_CLASS)
         container.style.display = 'block'
         container.style.width = '100%'
         container.id = `influx-react-anchor-${this.influxFile.uuid}`;
+        container.dataset.influxPath = this.influxFile.file?.path ?? '';
 
-        // Get or create React root using WeakMap for proper cleanup
-        // Use container directly as the React root anchor to ensure WeakMap key matches disconnect listener target
+        // CodeMirror owns the DOM lifetime, including temporary detachments.
         let root = reactRoots.get(container);
         if (!root) {
             root = createRoot(container);
             reactRoots.set(container, root);
         }
 
+        this.renderInto(root);
+        return container
+    }
+
+    updateDOM(container: HTMLElement): boolean {
+        const root = reactRoots.get(container);
+        if (!root || container.dataset.influxPath !== this.influxFile.file?.path) return false;
+        container.id = `influx-react-anchor-${this.influxFile.uuid}`;
+        this.renderInto(root);
+        return true;
+    }
+
+    private renderInto(root: Root): void {
         if (this.show) {
             root.render(<InfluxReactComponent
                 key={this.influxFile.file?.path || 'influx'}
@@ -83,34 +79,15 @@ export class InfluxWidget extends WidgetType {
         else {
             root.render(null)
         }
-
-        // Cleanup when element is disconnected from DOM
-        const disconnectedHandler = () => {
-            // Remove event listener to prevent memory leaks
-            container.removeEventListener("disconnected", disconnectedHandler);
-
-            // Unmount React root to prevent memory leaks
-            const rootToCleanup = reactRoots.get(container);
-            if (rootToCleanup) {
-                rootToCleanup.unmount();
-                reactRoots.delete(container);
-            }
-            // Deregister the influx component
-            this.unmount(this.influxFile);
-
-            if (!view.dom.querySelector(INFLUX_ELEMENT_TAG)) {
-                view.dom.classList.remove(INFLUX_EDITOR_CLASS)
-            }
-        };
-
-        container.addEventListener("disconnected", disconnectedHandler)
-
-        return container
     }
 
-
-    unmount(influxFile: InfluxFile) {
-        this.influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
+    destroy(container: HTMLElement): void {
+        const root = reactRoots.get(container);
+        if (root) {
+            root.unmount();
+            reactRoots.delete(container);
+        }
+        this.influxFile.influx.deregisterInfluxComponent(this.influxFile.uuid)
     }
 }
 

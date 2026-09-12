@@ -23,11 +23,10 @@ export class InlinkingFile {
         const content = await this.api.readFile(this.file)
         const struct = new StructuredText(content)
         const meta = this.api.getMetadata(this.file)
-        const links = meta?.links
-            ? meta.links.filter(link => this.api.compareLinkName(link, contextFile.file.basename))
-            : []
+        const links = [...(meta?.links ?? []), ...(meta?.embeds ?? [])]
+            .filter(link => this.api.isLinkToFile(link, this.file.path, contextFile.file))
         const lineNumbersOfLinks = links
-            .filter(link => link.position && link.position.start)
+            .filter(link => Number.isInteger(link.position?.start?.line) && link.position.start.line >= 0)
             .map(link => link.position.start.line)
 
         this.setTitle(meta)
@@ -48,7 +47,7 @@ export class InlinkingFile {
         const titleByFirstHeader = meta?.headings?.[0]
         this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
         // Explicitly set to undefined if no position data available
-        this.titleLineNum = titleByFirstHeader?.position?.start.line ?? undefined;
+        this.titleLineNum = titleByFirstHeader?.position?.start?.line ?? undefined;
     }
 
 }

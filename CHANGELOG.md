@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Open linked mention titles and preview links with their source note path, including relative links and links inside nested embeds.
+- Keep link opening independent of Backlink Cache and live refresh settings, with normal modifier and middle-click behavior.
+- Detect Backlink Cache loading, unloading, and settings changes before reusing cached results.
+- Keep all relevant changes when refresh requests overlap, and stop queued live refreshes when the option is disabled.
+- Refresh existing editor widgets without losing collapsed cards or blanking them during temporary DOM detachment.
+- Handle deleted notes, incomplete metadata, embedded backlinks, and notes with the same filename in different folders.
+- Keep other cards available when one Markdown preview fails to render.
+
+### Changed
+
+- Share the Markdown rendering limit across open sections and avoid a second backlink lookup after preparing an editor widget.
+- Tie editor scroll padding to the widget's decoration state.
+- Add DOM, cache, refresh, and widget lifecycle regression tests.
+
 ## [2.4.4] - 2026-09-06
 
 ### Changed
