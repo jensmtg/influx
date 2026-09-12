@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.4.5-beta.1] - 2026-09-12
+
+### Fixed
+
+- Collapse the whole results area, including note titles, when clicking Linked mentions; keep the heading and toolbar visible and restore each card's state when reopening.
+- Rotate each note's disclosure arrow right when collapsed and back down when expanded, using Obsidian's native animation.
+- Keep task checkboxes beside their text by using normal Markdown whitespace and spacing in both editing and reading views.
+- Apply native Markdown styles to excerpts, retain checkbox states in rendered snapshots, and keep wide content within mention cards.
+- Keep underscores and links intact in rendered titles, ignore invalid custom titles, and avoid hiding custom titles when a different heading contains a link.
+- Ignore stale link positions after lines are removed, so valid mentions remain available.
+- Keep parent context for plus-sign task lists and ordered lists that start at zero, use parentheses, or have leading zeros.
+- Keep collapsed cards closed during reading-view refreshes and keep connected popout previews during layout cleanup.
+- Open linked mention titles and preview links with their source note path, including relative links and links inside nested embeds.
+- Keep link opening independent of Backlink Cache and live refresh settings, with normal modifier and middle-click behavior.
+- Detect Backlink Cache loading, unloading, and settings changes before reusing cached results.
+- Keep all relevant changes when refresh requests overlap, and stop queued live refreshes when the option is disabled.
+- Refresh existing editor widgets without losing collapsed cards or blanking them during temporary DOM detachment.
+- Handle deleted notes, incomplete metadata, embedded backlinks, and notes with the same filename in different folders.
+- Keep other cards available when one Markdown preview fails to render.
+
+### Changed
+
+- Share the Markdown rendering limit across open sections and avoid a second backlink lookup after preparing an editor widget.
+- Tie editor scroll padding to the widget's decoration state.
+- Add DOM, cache, refresh, and widget lifecycle regression tests.
+
+## [2.4.4] - 2026-09-06
+
+### Changed
+
+- Added 12px of top and bottom padding and balanced 16px side padding inside linked mention boxes.
+- Added a small gap between each mention title and its excerpt.
+- Kept padded excerpts within their mention box in both layout variants and reading and editing views.
+
+## [2.4.2] - 2026-08-25
+
+### Fixed
+
+- Extended the table-cell backlink fixes to mobile so editing a markdown table no longer glitches the influx UI: the widget is now dropped synchronously while editing inside a table instead of being inserted/removed by the debounced recomputation mid-composition with the virtual keyboard open
+- Mobile caret taps that move into or out of a table now keep widget suppression in sync, since selection changes on mobile do not produce document changes
+
+## [2.4.0-beta.1] - 2026-08-21
+
+### Added
+
+- Optional Backlink Cache integration that uses its safe API automatically when active
+- Settings recommendation with Obsidian and GitHub links for Backlink Cache
+- Regression coverage for backlink additions, removals, lazy plugin detection, and bounded concurrency
+
+### Changed
+
+- Batched rapid metadata changes into one refresh pass
+- Applied list limits before reading and parsing backlink source notes
+- Limited source processing and Markdown rendering to eight concurrent jobs
+- Switched display reads to Obsidian's cached read path
+- Bounded settled backlink results to 32 target notes and limited concurrent scans to eight
+- Minified production bundles and selected React's production runtime
+
+### Fixed
+
+- Fixed stale backlink results that could require manually refreshing a note
+- Fixed async editor and React update races that could display an older result
+- Fixed quadratic allocations while indexing large structured notes
+- Released cached file references, source content, detached render elements, and closed preview state sooner
+
 ## [2.3.1] - 2025-01-30
 
 ### Added

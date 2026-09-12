@@ -45,6 +45,10 @@ const buildOptions = {
 	format: 'cjs',
 	target: 'es2020',
 	logLevel: "info",
+	minify: prod,
+	define: {
+		'process.env.NODE_ENV': JSON.stringify(prod ? 'production' : 'development'),
+	},
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
 	outfile: 'main.js',

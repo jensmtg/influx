@@ -32,13 +32,14 @@ export function compareLinkName(link: LinkCache, basename: string): boolean {
 }
 
 /**
- * Processes HTML content by removing paragraph tags and cleaning up underscores
+ * Unwraps a rendered title and removes its inline-rendering space prefix.
  * Extracted from ApiAdapter.renderAllMarkdownBlocks()
  */
 export function processTitleHTML(html: string): string {
     return html
-        .replace(/<\/?p[^>]*>/g, '')  // Remove <p>, </p> tags
-        .replace(/^_/, '');            // Remove leading underscore (now at start after p tag removal)
+        .replace(/<\/?p(?:\s[^>]*)?>/gi, '')
+        .replace(/^(?: |&#32;)/, '')
+        .trim();
 }
 
 /**

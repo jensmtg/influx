@@ -4,6 +4,7 @@ import { ExtendedInlinkingFile } from './apiAdapter';
 import { ObsidianInfluxSettings } from "./main";
 import { TFile } from "obsidian";
 import { StyleSheetType } from "./createStyleSheet";
+import { openInfluxLink } from './link-navigation';
 
 
 interface InfluxReactComponentProps { influxFile: InfluxFile, preview: boolean, sheet: StyleSheetType }
@@ -18,61 +19,98 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 	const [components, setComponents] = React.useState(influxFile.components)
 	const [stylesheet, setStyleSheet] = React.useState(sheet)
-	const [collapsed, setCollapsed]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState(influxFile.collapsed ? components.map(component => component.inlinkingFile.file.basename) : [])
-	const [toggleAllToOpen, setToggleAllToOpen] = React.useState(influxFile.collapsed)
+	const [collapsed, setCollapsed]: [string[], React.Dispatch<React.SetStateAction<string[]>>] = React.useState(influxFile.collapsed ? components.map(component => component.inlinkingFile.file.path) : [])
+	const [sectionCollapsed, setSectionCollapsed] = React.useState(false)
+	const resultsId = React.useId()
+	const expandAllOnClick = sectionCollapsed || (components.length > 0 && components.every(component => collapsed.includes(component.inlinkingFile.file.path)))
+	const updateGeneration = React.useRef(0)
+	const updateQueue = React.useRef<Promise<void>>(Promise.resolve())
 
-	const doToggle = (basename: string) => {
-		if (collapsed.includes(basename)) {
-			setCollapsed(collapsed.filter(name => name !== basename))
-		}
-		else {
-			setCollapsed([...collapsed, basename])
-		}
+	const doToggle = (sourcePath: string) => {
+		setCollapsed(paths => paths.includes(sourcePath)
+			? paths.filter(path => path !== sourcePath)
+			: [...paths, sourcePath])
 	}
 
 	const toggleAll = () => {
-		const all = components.map(component => component.inlinkingFile.file.basename)
-		if (toggleAllToOpen) {
+		const all = components.map(component => component.inlinkingFile.file.path)
+		if (expandAllOnClick) {
+			setSectionCollapsed(false)
 			setCollapsed([])
-			setToggleAllToOpen(false)
 		}
 		else {
 			setCollapsed(all)
-			setToggleAllToOpen(true)
 		}
 	}
 
 	React.useEffect(() => {
+		// A rebuilt editor decoration can reuse this React root. Refresh its
+		// content while keeping the user's collapsed cards and controls.
+		setComponents(influxFile.components)
+		setStyleSheet(sheet)
+		const pendingFiles = new Map<string, TFile>()
+		let needsFullRefresh = false
 
-		const respondToUpdateTrigger: (op: string, stylesheet: StyleSheetType, file?: TFile) => void = async (op, stylesheet, file) => {
+		const respondToUpdateTrigger = (op: string, stylesheet: StyleSheetType, files?: readonly TFile[]): Promise<void> => {
+			if (op === 'modify' && files) {
+				for (const file of files) pendingFiles.set(file.path, file)
+			} else {
+				needsFullRefresh = true
+			}
+			const generation = ++updateGeneration.current
+			const runUpdate = async () => {
+				if (generation !== updateGeneration.current) {
+					return
+				}
 
-			if (op === 'modify' && !influxFile.shouldUpdate(file)) {
-				return
+				let backlinksRefreshed = false
+				if (!needsFullRefresh) {
+					if (!await influxFile.shouldUpdate([...pendingFiles.values()])) {
+						if (generation === updateGeneration.current) pendingFiles.clear()
+						return
+					}
+					backlinksRefreshed = true
+				}
+
+				if (generation !== updateGeneration.current) {
+					return
+				}
+
+				await influxFile.prepare(!backlinksRefreshed)
+				if (generation !== updateGeneration.current) {
+					return
+				}
+
+				setStyleSheet(preview ? influxFile.influx.stylesheetForPreview : stylesheet)
+				setComponents([...influxFile.components])
+				pendingFiles.clear()
+				needsFullRefresh = false
 			}
 
-			setStyleSheet(stylesheet)
-			await influxFile.makeInfluxList()
-			setComponents(await influxFile.renderAllMarkdownBlocks())
-
+			const queued = updateQueue.current.then(runUpdate, runUpdate)
+			updateQueue.current = queued
+			return queued
 		}
 
 		influxFile.influx.registerInfluxComponent(influxFile.uuid, respondToUpdateTrigger)
 
 		return () => {
+			updateGeneration.current++
 			influxFile.influx.deregisterInfluxComponent(influxFile.uuid)
 		}
-	}, [])
+	}, [influxFile, preview, sheet])
 
 	const classes = stylesheet.classes
 
 	// const length = influxFile?.inlinkingFiles.length || 0
-	const shownLength = influxFile?.components.length || 0
+	const shownLength = components.length
 
 	const settings: Partial<ObsidianInfluxSettings> = influxFile.api.getSettings()
 
 	const centered = settings.variant !== 'ROWS'
+	const showEmptyState = Boolean(settings.showWithoutBacklinks && shownLength === 0)
 
-	if (!influxFile.show || shownLength === 0) {
+	if (!influxFile.show || (shownLength === 0 && !showEmptyState)) {
 		return null
 	}
 	
@@ -84,7 +122,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 		}}
 		> 
 
-			<div className="nav-header">
+			{shownLength > 0 && (
+				<div className="nav-header">
 
 				<div className="nav-buttons-container">
 					{/* <div className="clickable-icon nav-action-button" aria-label="Collapse results">
@@ -104,7 +143,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 						</svg>
 					</div> */}
 					<div className="clickable-icon nav-action-button"
-						aria-label={toggleAllToOpen ? 'Expand all' : 'Collapse all'}
+						aria-label={expandAllOnClick ? 'Expand all' : 'Collapse all'}
 						onClick={() => toggleAll()}
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon lucide-move-vertical">
@@ -141,9 +180,10 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 							</line>
 						</svg>
 					</div> */}
-				</div>
+					</div>
 
-			</div>
+				</div>
+			)}
 
 
 			<div className="search-input-container" style={{ display: "none" }}>
@@ -158,11 +198,18 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 			<div className="backlink-pane">
 
 				<div
-					onClick={() => toggleAll()}
-					className={`tree-item-self is-clickable 
-					${'' //	isOpen ? '' : 'is-collapsed'
-						}`}
-				// aria-label={isOpen ? "Click to collapse" : "Click to expand"}
+					onClick={() => setSectionCollapsed(value => !value)}
+					onKeyDown={event => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault()
+							setSectionCollapsed(value => !value)
+						}
+					}}
+					role="button"
+					tabIndex={0}
+					aria-expanded={!sectionCollapsed}
+					aria-controls={resultsId}
+					className={`tree-item-self is-clickable ${sectionCollapsed ? 'is-collapsed' : ''}`}
 				>
 
 					{/* <span className="tree-item-icon collapse-icon">
@@ -180,14 +227,23 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 					</div>
 				</div>
 
-				<div className="search-result-container">
+				<div className="search-result-container"
+					id={resultsId}
+					hidden={sectionCollapsed}
+					style={sectionCollapsed ? { display: 'none' } : undefined}
+				>
 
 
 					<div className="search-results-children" >
 
+						{showEmptyState && (
+							<div className="search-empty-state">No linked mentions found.</div>
+						)}
+
 						{components.map((extended: ExtendedInlinkingFile) => {
 
-							const inlinkedCollapsed = collapsed.includes(extended.inlinkingFile.file.basename)
+							const sourcePath = extended.inlinkingFile.file.path
+							const inlinkedCollapsed = collapsed.includes(sourcePath)
 
 							const entryHeader = settings.entryHeaderVisible && extended.titleInnerHTML && !extended.inlinkingFile.isLinkInTitle ? (
 								<h2>
@@ -200,7 +256,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 							return (
 
-								<div key={extended.inlinkingFile.file.basename}
+								<div key={sourcePath}
+									onClickCapture={event => { void openInfluxLink(event, influxFile.api.app, sourcePath) }}
+									onAuxClickCapture={event => { void openInfluxLink(event, influxFile.api.app, sourcePath) }}
 									className={`tree-item search-result ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
 									style={centered ? { display: 'flex', alignItems: 'flex-start' } : {}}
 								>
@@ -208,8 +266,18 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 										style={centered ? { width: '160px', minWidth: '160px' } : {}}>
 
 
-										<div className="tree-item-icon collapse-icon"
-											onClick={() => doToggle(extended.inlinkingFile.file.basename)}
+										<div className={`tree-item-icon collapse-icon ${inlinkedCollapsed ? 'is-collapsed' : ''}`}
+											onClick={() => doToggle(sourcePath)}
+											onKeyDown={event => {
+												if (event.key === 'Enter' || event.key === ' ') {
+													event.preventDefault()
+													doToggle(sourcePath)
+												}
+											}}
+											role="button"
+											tabIndex={0}
+											aria-label={`${inlinkedCollapsed ? 'Expand' : 'Collapse'} ${extended.inlinkingFile.file.basename}`}
+											aria-expanded={!inlinkedCollapsed}
 										>
 											<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon right-triangle">
 												<path d="M3 8L12 17L21 8"></path>
@@ -218,11 +286,9 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 
 										<div className="tree-item-inner">
 											<a
-												data-href={extended.inlinkingFile.file.basename}
-												href={extended.inlinkingFile.file.basename}
+												data-href={sourcePath}
+												href={sourcePath}
 												className="internal-link"
-												target="_blank"
-												rel="noopener"
 											>
 												{extended.inlinkingFile.file.basename}
 											</a>
@@ -240,8 +306,8 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 											<div className={classes.inlinkedEntries} >
 												{entryHeader}
 												<div
-														dangerouslySetInnerHTML={{ __html: extended.inner.innerHTML }}
-														className={classes.inlinkedEntry}
+														dangerouslySetInnerHTML={{ __html: extended.innerHTML }}
+														className={`markdown-rendered ${classes.inlinkedEntry}`}
 													/>
 											</div>
 										</div>

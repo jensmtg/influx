@@ -12,6 +12,12 @@
     "importHelpers": true,
     "isolatedModules": true,
     "skipLibCheck": true,
+    "types": [
+      "node",
+      "jest",
+      "react",
+      "react-dom"
+    ],
     "lib": [
       "DOM",
       "ES5",

@@ -152,6 +152,10 @@ describe('Link Utils', () => {
     });
 
     describe('processTitleHTML', () => {
+        test('keeps SVG paths and other elements whose tag name starts with p', () => {
+            expect(processTitleHTML('<p dir="auto"> <svg><path d="M0 0" /></svg><picture>image</picture></p>'))
+                .toBe('<svg><path d="M0 0" /></svg><picture>image</picture>');
+        });
         test('should remove paragraph tags', () => {
             // Arrange
             const html = '<p>Test Title</p>';
@@ -163,7 +167,7 @@ describe('Link Utils', () => {
             expect(result).toBe('Test Title');
         });
 
-        test('should remove leading underscore after p tag removal', () => {
+        test('keeps underscores that belong to the title', () => {
             // Arrange
             const html = '<p>_Test Title</p>';
 
@@ -171,7 +175,13 @@ describe('Link Utils', () => {
             const result = processTitleHTML(html);
 
             // Assert
-            expect(result).toBe('Test Title');
+            expect(result).toBe('_Test Title');
+        });
+
+        test.each([' ', '&#32;'])('removes only the title prefix %s and keeps link markup', prefix => {
+            const link = '<a class="internal-link" data-href="Source_">Source_</a>';
+            expect(processTitleHTML(`<p dir="auto">${prefix}${link}</p>\n`)).toBe(link);
+            expect(processTitleHTML(`<p>${prefix}_Source_</p>\n`)).toBe('_Source_');
         });
 
         test('should handle multiple paragraph tags', () => {

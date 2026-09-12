@@ -1,8 +1,15 @@
-import { TFile, CachedMetadata } from 'obsidian';
+import { TFile } from 'obsidian';
 import { ApiAdapter, BacklinksObject, ExtendedInlinkingFile } from './apiAdapter';
 import { InlinkingFile } from './InlinkingFile';
 import ObsidianInflux from './main';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    getBacklinkSourcePaths,
+    hasBacklinkEntries,
+} from './backlink-utils';
+import { mapWithConcurrency } from './async-utils';
+
+const MAX_CONCURRENT_SOURCE_JOBS = 8;
 
 
 export default class InfluxFile {
@@ -10,7 +17,6 @@ export default class InfluxFile {
     api: ApiAdapter;
     influx: ObsidianInflux;
     file: TFile;
-    meta: CachedMetadata;
     backlinks: BacklinksObject;
     inlinkingFiles: InlinkingFile[];
     components: ExtendedInlinkingFile[];
@@ -36,7 +42,6 @@ export default class InfluxFile {
         // Initialize with default values
         this.show = false
         this.collapsed = false
-        this.meta = null
         this.backlinks = null
         this.inlinkingFiles = []
         this.components = []
@@ -50,29 +55,87 @@ export default class InfluxFile {
         if (!this.file) {
             return;
         }
-        this.meta = this.api.getMetadata(this.file)
-        this.backlinks = this.api.getBacklinks(this.file)
-        this.show = this.api.getShowStatus(this.file)
-        this.collapsed = this.api.getCollapsedStatus(this.file)
+        await this.refreshBacklinks()
+    }
+
+    hasBacklinks(): boolean {
+        return hasBacklinkEntries(this.backlinks)
+    }
+
+    /**
+     * Build everything needed by the UI, stopping before expensive work whenever
+     * there is nothing that can produce a visible entry.
+     */
+    async prepare(refreshBacklinks = false): Promise<boolean> {
+        this.components = []
+
+        if (refreshBacklinks) {
+            await this.refreshBacklinks()
+        }
+
+        if (!this.file || !this.show) {
+            this.inlinkingFiles = []
+            return false
+        }
+
+        if (!this.hasBacklinks()) {
+            this.inlinkingFiles = []
+            return this.api.getSettings().showWithoutBacklinks
+        }
+
+        await this.makeInfluxList()
+        if (this.inlinkingFiles.length === 0) {
+            return this.api.getSettings().showWithoutBacklinks
+        }
+
+        await this.renderAllMarkdownBlocks()
+        return this.components.length > 0 || this.api.getSettings().showWithoutBacklinks
     }
 
     // is the file that triggers update part of the current files inlinked files?
-    shouldUpdate(file: TFile) {
-        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
-        if (!this.backlinks || !this.backlinks.data) {
-            return false
+    async shouldUpdate(files: TFile | readonly TFile[]): Promise<boolean> {
+        const changedFiles = Array.isArray(files) ? files : [files]
+        const previousPaths = new Set(getBacklinkSourcePaths(this.backlinks))
+        await this.refreshBacklinks()
+        const currentPaths = new Set(getBacklinkSourcePaths(this.backlinks))
+
+        // Include the old set so removing the final link still clears the UI.
+        return changedFiles.some(file =>
+            file.path === this.file?.path
+            || previousPaths.has(file.path)
+            || currentPaths.has(file.path),
+        )
+    }
+
+    private async refreshBacklinks(): Promise<void> {
+        if (this.file) this.file = this.api.getFileByPath(this.file.path)
+        if (!this.file) {
+            this.backlinks = null
+            this.show = false
+            this.collapsed = false
+            return
         }
-        const paths = this.backlinks.data instanceof Map
-            ? Array.from(this.backlinks.data.keys())
-            : Object.keys(this.backlinks.data)
-        return paths.includes(file.path)
+
+        this.backlinks = await this.api.getBacklinks(this.file)
+
+        // Target-note filters still decide whether the section belongs on the
+        // page when the optional empty state is enabled.
+        this.show = this.api.getShowStatus(this.file)
+
+        // Backlink-free notes do not need metadata, filter, excerpt, or Markdown work.
+        if (!this.hasBacklinks()) {
+            this.collapsed = false
+            return
+        }
+
+        this.collapsed = this.api.getCollapsedStatus(this.file)
     }
 
     async makeInfluxList() {
-        this.backlinks = this.api.getBacklinks(this.file) // Must refresh in case of renamings.
         const inlinkingFilesNew: InlinkingFile[] = []
-        if (!this.backlinks || !this.backlinks.data) {
+        if (!this.show || !this.hasBacklinks()) {
             this.inlinkingFiles = inlinkingFilesNew
+            this.components = []
             return
         }
         const validPaths: string[] = []
@@ -81,8 +144,8 @@ export default class InfluxFile {
             ? this.backlinks.data.entries()
             : Object.entries(this.backlinks.data);
 
-        for (const [pathAsKey] of entries) {
-            if (pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
+        for (const [pathAsKey, links] of entries) {
+            if (Array.isArray(links) && links.length > 0 && pathAsKey !== this.file.path && this.api.isIncludableSource(pathAsKey)) {
                 validPaths.push(pathAsKey);
             }
         }
@@ -94,28 +157,59 @@ export default class InfluxFile {
                 validFiles.push(file)
             }
         }
-        await Promise.all(validFiles.map(async (file: TFile) => {
+        const sortedFiles = this.api.sortFilesForRendering(validFiles)
+        const listLimit = this.api.getSettings().listLimit
+        const processFile = async (file: TFile): Promise<InlinkingFile | null> => {
             try {
                 const inlinkingFile = new InlinkingFile(file, this.api);
                 await inlinkingFile.makeSummary(this);
-                inlinkingFilesNew.push(inlinkingFile);
+                return inlinkingFile;
             } catch (error) {
                 console.error(`[Influx] Failed to process file ${file.path}:`, error);
                 // Continue processing other files
+                return null;
             }
-        }))
-        this.inlinkingFiles = inlinkingFilesNew
+        }
+
+        const processedFiles: InlinkingFile[] = []
+        if (listLimit > 0) {
+            let nextIndex = 0
+            while (nextIndex < sortedFiles.length && processedFiles.length < listLimit) {
+                const remainingSlots = listLimit - processedFiles.length
+                const batchSize = Math.min(MAX_CONCURRENT_SOURCE_JOBS, remainingSlots)
+                const batch = sortedFiles.slice(nextIndex, nextIndex + batchSize)
+                nextIndex += batch.length
+                const results = await mapWithConcurrency(batch, MAX_CONCURRENT_SOURCE_JOBS, processFile)
+                processedFiles.push(...results.filter(
+                    (file): file is InlinkingFile => file !== null,
+                ))
+            }
+        } else {
+            const results = await mapWithConcurrency(
+                sortedFiles,
+                MAX_CONCURRENT_SOURCE_JOBS,
+                processFile,
+            )
+            processedFiles.push(...results.filter(
+                (file): file is InlinkingFile => file !== null,
+            ))
+        }
+        this.inlinkingFiles = processedFiles
 
         // Warn user if some files failed to process
-        if (inlinkingFilesNew.length < validFiles.length) {
-            console.warn(`[Influx] Only ${inlinkingFilesNew.length} of ${validFiles.length} files processed successfully`);
+        const expectedCount = listLimit > 0
+            ? Math.min(listLimit, sortedFiles.length)
+            : sortedFiles.length
+        if (this.inlinkingFiles.length < expectedCount) {
+            console.warn(`[Influx] Only ${this.inlinkingFiles.length} of ${expectedCount} files processed successfully`);
         }
     }
     async renderAllMarkdownBlocks() {
 
         // Avoid rendering if no-show
-        if (!this.show) {
-            return
+        if (!this.show || this.inlinkingFiles.length === 0) {
+            this.components = []
+            return this.components
         }
 
         const components = await this.api.renderAllMarkdownBlocks(this.inlinkingFiles)
@@ -125,4 +219,3 @@ export default class InfluxFile {
 
 
 }
-

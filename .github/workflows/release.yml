@@ -23,8 +23,8 @@ jobs:
       - name: Build
         id: build
         run: |
-          yarn
-          yarn run build --if-present
+          npm ci
+          npm run build
           mkdir ${{ env.PLUGIN_NAME }}
           cp main.js manifest.json ${{ env.PLUGIN_NAME }}
           zip -r ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}
@@ -35,10 +35,10 @@ jobs:
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.ref }}
+          VERSION: ${{ steps.build.outputs.tag_name }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+          tag_name: ${{ steps.build.outputs.tag_name }}
+          release_name: ${{ steps.build.outputs.tag_name }}
           draft: false
           prerelease: false
       - name: Upload zip file

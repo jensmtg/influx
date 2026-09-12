@@ -6,7 +6,7 @@
 import { NodeType } from './StructuredText';
 
 // Constants
-export const ORDERED_LISTITEM_REGEX = /^(\d+)[.] /gm;
+export const ORDERED_LISTITEM_REGEX = /^(\d+)[.)] /gm;
 export const TABLE_ROW_REGEX = /^\|(.+)\|(.*)\|/gm;
 export const DASH_SIGN = '- ';
 export const BULLET_SIGN = '* ';
@@ -16,13 +16,9 @@ export const BULLET_SIGN = '* ';
  * Extracted from StructuredText.parseText()
  */
 export function lastNonEmptyElement(stack: string[], offset = 0): string | null {
-    let ret = offset === 0 ? [...stack] : [...stack].slice(0, -offset);
-    for (let i = ret.length - 1; i >= 0; i--) {
-        if (!ret[i]) {
-            ret = ret.slice(0, i);
-        }
-        else {
-            return ret[i];
+    for (let i = stack.length - 1 - offset; i >= 0; i--) {
+        if (stack[i]) {
+            return stack[i];
         }
     }
     return null;
@@ -71,11 +67,11 @@ export function parseMarkdownTableRow(row: string): { cols: number; isDivider: b
 }
 
 /**
- * Checks if a trimmed line is a proper bullet (starts with '* ' or '- ')
+ * Checks the three Markdown unordered-list markers.
  * Extracted from StructuredText.parseText()
  */
 export function isProperBullet(trimmed: string): boolean {
-    return [DASH_SIGN, BULLET_SIGN].includes(trimmed.substring(0, 2));
+    return [DASH_SIGN, BULLET_SIGN, '+ '].includes(trimmed.substring(0, 2));
 }
 
 /**
@@ -114,6 +110,6 @@ export function stripBulletMarker(trimmed: string): string {
  * Strips the ordinal and marker from an ordered list item
  * Extracted from StructuredText.parseText()
  */
-export function stripOrdinalMarker(trimmed: string, ordinal: number): string {
-    return trimmed.slice(String(ordinal).length + 2);
+export function stripOrdinalMarker(trimmed: string, _ordinal: number): string {
+    return trimmed.replace(/^\d+[.)] /, '');
 }
