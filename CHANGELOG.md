@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.5-beta.1] - 2026-09-12
+
 ### Fixed
 
+- Keep task checkboxes beside their text by using normal Markdown whitespace and spacing in both editing and reading views.
+- Apply native Markdown styles to excerpts, retain checkbox states in rendered snapshots, and keep wide content within mention cards.
+- Keep underscores and links intact in rendered titles, ignore invalid custom titles, and avoid hiding custom titles when a different heading contains a link.
+- Ignore stale link positions after lines are removed, so valid mentions remain available.
+- Keep parent context for plus-sign task lists and ordered lists that start at zero, use parentheses, or have leading zeros.
+- Keep collapsed cards closed during reading-view refreshes and keep connected popout previews during layout cleanup.
 - Open linked mention titles and preview links with their source note path, including relative links and links inside nested embeds.
 - Keep link opening independent of Backlink Cache and live refresh settings, with normal modifier and middle-click behavior.
 - Detect Backlink Cache loading, unloading, and settings changes before reusing cached results.

@@ -24,3 +24,29 @@ test('incomplete heading and link positions do not break a card', async () => {
     expect(source.title).toBe('Heading');
     expect(source.titleLineNum).toBeUndefined();
 });
+
+test.each([{}, ['Title'], 123, true, '   '])('ignores invalid custom title %j', title => {
+    const source = new InlinkingFile({ path: 'Source.md' } as any, {} as any);
+    source.setTitle({
+        frontmatter: { 'influx-title': title },
+        headings: [{ heading: 'Heading', position: { start: { line: 3 } } }],
+    } as any);
+    expect(source.title).toBe('Heading');
+    expect(source.titleLineNum).toBe(3);
+});
+
+test('does not hide a custom title because a different heading contains a link', async () => {
+    const source = new InlinkingFile({ path: 'Source.md' } as any, {
+        readFile: async () => '# [[Target]]\n\nUnrelated paragraph',
+        getMetadata: () => ({
+            frontmatter: { 'influx-title': 'Custom title' },
+            headings: [{ heading: '[[Target]]', position: { start: { line: 0 } } }],
+            links: [{ link: 'Target', position: { start: { line: 0 } } }],
+        }),
+        isLinkToFile: () => true,
+    } as any);
+    await source.makeSummary({ file: { path: 'Target.md' } } as any);
+    expect(source.title).toBe('Custom title');
+    expect(source.isLinkInTitle).toBe(false);
+    expect(source.summary).not.toContain('Unrelated paragraph');
+});

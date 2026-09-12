@@ -286,7 +286,7 @@ export default function InfluxReactComponent(props: InfluxReactComponentProps): 
 												{entryHeader}
 												<div
 														dangerouslySetInnerHTML={{ __html: extended.innerHTML }}
-														className={classes.inlinkedEntry}
+														className={`markdown-rendered ${classes.inlinkedEntry}`}
 													/>
 											</div>
 										</div>

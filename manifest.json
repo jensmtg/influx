@@ -1,7 +1,7 @@
 {
 	"id": "influx",
 	"name": "Influx",
-	"version": "2.4.4",
+	"version": "2.4.5-beta.1",
 	"minAppVersion": "1.0.0",
 	"description": "Transform your Obsidian backlinks from simple links into rich, contextual excerpts. See the actual content surrounding each link, turning your note connections into genuine insights.",
 	"author": "Jens M Gleditsch",

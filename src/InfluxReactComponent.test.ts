@@ -17,8 +17,8 @@ jest.mock('obsidian', () => ({
         event.button === 1 || event.metaKey || event.ctrlKey ? (event.shiftKey ? 'split' : 'tab') : false) },
     Notice: jest.fn(),
     MarkdownRenderer: { render: jest.fn(async (_app: unknown, markdown: string, element: HTMLElement) => {
-        element.innerHTML = markdown.startsWith('_')
-            ? '<p>_Title <a class="internal-link" data-href="../Linked#Details"><strong>Title link</strong></a></p>'
+        element.innerHTML = markdown.startsWith('&#32;')
+            ? '<p> Title <a class="internal-link" data-href="../Linked#Details"><strong>Title link</strong></a></p>'
             : '<p>Preview <a class="internal-link" data-href="./Sibling#^part"><em>Preview link</em></a> <a class="external-link" href="https://example.com">Website</a></p>';
     }) },
 }), { virtual: true });
@@ -298,4 +298,34 @@ test('reusing a root refreshes the content while keeping collapsed cards', async
     await mount(refreshed);
     expect(container.querySelector('.entry')?.textContent).toBe('New excerpt');
     expect((container.querySelector('.search-result-file-matches') as HTMLElement).style.display).toBe('none');
+});
+
+test('renders titles inline without adding Markdown emphasis or deleting real underscores', async () => {
+    const { api, source } = await fixture();
+    const render = MarkdownRenderer.render as jest.Mock;
+    render.mockClear();
+    render.mockImplementationOnce(async (_app, markdown, element) => {
+        element.innerHTML = `<p>${markdown}</p>`;
+    });
+    const results = await api.renderAllMarkdownBlocks([
+        { file: source, title: 'Source_\n[[Linked]]', summary: 'Preview' },
+    ] as any);
+    expect(render.mock.calls[0][1]).toBe('&#32;Source_ [[Linked]]');
+    expect(results[0].titleInnerHTML).toBe('Source_ [[Linked]]');
+});
+
+test.each([false, true])('keeps task checkbox state and native Markdown styles in reading view: %s', async preview => {
+    const { api, file } = await fixture();
+    (MarkdownRenderer.render as jest.Mock).mockImplementationOnce(async (_app, _markdown, element) => {
+        element.innerHTML = '<ul><li class="task-list-item"><input type="checkbox">Done</li><li class="task-list-item"><input type="checkbox" checked>Open</li></ul>';
+        const inputs = element.querySelectorAll('input');
+        inputs[0].checked = true;
+        inputs[1].checked = false;
+    });
+    file.components[0].innerHTML = await api.renderMarkdown('Tasks', 'Sources/Source.md');
+    await mount(file, preview);
+    expect(container.querySelector('.entry')?.classList.contains('markdown-rendered')).toBe(true);
+    const inputs = container.querySelectorAll<HTMLInputElement>('.entry input');
+    expect(Array.from(inputs, input => input.checked)).toEqual([true, false]);
+    expect(Array.from(inputs, input => input.disabled)).toEqual([true, true]);
 });

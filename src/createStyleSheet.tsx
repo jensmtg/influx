@@ -47,6 +47,8 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
 
                 influxComponent: {
                     marginTop: `3em`, //--line-height-normal is 1.5
+                    // Rendered Markdown must not inherit CodeMirror's pre-wrap.
+                    whiteSpace: 'normal',
                     // animation: 'fadeIn .6s',
 
                     // Obsidian's generic backlink UI expands these wrappers to
@@ -58,6 +60,9 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                     '& .search-result-container': {
                         flex: '0 0 auto',
                     },
+                    '& .search-result-file-matches': {
+                        minWidth: 0,
+                    },
 
                 },
 
@@ -66,6 +71,7 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                     lineHeight: `${props.lineHeight}px`,
                     width: '100%',
                     maxWidth: '100%',
+                    minWidth: 0,
                     boxSizing: 'border-box',
                     display: 'flex',
                     flexDirection: 'column',
@@ -99,38 +105,38 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
 
 
                     '--checkbox-size': `${props.fontSize}px`,
-
-                    paddingBottom: !props.preview ? `${props.lineHeight}px !important` : '',
+                    '--font-text-size': `${props.fontSize}px`,
+                    '--line-height-normal': `${props.lineHeight / props.fontSize}`,
+                    minWidth: 0,
+                    overflowX: 'auto',
 
                     '& input[type=checkbox]': {
-                        marginTop: `-${props.lineHeight}px`,
+                        marginBlock: 0,
+                        marginInlineEnd: '0.5em',
+                        verticalAlign: 'middle',
+                        top: 0,
                     },
 
-                    '& li, & h1, & ul, & input, & blockquote, & p, & .callout, & .callout-title, & ol': {
-                        marginBlockEnd: !props.preview ? `-${props.lineHeight}px !important` : '',
+                    '& li': {
+                        marginBlock: 0,
                     },
 
-                    '& li:nth-child(1)': {
-                        marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+                    '& ul, & ol': {
+                        marginBlock: 0,
                     },
 
-                    '& ul': {
-                        marginTop: `${0}px`,
-                        paddingInlineStart: `${20}px`,
-                        marginBlockEnd: props.preview ? `0px !important` : '',
-
+                    '& p, & blockquote': {
+                        marginBlockStart: 0,
+                        marginBlockEnd: '0.5em',
                     },
 
-                    '& p': {
-                        paddingInlineStart: `${0}px`,
-                        marginBlockStart: `auto`,
-                        marginBlockEnd: props.preview ? `0px !important` : '',
+                    '& > :first-child': {
+                        marginBlockStart: 0,
                     },
 
-                    '& li p': {
-                        marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
+                    '& > :last-child, & li > p:last-child, & blockquote > :last-child': {
+                        marginBlockEnd: 0,
                     },
-
 
                     '& blockquote': {
                         borderLeft: 'var(--blockquote-border-thickness) solid',
@@ -139,9 +145,6 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
                         paddingInlineStart: `${props.lineHeight/2}px`,
                         marginInlineStart: 0,
                         marginInlineEnd: 0,
-                        '& p': {
-                            marginBlockStart: !props.preview ? `-${props.lineHeight}px !important` : '',
-                        },
                     },
 
                     '& .callout': {
@@ -200,8 +203,6 @@ export function createStyleSheet(api: ApiAdapter, preview=false) {
     return sheet
 
 }
-
-
 
 
 

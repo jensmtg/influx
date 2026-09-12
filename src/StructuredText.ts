@@ -4,7 +4,8 @@ import {
     parseMarkdownTableRow,
     isProperBullet,
     calculateLeadingIndent,
-    generateNodeId
+    generateNodeId,
+    stripOrdinalMarker
 } from './structuredtext-utils';
 
 const FRONTMATTER_SIGN = '---'
@@ -173,7 +174,7 @@ export class StructuredText {
                 stripped = strippedBeforeNextChar
 
                 const indentFromQuoteLevel = strippedAfterLastQuote.search(/\S|$/);
-                isQuotedBullet = [DASH_SIGN, BULLET_SIGN].includes(strippedBeforeNextChar.substring(0, 2))
+                isQuotedBullet = isProperBullet(strippedBeforeNextChar)
 
                 if (strippedBeforeNextChar.substring(0, 2) === CALLOUT_HEADER_SIGN) {
                     if (mode !== ModeType.CallOut) {
@@ -213,14 +214,14 @@ export class StructuredText {
                 ordinal = ifOrderedListItemReturnOrdinal(trimmed)
                 tr = parseMarkdownTableRow(trimmed)
 
-                if (ordinal) {
+                if (ordinal !== undefined) {
                     if (mode !== ModeType.List) {
                         mode = ModeType.List
                         isFirstOfMode = true
                         stack = []
                     }
                     type = NodeType.ListOrdered
-                    stripped = trimmed.slice(String(ordinal).length + 2)
+                    stripped = stripOrdinalMarker(trimmed, ordinal)
                     indent = leadingIndent
                 }
 
@@ -390,7 +391,7 @@ export class StructuredText {
 
                     this.ancestors[id].forEach(_id => {
                         const anc = this.internals[_id]
-                        if (anc.ordinal) {
+                        if (anc.ordinal !== undefined) {
                             str += OUTPUT_INDENT.repeat(String(anc.ordinal).length + OUTPUT_ORDINAL_SIGN.length)
                         }
                         else {
@@ -484,6 +485,9 @@ export class StructuredText {
         lineNumbers.forEach(lineNumber => {
 
             const id: NodeId = `${lineNumber}`.padStart(4, '0')
+
+            // Metadata can still refer to lines removed by the latest edit.
+            if (!this.internals[id]) return
 
             explIncludes[lineNumber] = true
             this.ancestors[id].forEach(_id => { explIncludes[Number(_id)] = true })

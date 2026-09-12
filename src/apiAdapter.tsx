@@ -242,6 +242,8 @@ export class ApiAdapter {
             const checkboxes = Array.from(div.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
             for (const checkbox of checkboxes) {
                 checkbox.disabled = true;
+                // Post-processors can change the property without the attribute.
+                checkbox.toggleAttribute('checked', checkbox.checked);
             }
             return div.innerHTML;
         } finally {
@@ -399,7 +401,9 @@ export class ApiAdapter {
             async (inlinkingFile) => {
                 try {
                     const [titleAsMd, summaryAsMd] = await Promise.all([
-                        this.renderMarkdown(inlinkingFile.title ? `_${inlinkingFile.title}` : '', inlinkingFile.file.path),
+                        // A leading space entity keeps titles inline without
+                        // pairing an extra underscore with their own formatting.
+                        this.renderMarkdown(inlinkingFile.title ? `&#32;${inlinkingFile.title.replace(/\r?\n/g, ' ')}` : '', inlinkingFile.file.path),
                         this.renderMarkdown(inlinkingFile.summary, inlinkingFile.file.path),
                     ])
                     return {

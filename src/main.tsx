@@ -265,11 +265,8 @@ export default class ObsidianInflux extends Plugin {
 	private cleanupReactRoots(): void {
 		const toDelete: HTMLElement[] = [];
 		for (const [container, root] of this.previewReactRoots) {
-			// Check if container is no longer in DOM or is in a hidden element
-			const isInDom = document.body.contains(container);
-			const isVisible = container.offsetParent !== null || isInDom;
-
-			if (!isInDom || !isVisible) {
+			// A popout preview belongs to its own document, not document.body.
+			if (!container.isConnected || container.ownerDocument.defaultView?.closed) {
 				root.unmount();
 				toDelete.push(container);
 			}
@@ -768,7 +765,7 @@ export default class ObsidianInflux extends Plugin {
 
 		// Render or update the React component
 		anchor.render(<InfluxReactComponent
-			key={influxFile.uuid}
+			key={influxFile.file?.path || 'influx'}
 			influxFile={influxFile}
 			preview={true}
 			sheet={this.stylesheetForPreview}
@@ -871,7 +868,7 @@ export default class ObsidianInflux extends Plugin {
 			this.previewReactRoots.set(influxContainer, anchor);
 			this.trackPreviewContainer(filePath, influxContainer);
 			anchor.render(<InfluxReactComponent
-				key={influxFile.uuid}
+				key={influxFile.file?.path || 'influx'}
 				influxFile={influxFile}
 				preview={true}
 				sheet={this.stylesheetForPreview}

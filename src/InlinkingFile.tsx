@@ -45,9 +45,10 @@ export class InlinkingFile {
     setTitle(meta: CachedMetadata | null) {
         const titleByFrontmatterAttribute = meta?.frontmatter && FRONTMATTER_KEY in meta.frontmatter ? meta.frontmatter[FRONTMATTER_KEY] : null
         const titleByFirstHeader = meta?.headings?.[0]
-        this.title = titleByFrontmatterAttribute || titleByFirstHeader?.heading || ''
+        const hasCustomTitle = typeof titleByFrontmatterAttribute === 'string' && titleByFrontmatterAttribute.trim().length > 0
+        this.title = hasCustomTitle ? titleByFrontmatterAttribute : titleByFirstHeader?.heading || ''
         // Explicitly set to undefined if no position data available
-        this.titleLineNum = titleByFirstHeader?.position?.start?.line ?? undefined;
+        this.titleLineNum = hasCustomTitle ? undefined : titleByFirstHeader?.position?.start?.line ?? undefined;
     }
 
 }

@@ -1,5 +1,28 @@
 import { ModeType, StructuredText } from "./StructuredText";
 
+test('ignores stale link positions without dropping valid mentions', () => {
+  const struct = new StructuredText('- [[Target]]\n- Unrelated');
+  expect(struct.stringifyBranchesOfNodesWithLinks([0, 20, -1, 0.5, NaN]).trim()).toBe('* [[Target]]');
+  expect(struct.stringifyBranchesOfNodesWithLinks([20])).toBe('');
+});
+
+test('keeps nested task markers and statuses in mention excerpts', () => {
+  const struct = new StructuredText('- Parent\n  - [ ] [[Target]] hi\n    - [x] Done\n    - [/] In progress\n- Unrelated');
+  expect(struct.stringifyBranchesOfNodesWithLinks([1]).trim()).toBe(
+    '* Parent\n  * [ ] [[Target]] hi\n    * [x] Done\n    * [/] In progress',
+  );
+});
+
+test.each(['-', '*', '+'])('keeps parent context for %s task lists', marker => {
+  const struct = new StructuredText(`${marker} Parent\n  ${marker} [ ] [[Target]]\n${marker} Unrelated`);
+  expect(struct.stringifyBranchesOfNodesWithLinks([1]).trim()).toBe('* Parent\n  * [ ] [[Target]]');
+});
+
+test.each(['0.', '1)', '001.'])('keeps task content and parent context for %s ordered lists', marker => {
+  const struct = new StructuredText(`${marker} Parent\n     - [ ] [[Target]]\n9. Unrelated`);
+  expect(struct.stringifyBranchesOfNodesWithLinks([1]).trim()).toBe(`${parseInt(marker)}. Parent\n   * [ ] [[Target]]`);
+});
+
 // Helper function to check if a value is empty (undefined or empty array)
 const isEmpty = (val: unknown): boolean => {
   if (val === undefined) {
